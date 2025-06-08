@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  colors: {
+    yui-green: #A1FE9F;
+    yui-pink: #ff69b4;
+    yui-pink-light: #ffe4ef;
+    yui-pink-border: #ff69b4;
+  };
+  fontFamily: {
+    yui: ["'MS UI Gothic'", "Arial", "sans-serif"];
+  };
+}
