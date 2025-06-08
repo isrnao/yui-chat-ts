@@ -54,8 +54,17 @@ export default function YuiChat() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(30);
 
-  // 参加者管理
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  // 参加者リストをチャットログの直近5分以内の発言者に限定
+  const participants = useMemo(() => {
+    const now = Date.now();
+    const map = new Map<string, Participant>();
+    for (const c of chatLog) {
+      if (c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000) {
+        map.set(c.name, { id: c.name, name: c.name, color: c.color });
+      }
+    }
+    return Array.from(map.values());
+  }, [chatLog]);
   // 発言ランキング
   const [ranking, setRanking] = useState<Map<string, number>>(new Map());
 
@@ -81,15 +90,9 @@ export default function YuiChat() {
           }
         });
       } else if (data.type === "join") {
-        setParticipants((prev) => {
-          // すでにいる場合は色だけ更新
-          const others = prev.filter((p) => p.id !== data.user.id);
-          return [...others, data.user];
-        });
+        // setParticipantsは不要
       } else if (data.type === "leave") {
-        setParticipants((prev) =>
-          prev.filter((p) => p.id !== data.user.id)
-        );
+        // setParticipantsは不要
       } else if (data.type === "req-presence") {
         // 自分が入室中なら返答
         if (entered) {
@@ -114,6 +117,8 @@ export default function YuiChat() {
     (e: React.FormEvent) => {
       e.preventDefault();
       if (!name.trim()) return;
+      // 参加者リストに自分を追加
+      // setParticipants([{ id: myId, name, color }]);
       // 参加メッセージ（管理人による「入室」案内）
       const joinMsg: Chat = {
         id: "sys-" + Math.random().toString(36).slice(2),
@@ -176,11 +181,6 @@ export default function YuiChat() {
       }
     }
   }, [entered, windowRows]);
-
-  // 参加者を入室時にリセット
-  useEffect(() => {
-    if (!entered) setParticipants([]);
-  }, [entered]);
 
   // メッセージ送信（コマンド対応）
   const handleSend = useCallback(
