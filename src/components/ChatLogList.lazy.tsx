@@ -1,41 +1,17 @@
-import { useDeferredValue } from "react";
-import type { Chat } from "./types/index";
+import { formatTime } from "../utils/format";
+import type { Chat, Participant } from "../types";
 
-type Participant = { id: string; name: string; color: string };
-
-type ChatLogListProps = {
+type Props = {
   chatLog: Chat[];
   windowRows: number;
   participants: Participant[];
 };
 
-const formatTime = (time: number) => {
-  const d = new Date(time);
-  return `${d.getHours().toString().padStart(2, "0")}:${d
-    .getMinutes()
-    .toString()
-    .padStart(2, "0")}:${d.getSeconds().toString().padStart(2, "0")}`;
-};
-
-export default function ChatLogList({
-  chatLog,
-  windowRows,
-  participants,
-}: ChatLogListProps) {
-  const deferredLog = useDeferredValue(chatLog);
-  const chats = [...deferredLog]
-    .sort((a, b) => b.time - a.time)
-    .slice(0, windowRows);
+export default function ChatLogList({ chatLog, windowRows, participants }: Props) {
+  const chats = [...chatLog].sort((a, b) => b.time - a.time).slice(0, windowRows);
 
   return (
-    <div
-      className="
-      overflow-y-auto
-      rounded-none
-      mt-2
-      [font-family:var(--font-yui)]
-    "
-    >
+    <div className="overflow-y-auto rounded-none mt-2 [font-family:var(--font-yui)]">
       <div className="text-xs mb-2 flex flex-wrap gap-2 items-center">
         <span className="text-xs text-gray-500 mr-2">
           [{formatTime(Date.now()).slice(0, 5)}]

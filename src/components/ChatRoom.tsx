@@ -1,5 +1,5 @@
 import { useId, useRef, useEffect, useActionState, startTransition } from "react";
-import type { Chat } from "./types";
+import type { Chat } from "../types";
 
 export type ChatRoomProps = {
   message: string;

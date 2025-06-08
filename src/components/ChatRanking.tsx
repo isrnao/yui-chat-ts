@@ -1,28 +1,13 @@
-import type { Chat } from "./types";
+import { useChatRanking } from "../hooks/useChatRanking";
+import { formatCountTime } from "../utils/format";
+import type { Chat } from "../types";
 
 type Props = {
   chatLog: Chat[];
 };
 
-function formatCountTime(ts: number): string {
-  const d = new Date(ts);
-  const w = ["日", "月", "火", "水", "木", "金", "土"];
-  return `${d.getMonth() + 1}/${d.getDate()}(${w[d.getDay()]})${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
-}
-
 export default function ChatRanking({ chatLog }: Props) {
-  const ranking: { name: string; count: number; lastTime: number }[] = [];
-  const map = new Map<string, { count: number; lastTime: number }>();
-  chatLog.forEach((c) => {
-    if (!c.system && c.name) {
-      const rec = map.get(c.name) ?? { count: 0, lastTime: 0 };
-      rec.count += 1;
-      rec.lastTime = Math.max(rec.lastTime, c.time);
-      map.set(c.name, rec);
-    }
-  });
-  map.forEach((v, k) => ranking.push({ name: k, ...v }));
-  ranking.sort((a, b) => b.count - a.count || b.lastTime - a.lastTime);
+  const ranking = useChatRanking(chatLog);
 
   return (
     <div className="mt-4 w-full mx-auto text-[#444]">
