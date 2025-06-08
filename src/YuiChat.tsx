@@ -5,6 +5,7 @@ import {
   useState,
   useTransition,
   useDeferredValue,
+  useEffect,
 } from "react";
 import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
 import type { Chat, Participant, BroadcastMsg } from "./types";
@@ -204,6 +205,13 @@ export default function YuiChat() {
 
   // ログ再読込
   const handleReload = () => setChatLog(loadChatLog());
+
+  // --- EntryForm表示時はlocalStorageから最新のチャットログを読み込む ---
+  useEffect(() => {
+    if (!entered) {
+      setChatLog(loadChatLog());
+    }
+  }, [entered]);
 
   return (
     <Suspense
