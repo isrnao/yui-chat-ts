@@ -4,12 +4,15 @@ import {
   useTransition,
   useDeferredValue,
   useEffect,
+  lazy,
+  Suspense
 } from "react";
 import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
 import type { Chat, Participant, BroadcastMsg } from "./types";
 import EntryForm from "./EntryForm";
 import ChatRoom from "./ChatRoom";
-import { lazy, Suspense } from "react";
+import ChatRanking from "./ChatRanking";
+import RetroSplitter from "./RetroSplitter";
 
 const ChatLogList = lazy(() => import("./ChatLogList"));
 
@@ -43,6 +46,7 @@ export default function YuiChat() {
   const [windowRows, setWindowRows] = useState(30);
   const [ranking, setRanking] = useState<Map<string, number>>(new Map());
   const [isPending, startTransition] = useTransition();
+  const [showRanking, setShowRanking] = useState(false); // ★ランキング表示制御
 
   // 直近5分参加者
   const now = Date.now();
@@ -140,6 +144,7 @@ export default function YuiChat() {
     setChatLog([]);
     setRanking(new Map());
     localStorage.removeItem(STORAGE_KEY);
+    setShowRanking(false);
   };
 
   // メッセージ送信
@@ -157,6 +162,7 @@ export default function YuiChat() {
         });
       });
       setMessage("");
+      setShowRanking(false);
       return;
     }
     if (message.trim() === "clear") {
@@ -166,10 +172,11 @@ export default function YuiChat() {
       });
       channelRef.current?.postMessage({ type: "clear" });
       setMessage("");
+      setShowRanking(false);
       return;
     }
 
-    // 通常
+    // 通常送信
     startTransition(() => {
       const chat: Chat = {
         id: Math.random().toString(36).slice(2),
@@ -189,6 +196,7 @@ export default function YuiChat() {
         return next;
       });
       if (autoClear) setMessage("");
+      setShowRanking(false);
     });
   };
 
@@ -201,50 +209,71 @@ export default function YuiChat() {
   }, [entered]);
 
   return (
-    <div
-      className="flex flex-col"
-    >
-      <header className="mb-1 text-2xl font-bold text-yui-pink"
-        style={{ fontFamily: "var(--tw-font-yui, sans-serif)" }}>
-        ゆいちゃっと
-      </header>
-      {entered ? (
-        <ChatRoom
-          name={name}
-          color={color}
-          email={email}
-          message={message}
-          setMessage={setMessage}
-          chatLog={chatLog}
-          setChatLog={setChatLog}
-          windowRows={windowRows}
-          onExit={handleExit}
-          onSend={handleSend}
-          isPending={isPending}
-          participants={participants}
-          ranking={ranking}
-          onReload={handleReload}
-        />
-      ) : (
-        <EntryForm
-          name={name}
-          setName={setName}
-          color={color}
-          setColor={setColor}
-          email={email}
-          setEmail={setEmail}
-          windowRows={windowRows}
-          setWindowRows={setWindowRows}
-          onEnter={handleEnter}
-          chatLog={chatLog}
-          autoClear={autoClear}
-          setAutoClear={setAutoClear}
-        />
-      )}
-      <hr className="ie-hr" />
-      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList chatLog={chatLog} windowRows={windowRows} participants={participants} />
-      </Suspense>
+    <div className="flex flex-col bg-[var(--yui-green)]">
+      <RetroSplitter
+        initialTop={100}
+        minTop={100}
+        minBottom={100}
+        top={
+          entered ? (
+            <ChatRoom
+              name={name}
+              color={color}
+              email={email}
+              message={message}
+              setMessage={setMessage}
+              chatLog={chatLog}
+              setChatLog={setChatLog}
+              windowRows={windowRows}
+              setWindowRows={setWindowRows}
+              onExit={handleExit}
+              onSend={handleSend}
+              isPending={isPending}
+              participants={participants}
+              ranking={ranking}
+              onReload={handleReload}
+              onShowRanking={() => setShowRanking(true)}
+            />
+          ) : (
+            <EntryForm
+              name={name}
+              setName={setName}
+              color={color}
+              setColor={setColor}
+              email={email}
+              setEmail={setEmail}
+              windowRows={windowRows}
+              setWindowRows={setWindowRows}
+              onEnter={handleEnter}
+              chatLog={chatLog}
+              autoClear={autoClear}
+              setAutoClear={setAutoClear}
+            />
+          )
+        }
+        bottom={
+          !showRanking ? (
+            <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
+              <ChatLogList chatLog={chatLog} windowRows={windowRows} participants={participants} />
+            </Suspense>
+          ) : (
+            <div>
+              <a
+                href="#"
+                onClick={e => {
+                  e.preventDefault();
+                  setShowRanking(false);
+                }}
+                className="text-xs text-blue-700 underline cursor-pointer mb-2 block"
+                style={{ marginLeft: 2 }}
+              >
+                [チャットへ戻る]
+              </a>
+              <ChatRanking chatLog={chatLog} />
+            </div>
+          )
+        }
+      />
     </div>
   );
 }

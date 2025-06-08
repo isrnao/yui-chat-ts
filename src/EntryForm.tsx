@@ -36,18 +36,24 @@ export default function EntryForm({
   };
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col">
+      <header className="mb-1 text-2xl font-bold text-yui-pink"
+        style={{ fontFamily: "var(--tw-font-yui, sans-serif)" }}>
+        ゆいちゃっと
+      </header>
       <form
         onSubmit={onEnter}
-        className="ie-form"
-        style={{ minWidth: 340 }}
       >
         <div className="mb-2">
-          <label className="font-bold" htmlFor={nameId}>
-            おなまえ:
-          </label>
+          <label className="font-bold" htmlFor={nameId}>おなまえ:</label>
           <input
-            className="ml-2 ie-input"
+            className="
+              ml-2 border-2 border-[var(--ie-gray)] [border-style:inset]
+              bg-white px-2 py-0.5 text-sm rounded-none
+              shadow-none transition-colors outline-none
+              [font-family:var(--font-yui)]
+              focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]
+            "
             type="text"
             id={nameId}
             value={name}
@@ -60,12 +66,18 @@ export default function EntryForm({
         <div className="mb-2">
           <label htmlFor={colorId}>名前の色:</label>
           <input
-            className="ml-2 ie-input"
+            className="
+              ml-2 border-2 border-[var(--ie-gray)] [border-style:inset]
+              bg-white px-1 py-0.5 text-base rounded-none
+              shadow-none transition-colors outline-none
+              align-middle w-10 h-7
+              [font-family:var(--font-yui)]
+              focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]
+            "
             type="color"
             id={colorId}
             value={color}
             onChange={e => setColor(e.target.value)}
-            style={{ width: 40, height: 28, verticalAlign: "middle" }}
           />
           <span className="ml-2" style={{ color }}>■</span>
           <a
@@ -79,9 +91,15 @@ export default function EntryForm({
           </a>
         </div>
         <div className="mb-2">
-          <label htmlFor={emailId}>メールアドレス:</label>
+          <label htmlFor={emailId}>E-Mail:</label>
           <input
-            className="ml-2 ie-input"
+            className="
+              ml-2 border-2 border-[var(--ie-gray)] [border-style:inset]
+              bg-white px-2 py-0.5 text-sm rounded-none
+              shadow-none transition-colors outline-none
+              [font-family:var(--font-yui)]
+              focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]
+            "
             type="email"
             id={emailId}
             value={email}
@@ -92,9 +110,15 @@ export default function EntryForm({
           />
         </div>
         <div className="mb-2">
-          <label htmlFor={rowsId}>ログ行数：</label>
+          <label htmlFor={rowsId}>ログ行数:</label>
           <select
-            className="ml-2 ie-select"
+            className="
+              ml-2 border-2 border-[var(--ie-gray)] [border-style:inset]
+              bg-white px-2 py-0.5 text-sm rounded-none
+              shadow-none outline-none
+              [font-family:var(--font-yui)]
+              focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]
+            "
             id={rowsId}
             value={windowRows}
             onChange={e => setWindowRows(Number(e.target.value))}
@@ -107,13 +131,31 @@ export default function EntryForm({
         <div className="flex mt-4 gap-2">
           <button
             type="submit"
-            className="ie-btn"
+            className="
+              border-2 border-[var(--ie-gray)] [border-style:outset]
+              bg-gradient-to-b from-[var(--ie-bg)] to-[#e4e4e4]
+              text-[#222] px-5 py-0.5 text-sm cursor-pointer rounded-none shadow-none mr-2 transition
+              [font-family:var(--font-yui)]
+              active:[border-style:inset] active:border-[var(--ie-gray)]
+              active:bg-gradient-to-b active:from-[#e1e1e1] active:to-[var(--ie-bg)]
+              disabled:text-[#a9a9a9] disabled:border-[#e2e2e2]
+              disabled:bg-[#f6f6f6] disabled:cursor-not-allowed
+            "
           >
             チャットに参加する
           </button>
           <button
             type="reset"
-            className="ie-btn"
+            className="
+              border-2 border-[var(--ie-gray)] [border-style:outset]
+              bg-gradient-to-b from-[var(--ie-bg)] to-[#e4e4e4]
+              text-[#222] px-5 py-0.5 text-sm cursor-pointer rounded-none shadow-none mr-2 transition
+              [font-family:var(--font-yui)]
+              active:[border-style:inset] active:border-[var(--ie-gray)]
+              active:bg-gradient-to-b active:from-[#e1e1e1] active:to-[var(--ie-bg)]
+              disabled:text-[#a9a9a9] disabled:border-[#e2e2e2]
+              disabled:bg-[#f6f6f6] disabled:cursor-not-allowed
+            "
             onClick={handleReset}
           >
             リセット
