@@ -105,16 +105,19 @@ export function useChatHandlers({
 
   // 退室
   const handleExit = useCallback(() => {
+    const leaveMsg: Chat = {
+      id: "sys-" + Math.random().toString(36).slice(2),
+      name: "管理人",
+      color: "#0000ff",
+      message: `${name}さん、またきておくれやすぅ。`,
+      time: Date.now(),
+      system: true,
+    };
+    setChatLog((prev) => [leaveMsg, ...prev]); // ← ローカルにも追加
+    save([leaveMsg, ...load()]); // 永続化
     channelRef.current?.postMessage({
       type: "chat",
-      chat: {
-        id: "sys-" + Math.random().toString(36).slice(2),
-        name: "管理人",
-        color: "#0000ff",
-        message: `${name}さん、またきておくれやすぅ。`,
-        time: Date.now(),
-        system: true,
-      },
+      chat: leaveMsg,
     });
     channelRef.current?.postMessage({
       type: "leave",
@@ -133,6 +136,9 @@ export function useChatHandlers({
     setShowRanking,
     setName,
     setMessage,
+    setChatLog,
+    save,
+    load,
   ]);
 
   // メッセージ送信
