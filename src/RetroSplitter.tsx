@@ -1,81 +1,136 @@
-import { useRef, useState, useEffect, isValidElement } from "react";
-import type { ReactNode } from "react";
+import {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  isValidElement,
+} from "react";
+import type { ReactNode, KeyboardEvent } from "react";
 
 export default function RetroSplitter({
-    top,
-    bottom,
-    minTop = 10,
-    minBottom = 10,
+  top,
+  bottom,
+  minTop = 10,
+  minBottom = 10,
 }: {
-    top: ReactNode;
-    bottom: ReactNode;
-    minTop?: number;
-    minBottom?: number;
+  top: ReactNode;
+  bottom: ReactNode;
+  minTop?: number;
+  minBottom?: number;
 }) {
-    const containerRef = useRef<HTMLDivElement>(null);
-    // 3:7の割合で初期化
-    const [topHeight, setTopHeight] = useState(30); // 30%（下側は70%）
-    const isDragging = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [topHeight, setTopHeight] = useState(30); // percent
+  const [dragging, setDragging] = useState(false);
 
-    const onMouseMove = (e: MouseEvent) => {
-        if (!isDragging.current || !containerRef.current) return;
-        const rect = containerRef.current.getBoundingClientRect();
-        // 割合で高さを計算
-        let percent = ((e.clientY - rect.top) / rect.height) * 100;
-        if (percent < (minTop / rect.height) * 100) percent = (minTop / rect.height) * 100;
-        if (percent > 100 - (minBottom / rect.height) * 100) percent = 100 - (minBottom / rect.height) * 100;
-        setTopHeight(percent);
+  // パーセント計算ロジック分離
+  const calcPercent = useCallback(
+    (clientY: number) => {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return topHeight;
+      let percent = ((clientY - rect.top) / rect.height) * 100;
+      percent = Math.max((minTop / rect.height) * 100, percent);
+      percent = Math.min(100 - (minBottom / rect.height) * 100, percent);
+      return percent;
+    },
+    [minTop, minBottom, topHeight],
+  );
+
+  // ドラッグ中マウスmove
+  const onMouseMove = useCallback(
+    (e: MouseEvent) => {
+      setTopHeight(calcPercent(e.clientY));
+    },
+    [calcPercent],
+  );
+  // ドラッグ解除
+  const onMouseUp = useCallback(() => {
+    setDragging(false);
+    document.body.style.cursor = "";
+  }, []);
+
+  // イベントリスナーの追加/解除
+  useEffect(() => {
+    if (!dragging) return;
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    document.body.style.cursor = "row-resize";
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      document.body.style.cursor = "";
     };
-    const onMouseUp = () => {
-        isDragging.current = false;
-        document.body.style.cursor = "";
-    };
+  }, [dragging, onMouseMove, onMouseUp]);
 
-    // イベントリスナー登録/解除
-    useEffect(() => {
-        if (isDragging.current) {
-            window.addEventListener("mousemove", onMouseMove);
-            window.addEventListener("mouseup", onMouseUp);
-        }
-        return () => {
-            window.removeEventListener("mousemove", onMouseMove);
-            window.removeEventListener("mouseup", onMouseUp);
-        };
-        // eslint-disable-next-line
-    }, [isDragging.current]);
+  // top, bottomの切り替えで高さ初期化
+  useEffect(() => {
+    if (
+      top &&
+      bottom &&
+      isValidElement(top) &&
+      typeof top.type === "function"
+    ) {
+      setTopHeight(top.type.name === "ChatRoom" ? 18 : 26);
+    }
+  }, [top, bottom]);
 
-    // 入室状態の変化で上部エリアの高さを変更
-    useEffect(() => {
-        if (typeof window !== "undefined" && top && bottom) {
-            // 入室後(topがChatRoom)なら20%、それ以外は30%
-            if (
-                isValidElement(top) &&
-                typeof top.type === "function" &&
-                top.type.name === "ChatRoom"
-            ) {
-                setTopHeight(18);
-            } else {
-                setTopHeight(26);
-            }
-        }
-    }, [top, bottom]);
+  // キーボード操作でもドラッグできるように
+  const onBarKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "ArrowUp")
+      setTopHeight((h) =>
+        Math.min(
+          h + 2,
+          100 -
+            (minBottom /
+              (containerRef.current?.getBoundingClientRect().height ?? 1)) *
+              100,
+        ),
+      );
+    if (e.key === "ArrowDown")
+      setTopHeight((h) =>
+        Math.max(
+          h - 2,
+          (minTop /
+            (containerRef.current?.getBoundingClientRect().height ?? 1)) *
+            100,
+        ),
+      );
+  };
 
-    return (
-        <div
-            ref={containerRef}
-            className="flex flex-col bg-transparent select-none min-h-screen h-screen"
-            style={{ height: '100vh' }}
-        >
-            {/* 上側エリア */}
-            <div style={{ height: `${topHeight}%`, minHeight: minTop, overflow: "auto" }}>
-                {top}
-            </div>
-            {/* レトロ分割バー */}
-            <hr className="border-0 border-t-2 border-b border-t-[var(--ie-gray)] border-b-white h-0 my-2"/>
-            {/* 下側エリア */}
-            <div style={{ height: `${100 - topHeight}%`, minHeight: minBottom, overflow: "auto" }}>
-                {bottom}
-            </div>
-        </div>
-    );
+  return (
+    <div
+      ref={containerRef}
+      className="flex flex-col bg-transparent select-none min-h-screen h-screen"
+      style={{ height: "100vh" }}
+    >
+      {/* 上側エリア */}
+      <div
+        style={{ height: `${topHeight}%`, minHeight: minTop, overflow: "auto" }}
+      >
+        {top}
+      </div>
+      {/* 分割バー */}
+      <div
+        role="separator"
+        aria-label="上下の領域を分割するバー"
+        tabIndex={0}
+        onMouseDown={() => setDragging(true)}
+        onKeyDown={onBarKeyDown}
+        style={{
+          outline: "none",
+        }}
+      >
+        <hr className="border-0 border-t-4 border-b border-t-[var(--ie-gray)] border-b-white w-full" />
+      </div>
+      {/* 下側エリア */}
+      <div
+        style={{
+          height: `${100 - topHeight}%`,
+          minHeight: minBottom,
+          overflow: "auto",
+        }}
+      >
+        {bottom}
+      </div>
+    </div>
+  );
 }

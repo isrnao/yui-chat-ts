@@ -5,7 +5,8 @@ import {
   useDeferredValue,
   useEffect,
   lazy,
-  Suspense
+  Suspense,
+  useCallback,
 } from "react";
 import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
 import type { Chat, Participant, BroadcastMsg } from "./types";
@@ -20,6 +21,7 @@ const STORAGE_KEY = "yui_chat_dat";
 const BC_NAME = "yui_chat_room";
 const MAX_CHAT_LOG = 2000;
 
+// ---- ストレージ操作を関数化
 function loadChatLog(): Chat[] {
   try {
     const dat = localStorage.getItem(STORAGE_KEY);
@@ -31,90 +33,107 @@ function loadChatLog(): Chat[] {
 function saveChatLog(log: Chat[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
 }
+function clearChatLog() {
+  localStorage.removeItem(STORAGE_KEY);
+}
 
+// ---- 参加者計算を関数化
+function getRecentParticipants(chatLog: Chat[]): Participant[] {
+  const now = Date.now();
+  return Array.from(
+    chatLog
+      .filter(
+        (c) => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000,
+      )
+      .reduce((map, c) => {
+        map.set(c.name, { id: c.name, name: c.name, color: c.color });
+        return map;
+      }, new Map<string, Participant>())
+      .values(),
+  );
+}
+
+// ---- YuiChat本体
 export default function YuiChat() {
   const myId = useId();
 
-  // ローカル状態
+  // --- 状態（まとめて初期化しやすいよう構造化も可）
   const [entered, setEntered] = useState(false);
   const [name, setName] = useState("");
   const [color, setColor] = useState("#ff69b4");
-  const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [autoClear] = useState(true);
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(30);
-  const [, setRanking] = useState<Map<string, number>>(new Map());
-  const [isPending, startTransition] = useTransition();
-  const [showRanking, setShowRanking] = useState(false); // ★ランキング表示制御
+  const [showRanking, setShowRanking] = useState(false);
+  const [email, setEmail] = useState("");
 
-  // 直近5分参加者
-  const now = Date.now();
-  const participants = useDeferredValue(
-    Array.from(
-      chatLog
-        .filter(c => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000)
-        .reduce((map, c) => {
-          map.set(c.name, { id: c.name, name: c.name, color: c.color });
-          return map;
-        }, new Map<string, Participant>())
-        .values()
-    )
+  // --- 高速・緊急度低いUI用
+  const [, startTransition] = useTransition();
+
+  // ---- 参加者リスト(応答性UP: useDeferredValue)
+  const participants = useDeferredValue(getRecentParticipants(chatLog));
+
+  // ---- BroadcastChannelのrefを1つだけ持つ
+  const channelRef = useBroadcastChannel<BroadcastMsg>(
+    BC_NAME,
+    useCallback(
+      (data: BroadcastMsg) => {
+        switch (data.type) {
+          case "chat":
+            startTransition(() => {
+              setChatLog((prev) => {
+                const log = [data.chat, ...prev];
+                saveChatLog(log);
+                return log;
+              });
+            });
+            break;
+          case "req-presence":
+            if (entered) {
+              channelRef.current?.postMessage({
+                type: "join",
+                user: { id: myId, name, color },
+              });
+            }
+            break;
+          case "clear":
+            setChatLog([]);
+            saveChatLog([]);
+            break;
+        }
+      },
+      // channelRefはuseCallback外で宣言されているため依存配列に含めない
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [entered, myId, name, color],
+    ),
   );
 
-  // BroadcastChannel
-  const channelRef = useBroadcastChannel<BroadcastMsg>(BC_NAME, (data) => {
-    switch (data.type) {
-      case "chat":
-        startTransition(() => {
-          setChatLog(prev => {
-            const log = [data.chat, ...prev];
-            saveChatLog(log);
-            return log;
-          });
-          if (!data.chat.system && data.chat.name) {
-            setRanking(prev => {
-              const next = new Map(prev);
-              next.set(data.chat.name, (next.get(data.chat.name) ?? 0) + 1);
-              return next;
-            });
-          }
-        });
-        break;
-      case "req-presence":
-        if (entered) {
-          channelRef.current?.postMessage({
-            type: "join",
-            user: { id: myId, name, color },
-          });
-        }
-        break;
-      case "clear":
-        setChatLog([]);
-        saveChatLog([]);
-        break;
-    }
-  });
-
-  // 入室
-  const handleEnter = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  // ---- 入室ロジック
+  const handleEnter = async ({
+    name: entryName,
+    color: entryColor,
+  }: {
+    name: string;
+    color: string;
+    email: string;
+  }) => {
+    if (!entryName.trim()) throw new Error("おなまえ必須");
     setEntered(true);
+
     const joinMsg: Chat = {
       id: "sys-" + Math.random().toString(36).slice(2),
       name: "管理人",
       color: "#0000ff",
-      message: `${name}さん、おいでやすぅ。`,
+      message: `${entryName}さん、おいでやすぅ。`,
       time: Date.now(),
       system: true,
     };
-    setChatLog([joinMsg, ...loadChatLog()]);
 
+    setChatLog([joinMsg, ...loadChatLog()]);
     setTimeout(() => {
       channelRef.current?.postMessage({
         type: "join",
-        user: { id: myId, name, color },
+        user: { id: myId, name: entryName, color: entryColor },
       });
     }, 10);
     setTimeout(() => {
@@ -123,8 +142,8 @@ export default function YuiChat() {
     channelRef.current?.postMessage({ type: "chat", chat: joinMsg });
   };
 
-  // 退室
-  const handleExit = () => {
+  // ---- 退室ロジック
+  const handleExit = useCallback(() => {
     channelRef.current?.postMessage({
       type: "chat",
       chat: {
@@ -142,74 +161,73 @@ export default function YuiChat() {
     });
     setEntered(false);
     setChatLog([]);
-    setRanking(new Map());
-    localStorage.removeItem(STORAGE_KEY);
+    clearChatLog();
     setShowRanking(false);
-  };
+    setName("");
+    setMessage("");
+    setColor("#ff69b4");
+  }, [myId, name, color, channelRef]);
 
-  // メッセージ送信
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
+  // ---- メッセージ送信ロジック
+  const handleSend = useCallback(
+    async (msg: string) => {
+      if (!msg.trim()) return;
 
-    // コマンド処理
-    if (message.trim() === "cut") {
-      startTransition(() => {
-        setChatLog(prev => {
-          const log = prev.filter(c => !c.message.match(/img/i));
-          saveChatLog(log);
-          return log;
+      // コマンド
+      if (msg.trim() === "cut") {
+        startTransition(() => {
+          setChatLog((prev) => {
+            const log = prev.filter((c) => !c.message.match(/img/i));
+            saveChatLog(log);
+            return log;
+          });
         });
-      });
-      setMessage("");
-      setShowRanking(false);
-      return;
-    }
-    if (message.trim() === "clear") {
+        setMessage("");
+        setShowRanking(false);
+        return;
+      }
+      if (msg.trim() === "clear") {
+        startTransition(() => {
+          setChatLog([]);
+          saveChatLog([]);
+        });
+        channelRef.current?.postMessage({ type: "clear" });
+        setMessage("");
+        setShowRanking(false);
+        return;
+      }
+
+      // 通常メッセージ
       startTransition(() => {
-        setChatLog([]);
-        saveChatLog([]);
+        const chat: Chat = {
+          id: Math.random().toString(36).slice(2),
+          name,
+          color,
+          message: msg,
+          time: Date.now(),
+        };
+        const log = [chat, ...chatLog];
+        setChatLog(log);
+        saveChatLog(log);
+        channelRef.current?.postMessage({ type: "chat", chat });
+        setMessage("");
+        setShowRanking(false);
       });
-      channelRef.current?.postMessage({ type: "clear" });
-      setMessage("");
-      setShowRanking(false);
-      return;
-    }
+    },
+    [name, color, chatLog, channelRef],
+  );
 
-    // 通常送信
-    startTransition(() => {
-      const chat: Chat = {
-        id: Math.random().toString(36).slice(2),
-        name,
-        color,
-        message,
-        time: Date.now(),
-        email: email.trim() || undefined,
-      };
-      const log = [chat, ...chatLog];
-      setChatLog(log);
-      saveChatLog(log);
-      channelRef.current?.postMessage({ type: "chat", chat });
-      setRanking(prev => {
-        const next = new Map(prev);
-        next.set(name, (next.get(name) ?? 0) + 1);
-        return next;
-      });
-      if (autoClear) setMessage("");
-      setShowRanking(false);
-    });
-  };
+  // ---- チャット履歴再読み込み
+  const handleReload = useCallback(() => setChatLog(loadChatLog()), []);
 
-  // ログ再読込
-  const handleReload = () => setChatLog(loadChatLog());
-
-  // EntryForm表示時はlocalStorageから最新チャットログ
+  // ---- 入室前だけストレージから再読込
   useEffect(() => {
     if (!entered) setChatLog(loadChatLog());
   }, [entered]);
 
+  // ---- UI
   return (
-    <div className="flex flex-col bg-[var(--yui-green)]">
+    <div className="flex flex-col min-h-screen bg-[var(--yui-green)]">
       <RetroSplitter
         minTop={100}
         minBottom={100}
@@ -223,7 +241,6 @@ export default function YuiChat() {
               setWindowRows={setWindowRows}
               onExit={handleExit}
               onSend={handleSend}
-              isPending={isPending}
               onReload={handleReload}
               onShowRanking={() => setShowRanking(true)}
             />
@@ -243,14 +260,24 @@ export default function YuiChat() {
         }
         bottom={
           !showRanking ? (
-            <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-              <ChatLogList chatLog={chatLog} windowRows={windowRows} participants={participants} />
+            <Suspense
+              fallback={
+                <div className="text-gray-400 mt-8 animate-pulse">
+                  チャットログを読み込み中...
+                </div>
+              }
+            >
+              <ChatLogList
+                chatLog={chatLog}
+                windowRows={windowRows}
+                participants={participants}
+              />
             </Suspense>
           ) : (
             <div>
               <a
                 href="#"
-                onClick={e => {
+                onClick={(e) => {
                   e.preventDefault();
                   setShowRanking(false);
                 }}
