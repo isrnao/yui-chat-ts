@@ -1,7 +1,7 @@
 import { useId, useRef, useEffect, useCallback } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import ChatLogList from "./ChatLogList";
-import type { Chat, Participant } from "./YuiChat";
+import type { Chat, Participant } from "./types";
 
 export type ChatRoomProps = {
   name: string;
