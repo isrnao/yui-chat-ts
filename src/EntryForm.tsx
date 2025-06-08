@@ -17,7 +17,6 @@ type EntryFormProps = {
 };
 
 const DEFAULT_COLOR = "#ff69b4";
-const DEFAULT_ROWS = 30;
 
 export default function EntryForm({
   name,
@@ -48,11 +47,6 @@ export default function EntryForm({
       // 登録（親に伝達 or サーバー送信）
       try {
         await onEnter({ name, color, email });
-        // 入力値を初期化
-        setName("");
-        setColor(DEFAULT_COLOR);
-        setEmail("");
-        setWindowRows(DEFAULT_ROWS);
         return ""; // 成功: エラーなし
       } catch (err) {
         return (err as Error)?.message || "エラーが発生しました";
