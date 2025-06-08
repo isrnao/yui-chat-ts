@@ -20,6 +20,7 @@ const ChatLogList = lazy(() => import("./ChatLogList"));
 const STORAGE_KEY = "yui_chat_dat";
 const BC_NAME = "yui_chat_room";
 const MAX_CHAT_LOG = 2000;
+const DEFAULT_ROWS = 30;
 
 // ---- ストレージ操作を関数化
 function loadChatLog(): Chat[] {
@@ -63,7 +64,7 @@ export default function YuiChat() {
   const [color, setColor] = useState("#ff69b4");
   const [message, setMessage] = useState("");
   const [chatLog, setChatLog] = useState<Chat[]>([]);
-  const [windowRows, setWindowRows] = useState(30);
+  const [windowRows, setWindowRows] = useState(DEFAULT_ROWS);
   const [showRanking, setShowRanking] = useState(false);
   const [email, setEmail] = useState("");
 
@@ -205,6 +206,7 @@ export default function YuiChat() {
           color,
           message: msg,
           time: Date.now(),
+          email,
         };
         const log = [chat, ...chatLog];
         setChatLog(log);
@@ -214,7 +216,7 @@ export default function YuiChat() {
         setShowRanking(false);
       });
     },
-    [name, color, chatLog, channelRef],
+    [name, color, chatLog, channelRef, windowRows],
   );
 
   // ---- チャット履歴再読み込み

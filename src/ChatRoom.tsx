@@ -1,4 +1,4 @@
-import { useId, useRef, useEffect, useActionState } from "react";
+import { useId, useRef, useEffect, useActionState, startTransition } from "react";
 import type { Chat } from "./types";
 
 export type ChatRoomProps = {
@@ -74,7 +74,13 @@ export default function ChatRoom({
         </a>
       </div>
       <form
-        action={dispatch}
+        onSubmit={(e) => {
+          e.preventDefault();
+          const formData = new FormData(e.currentTarget);
+          startTransition(() => {
+            dispatch(formData);
+          });
+        }}
         className="flex gap-2 mt-2 mb-3 w-full max-w-2xl px-4 [font-family:var(--font-yui)] flex-wrap"
         autoComplete="off"
       >
