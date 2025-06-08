@@ -14,7 +14,6 @@ export function useChatHandlers({
   setName,
   setMessage,
   save,
-  clear,
   load,
 }: {
   name: string;
@@ -28,7 +27,6 @@ export function useChatHandlers({
   setName: (s: string) => void;
   setMessage: (s: string) => void;
   save: (log: Chat[]) => void;
-  clear: () => void;
   load: () => Chat[];
 }) {
   const [, startTransition] = useTransition();
@@ -70,11 +68,9 @@ export function useChatHandlers({
     async ({
       name: entryName,
       color: entryColor,
-      email: entryEmail,
     }: {
       name: string;
       color: string;
-      email: string;
     }) => {
       if (!entryName.trim()) throw new Error("おなまえ必須");
       setEntered(true);

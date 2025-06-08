@@ -1,4 +1,4 @@
-import type { Chat } from "@/types";
+import type { Chat } from "../types";
 const STORAGE_KEY = "yui_chat_dat";
 const MAX_CHAT_LOG = 2000;
 

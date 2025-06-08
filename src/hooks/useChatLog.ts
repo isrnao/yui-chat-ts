@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useTransition } from "react";
 import { loadChatLog, saveChatLog, clearChatLog } from "../utils/storage";
-import type { Chat } from "@/types";
+import type { Chat } from "../types";
 
 export function useChatLog() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);

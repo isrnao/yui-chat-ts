@@ -10,7 +10,7 @@ import ChatRanking from "./components/ChatRanking";
 const ChatLogList = lazy(() => import("./components/ChatLogList.lazy"));
 
 export default function App() {
-  const { chatLog, clear, setChatLog } = useChatLog();
+  const { chatLog, setChatLog } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
   const [name, setName] = useState("");
@@ -39,7 +39,6 @@ export default function App() {
     setName,
     setMessage,
     save: saveChatLog,
-    clear,
     load: () => chatLog,
   });
 
