@@ -41,7 +41,7 @@ export default function ChatRoom({
   );
 
   return (
-    <div className="flex flex-col py-4">
+    <div className="flex flex-col">
       <div>
         <a href="#" onClick={e => { e.preventDefault(); onExit(); }}>[退室]</a>
         <a href="#" onClick={e => { e.preventDefault(); onShowRanking(); }}

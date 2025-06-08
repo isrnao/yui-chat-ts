@@ -53,9 +53,9 @@ export default function RetroSplitter({
                 typeof top.type === "function" &&
                 top.type.name === "ChatRoom"
             ) {
-                setTopHeight(20);
+                setTopHeight(18);
             } else {
-                setTopHeight(30);
+                setTopHeight(26);
             }
         }
     }, [top, bottom]);
