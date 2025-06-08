@@ -1,10 +1,12 @@
 import { useDeferredValue } from "react";
 import type { Chat } from "./types";
 
+type Participant = { id: string; name: string; color: string };
+
 type ChatLogListProps = {
   chatLog: Chat[];
   windowRows: number;
-  showHeader?: boolean;
+  participants: Participant[];
 };
 
 const formatTime = (time: number) => {
@@ -18,17 +20,35 @@ const formatTime = (time: number) => {
 export default function ChatLogList({
   chatLog,
   windowRows,
-  showHeader = true,
+  participants,
 }: ChatLogListProps) {
   // 最新 windowRows 件のみ表示（useDeferredValueで重い場合も追従性UP）
   const deferredLog = useDeferredValue(chatLog);
   const chats = [...deferredLog].sort((a, b) => b.time - a.time).slice(0, windowRows);
 
   return (
-    <div className="bg-white mt-6 p-2 rounded-xl border border-yui-pink-light overflow-y-auto w-full max-w-2xl px-4">
-      {showHeader && (
-        <div className="font-bold text-yui-pink mb-2">【最近のチャットログ】</div>
-      )}
+    <div className="border-yui-pink-light overflow-y-auto w-full max-w-2xl px-4">
+      <div className="text-xs mb-2 flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-gray-500 mr-2">[{formatTime(Date.now()).slice(0,5)}]</span>
+        <span className="text-xs">参加者:</span>
+        {participants.length === 0
+          ? <b className="text-xs">（なし）</b>
+          : participants.map((p) => (
+            <span
+              key={p.id}
+              className="font-bold text-xs"
+              style={{
+                color: p.color,
+                marginLeft: 6,
+                marginRight: 3,
+                textShadow: "0 1px 1px #fff"
+              }}
+            >
+              {p.name}
+            </span>
+          ))}
+      </div>
+      <hr className="border-yui-pink-light mt-1 mb-1" />
       {chats.length === 0 && <div className="text-gray-400">まだ発言はありません。</div>}
       {chats.map((c) => (
         <div key={c.id} className="mb-1">

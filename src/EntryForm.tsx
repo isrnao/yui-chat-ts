@@ -1,7 +1,4 @@
-import { useId, lazy, Suspense } from "react";
-import type { Chat } from "./types";
-
-const ChatLogList = lazy(() => import("./ChatLogList"));
+import { useId } from "react";
 
 type EntryFormProps = {
   name: string;
@@ -13,9 +10,6 @@ type EntryFormProps = {
   windowRows: number;
   setWindowRows: (v: number) => void;
   onEnter: (e: React.FormEvent) => void;
-  chatLog: Chat[];
-  autoClear: boolean;
-  setAutoClear: (v: boolean) => void;
 };
 
 export default function EntryForm({
@@ -28,11 +22,7 @@ export default function EntryForm({
   windowRows,
   setWindowRows,
   onEnter,
-  chatLog,
-  autoClear,
-  setAutoClear,
 }: EntryFormProps) {
-  // useIdでSSR/CSR整合性
   const nameId = useId();
   const colorId = useId();
   const emailId = useId();
@@ -43,24 +33,21 @@ export default function EntryForm({
     setColor("#ff69b4");
     setWindowRows(30);
     setEmail("");
-    setAutoClear(true);
   };
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center"
-    >
+    <div className="flex flex-col items-center">
       <form
         onSubmit={onEnter}
-        className="bg-white rounded-2xl shadow-2xl p-8 border-4 border-yui-pink"
-        style={{ minWidth: 340, fontFamily: "var(--tw-font-yui, sans-serif)" }}
+        className="ie-form"
+        style={{ minWidth: 340 }}
       >
         <div className="mb-2">
           <label className="font-bold" htmlFor={nameId}>
             おなまえ:
           </label>
           <input
-            className="ml-2 border px-2 py-1 rounded"
+            className="ml-2 ie-input"
             type="text"
             id={nameId}
             value={name}
@@ -73,7 +60,7 @@ export default function EntryForm({
         <div className="mb-2">
           <label htmlFor={colorId}>名前の色:</label>
           <input
-            className="ml-2 border px-2 py-1 rounded"
+            className="ml-2 ie-input"
             type="color"
             id={colorId}
             value={color}
@@ -82,7 +69,8 @@ export default function EntryForm({
           />
           <span className="ml-2" style={{ color }}>■</span>
           <a
-            className="ml-3 text-xs underline text-yui-pink"
+            className="ml-3 text-xs underline"
+            style={{ color: "#cc3e97" }}
             href="http://www.cup.com/yui/color.html"
             target="_blank"
             rel="noreferrer"
@@ -93,7 +81,7 @@ export default function EntryForm({
         <div className="mb-2">
           <label htmlFor={emailId}>メールアドレス:</label>
           <input
-            className="ml-2 border px-2 py-1 rounded"
+            className="ml-2 ie-input"
             type="email"
             id={emailId}
             value={email}
@@ -106,7 +94,7 @@ export default function EntryForm({
         <div className="mb-2">
           <label htmlFor={rowsId}>ログ行数：</label>
           <select
-            className="ml-2 border rounded"
+            className="ml-2 ie-select"
             id={rowsId}
             value={windowRows}
             onChange={e => setWindowRows(Number(e.target.value))}
@@ -119,28 +107,24 @@ export default function EntryForm({
         <div className="flex mt-4 gap-2">
           <button
             type="submit"
-            className="bg-yui-pink text-white px-4 py-2 rounded-xl font-bold shadow"
+            className="ie-btn"
           >
             チャットに参加する
           </button>
           <button
             type="reset"
-            className="bg-gray-200 px-4 py-2 rounded-xl font-bold shadow"
+            className="ie-btn"
             onClick={handleReset}
           >
             リセット
           </button>
         </div>
-        <hr className="my-4 border-yui-pink" />
-        <div className="text-xs text-gray-500 text-right">
+        <div className="text-xs text-gray-500 text-right mt-2">
           <a href="http://www.cup.com/yui/" target="_blank" rel="noreferrer">
             ゆいちゃっと Pro(Free)
           </a>
         </div>
       </form>
-      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList chatLog={chatLog} windowRows={windowRows} />
-      </Suspense>
     </div>
   );
 }

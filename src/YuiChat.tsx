@@ -9,6 +9,9 @@ import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
 import type { Chat, Participant, BroadcastMsg } from "./types";
 import EntryForm from "./EntryForm";
 import ChatRoom from "./ChatRoom";
+import { lazy, Suspense } from "react";
+
+const ChatLogList = lazy(() => import("./ChatLogList"));
 
 const STORAGE_KEY = "yui_chat_dat";
 const BC_NAME = "yui_chat_room";
@@ -199,8 +202,7 @@ export default function YuiChat() {
 
   return (
     <div
-      className="min-h-screen flex flex-col"
-      style={{ background: "var(--tw-color-yui-green, #A1FE9F)" }}
+      className="flex flex-col"
     >
       <header className="mb-1 text-2xl font-bold text-yui-pink"
         style={{ fontFamily: "var(--tw-font-yui, sans-serif)" }}>
@@ -239,6 +241,10 @@ export default function YuiChat() {
           setAutoClear={setAutoClear}
         />
       )}
+      <hr className="ie-hr" />
+      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
+        <ChatLogList chatLog={chatLog} windowRows={windowRows} participants={participants} />
+      </Suspense>
     </div>
   );
 }
