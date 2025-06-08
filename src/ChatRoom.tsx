@@ -1,7 +1,8 @@
-import { useId, useRef, useEffect, useCallback } from "react";
+import { useId, useRef, useEffect, useCallback, lazy, Suspense } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import ChatLogList from "./ChatLogList";
 import type { Chat, Participant } from "./types";
+
+const ChatLogList = lazy(() => import("./ChatLogList"));
 
 export type ChatRoomProps = {
   name: string;
@@ -51,15 +52,8 @@ export default function ChatRoom({
   return (
     <div
       className="min-h-screen flex flex-col items-center py-8"
-      style={{
-        background: "var(--tw-color-yui-green, #A1FE9F)",
-        fontFamily: "var(--tw-font-yui, sans-serif)",
-      }}
     >
       <div className="flex items-center justify-between w-full max-w-2xl px-4 pt-3 pb-2">
-        <div className="text-2xl font-bold" style={{ color: "#ff69b4" }}>
-          ゆいちゃっと
-        </div>
         <button
           className="bg-blue-200 text-blue-700 px-2 py-1 rounded-lg text-xs font-bold shadow"
           onClick={onExit}
@@ -136,7 +130,9 @@ export default function ChatRoom({
           <b>{windowRows}</b>行表示
         </span>
       </form>
-      <ChatLogList chatLog={chatLog} windowRows={windowRows} showHeader={false} />
+      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
+        <ChatLogList chatLog={chatLog} windowRows={windowRows} showHeader={false} />
+      </Suspense>
       <a
         href="http://www.cup.com/yui/"
         target="_blank"

@@ -1,6 +1,7 @@
-import { useId } from "react";
-import ChatLogList from "./ChatLogList";
+import { useId, lazy, Suspense } from "react";
 import type { Chat } from "./types";
+
+const ChatLogList = lazy(() => import("./ChatLogList"));
 
 type EntryFormProps = {
   name: string;
@@ -37,7 +38,6 @@ export default function EntryForm({
   const emailId = useId();
   const rowsId = useId();
 
-  // input変更ハンドラは直接inlineで十分（React19推奨）
   const handleReset = () => {
     setName("");
     setColor("#ff69b4");
@@ -49,16 +49,12 @@ export default function EntryForm({
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center"
-      style={{ background: "var(--tw-color-yui-green, #A1FE9F)" }}
     >
       <form
         onSubmit={onEnter}
         className="bg-white rounded-2xl shadow-2xl p-8 border-4 border-yui-pink"
         style={{ minWidth: 340, fontFamily: "var(--tw-font-yui, sans-serif)" }}
       >
-        <div className="text-2xl font-bold mb-2" style={{ color: "#ff69b4" }}>
-          ゆいちゃっと
-        </div>
         <div className="mb-2">
           <label className="font-bold" htmlFor={nameId}>
             おなまえ:
@@ -142,7 +138,9 @@ export default function EntryForm({
           </a>
         </div>
       </form>
-      <ChatLogList chatLog={chatLog} windowRows={windowRows} />
+      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
+        <ChatLogList chatLog={chatLog} windowRows={windowRows} />
+      </Suspense>
     </div>
   );
 }

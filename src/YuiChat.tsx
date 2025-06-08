@@ -1,6 +1,4 @@
 import {
-  Suspense,
-  lazy,
   useId,
   useState,
   useTransition,
@@ -9,9 +7,8 @@ import {
 } from "react";
 import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
 import type { Chat, Participant, BroadcastMsg } from "./types";
-
-const EntryForm = lazy(() => import("./EntryForm"));
-const ChatRoom = lazy(() => import("./ChatRoom"));
+import EntryForm from "./EntryForm";
+import ChatRoom from "./ChatRoom";
 
 const STORAGE_KEY = "yui_chat_dat";
 const BC_NAME = "yui_chat_room";
@@ -30,34 +27,26 @@ function saveChatLog(log: Chat[]) {
 }
 
 export default function YuiChat() {
-  // IDはuseId推奨（SSR・CSR対応）
   const myId = useId();
 
-  // アプリ状態
+  // ローカル状態
   const [entered, setEntered] = useState(false);
-
-  // 入力/ユーザー情報
   const [name, setName] = useState("");
   const [color, setColor] = useState("#ff69b4");
   const [email, setEmail] = useState("");
-
-  // チャットログ・発言
   const [message, setMessage] = useState("");
   const [autoClear, setAutoClear] = useState(true);
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(30);
-
-  // 発言ランキング
   const [ranking, setRanking] = useState<Map<string, number>>(new Map());
+  const [isPending, startTransition] = useTransition();
 
-  // 直近5分参加者を計算
+  // 直近5分参加者
   const now = Date.now();
   const participants = useDeferredValue(
     Array.from(
       chatLog
-        .filter(
-          (c) => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000
-        )
+        .filter(c => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000)
         .reduce((map, c) => {
           map.set(c.name, { id: c.name, name: c.name, color: c.color });
           return map;
@@ -66,21 +55,18 @@ export default function YuiChat() {
     )
   );
 
-  // 非同期UI切り替え
-  const [isPending, startTransition] = useTransition();
-
-  // BroadcastChannel（副作用/状態管理最小に整理）
+  // BroadcastChannel
   const channelRef = useBroadcastChannel<BroadcastMsg>(BC_NAME, (data) => {
     switch (data.type) {
       case "chat":
         startTransition(() => {
-          setChatLog((prev) => {
+          setChatLog(prev => {
             const log = [data.chat, ...prev];
             saveChatLog(log);
             return log;
           });
           if (!data.chat.system && data.chat.name) {
-            setRanking((prev) => {
+            setRanking(prev => {
               const next = new Map(prev);
               next.set(data.chat.name, (next.get(data.chat.name) ?? 0) + 1);
               return next;
@@ -103,7 +89,7 @@ export default function YuiChat() {
     }
   });
 
-  // 入室（サーバーアクション/asyncも将来OKなパターン）
+  // 入室
   const handleEnter = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
@@ -161,8 +147,8 @@ export default function YuiChat() {
     // コマンド処理
     if (message.trim() === "cut") {
       startTransition(() => {
-        setChatLog((prev) => {
-          const log = prev.filter((c) => !c.message.match(/img/i));
+        setChatLog(prev => {
+          const log = prev.filter(c => !c.message.match(/img/i));
           saveChatLog(log);
           return log;
         });
@@ -194,7 +180,7 @@ export default function YuiChat() {
       setChatLog(log);
       saveChatLog(log);
       channelRef.current?.postMessage({ type: "chat", chat });
-      setRanking((prev) => {
+      setRanking(prev => {
         const next = new Map(prev);
         next.set(name, (next.get(name) ?? 0) + 1);
         return next;
@@ -206,34 +192,20 @@ export default function YuiChat() {
   // ログ再読込
   const handleReload = () => setChatLog(loadChatLog());
 
-  // --- EntryForm表示時はlocalStorageから最新のチャットログを読み込む ---
+  // EntryForm表示時はlocalStorageから最新チャットログ
   useEffect(() => {
-    if (!entered) {
-      setChatLog(loadChatLog());
-    }
+    if (!entered) setChatLog(loadChatLog());
   }, [entered]);
 
   return (
-    <Suspense
-      fallback={
-        <div
-          style={{
-            minHeight: "100vh",
-            background: "#A1FE9F",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "2rem",
-            color: "#ff69b4",
-            fontFamily: "var(--tw-font-yui, sans-serif)",
-            letterSpacing: "0.1em",
-            fontWeight: 700,
-          }}
-        >
-          ゆいちゃっと
-        </div>
-      }
+    <div
+      className="min-h-screen flex flex-col"
+      style={{ background: "var(--tw-color-yui-green, #A1FE9F)" }}
     >
+      <header className="mb-1 text-2xl font-bold text-yui-pink"
+        style={{ fontFamily: "var(--tw-font-yui, sans-serif)" }}>
+        ゆいちゃっと
+      </header>
       {entered ? (
         <ChatRoom
           name={name}
@@ -267,6 +239,6 @@ export default function YuiChat() {
           setAutoClear={setAutoClear}
         />
       )}
-    </Suspense>
+    </div>
   );
 }
