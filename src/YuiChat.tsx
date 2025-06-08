@@ -41,10 +41,10 @@ export default function YuiChat() {
   const [color, setColor] = useState("#ff69b4");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
-  const [autoClear, setAutoClear] = useState(true);
+  const [autoClear] = useState(true);
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(30);
-  const [ranking, setRanking] = useState<Map<string, number>>(new Map());
+  const [, setRanking] = useState<Map<string, number>>(new Map());
   const [isPending, startTransition] = useTransition();
   const [showRanking, setShowRanking] = useState(false); // ★ランキング表示制御
 
@@ -211,26 +211,19 @@ export default function YuiChat() {
   return (
     <div className="flex flex-col bg-[var(--yui-green)]">
       <RetroSplitter
-        initialTop={100}
         minTop={100}
         minBottom={100}
         top={
           entered ? (
             <ChatRoom
-              name={name}
-              color={color}
-              email={email}
               message={message}
               setMessage={setMessage}
               chatLog={chatLog}
-              setChatLog={setChatLog}
               windowRows={windowRows}
               setWindowRows={setWindowRows}
               onExit={handleExit}
               onSend={handleSend}
               isPending={isPending}
-              participants={participants}
-              ranking={ranking}
               onReload={handleReload}
               onShowRanking={() => setShowRanking(true)}
             />
@@ -245,9 +238,6 @@ export default function YuiChat() {
               windowRows={windowRows}
               setWindowRows={setWindowRows}
               onEnter={handleEnter}
-              chatLog={chatLog}
-              autoClear={autoClear}
-              setAutoClear={setAutoClear}
             />
           )
         }

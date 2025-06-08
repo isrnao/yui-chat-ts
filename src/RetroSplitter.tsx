@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, isValidElement } from "react";
+import type { ReactNode } from "react";
 
 export default function RetroSplitter({
     top,
@@ -6,8 +7,8 @@ export default function RetroSplitter({
     minTop = 10,
     minBottom = 10,
 }: {
-    top: React.ReactNode;
-    bottom: React.ReactNode;
+    top: ReactNode;
+    bottom: ReactNode;
     minTop?: number;
     minBottom?: number;
 }) {
@@ -47,7 +48,11 @@ export default function RetroSplitter({
     useEffect(() => {
         if (typeof window !== "undefined" && top && bottom) {
             // 入室後(topがChatRoom)なら20%、それ以外は30%
-            if (top && (top as any)?.type?.name === "ChatRoom") {
+            if (
+                isValidElement(top) &&
+                typeof top.type === "function" &&
+                top.type.name === "ChatRoom"
+            ) {
                 setTopHeight(20);
             } else {
                 setTopHeight(30);

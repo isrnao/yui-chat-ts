@@ -3,39 +3,27 @@ import type { ChangeEvent, FormEvent } from "react";
 import type { Chat } from "./types";
 
 export type ChatRoomProps = {
-  name: string;
-  color: string;
-  email: string;
   message: string;
   setMessage: (v: string) => void;
   chatLog: Chat[];
-  setChatLog: (v: Chat[]) => void;
   windowRows: number;
   setWindowRows: (v: number) => void;
   onExit: () => void;
   onSend: (e: FormEvent) => void;
   isPending: boolean;
-  participants: { id: string; name: string; color: string }[];
-  ranking: Map<string, number>;
   onReload: () => void;
   onShowRanking: () => void;
 };
 
 export default function ChatRoom({
-  name,
-  color,
-  email,
   message,
   setMessage,
   chatLog,
-  setChatLog,
   windowRows,
   setWindowRows,
   onExit,
   onSend,
   isPending,
-  participants,
-  ranking,
   onReload,
   onShowRanking,
 }: ChatRoomProps) {
