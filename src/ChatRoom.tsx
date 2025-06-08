@@ -30,7 +30,7 @@ export default function ChatRoom({
 
   // useActionState for message sending
   const [error, dispatch, isPending] = useActionState(
-    async (_prev, formData: FormData) => {
+    async (_prev: unknown, formData: FormData) => {
       const msg = formData.get("message")?.toString() ?? "";
       if (!msg.trim()) return;
       try {
