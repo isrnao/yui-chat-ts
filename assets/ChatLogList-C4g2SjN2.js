@@ -1,4 +1,4 @@
-import{r as d,j as e}from"./index-CntIIwdK.js";const o=s=>{const r=new Date(s);return`${r.getHours().toString().padStart(2,"0")}:${r.getMinutes().toString().padStart(2,"0")}:${r.getSeconds().toString().padStart(2,"0")}`};function x({chatLog:s,windowRows:r,participants:a}){const n=[...d.useDeferredValue(s)].sort((t,l)=>l.time-t.time).slice(0,r);return e.jsxs("div",{className:`
+import{r as d,j as e}from"./index-Xt0gLNG8.js";const o=s=>{const r=new Date(s);return`${r.getHours().toString().padStart(2,"0")}:${r.getMinutes().toString().padStart(2,"0")}:${r.getSeconds().toString().padStart(2,"0")}`};function x({chatLog:s,windowRows:r,participants:a}){const n=[...d.useDeferredValue(s)].sort((t,l)=>l.time-t.time).slice(0,r);return e.jsxs("div",{className:`
       overflow-y-auto
       rounded-none
       mt-2
