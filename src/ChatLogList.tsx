@@ -1,7 +1,7 @@
-import { useDeferredValue, useMemo } from "react";
-import type { Chat } from "./YuiChat";
+import { useDeferredValue } from "react";
+import type { Chat } from "./types";
 
-export type ChatLogListProps = {
+type ChatLogListProps = {
   chatLog: Chat[];
   windowRows: number;
   showHeader?: boolean;
@@ -20,15 +20,9 @@ export default function ChatLogList({
   windowRows,
   showHeader = true,
 }: ChatLogListProps) {
-  // 最新 windowRows 件のみソートして表示
+  // 最新 windowRows 件のみ表示（useDeferredValueで重い場合も追従性UP）
   const deferredLog = useDeferredValue(chatLog);
-  const chats = useMemo(
-    () =>
-      [...deferredLog]
-        .sort((a, b) => b.time - a.time)
-        .slice(0, windowRows),
-    [deferredLog, windowRows]
-  );
+  const chats = [...deferredLog].sort((a, b) => b.time - a.time).slice(0, windowRows);
 
   return (
     <div className="bg-white mt-6 p-2 rounded-xl border border-yui-pink-light overflow-y-auto w-full max-w-2xl px-4">

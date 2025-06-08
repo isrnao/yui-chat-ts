@@ -1,80 +1,77 @@
-import { Suspense, useCallback, useEffect, useMemo, useState, useTransition, lazy } from "react";
-import { useBroadcastChannel } from "./useBroadcastChannel";
+import {
+  Suspense,
+  lazy,
+  useId,
+  useState,
+  useTransition,
+  useDeferredValue,
+} from "react";
+import { useBroadcastChannel } from "./hooks/useBroadcastChannel";
+import type { Chat, Participant, BroadcastMsg } from "./types";
 
 const EntryForm = lazy(() => import("./EntryForm"));
 const ChatRoom = lazy(() => import("./ChatRoom"));
-
-export type Chat = {
-  id: string;
-  name: string;
-  color: string;
-  message: string;
-  time: number;
-  email?: string;
-  system?: boolean;
-};
-
-export type Participant = {
-  id: string;
-  name: string;
-  color: string;
-};
 
 const STORAGE_KEY = "yui_chat_dat";
 const BC_NAME = "yui_chat_room";
 const MAX_CHAT_LOG = 2000;
 
-type BroadcastMsg =
-  | { type: "chat"; chat: Chat }
-  | { type: "join"; user: Participant }
-  | { type: "leave"; user: Participant }
-  | { type: "req-presence" }
-  | { type: "clear" };
-
-const loadChatLog = (): Chat[] => {
+function loadChatLog(): Chat[] {
   try {
     const dat = localStorage.getItem(STORAGE_KEY);
-    return dat ? (JSON.parse(dat) as Chat[]) : [];
+    return dat ? JSON.parse(dat) : [];
   } catch {
     return [];
   }
-};
-const saveChatLog = (log: Chat[]) =>
+}
+function saveChatLog(log: Chat[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
+}
 
 export default function YuiChat() {
-  const myId = useMemo(() => Math.random().toString(36).slice(2), []);
-  // state
+  // IDはuseId推奨（SSR・CSR対応）
+  const myId = useId();
+
+  // アプリ状態
   const [entered, setEntered] = useState(false);
+
+  // 入力/ユーザー情報
   const [name, setName] = useState("");
   const [color, setColor] = useState("#ff69b4");
   const [email, setEmail] = useState("");
+
+  // チャットログ・発言
   const [message, setMessage] = useState("");
   const [autoClear, setAutoClear] = useState(true);
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(30);
 
-  // 参加者リストをチャットログの直近5分以内の発言者に限定
-  const participants = useMemo(() => {
-    const now = Date.now();
-    const map = new Map<string, Participant>();
-    for (const c of chatLog) {
-      if (c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000) {
-        map.set(c.name, { id: c.name, name: c.name, color: c.color });
-      }
-    }
-    return Array.from(map.values());
-  }, [chatLog]);
   // 発言ランキング
   const [ranking, setRanking] = useState<Map<string, number>>(new Map());
 
-  // 非同期UI更新
+  // 直近5分参加者を計算
+  const now = Date.now();
+  const participants = useDeferredValue(
+    Array.from(
+      chatLog
+        .filter(
+          (c) => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000
+        )
+        .reduce((map, c) => {
+          map.set(c.name, { id: c.name, name: c.name, color: c.color });
+          return map;
+        }, new Map<string, Participant>())
+        .values()
+    )
+  );
+
+  // 非同期UI切り替え
   const [isPending, startTransition] = useTransition();
 
-  // BroadcastChannel
-  const onBroadcast = useCallback(
-    (data: BroadcastMsg) => {
-      if (data.type === "chat") {
+  // BroadcastChannel（副作用/状態管理最小に整理）
+  const channelRef = useBroadcastChannel<BroadcastMsg>(BC_NAME, (data) => {
+    switch (data.type) {
+      case "chat":
         startTransition(() => {
           setChatLog((prev) => {
             const log = [data.chat, ...prev];
@@ -89,76 +86,62 @@ export default function YuiChat() {
             });
           }
         });
-      } else if (data.type === "join") {
-        // setParticipantsは不要
-      } else if (data.type === "leave") {
-        // setParticipantsは不要
-      } else if (data.type === "req-presence") {
-        // 自分が入室中なら返答
+        break;
+      case "req-presence":
         if (entered) {
           channelRef.current?.postMessage({
             type: "join",
             user: { id: myId, name, color },
           });
         }
-      } else if (data.type === "clear") {
+        break;
+      case "clear":
         setChatLog([]);
         saveChatLog([]);
-      }
-    },
-    [entered, myId, name, color]
-  );
+        break;
+    }
+  });
 
-  const channelRef = useBroadcastChannel<BroadcastMsg>(BC_NAME, onBroadcast);
-
-  // 入室
-  const [pendingJoinMsg, setPendingJoinMsg] = useState<Chat | null>(null);
-  const handleEnter = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!name.trim()) return;
-      // 参加者リストに自分を追加
-      // setParticipants([{ id: myId, name, color }]);
-      // 参加メッセージ（管理人による「入室」案内）
-      const joinMsg: Chat = {
-        id: "sys-" + Math.random().toString(36).slice(2),
-        name: "管理人",
-        color: "#0000ff",
-        message: `${name}さん、おいでやすぅ。`,
-        time: Date.now(),
-        system: true,
-      };
-      setPendingJoinMsg(joinMsg); // useEffectで処理
-      setEntered(true);
-      // 参加ブロードキャスト
-      setTimeout(() => {
-        channelRef.current?.postMessage({
-          type: "join",
-          user: { id: myId, name, color },
-        });
-      }, 10);
-      setTimeout(() => {
-        // 既存参加者に問合せ
-        channelRef.current?.postMessage({ type: "req-presence" });
-      }, 30);
-      // 他の参加者にも通知
-      channelRef.current?.postMessage({ type: "chat", chat: joinMsg });
-    },
-    [name, color, myId, channelRef]
-  );
-
-  // 退室
-  const handleExit = useCallback(() => {
-    // システムメッセージ追加
-    const sysMsg: Chat = {
+  // 入室（サーバーアクション/asyncも将来OKなパターン）
+  const handleEnter = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setEntered(true);
+    const joinMsg: Chat = {
       id: "sys-" + Math.random().toString(36).slice(2),
       name: "管理人",
       color: "#0000ff",
-      message: `${name}さん、またきておくれやすぅ。`,
+      message: `${name}さん、おいでやすぅ。`,
       time: Date.now(),
       system: true,
     };
-    channelRef.current?.postMessage({ type: "chat", chat: sysMsg });
+    setChatLog([joinMsg, ...loadChatLog()]);
+
+    setTimeout(() => {
+      channelRef.current?.postMessage({
+        type: "join",
+        user: { id: myId, name, color },
+      });
+    }, 10);
+    setTimeout(() => {
+      channelRef.current?.postMessage({ type: "req-presence" });
+    }, 30);
+    channelRef.current?.postMessage({ type: "chat", chat: joinMsg });
+  };
+
+  // 退室
+  const handleExit = () => {
+    channelRef.current?.postMessage({
+      type: "chat",
+      chat: {
+        id: "sys-" + Math.random().toString(36).slice(2),
+        name: "管理人",
+        color: "#0000ff",
+        message: `${name}さん、またきておくれやすぅ。`,
+        time: Date.now(),
+        system: true,
+      },
+    });
     channelRef.current?.postMessage({
       type: "leave",
       user: { id: myId, name, color },
@@ -167,80 +150,82 @@ export default function YuiChat() {
     setChatLog([]);
     setRanking(new Map());
     localStorage.removeItem(STORAGE_KEY);
-  }, [name, color, myId, channelRef]);
+  };
 
-  // ログの初期化
-  useEffect(() => {
-    if (entered) {
-      if (pendingJoinMsg) {
-        const loaded = loadChatLog();
-        setChatLog([pendingJoinMsg, ...loaded]);
-        setPendingJoinMsg(null);
-      } else {
-        setChatLog(loadChatLog());
-      }
-    }
-  }, [entered, windowRows]);
+  // メッセージ送信
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim()) return;
 
-  // メッセージ送信（コマンド対応）
-  const handleSend = useCallback(
-    (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!message.trim()) return;
-      // コマンド：cut
-      if (message.trim() === "cut") {
-        startTransition(() => {
-          setChatLog((prev) => {
-            const log = prev.filter((c) => !c.message.match(/img/i));
-            saveChatLog(log);
-            return log;
-          });
-        });
-        setMessage("");
-        return;
-      }
-      // コマンド：clear
-      if (message.trim() === "clear") {
-        startTransition(() => {
-          setChatLog([]);
-          saveChatLog([]);
-        });
-        channelRef.current?.postMessage({ type: "clear" });
-        setMessage("");
-        return;
-      }
-      // 発言
+    // コマンド処理
+    if (message.trim() === "cut") {
       startTransition(() => {
-        const chat: Chat = {
-          id: Math.random().toString(36).slice(2),
-          name,
-          color,
-          message,
-          time: Date.now(),
-          email: email.trim() || undefined,
-        };
-        const log = [chat, ...chatLog];
-        setChatLog(log);
-        saveChatLog(log);
-        channelRef.current?.postMessage({ type: "chat", chat });
-        setRanking((prev) => {
-          const next = new Map(prev);
-          next.set(name, (next.get(name) ?? 0) + 1);
-          return next;
+        setChatLog((prev) => {
+          const log = prev.filter((c) => !c.message.match(/img/i));
+          saveChatLog(log);
+          return log;
         });
-        if (autoClear) setMessage("");
       });
-    },
-    [name, color, message, email, chatLog, channelRef, autoClear]
-  );
+      setMessage("");
+      return;
+    }
+    if (message.trim() === "clear") {
+      startTransition(() => {
+        setChatLog([]);
+        saveChatLog([]);
+      });
+      channelRef.current?.postMessage({ type: "clear" });
+      setMessage("");
+      return;
+    }
 
-  // リロードボタン用
-  const handleReload = useCallback(() => {
-    setChatLog(loadChatLog());
-  }, []);
+    // 通常
+    startTransition(() => {
+      const chat: Chat = {
+        id: Math.random().toString(36).slice(2),
+        name,
+        color,
+        message,
+        time: Date.now(),
+        email: email.trim() || undefined,
+      };
+      const log = [chat, ...chatLog];
+      setChatLog(log);
+      saveChatLog(log);
+      channelRef.current?.postMessage({ type: "chat", chat });
+      setRanking((prev) => {
+        const next = new Map(prev);
+        next.set(name, (next.get(name) ?? 0) + 1);
+        return next;
+      });
+      if (autoClear) setMessage("");
+    });
+  };
+
+  // ログ再読込
+  const handleReload = () => setChatLog(loadChatLog());
 
   return (
-    <Suspense fallback={<div style={{ minHeight: "100vh", background: "#A1FE9F" }} />}>
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: "100vh",
+            background: "#A1FE9F",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "2rem",
+            color: "#ff69b4",
+            fontFamily: "var(--tw-font-yui, sans-serif)",
+            letterSpacing: "0.1em",
+            fontWeight: 700,
+          }}
+        >
+          ゆいちゃっと
+        </div>
+      }
+    >
       {entered ? (
         <ChatRoom
           name={name}

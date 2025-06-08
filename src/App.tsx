@@ -1,7 +1,4 @@
 import YuiChat from './YuiChat';
-
-function App() {
+export default function App() {
   return <YuiChat />;
 }
-
-export default App;

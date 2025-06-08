@@ -1,9 +1,8 @@
-import { useId, useCallback } from "react";
-import type { ChangeEvent, FormEvent } from "react";
+import { useId } from "react";
 import ChatLogList from "./ChatLogList";
-import type { Chat } from "./YuiChat";
+import type { Chat } from "./types";
 
-export type EntryFormProps = {
+type EntryFormProps = {
   name: string;
   setName: (v: string) => void;
   color: string;
@@ -12,7 +11,7 @@ export type EntryFormProps = {
   setEmail: (v: string) => void;
   windowRows: number;
   setWindowRows: (v: number) => void;
-  onEnter: (e: FormEvent) => void;
+  onEnter: (e: React.FormEvent) => void;
   chatLog: Chat[];
   autoClear: boolean;
   setAutoClear: (v: boolean) => void;
@@ -32,34 +31,20 @@ export default function EntryForm({
   autoClear,
   setAutoClear,
 }: EntryFormProps) {
+  // useIdでSSR/CSR整合性
   const nameId = useId();
   const colorId = useId();
   const emailId = useId();
   const rowsId = useId();
 
-  const handleName = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => setName(e.target.value),
-    [setName]
-  );
-  const handleColor = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value),
-    [setColor]
-  );
-  const handleEmail = useCallback(
-    (e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value),
-    [setEmail]
-  );
-  const handleRows = useCallback(
-    (e: ChangeEvent<HTMLSelectElement>) => setWindowRows(Number(e.target.value)),
-    [setWindowRows]
-  );
-  const handleReset = useCallback(() => {
+  // input変更ハンドラは直接inlineで十分（React19推奨）
+  const handleReset = () => {
     setName("");
     setColor("#ff69b4");
     setWindowRows(30);
     setEmail("");
     setAutoClear(true);
-  }, [setName, setColor, setWindowRows, setEmail, setAutoClear]);
+  };
 
   return (
     <div
@@ -84,7 +69,7 @@ export default function EntryForm({
             id={nameId}
             value={name}
             maxLength={24}
-            onChange={handleName}
+            onChange={e => setName(e.target.value)}
             required
             autoFocus
           />
@@ -96,12 +81,10 @@ export default function EntryForm({
             type="color"
             id={colorId}
             value={color}
-            onChange={handleColor}
+            onChange={e => setColor(e.target.value)}
             style={{ width: 40, height: 28, verticalAlign: "middle" }}
           />
-          <span className="ml-2" style={{ color }}>
-            ■
-          </span>
+          <span className="ml-2" style={{ color }}>■</span>
           <a
             className="ml-3 text-xs underline text-yui-pink"
             href="http://www.cup.com/yui/color.html"
@@ -119,7 +102,7 @@ export default function EntryForm({
             id={emailId}
             value={email}
             maxLength={64}
-            onChange={handleEmail}
+            onChange={e => setEmail(e.target.value)}
             autoComplete="email"
             placeholder="任意"
           />
@@ -130,12 +113,10 @@ export default function EntryForm({
             className="ml-2 border rounded"
             id={rowsId}
             value={windowRows}
-            onChange={handleRows}
+            onChange={e => setWindowRows(Number(e.target.value))}
           >
-            {[30, 50, 40, 20, 10, 100, 1000].map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
+            {[30, 50, 40, 20, 10, 100, 1000].map(v => (
+              <option key={v} value={v}>{v}</option>
             ))}
           </select>
         </div>
