@@ -37,7 +37,7 @@ export default function EntryForm({
 
   // useActionState: [エラーor結果, dispatch, フォーム送信中か]
   const [error, dispatch, isPending] = useActionState(
-    async (_prevState, formData: FormData) => {
+    async (_prevState: unknown, formData: FormData) => {
       // 入力値を取得
       const name = formData.get("name")?.toString().trim() ?? "";
       const color = formData.get("color")?.toString() ?? DEFAULT_COLOR;
