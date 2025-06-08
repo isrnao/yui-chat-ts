@@ -41,6 +41,17 @@ export default function ChatLogList({
           <span className="font-bold" style={{ color: c.color, fontSize: "1.08em" }}>
             {c.name}
           </span>
+          {c.email && (
+            <a
+              className="ml-1 text-xs underline text-blue-600"
+              href={`mailto:${c.email}`}
+              title={c.email}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              |&gt;
+            </a>
+          )}
           <span className="font-bold text-gray-400">{" > "}</span>
           <span className="ml-1 text-gray-700">{c.message}</span>
           <span className="ml-2 text-gray-400 text-xs">({formatTime(c.time)})</span>

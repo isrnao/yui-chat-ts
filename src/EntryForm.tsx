@@ -8,10 +8,14 @@ export type EntryFormProps = {
   setName: (v: string) => void;
   color: string;
   setColor: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
   windowRows: number;
   setWindowRows: (v: number) => void;
   onEnter: (e: FormEvent) => void;
   chatLog: Chat[];
+  autoClear: boolean;
+  setAutoClear: (v: boolean) => void;
 };
 
 export default function EntryForm({
@@ -19,13 +23,18 @@ export default function EntryForm({
   setName,
   color,
   setColor,
+  email,
+  setEmail,
   windowRows,
   setWindowRows,
   onEnter,
   chatLog,
+  autoClear,
+  setAutoClear,
 }: EntryFormProps) {
   const nameId = useId();
   const colorId = useId();
+  const emailId = useId();
   const rowsId = useId();
 
   const handleName = useCallback(
@@ -36,6 +45,10 @@ export default function EntryForm({
     (e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value),
     [setColor]
   );
+  const handleEmail = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value),
+    [setEmail]
+  );
   const handleRows = useCallback(
     (e: ChangeEvent<HTMLSelectElement>) => setWindowRows(Number(e.target.value)),
     [setWindowRows]
@@ -44,7 +57,9 @@ export default function EntryForm({
     setName("");
     setColor("#ff69b4");
     setWindowRows(30);
-  }, [setName, setColor, setWindowRows]);
+    setEmail("");
+    setAutoClear(true);
+  }, [setName, setColor, setWindowRows, setEmail, setAutoClear]);
 
   return (
     <div
@@ -54,7 +69,7 @@ export default function EntryForm({
       <form
         onSubmit={onEnter}
         className="bg-white rounded-2xl shadow-2xl p-8 border-4 border-yui-pink"
-        style={{ minWidth: 320, fontFamily: "var(--tw-font-yui, sans-serif)" }}
+        style={{ minWidth: 340, fontFamily: "var(--tw-font-yui, sans-serif)" }}
       >
         <div className="text-2xl font-bold mb-2" style={{ color: "#ff69b4" }}>
           ゆいちゃっと
@@ -87,6 +102,27 @@ export default function EntryForm({
           <span className="ml-2" style={{ color }}>
             ■
           </span>
+          <a
+            className="ml-3 text-xs underline text-yui-pink"
+            href="http://www.cup.com/yui/color.html"
+            target="_blank"
+            rel="noreferrer"
+          >
+            色見本
+          </a>
+        </div>
+        <div className="mb-2">
+          <label htmlFor={emailId}>メールアドレス:</label>
+          <input
+            className="ml-2 border px-2 py-1 rounded"
+            type="email"
+            id={emailId}
+            value={email}
+            maxLength={64}
+            onChange={handleEmail}
+            autoComplete="email"
+            placeholder="任意"
+          />
         </div>
         <div className="mb-2">
           <label htmlFor={rowsId}>ログ行数：</label>

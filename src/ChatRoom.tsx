@@ -1,11 +1,12 @@
 import { useId, useRef, useEffect, useCallback } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 import ChatLogList from "./ChatLogList";
-import type { Chat } from "./YuiChat";
+import type { Chat, Participant } from "./YuiChat";
 
 export type ChatRoomProps = {
   name: string;
   color: string;
+  email: string;
   windowRows: number;
   chatLog: Chat[];
   setChatLog: (log: Chat[]) => void;
@@ -14,11 +15,15 @@ export type ChatRoomProps = {
   onExit: () => void;
   onSend: (e: FormEvent) => void;
   isPending: boolean;
+  participants: Participant[];
+  ranking: Map<string, number>;
+  onReload: () => void;
 };
 
 export default function ChatRoom({
   name,
   color,
+  email,
   windowRows,
   chatLog,
   setChatLog,
@@ -27,6 +32,9 @@ export default function ChatRoom({
   onExit,
   onSend,
   isPending,
+  participants,
+  ranking,
+  onReload,
 }: ChatRoomProps) {
   const messageId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -59,11 +67,37 @@ export default function ChatRoom({
           退室する
         </button>
       </div>
-      <div className="text-sm mt-1 mb-1 w-full max-w-2xl px-4">
-        参加者：<b>{name}</b>
+      <div className="text-sm mt-1 mb-1 w-full max-w-2xl px-4 flex flex-wrap gap-2">
+        参加者:
+        {participants.length === 0
+          ? <b>（なし）</b>
+          : participants.map((p) => (
+            <span
+              key={p.id}
+              className="font-bold"
+              style={{
+                color: p.color,
+                marginLeft: 6,
+                marginRight: 3,
+                textShadow: "0 1px 1px #fff",
+              }}
+            >
+              {p.name}
+            </span>
+          ))}
         <span className="text-gray-500 ml-2">
           （同じブラウザで新タブを開けば複数人扱い！）
         </span>
+      </div>
+      <div className="text-xs text-gray-600 px-4 w-full max-w-2xl">
+        <span>発言ランキング: </span>
+        {[...ranking.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .map(([n, c]) => (
+            <span key={n} className="mr-2">
+              <b>{n}</b>:{c}回
+            </span>
+          ))}
       </div>
       <hr className="border-yui-pink w-full max-w-2xl" />
       <form
@@ -81,6 +115,7 @@ export default function ChatRoom({
           onChange={handleMsgChange}
           disabled={isPending}
           ref={inputRef}
+          autoFocus
         />
         <button
           type="submit"
@@ -88,6 +123,14 @@ export default function ChatRoom({
           disabled={isPending}
         >
           {isPending ? "送信" : "発言"}
+        </button>
+        <button
+          type="button"
+          className="ml-1 px-3 py-2 rounded-xl border text-xs font-bold border-yui-pink text-yui-pink shadow bg-white hover:bg-pink-100"
+          onClick={onReload}
+          tabIndex={-1}
+        >
+          リロード
         </button>
         <span className="text-xs text-gray-400 ml-2">
           <b>{windowRows}</b>行表示
