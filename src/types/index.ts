@@ -1,23 +1,3 @@
-// types.ts
-export type Chat = {
-  id: string;
-  name: string;
-  color: string;
-  message: string;
-  time: number;
-  email?: string;
-  system?: boolean;
-};
-
-export type Participant = {
-  id: string;
-  name: string;
-  color: string;
-};
-
-export type BroadcastMsg =
-  | { type: "chat"; chat: Chat }
-  | { type: "join"; user: Participant }
-  | { type: "leave"; user: Participant }
-  | { type: "req-presence" }
-  | { type: "clear" };
+export * from "./chat";
+export * from "./participant";
+export * from "./broadcastMsg";

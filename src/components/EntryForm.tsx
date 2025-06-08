@@ -1,4 +1,4 @@
-import { useId, useActionState } from "react";
+import { useId } from "react";
 
 type EntryFormProps = {
   name: string;
@@ -13,10 +13,10 @@ type EntryFormProps = {
     name: string;
     color: string;
     email: string;
-  }) => Promise<void>;
+  }) => void | Promise<void>;
+  error?: string;
+  isPending?: boolean;
 };
-
-const DEFAULT_COLOR = "#ff69b4";
 
 export default function EntryForm({
   name,
@@ -28,34 +28,13 @@ export default function EntryForm({
   windowRows,
   setWindowRows,
   onEnter,
+  error,
+  isPending,
 }: EntryFormProps) {
   const nameId = useId();
   const colorId = useId();
   const emailId = useId();
   const rowsId = useId();
-
-  // useActionState: [エラーor結果, dispatch, フォーム送信中か]
-  const [error, dispatch, isPending] = useActionState(
-    async (_prevState: unknown, formData: FormData) => {
-      // 入力値を取得
-      const name = formData.get("name")?.toString().trim() ?? "";
-      const color = formData.get("color")?.toString() ?? DEFAULT_COLOR;
-      const email = formData.get("email")?.toString() ?? "";
-      // バリデーション例
-      if (!name) return "おなまえは必須です";
-      if (name.length > 24) return "おなまえは24文字以内";
-      // 登録（親に伝達 or サーバー送信）
-      try {
-        await onEnter({ name, color, email });
-        return ""; // 成功: エラーなし
-      } catch (err) {
-        return (err as Error)?.message || "エラーが発生しました";
-      }
-    },
-    "", // エラー初期値
-  );
-
-  // inputのonChangeはprops経由のままOK
 
   return (
     <div className="flex flex-col">
@@ -65,8 +44,13 @@ export default function EntryForm({
       >
         ゆいちゃっと
       </header>
-      {/* action=dispatch でform送信 */}
-      <form action={dispatch} autoComplete="off">
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          await onEnter({ name, color, email });
+        }}
+        autoComplete="off"
+      >
         {/* 名前 */}
         <div className="mb-2 flex items-center">
           <label className="font-bold" htmlFor={nameId}>
