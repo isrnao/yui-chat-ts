@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense, useId } from "react";
+import TermsModal from "./components/TermsModal";
 import { useChatLog } from "./hooks/useChatLog";
 import { useParticipants } from "./hooks/useParticipants";
 import { useChatHandlers } from "./hooks/useChatHandlers";
@@ -20,6 +21,9 @@ export default function App() {
   const [showRanking, setShowRanking] = useState(false);
   const [email, setEmail] = useState("");
   const myId = useId();
+  const [tosAccepted, setTosAccepted] = useState(
+    () => localStorage.getItem("tos_accepted") === "1",
+  );
 
   // useChatHandlersでロジックを集約
   const {
@@ -44,7 +48,7 @@ export default function App() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--yui-green)]">
+    <div className="relative flex flex-col min-h-screen bg-[var(--yui-green)]">
       <RetroSplitter
         minTop={100}
         minBottom={100}
@@ -103,6 +107,14 @@ export default function App() {
           )
         }
       />
+      {!tosAccepted && (
+        <TermsModal
+          onClose={() => {
+            localStorage.setItem("tos_accepted", "1");
+            setTosAccepted(true);
+          }}
+        />
+      )}
     </div>
   );
 }
