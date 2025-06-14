@@ -7,12 +7,16 @@ import ChatRoom from "./components/ChatRoom";
 import EntryForm from "./components/EntryForm";
 import RetroSplitter from "./components/RetroSplitter";
 import ChatRanking from "./components/ChatRanking";
+import TermsModal from "./components/TermsModal";
 const ChatLogList = lazy(() => import("./components/ChatLogList.lazy"));
 
 export default function App() {
   const { chatLog, clear, setChatLog } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
+  const [showTerms, setShowTerms] = useState(
+    () => localStorage.getItem("agreed-terms") !== "true",
+  );
   const [name, setName] = useState("");
   const [color, setColor] = useState("#ff69b4");
   const [message, setMessage] = useState("");
@@ -44,7 +48,16 @@ export default function App() {
   });
 
   return (
-    <div className="flex flex-col min-h-screen bg-[var(--yui-green)]">
+    <>
+      {showTerms && (
+        <TermsModal
+          onAgree={() => {
+            localStorage.setItem("agreed-terms", "true");
+            setShowTerms(false);
+          }}
+        />
+      )}
+      <div className="flex flex-col min-h-screen bg-[var(--yui-green)]">
       <RetroSplitter
         minTop={100}
         minBottom={100}
@@ -104,5 +117,6 @@ export default function App() {
         }
       />
     </div>
+    </>
   );
 }
