@@ -7,15 +7,16 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) throw new Error("canvasが見つかりません");
+    const canvasEl = canvas;
     if (!navigator.gpu) {
       setGpuSupported(false);
       return;
     }
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvasEl.width = window.innerWidth;
+      canvasEl.height = window.innerHeight;
     }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
@@ -33,7 +34,7 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
       const adapter = await navigator.gpu!.requestAdapter();
       if (!adapter) return;
       device = await adapter.requestDevice();
-      context = canvas.getContext("webgpu") as GPUCanvasContext;
+      context = canvasEl.getContext("webgpu")!;
       const format = navigator.gpu!.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: "premultiplied" });
 
@@ -120,7 +121,7 @@ fn fs(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         device.queue.writeBuffer(
           uniformBuffer,
           0,
-          new Float32Array([t, u_attack, canvas.width, canvas.height]),
+          new Float32Array([t, u_attack, canvasEl.width, canvasEl.height]),
         );
 
         const encoder = device.createCommandEncoder();
