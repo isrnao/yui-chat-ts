@@ -1,25 +1,16 @@
 import { Suspense, useState, useEffect } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList.lazy';
 import type { Chat } from '@features/chat/types';
+import { loadChatLogs } from '@features/chat/api/chatApi';
 
-const STORAGE_KEY = 'yui_chat_dat';
 
-// ローカルストレージからチャットログを取得
-function loadChatLog(): Chat[] {
-  try {
-    const dat = localStorage.getItem(STORAGE_KEY);
-    return dat ? JSON.parse(dat) : [];
-  } catch {
-    return [];
-  }
-}
 
 export default function ChatLogPage() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(50);
 
   useEffect(() => {
-    setChatLog(loadChatLog());
+    loadChatLogs().then((logs) => setChatLog(logs));
   }, []);
 
   // 参加者表示用（空リストでOK）
@@ -44,7 +35,10 @@ export default function ChatLogPage() {
             </option>
           ))}
         </select>
-        <button className="ie-btn" onClick={() => setChatLog(loadChatLog())}>
+        <button
+          className="ie-btn"
+          onClick={async () => setChatLog(await loadChatLogs())}
+        >
           再読込
         </button>
       </div>

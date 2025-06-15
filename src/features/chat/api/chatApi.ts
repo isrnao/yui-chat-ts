@@ -1,34 +1,51 @@
 import type { Chat } from '@features/chat/types';
 
-// チャットAPIラッパー（axiosやfetchでAPIアクセスのみ担当）
-// ここにfetchChatLogs等を実装します
+// チャットAPIラッパー
 
-const STORAGE_KEY = 'yui_chat_dat';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const TABLE_NAME = 'chats';
 const MAX_CHAT_LOG = 2000;
 
-export function loadChatLogs(): Chat[] {
+const headers = {
+  apikey: SUPABASE_KEY,
+  Authorization: `Bearer ${SUPABASE_KEY}`,
+  'Content-Type': 'application/json',
+};
+
+export async function loadChatLogs(): Promise<Chat[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.slice(0, MAX_CHAT_LOG);
+    const res = await fetch(
+      `${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=*&order=time.desc&limit=${MAX_CHAT_LOG}`,
+      { headers }
+    );
+    if (!res.ok) return [];
+    return (await res.json()) as Chat[];
   } catch {
     return [];
   }
 }
 
-export function saveChatLogs(log: Chat[]): void {
+export async function saveChatLogs(log: Chat[]): Promise<void> {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
+    const chat = log[0];
+    if (!chat) return;
+    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`, {
+      method: 'POST',
+      headers: { ...headers, Prefer: 'return=minimal' },
+      body: JSON.stringify([chat]),
+    });
   } catch {
     // ignore
   }
 }
 
-export function clearChatLogs(): void {
+export async function clearChatLogs(): Promise<void> {
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=gt.0`, {
+      method: 'DELETE',
+      headers,
+    });
   } catch {
     // ignore
   }

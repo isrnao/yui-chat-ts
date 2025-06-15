@@ -39,7 +39,7 @@ export function useChatHandlers({
             startTransition(() => {
               setChatLog((prev: Chat[]) => {
                 const log = [data.chat, ...prev];
-                saveChatLogs(log);
+                void saveChatLogs(log);
                 return log;
               });
             });
@@ -55,7 +55,7 @@ export function useChatHandlers({
           case 'clear':
             startTransition(() => {
               setChatLog(() => {
-                clearChatLogs();
+                void clearChatLogs();
                 return [];
               });
             });
@@ -85,7 +85,7 @@ export function useChatHandlers({
 
       setChatLog((prev: Chat[]) => {
         const log = [joinMsg, ...prev];
-        saveChatLogs(log);
+        void saveChatLogs(log);
         return log;
       });
       setTimeout(() => {
@@ -114,7 +114,7 @@ export function useChatHandlers({
     };
     setChatLog((prev: Chat[]) => {
       const log = [leaveMsg, ...prev];
-      saveChatLogs(log);
+      void saveChatLogs(log);
       return log;
     });
     channelRef.current?.postMessage({
@@ -140,7 +140,7 @@ export function useChatHandlers({
         startTransition(() => {
           setChatLog((prev: Chat[]) => {
             const log = prev.filter((c: Chat) => !c.message.match(/img/i));
-            saveChatLogs(log);
+            void saveChatLogs(log);
             return log;
           });
         });
@@ -151,7 +151,7 @@ export function useChatHandlers({
       if (msg.trim() === 'clear') {
         startTransition(() => {
           setChatLog(() => {
-            clearChatLogs();
+            void clearChatLogs();
             return [];
           });
         });
@@ -172,7 +172,7 @@ export function useChatHandlers({
         };
         const log = [chat, ...chatLog];
         setChatLog(() => {
-          saveChatLogs(log);
+          void saveChatLogs(log);
           return log;
         });
         channelRef.current?.postMessage({ type: 'chat', chat });
@@ -184,8 +184,8 @@ export function useChatHandlers({
   );
 
   // チャット履歴再読み込み
-  const handleReload = useCallback(() => {
-    const loaded = loadChatLogs();
+  const handleReload = useCallback(async () => {
+    const loaded = await loadChatLogs();
     setChatLog(() => loaded);
   }, [setChatLog]);
 
