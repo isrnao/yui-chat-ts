@@ -34,10 +34,13 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
       }
 
       const adapter = await navigator.gpu.requestAdapter();
-      if (!adapter) return () => {};
+      if (!adapter) {
+        setGpuSupported(false);
+        return () => {};
+      }
 
       const device = await adapter.requestDevice();
-      const context = canvas.getContext('webgpu') as GPUCanvasContext;
+      const context = canvas.getContext('webgpu')!;
       const format = navigator.gpu.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: 'premultiplied' });
 
@@ -46,7 +49,6 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
 
-      // ...existing code...
       const shaderModule = device.createShaderModule({
         code: `
         struct Uniforms {

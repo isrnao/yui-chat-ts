@@ -16,7 +16,7 @@ pre-commit:
           echo "No staged TypeScript files found, skipping vitest."
           exit 0
         fi
-        pnpm vitest related --run $files --passWithNoTests
+        pnpm vitest related --run $files --passWithNoTests --coverage=false
       files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
 
 pre-push:
