@@ -1,6 +1,8 @@
 import { useCallback, useTransition } from "react";
-import type { Chat, BroadcastMsg } from "../types";
-import { useBroadcastChannel } from "./useBroadcastChannel";
+import { useBroadcastChannel } from "@shared/hooks/useBroadcastChannel";
+import { saveChatLogs, clearChatLogs, loadChatLogs } from "@features/chat/api/chatApi";
+import { validateName } from "@features/chat/utils/validation";
+import type { Chat, BroadcastMsg } from "@features/chat/types";
 
 export function useChatHandlers({
   name,
@@ -36,6 +38,7 @@ export function useChatHandlers({
             startTransition(() => {
               setChatLog((prev) => {
                 const log = [data.chat, ...prev];
+                saveChatLogs(log);
                 return log;
               });
             });
@@ -49,7 +52,12 @@ export function useChatHandlers({
             }
             break;
           case "clear":
-            setChatLog(() => []);
+            startTransition(() => {
+              setChatLog(() => {
+                clearChatLogs();
+                return [];
+              });
+            });
             break;
         }
       },
@@ -66,7 +74,8 @@ export function useChatHandlers({
       name: string;
       color: string;
     }) => {
-      if (!entryName.trim()) throw new Error("おなまえ必須");
+      const err = validateName(entryName);
+      if (err) throw new Error(err);
       setEntered(true);
 
       const joinMsg: Chat = {
@@ -78,8 +87,11 @@ export function useChatHandlers({
         system: true,
       };
 
-      // 過去ログを消さずに先頭に追加
-      setChatLog((prev) => [joinMsg, ...prev]);
+      setChatLog((prev) => {
+        const log = [joinMsg, ...prev];
+        saveChatLogs(log);
+        return log;
+      });
       setTimeout(() => {
         channelRef.current?.postMessage({
           type: "join",
@@ -104,7 +116,11 @@ export function useChatHandlers({
       time: Date.now(),
       system: true,
     };
-    setChatLog((prev) => [leaveMsg, ...prev]); // ← ローカルにも追加
+    setChatLog((prev) => {
+      const log = [leaveMsg, ...prev];
+      saveChatLogs(log);
+      return log;
+    });
     channelRef.current?.postMessage({
       type: "chat",
       chat: leaveMsg,
@@ -138,6 +154,7 @@ export function useChatHandlers({
         startTransition(() => {
           setChatLog((prev) => {
             const log = prev.filter((c) => !c.message.match(/img/i));
+            saveChatLogs(log);
             return log;
           });
         });
@@ -147,7 +164,10 @@ export function useChatHandlers({
       }
       if (msg.trim() === "clear") {
         startTransition(() => {
-          setChatLog(() => []);
+          setChatLog(() => {
+            clearChatLogs();
+            return [];
+          });
         });
         channelRef.current?.postMessage({ type: "clear" });
         setMessage("");
@@ -165,7 +185,10 @@ export function useChatHandlers({
           email,
         };
         const log = [chat, ...chatLog];
-        setChatLog(() => log);
+        setChatLog(() => {
+          saveChatLogs(log);
+          return log;
+        });
         channelRef.current?.postMessage({ type: "chat", chat });
         setMessage("");
         setShowRanking(false);
@@ -175,7 +198,10 @@ export function useChatHandlers({
   );
 
   // チャット履歴再読み込み
-  const handleReload = useCallback(() => setChatLog(() => []), [setChatLog]);
+  const handleReload = useCallback(() => {
+    const loaded = loadChatLogs();
+    setChatLog(() => loaded);
+  }, [setChatLog]);
 
   return {
     channelRef,

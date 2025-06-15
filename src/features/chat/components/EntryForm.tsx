@@ -1,4 +1,7 @@
 import { useId } from "react";
+import type { ChangeEvent } from "react";
+import Button from "@shared/components/Button";
+import Input from "@shared/components/Input";
 
 type EntryFormProps = {
   name: string;
@@ -56,33 +59,33 @@ export default function EntryForm({
           <label className="font-bold" htmlFor={nameId}>
             おなまえ:
           </label>
-          <input
-            className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+          <Input
             type="text"
             id={nameId}
             name="name"
             value={name}
             maxLength={24}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
             required
             autoFocus
             aria-label="おなまえ"
             autoComplete="nickname"
             disabled={isPending}
+            className="ml-2"
           />
         </div>
         {/* 色 */}
         <div className="mb-2 flex items-center">
           <label htmlFor={colorId}>名前の色:</label>
-          <input
-            className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] bg-white px-1 py-0.5 text-base rounded-none shadow-none transition-colors outline-none align-middle w-10 h-7 [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+          <Input
             type="color"
             id={colorId}
             name="color"
             value={color}
-            onChange={(e) => setColor(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
             aria-label="名前の色"
             disabled={isPending}
+            className="ml-2 w-10 h-7 px-1 py-0.5 text-base align-middle"
           />
           <span className="ml-2" style={{ color }} aria-hidden>
             ■
@@ -91,18 +94,18 @@ export default function EntryForm({
         {/* メール */}
         <div className="mb-2 flex items-center">
           <label htmlFor={emailId}>E-Mail:</label>
-          <input
-            className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+          <Input
             type="email"
             id={emailId}
             name="email"
             value={email}
             maxLength={64}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             autoComplete="email"
             placeholder="任意"
             aria-label="E-Mail"
             disabled={isPending}
+            className="ml-2"
           />
         </div>
         {/* ログ行数 */}
@@ -130,13 +133,13 @@ export default function EntryForm({
         )}
         {/* ボタン群 */}
         <div className="flex mt-4 gap-2">
-          <button
+          <Button
             type="submit"
             disabled={isPending}
-            className="border-2 border-[var(--ie-gray)] [border-style:outset] bg-gradient-to-b from-[var(--ie-bg)] to-[#e4e4e4] text-[#222] px-5 py-0.5 text-sm cursor-pointer rounded-none shadow-none mr-2 transition [font-family:var(--font-yui)] active:[border-style:inset] active:border-[var(--ie-gray)] active:bg-gradient-to-b active:from-[#e1e1e1] active:to-[var(--ie-bg)] disabled:text-[#a9a9a9] disabled:border-[#e2e2e2] disabled:bg-[#f6f6f6] disabled:cursor-not-allowed"
+            className="px-5"
           >
             {isPending ? "参加中..." : "チャットに参加する"}
-          </button>
+          </Button>
         </div>
         <div className="text-xs text-gray-500 text-right mt-2">
           <a href="http://www.cup.com/yui/" target="_blank" rel="noreferrer">

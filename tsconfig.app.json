@@ -21,7 +21,17 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@features/*": ["features/*"],
+      "@shared/*": ["shared/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "paths": {
+    "@/*": ["./src/*"],
+    "@features/*": ["features/*"],
+    "@shared/*": ["shared/*"]
+  }
 }

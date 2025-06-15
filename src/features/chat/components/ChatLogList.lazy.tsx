@@ -1,5 +1,5 @@
-import { formatTime } from "../utils/format";
-import type { Chat, Participant } from "../types";
+import { formatTime } from "@shared/utils/format";
+import type { Chat, Participant } from "@features/chat/types";
 
 type Props = {
   chatLog: Chat[];

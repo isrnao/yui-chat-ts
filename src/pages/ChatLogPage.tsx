@@ -1,6 +1,6 @@
 import { Suspense, useState, useEffect } from "react";
-import ChatLogList from "../components/ChatLogList.lazy";
-import type { Chat } from "../types";
+import ChatLogList from "@features/chat/components/ChatLogList.lazy";
+import type { Chat } from "@features/chat/types";
 
 const STORAGE_KEY = "yui_chat_dat";
 
