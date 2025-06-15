@@ -13,8 +13,6 @@ export function useChatHandlers({
   setShowRanking,
   setName,
   setMessage,
-  save,
-  load,
 }: {
   name: string;
   color: string;
@@ -26,8 +24,6 @@ export function useChatHandlers({
   setShowRanking: (b: boolean) => void;
   setName: (s: string) => void;
   setMessage: (s: string) => void;
-  save: (log: Chat[]) => void;
-  load: () => Chat[];
 }) {
   const [, startTransition] = useTransition();
 
@@ -40,7 +36,6 @@ export function useChatHandlers({
             startTransition(() => {
               setChatLog((prev) => {
                 const log = [data.chat, ...prev];
-                save(log);
                 return log;
               });
             });
@@ -55,11 +50,10 @@ export function useChatHandlers({
             break;
           case "clear":
             setChatLog(() => []);
-            save([]);
             break;
         }
       },
-      [entered, myId, name, color, save, setChatLog]
+      [entered, myId, name, color, setChatLog, setName, setMessage, setShowRanking]
     )
   );
 
@@ -84,7 +78,8 @@ export function useChatHandlers({
         system: true,
       };
 
-      setChatLog(() => [joinMsg, ...load()]);
+      // 過去ログを消さずに先頭に追加
+      setChatLog((prev) => [joinMsg, ...prev]);
       setTimeout(() => {
         channelRef.current?.postMessage({
           type: "join",
@@ -96,7 +91,7 @@ export function useChatHandlers({
       }, 30);
       channelRef.current?.postMessage({ type: "chat", chat: joinMsg });
     },
-    [setEntered, setChatLog, load, myId, channelRef]
+    [setEntered, setChatLog, myId, channelRef]
   );
 
   // 退室
@@ -110,7 +105,6 @@ export function useChatHandlers({
       system: true,
     };
     setChatLog((prev) => [leaveMsg, ...prev]); // ← ローカルにも追加
-    save([leaveMsg, ...load()]); // 永続化
     channelRef.current?.postMessage({
       type: "chat",
       chat: leaveMsg,
@@ -133,8 +127,6 @@ export function useChatHandlers({
     setName,
     setMessage,
     setChatLog,
-    save,
-    load,
   ]);
 
   // メッセージ送信
@@ -146,7 +138,6 @@ export function useChatHandlers({
         startTransition(() => {
           setChatLog((prev) => {
             const log = prev.filter((c) => !c.message.match(/img/i));
-            save(log);
             return log;
           });
         });
@@ -157,7 +148,6 @@ export function useChatHandlers({
       if (msg.trim() === "clear") {
         startTransition(() => {
           setChatLog(() => []);
-          save([]);
         });
         channelRef.current?.postMessage({ type: "clear" });
         setMessage("");
@@ -176,17 +166,16 @@ export function useChatHandlers({
         };
         const log = [chat, ...chatLog];
         setChatLog(() => log);
-        save(log);
         channelRef.current?.postMessage({ type: "chat", chat });
         setMessage("");
         setShowRanking(false);
       });
     },
-    [name, color, email, setChatLog, save, channelRef, setMessage, setShowRanking]
+    [name, color, email, setChatLog, channelRef, setMessage, setShowRanking]
   );
 
   // チャット履歴再読み込み
-  const handleReload = useCallback(() => setChatLog(() => load()), [setChatLog, load]);
+  const handleReload = useCallback(() => setChatLog(() => []), [setChatLog]);
 
   return {
     channelRef,

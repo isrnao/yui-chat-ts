@@ -2,7 +2,6 @@ import { useState, lazy, Suspense, useId } from "react";
 import { useChatLog } from "./hooks/useChatLog";
 import { useParticipants } from "./hooks/useParticipants";
 import { useChatHandlers } from "./hooks/useChatHandlers";
-import { saveChatLog } from "./utils/storage";
 import ChatRoom from "./components/ChatRoom";
 import EntryForm from "./components/EntryForm";
 import RetroSplitter from "./components/RetroSplitter";
@@ -38,8 +37,6 @@ export default function App() {
     setShowRanking,
     setName,
     setMessage,
-    save: saveChatLog,
-    load: () => chatLog,
   });
 
   return (
