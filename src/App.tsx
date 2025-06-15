@@ -2,7 +2,6 @@ import { useState, lazy, Suspense, useId } from "react";
 import { useChatLog } from "./hooks/useChatLog";
 import { useParticipants } from "./hooks/useParticipants";
 import { useChatHandlers } from "./hooks/useChatHandlers";
-import { saveChatLog } from "./utils/storage";
 import ChatRoom from "./components/ChatRoom";
 import EntryForm from "./components/EntryForm";
 import RetroSplitter from "./components/RetroSplitter";
@@ -10,7 +9,7 @@ import ChatRanking from "./components/ChatRanking";
 const ChatLogList = lazy(() => import("./components/ChatLogList.lazy"));
 
 export default function App() {
-  const { chatLog, clear, setChatLog } = useChatLog();
+  const { chatLog, setChatLog } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
   const [name, setName] = useState("");
@@ -38,9 +37,6 @@ export default function App() {
     setShowRanking,
     setName,
     setMessage,
-    save: saveChatLog,
-    clear,
-    load: () => chatLog,
   });
 
   return (

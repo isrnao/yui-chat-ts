@@ -1,5 +1,5 @@
 import { useDeferredValue } from "react";
-import type { Chat, Participant } from "@/types";
+import type { Chat, Participant } from "../types";
 
 export function getRecentParticipants(chatLog: Chat[]): Participant[] {
   const now = Date.now();
