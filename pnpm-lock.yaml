@@ -22,7 +22,7 @@ importers:
         version: 3.1.0(@types/react@19.1.6)(react@19.1.0)
       '@mdx-js/rollup':
         specifier: ^3.1.0
-        version: 3.1.0(acorn@8.14.1)(rollup@4.42.0)
+        version: 3.1.0(acorn@8.15.0)(rollup@4.42.0)
       '@tailwindcss/cli':
         specifier: ^4.1.8
         version: 4.1.8
@@ -86,6 +86,9 @@ importers:
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
+      lefthook:
+        specifier: ^1.11.13
+        version: 1.11.13
       postcss:
         specifier: ^8.5.4
         version: 8.5.4
@@ -2984,6 +2987,93 @@ packages:
       }
     engines: { node: '>=6' }
 
+  lefthook-darwin-arm64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-gHwHofXupCtzNLN+8esdWfFTnAEkmBxE/WKA0EwxPPJXdZYa1GUsiG5ipq/CdG/0j8ekYyM9Hzyrrk5BqJ42xw==,
+      }
+    cpu: [arm64]
+    os: [darwin]
+
+  lefthook-darwin-x64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-zYxkWNUirmTidhskY9J9AwxvdMi3YKH+TqZ3AQ1EOqkOwPBWJQW5PbnzsXDrd3YnrtZScYm/tE/moXJpEPPIpQ==,
+      }
+    cpu: [x64]
+    os: [darwin]
+
+  lefthook-freebsd-arm64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-gJzWnllcMcivusmPorEkXPpEciKotlBHn7QxWwYaSjss/U3YdZu+NTjDO30b3qeiVlyq4RAZ4BPKJODXxHHwUA==,
+      }
+    cpu: [arm64]
+    os: [freebsd]
+
+  lefthook-freebsd-x64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-689XdchgtDvZQWFFx1szUvm/mqrq/v6laki0odq5FAfcSgUeLu3w+z6UicBS5l55eFJuQTDNKARFqrKJ04e+Vw==,
+      }
+    cpu: [x64]
+    os: [freebsd]
+
+  lefthook-linux-arm64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-ujCLbaZg5S/Ao8KZAcNSb+Y3gl898ZEM0YKyiZmZo22dFFpm/5gcV46pF3xaqIw5IpH+3YYDTKDU+qTetmARyQ==,
+      }
+    cpu: [arm64]
+    os: [linux]
+
+  lefthook-linux-x64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-O5WdodeBtFOXQlvPcckqp4W/yqVM9DbVQBkvOxwSJlmsxO4sGYK1TqdxH9ihLB85B2kPPssZj9ze36/oizzhVQ==,
+      }
+    cpu: [x64]
+    os: [linux]
+
+  lefthook-openbsd-arm64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-SyBpciUfvY/lUDbZu7L6MtL/SVG2+yMTckBgb4PdJQhJlisY0IsyOYdlTw2icPPrY7JnwdsFv8UW0EJOB76W4g==,
+      }
+    cpu: [arm64]
+    os: [openbsd]
+
+  lefthook-openbsd-x64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-6+/0j6O2dzo9cjTWUKfL2J6hRR7Krna/ssqnW8cWh8QHZKO9WJn34epto9qgjeHwSysou8byI7Mwv5zOGthLCQ==,
+      }
+    cpu: [x64]
+    os: [openbsd]
+
+  lefthook-windows-arm64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-w5TwZ8bsZ17uOMtYGc5oEb4tCHjNTSeSXRy6H9Yic8E7IsPZtZLkaZGnIIwgXFuhhrcCdc6FuTvKt2tyV7EW2g==,
+      }
+    cpu: [arm64]
+    os: [win32]
+
+  lefthook-windows-x64@1.11.13:
+    resolution:
+      {
+        integrity: sha512-7lvwnIs8CNOXKU4y3i1Pbqna+QegIORkSD2VCuHBNpIJ8H84NpjoG3tKU91IM/aI1a2eUvCk+dw+1rfMRz7Ytg==,
+      }
+    cpu: [x64]
+    os: [win32]
+
+  lefthook@1.11.13:
+    resolution:
+      {
+        integrity: sha512-SDTk3D4nW1XRpR9u9fdYQ/qj1xeZVIwZmIFdJUnyq+w9ZLdCCvIrOmtD8SFiJowSevISjQDC+f9nqyFXUxc0SQ==,
+      }
+    hasBin: true
+
   levn@0.4.1:
     resolution:
       {
@@ -5080,7 +5170,7 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.0
 
-  '@mdx-js/mdx@3.1.0(acorn@8.14.1)':
+  '@mdx-js/mdx@3.1.0(acorn@8.15.0)':
     dependencies:
       '@types/estree': 1.0.8
       '@types/estree-jsx': 1.0.5
@@ -5094,7 +5184,7 @@ snapshots:
       hast-util-to-jsx-runtime: 2.3.6
       markdown-extensions: 2.0.0
       recma-build-jsx: 1.0.0
-      recma-jsx: 1.0.0(acorn@8.14.1)
+      recma-jsx: 1.0.0(acorn@8.15.0)
       recma-stringify: 1.0.0
       rehype-recma: 1.0.0
       remark-mdx: 3.1.0
@@ -5116,9 +5206,9 @@ snapshots:
       '@types/react': 19.1.6
       react: 19.1.0
 
-  '@mdx-js/rollup@3.1.0(acorn@8.14.1)(rollup@4.42.0)':
+  '@mdx-js/rollup@3.1.0(acorn@8.15.0)(rollup@4.42.0)':
     dependencies:
-      '@mdx-js/mdx': 3.1.0(acorn@8.14.1)
+      '@mdx-js/mdx': 3.1.0(acorn@8.15.0)
       '@rollup/pluginutils': 5.1.4(rollup@4.42.0)
       rollup: 4.42.0
       source-map: 0.7.4
@@ -6518,6 +6608,49 @@ snapshots:
 
   kleur@4.1.5: {}
 
+  lefthook-darwin-arm64@1.11.13:
+    optional: true
+
+  lefthook-darwin-x64@1.11.13:
+    optional: true
+
+  lefthook-freebsd-arm64@1.11.13:
+    optional: true
+
+  lefthook-freebsd-x64@1.11.13:
+    optional: true
+
+  lefthook-linux-arm64@1.11.13:
+    optional: true
+
+  lefthook-linux-x64@1.11.13:
+    optional: true
+
+  lefthook-openbsd-arm64@1.11.13:
+    optional: true
+
+  lefthook-openbsd-x64@1.11.13:
+    optional: true
+
+  lefthook-windows-arm64@1.11.13:
+    optional: true
+
+  lefthook-windows-x64@1.11.13:
+    optional: true
+
+  lefthook@1.11.13:
+    optionalDependencies:
+      lefthook-darwin-arm64: 1.11.13
+      lefthook-darwin-x64: 1.11.13
+      lefthook-freebsd-arm64: 1.11.13
+      lefthook-freebsd-x64: 1.11.13
+      lefthook-linux-arm64: 1.11.13
+      lefthook-linux-x64: 1.11.13
+      lefthook-openbsd-arm64: 1.11.13
+      lefthook-openbsd-x64: 1.11.13
+      lefthook-windows-arm64: 1.11.13
+      lefthook-windows-x64: 1.11.13
+
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -6783,8 +6916,8 @@ snapshots:
 
   micromark-extension-mdxjs@3.0.0:
     dependencies:
-      acorn: 8.14.1
-      acorn-jsx: 5.3.2(acorn@8.14.1)
+      acorn: 8.15.0
+      acorn-jsx: 5.3.2(acorn@8.15.0)
       micromark-extension-mdx-expression: 3.0.1
       micromark-extension-mdx-jsx: 3.0.2
       micromark-extension-mdx-md: 2.0.0
@@ -7146,9 +7279,9 @@ snapshots:
       estree-util-build-jsx: 3.0.1
       vfile: 6.0.3
 
-  recma-jsx@1.0.0(acorn@8.14.1):
+  recma-jsx@1.0.0(acorn@8.15.0):
     dependencies:
-      acorn-jsx: 5.3.2(acorn@8.14.1)
+      acorn-jsx: 5.3.2(acorn@8.15.0)
       estree-util-to-js: 2.0.0
       recma-parse: 1.0.0
       recma-stringify: 1.0.0

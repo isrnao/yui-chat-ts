@@ -5,12 +5,12 @@ import Input from '@shared/components/Input';
 
 export type ChatRoomProps = {
   message: string;
-  setMessage: (v: string) => void;
+  setMessage: () => void;
   chatLog: Chat[];
   windowRows: number;
-  setWindowRows: (v: number) => void;
+  setWindowRows: () => void;
   onExit: () => void;
-  onSend: (msg: string) => Promise<void>;
+  onSend: () => Promise<void>;
   onReload: () => void;
   onShowRanking: () => void;
 };

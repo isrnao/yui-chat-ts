@@ -21,11 +21,11 @@ export function useChatHandlers({
   email: string;
   myId: string;
   entered: boolean;
-  setEntered: (b: boolean) => void;
-  setChatLog: (fn: (prev: Chat[]) => Chat[]) => void;
-  setShowRanking: (b: boolean) => void;
-  setName: (s: string) => void;
-  setMessage: (s: string) => void;
+  setEntered: () => void;
+  setChatLog: () => void;
+  setShowRanking: () => void;
+  setName: () => void;
+  setMessage: () => void;
 }) {
   const [, startTransition] = useTransition();
 
@@ -61,6 +61,7 @@ export function useChatHandlers({
             break;
         }
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [entered, myId, name, color, setChatLog, setName, setMessage, setShowRanking]
     )
   );

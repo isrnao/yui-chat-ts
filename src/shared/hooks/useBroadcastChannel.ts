@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 
 // ジェネリクスで型安全
-export function useBroadcastChannel<T>(name: string, onMsg: (msg: T) => void) {
+export function useBroadcastChannel(name: string, onMsg: () => void) {
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {

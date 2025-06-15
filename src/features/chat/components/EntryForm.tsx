@@ -5,14 +5,14 @@ import Input from '@shared/components/Input';
 
 type EntryFormProps = {
   name: string;
-  setName: (v: string) => void;
+  setName: () => void;
   color: string;
-  setColor: (v: string) => void;
+  setColor: () => void;
   email: string;
-  setEmail: (v: string) => void;
+  setEmail: () => void;
   windowRows: number;
-  setWindowRows: (v: number) => void;
-  onEnter: (form: { name: string; color: string; email: string }) => void | Promise<void>;
+  setWindowRows: () => void;
+  onEnter: () => void | Promise<void>;
   error?: string;
   isPending?: boolean;
 };

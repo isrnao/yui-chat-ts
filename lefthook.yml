@@ -1,0 +1,29 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: require-staged
+      run: |
+        files=$(git diff --cached --name-only | grep -E '\.(js|jsx|ts|tsx)$')
+        if [ -z "$files" ]; then
+          echo "No matching files staged for commit. Commit aborted."
+          exit 1
+        fi
+    - name: eslint
+      run: pnpm eslint --fix {staged_files}
+      glob: '*.{js,jsx,ts,tsx}'
+
+    - name: typecheck
+      run: pnpm typecheck
+      glob: '*.{ts,tsx}'
+
+    - name: vitest
+      run: pnpm test
+      glob: '*.{ts,tsx}'
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: eslint (all)
+      run: pnpm lint
+    - name: vitest (all)
+      run: pnpm test

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import Modal from './Modal';
 import TermsContent from '../../content/terms.mdx';
 
@@ -6,42 +6,41 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gpuSupported, setGpuSupported] = useState(true);
   const attackingRef = useRef(false);
+  const agreedRef = useRef(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const canvas = canvasRef.current;
-    if (!canvas) throw new Error('canvasが見つかりません');
-    if (!navigator.gpu) {
-      setGpuSupported(false);
-      return;
+  const callOnAgreeOnce = useCallback(() => {
+    if (!agreedRef.current) {
+      agreedRef.current = true;
+      onAgree();
     }
+  }, [onAgree]);
 
-    function resizeCanvas() {
-      if (!canvas) return;
+  const setupResize = (canvas: HTMLCanvasElement) => {
+    const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
-    }
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  };
 
-    let device: GPUDevice;
-    let context: GPUCanvasContext;
-    let uniformBuffer: GPUBuffer;
-    let pipeline: GPURenderPipeline;
-    let uniformBindGroup: GPUBindGroup;
-    let start = 0;
-    let u_attack = 0;
-    let raf = 0;
+  const setupWebGPU = useCallback(
+    async (canvas: HTMLCanvasElement) => {
+      if (!navigator.gpu) {
+        setGpuSupported(false);
+        return () => {};
+      }
 
-    const init = async () => {
-      const adapter = await navigator.gpu!.requestAdapter();
-      if (!adapter) return;
-      device = await adapter.requestDevice();
-      context = canvas.getContext('webgpu')!;
-      const format = navigator.gpu!.getPreferredCanvasFormat();
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) return () => {};
+
+      const device = await adapter.requestDevice();
+      const context = canvas.getContext('webgpu')!;
+      const format = navigator.gpu.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: 'premultiplied' });
 
-      uniformBuffer = device.createBuffer({
+      const uniformBuffer = device.createBuffer({
         size: 4 * 4,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
@@ -63,8 +62,8 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
           let f = fract(st);
           let u_ = f * f * (3.0 - 2.0 * f);
           return mix(mix(random2(i), random2(i + vec2<f32>(1.0,0.0)), u_.x),
-                    mix(random2(i + vec2<f32>(0.0,1.0)), random2(i + vec2<f32>(1.0,1.0)), u_.x),
-                    u_.y);
+            mix(random2(i + vec2<f32>(0.0,1.0)), random2(i + vec2<f32>(1.0,1.0)), u_.x),
+            u_.y);
         }
         fn tear(uv: vec2<f32>, origin: vec2<f32>, angle: f32, width: f32, jag: f32) -> f32 {
           let o = uv - origin;
@@ -97,28 +96,37 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
           let collapse = smoothstep(0.4, 1.0, atk);
           let crumble = clamp(claw * collapse * 5.0, 0.0, 1.0);
           a *= 1.0 - crumble;
-          if(a < 0.01) { discard; }
+          if (a < 0.01) { discard; }
           return vec4<f32>(col, a);
         }
-        `,
+      `,
       });
 
-      pipeline = device.createRenderPipeline({
+      const pipeline = device.createRenderPipeline({
         layout: 'auto',
         vertex: { module: shaderModule, entryPoint: 'vs' },
         fragment: { module: shaderModule, entryPoint: 'fs', targets: [{ format }] },
         primitive: { topology: 'triangle-list' },
       });
 
-      uniformBindGroup = device.createBindGroup({
+      const uniformBindGroup = device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
         entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
       });
 
+      let start = 0;
+      let u_attack = 0;
+      let raf = 0;
+      let stopped = false;
+
       const render = (ts: number) => {
+        if (stopped) return;
         if (!start) start = ts;
         const t = (ts - start) / 1000;
-        if (attackingRef.current && u_attack < 1) u_attack = Math.min(u_attack + 0.02, 1);
+
+        if (attackingRef.current && u_attack < 1) {
+          u_attack = Math.min(u_attack + 0.02, 1);
+        }
 
         device.queue.writeBuffer(
           uniformBuffer,
@@ -146,20 +154,37 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
         if (u_attack < 1) {
           raf = requestAnimationFrame(render);
         } else {
-          onAgree();
+          callOnAgreeOnce();
         }
       };
 
       raf = requestAnimationFrame(render);
-    };
 
-    init();
+      return () => {
+        stopped = true;
+        if (raf) cancelAnimationFrame(raf);
+      };
+    },
+    [callOnAgreeOnce]
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const canvas = canvasRef.current;
+    if (!canvas) throw new Error('canvasが見つかりません');
+
+    const cleanupResize = setupResize(canvas);
+    let cleanupWebGPU = () => {};
+
+    setupWebGPU(canvas).then((cleanup) => {
+      if (cleanup) cleanupWebGPU = cleanup;
+    });
 
     return () => {
-      window.removeEventListener('resize', resizeCanvas);
-      if (raf) cancelAnimationFrame(raf);
+      cleanupResize();
+      cleanupWebGPU();
     };
-  }, [open, onAgree]);
+  }, [open, setupWebGPU]);
 
   return (
     <Modal
@@ -169,7 +194,6 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
       onClose={gpuSupported ? undefined : onAgree}
     >
       {gpuSupported && <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />}
-      {/* 利用規約（MDX）本文 */}
       <div className="relative z-10 max-h-[65vh] overflow-y-auto prose prose-sm">
         <TermsContent />
       </div>
@@ -178,7 +202,7 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
           type="button"
           onClick={() => {
             if (!navigator.gpu) {
-              onAgree();
+              callOnAgreeOnce();
             } else {
               attackingRef.current = true;
             }
