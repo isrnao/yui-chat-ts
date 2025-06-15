@@ -1,6 +1,10 @@
 import { useCallback, useTransition } from 'react';
 import { useBroadcastChannel } from '@shared/hooks/useBroadcastChannel';
-import { saveChatLogs, clearChatLogs, loadChatLogs } from '@features/chat/api/chatApi';
+import {
+  saveChatLogs,
+  clearChatLogs,
+  loadChatLogs,
+} from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import type { Chat, BroadcastMsg } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
@@ -37,11 +41,7 @@ export function useChatHandlers({
         switch (data.type) {
           case 'chat':
             startTransition(() => {
-              setChatLog((prev: Chat[]) => {
-                const log = [data.chat, ...prev];
-                saveChatLogs(log);
-                return log;
-              });
+              setChatLog((prev: Chat[]) => [data.chat, ...prev]);
             });
             break;
           case 'req-presence':
@@ -54,11 +54,9 @@ export function useChatHandlers({
             break;
           case 'clear':
             startTransition(() => {
-              setChatLog(() => {
-                clearChatLogs();
-                return [];
-              });
+              setChatLog(() => []);
             });
+            clearChatLogs();
             break;
         }
       },
@@ -83,11 +81,8 @@ export function useChatHandlers({
         system: true,
       };
 
-      setChatLog((prev: Chat[]) => {
-        const log = [joinMsg, ...prev];
-        saveChatLogs(log);
-        return log;
-      });
+      setChatLog((prev: Chat[]) => [joinMsg, ...prev]);
+      await saveChatLogs(joinMsg);
       setTimeout(() => {
         channelRef.current?.postMessage({
           type: 'join',
@@ -112,11 +107,8 @@ export function useChatHandlers({
       time: Date.now(),
       system: true,
     };
-    setChatLog((prev: Chat[]) => {
-      const log = [leaveMsg, ...prev];
-      saveChatLogs(log);
-      return log;
-    });
+    setChatLog((prev: Chat[]) => [leaveMsg, ...prev]);
+    saveChatLogs(leaveMsg);
     channelRef.current?.postMessage({
       type: 'chat',
       chat: leaveMsg,
@@ -138,54 +130,51 @@ export function useChatHandlers({
 
       if (msg.trim() === 'cut') {
         startTransition(() => {
-          setChatLog((prev: Chat[]) => {
-            const log = prev.filter((c: Chat) => !c.message.match(/img/i));
-            saveChatLogs(log);
-            return log;
-          });
+          setChatLog((prev: Chat[]) => prev.filter((c: Chat) => !c.message.match(/img/i)));
         });
+        // 履歴データの画像発言を削除
+        const loaded = await loadChatLogs();
+        const filtered = loaded.filter((c: Chat) => !c.message.match(/img/i));
+        await clearChatLogs();
+        await Promise.all(filtered.map((c) => saveChatLogs(c)));
         setMessage('');
         setShowRanking(false);
         return;
       }
       if (msg.trim() === 'clear') {
         startTransition(() => {
-          setChatLog(() => {
-            clearChatLogs();
-            return [];
-          });
+          setChatLog(() => []);
         });
+        await clearChatLogs();
         channelRef.current?.postMessage({ type: 'clear' });
         setMessage('');
         setShowRanking(false);
         return;
       }
 
+      const chat: Chat = {
+        id: Math.random().toString(36).slice(2),
+        name,
+        color,
+        message: msg,
+        time: Date.now(),
+        email,
+      };
       startTransition(() => {
-        const chat: Chat = {
-          id: Math.random().toString(36).slice(2),
-          name,
-          color,
-          message: msg,
-          time: Date.now(),
-          email,
-        };
         const log = [chat, ...chatLog];
-        setChatLog(() => {
-          saveChatLogs(log);
-          return log;
-        });
-        channelRef.current?.postMessage({ type: 'chat', chat });
+        setChatLog(() => log);
         setMessage('');
         setShowRanking(false);
       });
+      saveChatLogs(chat);
+      channelRef.current?.postMessage({ type: 'chat', chat });
     },
     [name, color, email, setChatLog, channelRef, setMessage, setShowRanking]
   );
 
   // チャット履歴再読み込み
-  const handleReload = useCallback(() => {
-    const loaded = loadChatLogs();
+  const handleReload = useCallback(async () => {
+    const loaded = await loadChatLogs();
     setChatLog(() => loaded);
   }, [setChatLog]);
 

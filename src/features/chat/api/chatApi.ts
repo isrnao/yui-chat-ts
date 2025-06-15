@@ -1,35 +1,47 @@
+import { supabase } from '@shared/supabaseClient';
 import type { Chat } from '@features/chat/types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
-// チャットAPIラッパー（axiosやfetchでAPIアクセスのみ担当）
-// ここにfetchChatLogs等を実装します
-
-const STORAGE_KEY = 'yui_chat_dat';
+// Supabase 上のテーブル名
+const TABLE_NAME = 'chats';
 const MAX_CHAT_LOG = 2000;
 
-export function loadChatLogs(): Chat[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.slice(0, MAX_CHAT_LOG);
-  } catch {
+// 最新のチャットログを取得
+export async function loadChatLogs(): Promise<Chat[]> {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select('*')
+    .order('time', { ascending: false })
+    .limit(MAX_CHAT_LOG);
+  if (error) {
+    console.error(error);
     return [];
   }
+  return (data as Chat[]) ?? [];
 }
 
-export function saveChatLogs(log: Chat[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
-  } catch {
-    // ignore
-  }
+// チャットを1件保存
+export async function saveChatLogs(chat: Chat): Promise<void> {
+  const { error } = await supabase.from(TABLE_NAME).insert(chat);
+  if (error) throw error;
 }
 
-export function clearChatLogs(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+// チャットログを全削除
+export async function clearChatLogs(): Promise<void> {
+  const { error } = await supabase.from(TABLE_NAME).delete().neq('id', '');
+  if (error) throw error;
+}
+
+// 新規チャット追加を購読
+export function subscribeChatLogs(
+  onInsert: (chat: Chat) => void
+): RealtimeChannel {
+  return supabase
+    .channel(`public:${TABLE_NAME}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: TABLE_NAME },
+      (payload) => onInsert(payload.new as Chat)
+    )
+    .subscribe();
 }
