@@ -5,6 +5,33 @@ import mdx from '@mdx-js/rollup';
 export default defineConfig({
   base: './',
   plugins: [react(), mdx()],
+  build: {
+    // SEO最適化のためのビルド設定
+    rollupOptions: {
+      output: {
+        // ファイル名にハッシュを含める（キャッシュ対策）
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
+      },
+    },
+    // CSSコード分割を有効にしてパフォーマンス向上
+    cssCodeSplit: true,
+    // ソースマップを本番環境では無効化
+    sourcemap: false,
+    // 最小化
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true, // console.logを本番環境では削除
+        drop_debugger: true,
+      },
+    },
+  },
+  // パフォーマンス最適化
+  optimizeDeps: {
+    include: ['react', 'react-dom'],
+  },
   test: {
     environment: 'jsdom',
     globals: true,

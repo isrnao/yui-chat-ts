@@ -2,6 +2,7 @@ import { useState, lazy, Suspense, useId } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
+import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
@@ -10,6 +11,25 @@ import { TermsModal } from '@shared/components';
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList.lazy'));
 
 export default function App() {
+  // SEO対策
+  useSEO({
+    title: 'ゆいちゃっとTS - 無料お気楽チャット',
+    description:
+      'ゆいちゃっとTSは放課後学生タウンの雰囲気を楽しめる無料のお気楽チャットです。リアルタイムでみんなとおしゃべりを楽しもう！ブラウザですぐに使える簡単チャット。',
+    keywords: [
+      'ゆいちゃっとTS',
+      '放課後学生タウン',
+      'お気楽チャット',
+      '無料チャット',
+      'ブラウザチャット',
+      'リアルタイムチャット',
+      '学生チャット',
+      'オンラインチャット',
+    ],
+    canonical: 'https://midori.github.io/yui-chat-ts/',
+  });
+
+  usePageView('ホーム - ゆいちゃっとTS');
   const { chatLog, setChatLog } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
@@ -44,7 +64,11 @@ export default function App() {
           setShowTerms(false);
         }}
       />
-      <div className="flex flex-col min-h-screen bg-[var(--yui-green)]">
+      <main className="flex flex-col min-h-screen bg-[var(--yui-green)]" role="main">
+        <header className="sr-only">
+          <h1>ゆいちゃっとTS - 無料お気楽チャット</h1>
+          <p>リアルタイムでみんなとおしゃべりを楽しめる無料のブラウザチャットです。</p>
+        </header>
         <RetroSplitter
           minTop={100}
           minBottom={100}
@@ -103,7 +127,7 @@ export default function App() {
             )
           }
         />
-      </div>
+      </main>
     </>
   );
 }
