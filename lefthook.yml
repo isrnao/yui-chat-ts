@@ -1,24 +1,23 @@
 pre-commit:
   parallel: true
   jobs:
-    - name: require-staged
-      run: |
-        files=$(git diff --cached --name-only | grep -E '\.(js|jsx|ts|tsx)$')
-        if [ -z "$files" ]; then
-          echo "No matching files staged for commit. Commit aborted."
-          exit 1
-        fi
     - name: eslint
       run: pnpm eslint --fix {staged_files}
-      glob: '*.{js,jsx,ts,tsx}'
+      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx)$' || true
 
     - name: typecheck
       run: pnpm typecheck
-      glob: '*.{ts,tsx}'
+      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
 
-    - name: vitest
-      run: pnpm test
-      glob: '*.{ts,tsx}'
+    - name: vitest-staged
+      run: |
+        files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+        if [ -z "$files" ]; then
+          echo "No staged TypeScript files found, skipping vitest."
+          exit 0
+        fi
+        pnpm vitest related --run $files --passWithNoTests
+      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
 
 pre-push:
   parallel: true
@@ -26,4 +25,4 @@ pre-push:
     - name: eslint (all)
       run: pnpm lint
     - name: vitest (all)
-      run: pnpm test
+      run: pnpm test -- --coverage
