@@ -1,6 +1,6 @@
-import { useChatRanking } from "../hooks/useChatRanking";
-import { formatCountTime } from "../utils/format";
-import type { Chat } from "../types";
+import { useChatRanking } from "@features/chat/hooks/useChatRanking";
+import { formatCountTime } from "@shared/utils/format";
+import type { Chat } from "@features/chat/types";
 
 type Props = {
   chatLog: Chat[];
@@ -52,8 +52,8 @@ export default function ChatRanking({ chatLog }: Props) {
                 <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
                   {formatCountTime(lastTime)}
                 </td>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-xs text-gray-400 text-center">
-                  -
+                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
+                  {/* ホスト情報は必要に応じて追加 */}
                 </td>
               </tr>
             ))}

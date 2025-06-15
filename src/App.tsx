@@ -1,12 +1,12 @@
 import { useState, lazy, Suspense, useId } from "react";
-import { useChatLog } from "./hooks/useChatLog";
-import { useParticipants } from "./hooks/useParticipants";
-import { useChatHandlers } from "./hooks/useChatHandlers";
-import ChatRoom from "./components/ChatRoom";
-import EntryForm from "./components/EntryForm";
-import RetroSplitter from "./components/RetroSplitter";
-import ChatRanking from "./components/ChatRanking";
-const ChatLogList = lazy(() => import("./components/ChatLogList.lazy"));
+import { useChatLog } from "@features/chat/hooks/useChatLog";
+import { useParticipants } from "@features/chat/hooks/useParticipants";
+import { useChatHandlers } from "@features/chat/hooks/useChatHandlers";
+import ChatRoom from "@features/chat/components/ChatRoom";
+import EntryForm from "@features/chat/components/EntryForm";
+import RetroSplitter from "@features/chat/components/RetroSplitter";
+import ChatRanking from "@features/chat/components/ChatRanking";
+const ChatLogList = lazy(() => import("@features/chat/components/ChatLogList.lazy"));
 
 export default function App() {
   const { chatLog, setChatLog } = useChatLog();

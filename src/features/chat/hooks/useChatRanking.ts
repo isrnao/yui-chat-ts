@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Chat } from "../types";
+import type { Chat } from "@features/chat/types";
 
 export function useChatRanking(chatLog: Chat[]) {
   return useMemo(() => {
