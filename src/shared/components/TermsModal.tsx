@@ -8,14 +8,14 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (!navigator.gpu) {
+    if (!(navigator as Navigator).gpu) {
       setGpuSupported(false);
       return;
     }
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas!.width = window.innerWidth;
+      canvas!.height = window.innerHeight;
     }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
@@ -30,11 +30,11 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
     let raf = 0;
 
     const init = async () => {
-      const adapter = await navigator.gpu!.requestAdapter();
+      const adapter = await (navigator as Navigator).gpu!.requestAdapter();
       if (!adapter) return;
       device = await adapter.requestDevice();
       context = canvas.getContext("webgpu") as GPUCanvasContext;
-      const format = navigator.gpu!.getPreferredCanvasFormat();
+      const format = (navigator as Navigator).gpu!.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: "premultiplied" });
 
       uniformBuffer = device.createBuffer({
@@ -171,7 +171,7 @@ fn fs(@builtin(position) fragCoord: vec4<f32>) -> @location(0) vec4<f32> {
         <button
           type="button"
           onClick={() => {
-            if (!navigator.gpu) {
+            if (!(navigator as Navigator).gpu) {
               onAgree();
             } else {
               attackingRef.current = true;
