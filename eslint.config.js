@@ -45,4 +45,10 @@ export default tseslint.config(
       "prettier/prettier": "warn",
     },
   },
+  {
+    files: ["**/*.mdx"],
+    plugins: { mdx: require("eslint-plugin-mdx") },
+    extends: ["plugin:mdx/recommended"],
+    rules: {},
+  },
 );
