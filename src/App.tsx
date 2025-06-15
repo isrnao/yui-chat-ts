@@ -26,7 +26,7 @@ export default function App() {
       '学生チャット',
       'オンラインチャット',
     ],
-    canonical: 'https://midori.github.io/yui-chat-ts/',
+    canonical: 'https://isrnao.github.io/yui-chat-ts/',
   });
 
   usePageView('ホーム - ゆいちゃっとTS');
