@@ -1,7 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import Modal from "./Modal";
+import TermsContent from "../../content/terms.mdx";
 
-export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: () => void }) {
+export default function TermsModal({
+  open,
+  onAgree,
+}: {
+  open: boolean;
+  onAgree: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gpuSupported, setGpuSupported] = useState(true);
   const attackingRef = useRef(false);
@@ -16,6 +23,7 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
     }
 
     function resizeCanvas() {
+      if (!canvas) return;
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
     }
@@ -161,59 +169,18 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
   }, [open, onAgree]);
 
   return (
-    <Modal open={open} ariaLabel="利用規約への同意" className="max-w-lg w-[80%]  h-[80%] bg-white/90 text-black p-4 rounded" onClose={gpuSupported ? undefined : onAgree}>
+    <Modal
+      open={open}
+      ariaLabel="利用規約への同意"
+      className="w-[80%] h-[80%] bg-white/90 text-black p-4 rounded"
+      onClose={gpuSupported ? undefined : onAgree}
+    >
       {gpuSupported && (
         <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
       )}
-      <div className="relative z-10 max-h-[65vh] overflow-y-auto">
-        <h2 className="text-lg font-bold mb-2">利用規約</h2>
-        <p className="mb-2 text-sm">
-          本サービス（以下「当サイト」）は、利用者同士のコミュニケーションを目的としたチャットサービスです。
-          利用にあたっては、下記の内容に同意したものとみなします。
-        </p>
-        <ol className="list-decimal ml-5 mb-2 text-sm space-y-2">
-          <li>
-            <b>禁止事項</b>
-            <ul className="list-disc ml-6 mt-1 space-y-1">
-              <li>法令または公序良俗に反する行為</li>
-              <li>他の利用者や第三者への誹謗中傷・差別・いやがらせ</li>
-              <li>スパム、広告、宣伝、勧誘行為</li>
-              <li>他人になりすます行為</li>
-              <li>個人情報や機密情報の投稿</li>
-              <li>不適切なコンテンツの投稿</li>
-            </ul>
-          </li>
-          <li>
-            <b>免責事項</b>
-            <ul className="list-disc ml-6 mt-1 space-y-1">
-              <li>
-                当サイトは、投稿内容の監視・保証は行いません。利用者間のトラブルや損害について、運営は一切の責任を負いません。
-              </li>
-              <li>
-                不適切な投稿や違反が判明した場合、投稿削除・利用停止などの措置を行う場合があります。
-              </li>
-            </ul>
-          </li>
-          <li>
-            <b>個人情報の取り扱い</b>
-            <ul className="list-disc ml-6 mt-1 space-y-1">
-              <li>
-                利用者が投稿した内容は、他の利用者に表示されることがあります。投稿の際は個人情報を含めないようご注意ください。
-              </li>
-            </ul>
-          </li>
-          <li>
-            <b>規約の変更</b>
-            <ul className="list-disc ml-6 mt-1 space-y-1">
-              <li>
-                本規約は予告なく変更される場合があります。最新の規約は当サイト上にて随時公開します。
-              </li>
-            </ul>
-          </li>
-        </ol>
-        <p className="mb-2 text-xs text-gray-600">
-          ※利用規約に同意いただけない場合は、本サービスをご利用いただけません。
-        </p>
+      {/* 利用規約（MDX）本文 */}
+      <div className="relative z-10 max-h-[65vh] overflow-y-auto prose prose-sm">
+        <TermsContent />
       </div>
       <div className="relative z-10 mt-4">
         <button
