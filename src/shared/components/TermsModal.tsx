@@ -7,15 +7,15 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) throw new Error("canvasが見つかりません");
     if (!navigator.gpu) {
       setGpuSupported(false);
       return;
     }
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      canvas!.width = window.innerWidth;
+      canvas!.height = window.innerHeight;
     }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
@@ -33,7 +33,7 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
       const adapter = await navigator.gpu!.requestAdapter();
       if (!adapter) return;
       device = await adapter.requestDevice();
-      context = canvas.getContext("webgpu") as GPUCanvasContext;
+      context = canvas.getContext("webgpu")!;
       const format = navigator.gpu!.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: "premultiplied" });
 
