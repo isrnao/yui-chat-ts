@@ -1,0 +1,37 @@
+# .github/workflows/ci.yml
+name: CI with Test Strategy Comment
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Run tests
+        run: pnpm test
+        continue-on-error: true
+
+      - name: Comment Test Strategy Link
+        uses: mshick/add-pr-comment@v2
+        if: always()
+        with:
+          message: |
+            Vitest実行\n
+            - [テスト戦略ドキュメント](docs/TEST_STRATEGY.md)\n
+            <br/>
+            ${{ github.workflow }} 結果：${{ job.status }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
