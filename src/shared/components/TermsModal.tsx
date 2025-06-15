@@ -7,7 +7,7 @@ export default function TermsModal({ onAgree }: { onAgree: () => void }) {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) throw new Error("canvasが見つかりません");
     if (!navigator.gpu) {
       setGpuSupported(false);
       return;
