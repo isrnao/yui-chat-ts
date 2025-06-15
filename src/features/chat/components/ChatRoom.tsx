@@ -1,16 +1,25 @@
-import { useId, useRef, useEffect, useActionState, startTransition, type ChangeEvent } from 'react';
+import {
+  useId,
+  useRef,
+  useEffect,
+  useActionState,
+  startTransition,
+  type ChangeEvent,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { Chat } from '@features/chat/types';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 
 export type ChatRoomProps = {
   message: string;
-  setMessage: () => void;
+  setMessage: Dispatch<SetStateAction<string>>;
   chatLog: Chat[];
   windowRows: number;
-  setWindowRows: () => void;
+  setWindowRows: Dispatch<SetStateAction<number>>;
   onExit: () => void;
-  onSend: () => Promise<void>;
+  onSend: (msg: string) => Promise<void>;
   onReload: () => void;
   onShowRanking: () => void;
 };

@@ -1,3 +1,4 @@
+/// <reference types="@webgpu/types" />
 import { useEffect, useCallback, useRef, useState } from 'react';
 import Modal from './Modal';
 import TermsContent from '../../content/terms.mdx';
@@ -36,7 +37,7 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
       if (!adapter) return () => {};
 
       const device = await adapter.requestDevice();
-      const context = canvas.getContext('webgpu')!;
+      const context = canvas.getContext('webgpu') as GPUCanvasContext;
       const format = navigator.gpu.getPreferredCanvasFormat();
       context.configure({ device, format, alphaMode: 'premultiplied' });
 
@@ -45,6 +46,7 @@ export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: 
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
 
+      // ...existing code...
       const shaderModule = device.createShaderModule({
         code: `
         struct Uniforms {

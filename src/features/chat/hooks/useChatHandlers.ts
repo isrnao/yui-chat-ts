@@ -3,6 +3,7 @@ import { useBroadcastChannel } from '@shared/hooks/useBroadcastChannel';
 import { saveChatLogs, clearChatLogs, loadChatLogs } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import type { Chat, BroadcastMsg } from '@features/chat/types';
+import type { Dispatch, SetStateAction } from 'react';
 
 export function useChatHandlers({
   name,
@@ -21,11 +22,11 @@ export function useChatHandlers({
   email: string;
   myId: string;
   entered: boolean;
-  setEntered: () => void;
-  setChatLog: () => void;
-  setShowRanking: () => void;
-  setName: () => void;
-  setMessage: () => void;
+  setEntered: Dispatch<SetStateAction<boolean>>;
+  setChatLog: Dispatch<SetStateAction<Chat[]>>;
+  setShowRanking: Dispatch<SetStateAction<boolean>>;
+  setName: Dispatch<SetStateAction<string>>;
+  setMessage: Dispatch<SetStateAction<string>>;
 }) {
   const [, startTransition] = useTransition();
 
@@ -36,7 +37,7 @@ export function useChatHandlers({
         switch (data.type) {
           case 'chat':
             startTransition(() => {
-              setChatLog((prev) => {
+              setChatLog((prev: Chat[]) => {
                 const log = [data.chat, ...prev];
                 saveChatLogs(log);
                 return log;
@@ -82,7 +83,7 @@ export function useChatHandlers({
         system: true,
       };
 
-      setChatLog((prev) => {
+      setChatLog((prev: Chat[]) => {
         const log = [joinMsg, ...prev];
         saveChatLogs(log);
         return log;
@@ -111,7 +112,7 @@ export function useChatHandlers({
       time: Date.now(),
       system: true,
     };
-    setChatLog((prev) => {
+    setChatLog((prev: Chat[]) => {
       const log = [leaveMsg, ...prev];
       saveChatLogs(log);
       return log;
@@ -137,8 +138,8 @@ export function useChatHandlers({
 
       if (msg.trim() === 'cut') {
         startTransition(() => {
-          setChatLog((prev) => {
-            const log = prev.filter((c) => !c.message.match(/img/i));
+          setChatLog((prev: Chat[]) => {
+            const log = prev.filter((c: Chat) => !c.message.match(/img/i));
             saveChatLogs(log);
             return log;
           });

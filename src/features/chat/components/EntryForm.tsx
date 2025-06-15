@@ -1,18 +1,18 @@
 import { useId } from 'react';
-import type { ChangeEvent } from 'react';
+import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 
 type EntryFormProps = {
   name: string;
-  setName: () => void;
+  setName: Dispatch<SetStateAction<string>>;
   color: string;
-  setColor: () => void;
+  setColor: Dispatch<SetStateAction<string>>;
   email: string;
-  setEmail: () => void;
+  setEmail: Dispatch<SetStateAction<string>>;
   windowRows: number;
-  setWindowRows: () => void;
-  onEnter: () => void | Promise<void>;
+  setWindowRows: Dispatch<SetStateAction<number>>;
+  onEnter: (args: { name: string; color: string; email: string }) => void | Promise<void>;
   error?: string;
   isPending?: boolean;
 };

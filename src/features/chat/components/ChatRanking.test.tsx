@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import ChatRanking from './ChatRanking';
-import { vi } from 'vitest';
+import { vi, describe, it, expect } from 'vitest';
 
 // formatCountTimeをモック（呼び出し確認もしやすい）
 vi.mock('@shared/utils/format', () => ({
@@ -16,9 +16,30 @@ describe('<ChatRanking />', () => {
   it('ランキングが正しく表示される', () => {
     // 仮のチャットログデータ
     const chatLog = [
-      { name: 'みどり', text: 'hi', createdAt: '2024-06-01T12:00:00Z' },
-      { name: 'みどり', text: 'hello', createdAt: '2024-06-01T12:01:00Z' },
-      { name: 'ゆい', text: 'やっほー', createdAt: '2024-06-01T12:02:00Z' },
+      {
+        id: '1',
+        name: 'みどり',
+        color: '#00f',
+        message: 'hi',
+        time: 1,
+        createdAt: '2024-06-01T12:00:00Z',
+      },
+      {
+        id: '2',
+        name: 'みどり',
+        color: '#00f',
+        message: 'hello',
+        time: 2,
+        createdAt: '2024-06-01T12:01:00Z',
+      },
+      {
+        id: '3',
+        name: 'ゆい',
+        color: '#f0f',
+        message: 'やっほー',
+        time: 3,
+        createdAt: '2024-06-01T12:02:00Z',
+      },
     ];
 
     render(<ChatRanking chatLog={chatLog} />);
@@ -33,7 +54,16 @@ describe('<ChatRanking />', () => {
   });
 
   it('スナップショットが一致する', () => {
-    const chatLog = [{ name: 'A', text: 'a', createdAt: '2024-06-15T10:00:00Z' }];
+    const chatLog = [
+      {
+        id: 'a',
+        name: 'A',
+        color: '#000',
+        message: 'a',
+        time: 10,
+        createdAt: '2024-06-15T10:00:00Z',
+      },
+    ];
     const { container } = render(<ChatRanking chatLog={chatLog} />);
     expect(container).toMatchSnapshot();
   });

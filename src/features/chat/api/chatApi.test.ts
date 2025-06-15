@@ -7,8 +7,8 @@ const STORAGE_KEY = 'yui_chat_dat';
 
 describe('chatApi', () => {
   const mockLogs: Chat[] = [
-    { id: '1', message: 'A' },
-    { id: '2', message: 'B' },
+    { id: '1', name: 'A', color: '#000', message: 'A', time: 1 },
+    { id: '2', name: 'B', color: '#111', message: 'B', time: 2 },
   ];
 
   beforeEach(() => {
@@ -40,7 +40,13 @@ describe('chatApi', () => {
   });
 
   it('should not save more than 2000 items', () => {
-    const bigLogs = Array.from({ length: 2500 }, (_, i) => ({ id: String(i), message: String(i) }));
+    const bigLogs: Chat[] = Array.from({ length: 2500 }, (_, i) => ({
+      id: String(i),
+      name: `N${i}`,
+      color: `#${(i % 1000).toString(16).padStart(3, '0')}`,
+      message: String(i),
+      time: i,
+    }));
     saveChatLogs(bigLogs);
     expect(loadChatLogs().length).toBe(2000);
   });

@@ -15,7 +15,9 @@ vi.mock('@features/chat/components/ChatLogList.lazy', () => ({
 }));
 
 describe('ChatLogPage Component', () => {
-  const mockChatLog: Chat[] = [{ id: '1', message: 'Hello' }];
+  const mockChatLog: Chat[] = [
+    { id: '1', name: '名無し', color: '#000', message: 'Hello', time: 1 },
+  ];
 
   beforeEach(() => {
     localStorage.clear();

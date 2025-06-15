@@ -58,7 +58,7 @@ exports[`<ChatRanking /> > スナップショットが一致する 1`] = `
             <td
               class="py-1 px-2 border-b border-[#e9d7ba] text-center"
             >
-              formatted:NaN
+              formatted:10
             </td>
             <td
               class="py-1 px-2 border-b border-[#e9d7ba] text-center"

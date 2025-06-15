@@ -1,5 +1,4 @@
-globalThis.GPUBufferUsage = { UNIFORM: 1, COPY_DST: 2 };
-
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import TermsModal from './TermsModal';
@@ -19,8 +18,8 @@ function setNavigatorGpu(value: any) {
 
 beforeEach(() => {
   // requestAnimationFrame即時化
-  vi.stubGlobal('requestAnimationFrame', (cb) => setTimeout(() => cb(performance.now()), 1));
-  vi.stubGlobal('cancelAnimationFrame', (id) => clearTimeout(id));
+  vi.stubGlobal('requestAnimationFrame', (cb: any) => setTimeout(() => cb(performance.now()), 1));
+  vi.stubGlobal('cancelAnimationFrame', (id: number) => clearTimeout(id));
 });
 afterEach(() => {
   vi.unstubAllGlobals();
