@@ -1,59 +1,43 @@
-// chatApi.test.ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { loadChatLogs, saveChatLogs, clearChatLogs } from './chatApi';
-import type { Chat } from '@features/chat/types';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const STORAGE_KEY = 'yui_chat_dat';
+beforeEach(() => {
+  vi.resetModules();
+  vi.stubGlobal('fetch', vi.fn());
+  (import.meta as any).env = {
+    VITE_SUPABASE_URL: 'https://example.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'anon',
+  };
+});
 
 describe('chatApi', () => {
-  const mockLogs: Chat[] = [
-    { id: '1', name: 'A', color: '#000', message: 'A', time: 1 },
-    { id: '2', name: 'B', color: '#111', message: 'B', time: 2 },
-  ];
-
-  beforeEach(() => {
-    localStorage.clear();
+  it('loadChatLogs fetches chats', async () => {
+    const mockData = [
+      { id: '1', name: 'A', color: '#000', message: 'hello', time: 1 },
+    ];
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => mockData } as any);
+    const { loadChatLogs } = await import('./chatApi');
+    const res = await loadChatLogs();
+    expect(res).toEqual(mockData);
   });
 
-  it('should return empty array if no data', () => {
-    expect(loadChatLogs()).toEqual([]);
+  it('postChat sends POST', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+    const { postChat } = await import('./chatApi');
+    const chat = { id: '1', name: 'A', color: '#000', message: 'hi', time: 1 };
+    await postChat(chat);
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/chat_logs'),
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
-  it('should load saved chat logs', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(mockLogs));
-    expect(loadChatLogs()).toEqual(mockLogs);
-  });
-
-  it('should return empty array if storage data is not an array', () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ not: 'array' }));
-    expect(loadChatLogs()).toEqual([]);
-  });
-
-  it('should return empty array if data is invalid JSON', () => {
-    localStorage.setItem(STORAGE_KEY, '{invalid');
-    expect(loadChatLogs()).toEqual([]);
-  });
-
-  it('should save and load chat logs with saveChatLogs', () => {
-    saveChatLogs(mockLogs);
-    expect(loadChatLogs()).toEqual(mockLogs);
-  });
-
-  it('should not save more than 2000 items', () => {
-    const bigLogs: Chat[] = Array.from({ length: 2500 }, (_, i) => ({
-      id: String(i),
-      name: `N${i}`,
-      color: `#${(i % 1000).toString(16).padStart(3, '0')}`,
-      message: String(i),
-      time: i,
-    }));
-    saveChatLogs(bigLogs);
-    expect(loadChatLogs().length).toBe(2000);
-  });
-
-  it('should clear chat logs', () => {
-    saveChatLogs(mockLogs);
-    clearChatLogs();
-    expect(loadChatLogs()).toEqual([]);
+  it('clearChatLogs sends DELETE', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as any);
+    const { clearChatLogs } = await import('./chatApi');
+    await clearChatLogs();
+    expect(fetch).toHaveBeenCalledWith(
+      expect.stringContaining('/chat_logs'),
+      expect.objectContaining({ method: 'DELETE' })
+    );
   });
 });

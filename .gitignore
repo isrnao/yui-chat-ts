@@ -32,6 +32,7 @@ coverage/
 # 環境変数ファイル
 .env
 .env.*
+!.env.example
 
 # その他
 logs/
