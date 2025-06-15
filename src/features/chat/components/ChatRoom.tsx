@@ -1,7 +1,7 @@
-import { useId, useRef, useEffect, useActionState, startTransition, type ChangeEvent } from "react";
-import type { Chat } from "@features/chat/types";
-import Button from "@shared/components/Button";
-import Input from "@shared/components/Input";
+import { useId, useRef, useEffect, useActionState, startTransition, type ChangeEvent } from 'react';
+import type { Chat } from '@features/chat/types';
+import Button from '@shared/components/Button';
+import Input from '@shared/components/Input';
 
 export type ChatRoomProps = {
   message: string;
@@ -33,17 +33,17 @@ export default function ChatRoom({
   // useActionState for message sending
   const [error, dispatch, isPending] = useActionState(
     async (_prev: unknown, formData: FormData) => {
-      const msg = formData.get("message")?.toString() ?? "";
+      const msg = formData.get('message')?.toString() ?? '';
       if (!msg.trim()) return;
       try {
         await onSend(msg);
-        setMessage("");
-        return "";
+        setMessage('');
+        return '';
       } catch (err) {
-        return (err as Error)?.message || "送信エラー";
+        return (err as Error)?.message || '送信エラー';
       }
     },
-    "",
+    ''
   );
 
   // オートフォーカス
@@ -87,18 +87,10 @@ export default function ChatRoom({
         autoComplete="off"
       >
         <div className="flex flex-nowrap gap-2">
-          <Button
-            type="submit"
-            disabled={isPending}
-          >
-            {"発言"}
+          <Button type="submit" disabled={isPending}>
+            {'発言'}
           </Button>
-          <Button
-            type="button"
-            onClick={onReload}
-            tabIndex={-1}
-            disabled={isPending}
-          >
+          <Button type="button" onClick={onReload} tabIndex={-1} disabled={isPending}>
             リロード
           </Button>
         </div>
@@ -136,9 +128,7 @@ export default function ChatRoom({
           ))}
         </select>
         {/* エラー表示 */}
-        {error && (
-          <div className="w-full text-xs text-red-500 mt-1">{error}</div>
-        )}
+        {error && <div className="w-full text-xs text-red-500 mt-1">{error}</div>}
       </form>
     </div>
   );

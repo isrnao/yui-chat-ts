@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect } from 'react';
 
 // ジェネリクスで型安全
 export function useBroadcastChannel<T>(name: string, onMsg: (msg: T) => void) {

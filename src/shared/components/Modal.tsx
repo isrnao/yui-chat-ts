@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 type ModalProps = {
   open: boolean;
@@ -12,8 +12,8 @@ export default function Modal({
   open,
   onClose,
   children,
-  className = "",
-  ariaLabel = "モーダルダイアログ",
+  className = '',
+  ariaLabel = 'モーダルダイアログ',
 }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
 
@@ -21,12 +21,12 @@ export default function Modal({
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+      if (e.key === 'Escape') {
         onClose?.();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, onClose]);
 
   // オーバーレイクリックで閉じる
@@ -39,9 +39,9 @@ export default function Modal({
   // スクロール禁止
   useEffect(() => {
     if (open) {
-      document.body.style.overflow = "hidden";
+      document.body.style.overflow = 'hidden';
       return () => {
-        document.body.style.overflow = "";
+        document.body.style.overflow = '';
       };
     }
   }, [open]);

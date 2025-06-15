@@ -1,14 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import Modal from "./Modal";
-import TermsContent from "../../content/terms.mdx";
+import { useEffect, useRef, useState } from 'react';
+import Modal from './Modal';
+import TermsContent from '../../content/terms.mdx';
 
-export default function TermsModal({
-  open,
-  onAgree,
-}: {
-  open: boolean;
-  onAgree: () => void;
-}) {
+export default function TermsModal({ open, onAgree }: { open: boolean; onAgree: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [gpuSupported, setGpuSupported] = useState(true);
   const attackingRef = useRef(false);
@@ -16,7 +10,7 @@ export default function TermsModal({
   useEffect(() => {
     if (!open) return;
     const canvas = canvasRef.current;
-    if (!canvas) throw new Error("canvasが見つかりません");
+    if (!canvas) throw new Error('canvasが見つかりません');
     if (!navigator.gpu) {
       setGpuSupported(false);
       return;
@@ -28,7 +22,7 @@ export default function TermsModal({
       canvas.height = window.innerHeight;
     }
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
+    window.addEventListener('resize', resizeCanvas);
 
     let device: GPUDevice;
     let context: GPUCanvasContext;
@@ -43,9 +37,9 @@ export default function TermsModal({
       const adapter = await navigator.gpu!.requestAdapter();
       if (!adapter) return;
       device = await adapter.requestDevice();
-      context = canvas.getContext("webgpu")!;
+      context = canvas.getContext('webgpu')!;
       const format = navigator.gpu!.getPreferredCanvasFormat();
-      context.configure({ device, format, alphaMode: "premultiplied" });
+      context.configure({ device, format, alphaMode: 'premultiplied' });
 
       uniformBuffer = device.createBuffer({
         size: 4 * 4,
@@ -110,10 +104,10 @@ export default function TermsModal({
       });
 
       pipeline = device.createRenderPipeline({
-        layout: "auto",
-        vertex: { module: shaderModule, entryPoint: "vs" },
-        fragment: { module: shaderModule, entryPoint: "fs", targets: [{ format }] },
-        primitive: { topology: "triangle-list" },
+        layout: 'auto',
+        vertex: { module: shaderModule, entryPoint: 'vs' },
+        fragment: { module: shaderModule, entryPoint: 'fs', targets: [{ format }] },
+        primitive: { topology: 'triangle-list' },
       });
 
       uniformBindGroup = device.createBindGroup({
@@ -124,13 +118,12 @@ export default function TermsModal({
       const render = (ts: number) => {
         if (!start) start = ts;
         const t = (ts - start) / 1000;
-        if (attackingRef.current && u_attack < 1)
-          u_attack = Math.min(u_attack + 0.02, 1);
+        if (attackingRef.current && u_attack < 1) u_attack = Math.min(u_attack + 0.02, 1);
 
         device.queue.writeBuffer(
           uniformBuffer,
           0,
-          new Float32Array([t, u_attack, canvas.width, canvas.height]),
+          new Float32Array([t, u_attack, canvas.width, canvas.height])
         );
 
         const encoder = device.createCommandEncoder();
@@ -139,8 +132,8 @@ export default function TermsModal({
             {
               view: context.getCurrentTexture().createView(),
               clearValue: { r: 0, g: 0, b: 0, a: 0 },
-              loadOp: "clear",
-              storeOp: "store",
+              loadOp: 'clear',
+              storeOp: 'store',
             },
           ],
         });
@@ -163,7 +156,7 @@ export default function TermsModal({
     init();
 
     return () => {
-      window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener('resize', resizeCanvas);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [open, onAgree]);
@@ -175,9 +168,7 @@ export default function TermsModal({
       className="w-[80%] h-[80%] bg-white/90 text-black p-4 rounded"
       onClose={gpuSupported ? undefined : onAgree}
     >
-      {gpuSupported && (
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      )}
+      {gpuSupported && <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />}
       {/* 利用規約（MDX）本文 */}
       <div className="relative z-10 max-h-[65vh] overflow-y-auto prose prose-sm">
         <TermsContent />

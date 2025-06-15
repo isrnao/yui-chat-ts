@@ -161,4 +161,3 @@ declare global {
     getContext(contextId: 'webgpu'): GPUCanvasContext | null;
   }
 }
-

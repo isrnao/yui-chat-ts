@@ -1,9 +1,9 @@
-import type { Chat } from "@features/chat/types";
+import type { Chat } from '@features/chat/types';
 
 // チャットAPIラッパー（axiosやfetchでAPIアクセスのみ担当）
 // ここにfetchChatLogs等を実装します
 
-const STORAGE_KEY = "yui_chat_dat";
+const STORAGE_KEY = 'yui_chat_dat';
 const MAX_CHAT_LOG = 2000;
 
 export function loadChatLogs(): Chat[] {
@@ -20,10 +20,7 @@ export function loadChatLogs(): Chat[] {
 
 export function saveChatLogs(log: Chat[]): void {
   try {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(log.slice(0, MAX_CHAT_LOG))
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
   } catch {
     // ignore
   }

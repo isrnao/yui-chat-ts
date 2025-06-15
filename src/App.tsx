@@ -1,35 +1,28 @@
-import { useState, lazy, Suspense, useId } from "react";
-import { useChatLog } from "@features/chat/hooks/useChatLog";
-import { useParticipants } from "@features/chat/hooks/useParticipants";
-import { useChatHandlers } from "@features/chat/hooks/useChatHandlers";
-import ChatRoom from "@features/chat/components/ChatRoom";
-import EntryForm from "@features/chat/components/EntryForm";
-import RetroSplitter from "@features/chat/components/RetroSplitter";
-import ChatRanking from "@features/chat/components/ChatRanking";
-import { TermsModal } from "@shared/components";
-const ChatLogList = lazy(() => import("@features/chat/components/ChatLogList.lazy"));
+import { useState, lazy, Suspense, useId } from 'react';
+import { useChatLog } from '@features/chat/hooks/useChatLog';
+import { useParticipants } from '@features/chat/hooks/useParticipants';
+import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
+import ChatRoom from '@features/chat/components/ChatRoom';
+import EntryForm from '@features/chat/components/EntryForm';
+import RetroSplitter from '@features/chat/components/RetroSplitter';
+import ChatRanking from '@features/chat/components/ChatRanking';
+import { TermsModal } from '@shared/components';
+const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList.lazy'));
 
 export default function App() {
   const { chatLog, setChatLog } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
-  const [showTerms, setShowTerms] = useState(
-    () => localStorage.getItem("agreed-terms") !== "true",
-  );
-  const [name, setName] = useState("");
-  const [color, setColor] = useState("#ff69b4");
-  const [message, setMessage] = useState("");
+  const [showTerms, setShowTerms] = useState(() => localStorage.getItem('agreed-terms') !== 'true');
+  const [name, setName] = useState('');
+  const [color, setColor] = useState('#ff69b4');
+  const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState('');
   const myId = useId();
 
-  const {
-    handleEnter,
-    handleExit,
-    handleSend,
-    handleReload,
-  } = useChatHandlers({
+  const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
     name,
     color,
     email,
@@ -47,7 +40,7 @@ export default function App() {
       <TermsModal
         open={showTerms}
         onAgree={() => {
-          localStorage.setItem("agreed-terms", "true");
+          localStorage.setItem('agreed-terms', 'true');
           setShowTerms(false);
         }}
       />

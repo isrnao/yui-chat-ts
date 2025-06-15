@@ -1,6 +1,6 @@
-import { useCallback, useState } from "react";
-import { loadChatLogs, saveChatLogs, clearChatLogs } from "@features/chat/api/chatApi";
-import type { Chat } from "@features/chat/types";
+import { useCallback, useState } from 'react';
+import { loadChatLogs, saveChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
+import type { Chat } from '@features/chat/types';
 
 export function useChatLog() {
   const [chatLog, setChatLog] = useState<Chat[]>(() => loadChatLogs());
