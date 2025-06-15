@@ -7,7 +7,7 @@ const STORAGE_KEY = 'yui_chat_dat';
 
 // Mock ChatLogList.lazy to avoid loading real implementation
 vi.mock('@features/chat/components/ChatLogList.lazy', () => ({
-  default: ({ chatLog, windowRows }: { chatLog: Chat[], windowRows: number }) => (
+  default: ({ chatLog, windowRows }: { chatLog: Chat[]; windowRows: number }) => (
     <div data-testid="chat-log-list">
       ChatLogLength: {chatLog.length}, WindowRows: {windowRows}
     </div>

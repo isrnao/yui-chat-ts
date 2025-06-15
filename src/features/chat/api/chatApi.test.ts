@@ -8,7 +8,7 @@ const STORAGE_KEY = 'yui_chat_dat';
 describe('chatApi', () => {
   const mockLogs: Chat[] = [
     { id: '1', message: 'A' },
-    { id: '2', message: 'B' }
+    { id: '2', message: 'B' },
   ];
 
   beforeEach(() => {

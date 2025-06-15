@@ -67,7 +67,9 @@ describe('ChatLogList', () => {
   });
 
   it('shows formatted time in header and messages', () => {
-    const { container } = render(<ChatLogList chatLog={chatLog} windowRows={2} participants={[]} />);
+    const { container } = render(
+      <ChatLogList chatLog={chatLog} windowRows={2} participants={[]} />
+    );
     // headerの時刻（slice(0,5)に注意）
     const header = container.querySelector('span.text-xs.text-gray-500');
     expect(header?.textContent?.replace(/\s+/g, '')).toBe('[TIME(]');

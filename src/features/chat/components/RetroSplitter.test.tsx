@@ -13,7 +13,17 @@ describe('RetroSplitter', () => {
     // JSDOMではgetBoundingClientRectは0になるので、モック
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
       // 高さ500pxのコンテナを想定
-      return { top: 0, left: 0, width: 800, height: 500, bottom: 500, right: 800, x: 0, y: 0, toJSON: () => {} };
+      return {
+        top: 0,
+        left: 0,
+        width: 800,
+        height: 500,
+        bottom: 500,
+        right: 800,
+        x: 0,
+        y: 0,
+        toJSON: () => {},
+      };
     });
   });
 
@@ -38,7 +48,9 @@ describe('RetroSplitter', () => {
     render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
     const separators = screen.getAllByRole('separator');
     // aria-label指定があるほうが操作バー
-    const separator = separators.find(sep => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
+    const separator = separators.find(
+      (sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー'
+    );
     expect(separator).toHaveAttribute('tabindex', '0');
     separator!.focus();
     expect(document.activeElement).toBe(separator);
@@ -49,26 +61,32 @@ describe('RetroSplitter', () => {
   it('dragging bar updates topHeight', () => {
     render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
     const separators = screen.getAllByRole('separator');
-    const separator = separators.find(sep => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
+    const separator = separators.find(
+      (sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー'
+    );
     fireEvent.mouseDown(separator!);
     act(() => {
-        window.dispatchEvent(new MouseEvent('mousemove', { clientY: 400 }));
+      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 400 }));
     });
     const topDiv = screen.getByText('TT').parentElement as HTMLElement;
     expect(getPercentHeight(topDiv)).toBeCloseTo(80, 1);
     act(() => {
-        window.dispatchEvent(new MouseEvent('mouseup'));
+      window.dispatchEvent(new MouseEvent('mouseup'));
     });
-    });
+  });
 
   it('respects minTop and minBottom constraints', () => {
-    render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} minTop={100} minBottom={150} />);
+    render(
+      <RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} minTop={100} minBottom={150} />
+    );
     const separators = screen.getAllByRole('separator');
-    const separator = separators.find(sep => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
+    const separator = separators.find(
+      (sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー'
+    );
     fireEvent.mouseDown(separator!);
     act(() => {
-        window.dispatchEvent(new MouseEvent('mousemove', { clientY: 0 }));
-        window.dispatchEvent(new MouseEvent('mousemove', { clientY: 499 }));
+      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 0 }));
+      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 499 }));
     });
     const topDiv = screen.getByText('TT').parentElement as HTMLElement;
     const bottomDiv = screen.getByText('BB').parentElement as HTMLElement;
@@ -78,12 +96,16 @@ describe('RetroSplitter', () => {
 
   it('sets initial topHeight based on top element type', () => {
     // 名前ChatRoomなら18%、他なら26%
-    function ChatRoom() { return <div>chat</div>; }
+    function ChatRoom() {
+      return <div>chat</div>;
+    }
     const { rerender } = render(<RetroSplitter top={<ChatRoom />} bottom={<div>BB</div>} />);
     let topDiv = screen.getByText('chat').parentElement as HTMLElement;
     expect(getPercentHeight(topDiv)).toBeCloseTo(18, 1);
 
-    function Dummy() { return <div>dummy</div>; }
+    function Dummy() {
+      return <div>dummy</div>;
+    }
     rerender(<RetroSplitter top={<Dummy />} bottom={<div>BB</div>} />);
     topDiv = screen.getByText('dummy').parentElement as HTMLElement;
     expect(getPercentHeight(topDiv)).toBeCloseTo(26, 1);
