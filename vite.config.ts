@@ -1,23 +1,49 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
-import { fileURLToPath } from "url";
-import { dirname, resolve } from "path";
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 import mdx from '@mdx-js/rollup';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// https://vite.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    mdx(),
-  ],
-  base: "/yui-chat-ts/",
+  base: './',
+  plugins: [react(), mdx()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    include: [
+      './src/**/*.test.ts',
+      './src/**/*.test.tsx',
+      './src/**/*.spec.tsx',
+      './src/**/*.spec.ts',
+    ],
+    exclude: ['node_modules', 'dist', '**/*.d.ts', 'src/vite-env.d.ts'],
+    coverage: {
+      enabled: true,
+      provider: 'v8',
+      reportsDirectory: './coverage',
+      reporter: ['text', 'html', 'json'],
+      include: ['src/**/*.ts', 'src/**/*.tsx'],
+      exclude: [
+        'src/test/**', // テスト用セットアップファイルなど
+        'src/**/*.stories.*', // Storybook用
+        'src/**/__mocks__/**', // テストモック
+        'node_modules',
+        'dist',
+        '**/*.d.ts',
+        'src/vite-env.d.ts',
+      ],
+      all: true,
+      thresholds: {
+        lines: 70,
+        functions: 70,
+        branches: 70,
+        statements: 70,
+      },
+    },
+  },
   resolve: {
     alias: {
-      "@features": resolve(__dirname, "src/features"),
-      "@shared": resolve(__dirname, "src/shared"),
+      '@features': '/src/features',
+      '@shared': '/src/shared',
     },
   },
 });

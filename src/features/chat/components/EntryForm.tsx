@@ -1,22 +1,18 @@
-import { useId } from "react";
-import type { ChangeEvent } from "react";
-import Button from "@shared/components/Button";
-import Input from "@shared/components/Input";
+import { useId } from 'react';
+import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
+import Button from '@shared/components/Button';
+import Input from '@shared/components/Input';
 
 type EntryFormProps = {
   name: string;
-  setName: (v: string) => void;
+  setName: Dispatch<SetStateAction<string>>;
   color: string;
-  setColor: (v: string) => void;
+  setColor: Dispatch<SetStateAction<string>>;
   email: string;
-  setEmail: (v: string) => void;
+  setEmail: Dispatch<SetStateAction<string>>;
   windowRows: number;
-  setWindowRows: (v: number) => void;
-  onEnter: (form: {
-    name: string;
-    color: string;
-    email: string;
-  }) => void | Promise<void>;
+  setWindowRows: Dispatch<SetStateAction<number>>;
+  onEnter: (args: { name: string; color: string; email: string }) => void | Promise<void>;
   error?: string;
   isPending?: boolean;
 };
@@ -43,7 +39,7 @@ export default function EntryForm({
     <div className="flex flex-col">
       <header
         className="mb-1 text-2xl font-bold text-[var(--yui-pink)]"
-        style={{ fontFamily: "var(--font-yui)" }}
+        style={{ fontFamily: 'var(--font-yui)' }}
       >
         ゆいちゃっと
       </header>
@@ -128,17 +124,11 @@ export default function EntryForm({
           </select>
         </div>
         {/* エラー表示 */}
-        {error && (
-          <div className="text-xs text-red-500 text-left mb-2">{error}</div>
-        )}
+        {error && <div className="text-xs text-red-500 text-left mb-2">{error}</div>}
         {/* ボタン群 */}
         <div className="flex mt-4 gap-2">
-          <Button
-            type="submit"
-            disabled={isPending}
-            className="px-5"
-          >
-            {isPending ? "参加中..." : "チャットに参加する"}
+          <Button type="submit" disabled={isPending} className="px-5">
+            {isPending ? '参加中...' : 'チャットに参加する'}
           </Button>
         </div>
         <div className="text-xs text-gray-500 text-right mt-2">

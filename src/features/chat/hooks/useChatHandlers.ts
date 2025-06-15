@@ -1,8 +1,9 @@
-import { useCallback, useTransition } from "react";
-import { useBroadcastChannel } from "@shared/hooks/useBroadcastChannel";
-import { saveChatLogs, clearChatLogs, loadChatLogs } from "@features/chat/api/chatApi";
-import { validateName } from "@features/chat/utils/validation";
-import type { Chat, BroadcastMsg } from "@features/chat/types";
+import { useCallback, useTransition } from 'react';
+import { useBroadcastChannel } from '@shared/hooks/useBroadcastChannel';
+import { saveChatLogs, clearChatLogs, loadChatLogs } from '@features/chat/api/chatApi';
+import { validateName } from '@features/chat/utils/validation';
+import type { Chat, BroadcastMsg } from '@features/chat/types';
+import type { Dispatch, SetStateAction } from 'react';
 
 export function useChatHandlers({
   name,
@@ -21,37 +22,37 @@ export function useChatHandlers({
   email: string;
   myId: string;
   entered: boolean;
-  setEntered: (b: boolean) => void;
-  setChatLog: (fn: (prev: Chat[]) => Chat[]) => void;
-  setShowRanking: (b: boolean) => void;
-  setName: (s: string) => void;
-  setMessage: (s: string) => void;
+  setEntered: Dispatch<SetStateAction<boolean>>;
+  setChatLog: Dispatch<SetStateAction<Chat[]>>;
+  setShowRanking: Dispatch<SetStateAction<boolean>>;
+  setName: Dispatch<SetStateAction<string>>;
+  setMessage: Dispatch<SetStateAction<string>>;
 }) {
   const [, startTransition] = useTransition();
 
   const channelRef = useBroadcastChannel<BroadcastMsg>(
-    "yui_chat_room",
+    'yui_chat_room',
     useCallback(
       (data: BroadcastMsg) => {
         switch (data.type) {
-          case "chat":
+          case 'chat':
             startTransition(() => {
-              setChatLog((prev) => {
+              setChatLog((prev: Chat[]) => {
                 const log = [data.chat, ...prev];
                 saveChatLogs(log);
                 return log;
               });
             });
             break;
-          case "req-presence":
+          case 'req-presence':
             if (entered) {
               channelRef.current?.postMessage({
-                type: "join",
+                type: 'join',
                 user: { id: myId, name, color },
               });
             }
             break;
-          case "clear":
+          case 'clear':
             startTransition(() => {
               setChatLog(() => {
                 clearChatLogs();
@@ -61,47 +62,42 @@ export function useChatHandlers({
             break;
         }
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [entered, myId, name, color, setChatLog, setName, setMessage, setShowRanking]
     )
   );
 
   // 入室
   const handleEnter = useCallback(
-    async ({
-      name: entryName,
-      color: entryColor,
-    }: {
-      name: string;
-      color: string;
-    }) => {
+    async ({ name: entryName, color: entryColor }: { name: string; color: string }) => {
       const err = validateName(entryName);
       if (err) throw new Error(err);
       setEntered(true);
 
       const joinMsg: Chat = {
-        id: "sys-" + Math.random().toString(36).slice(2),
-        name: "管理人",
-        color: "#0000ff",
+        id: 'sys-' + Math.random().toString(36).slice(2),
+        name: '管理人',
+        color: '#0000ff',
         message: `${entryName}さん、おいでやすぅ。`,
         time: Date.now(),
         system: true,
       };
 
-      setChatLog((prev) => {
+      setChatLog((prev: Chat[]) => {
         const log = [joinMsg, ...prev];
         saveChatLogs(log);
         return log;
       });
       setTimeout(() => {
         channelRef.current?.postMessage({
-          type: "join",
+          type: 'join',
           user: { id: myId, name: entryName, color: entryColor },
         });
       }, 10);
       setTimeout(() => {
-        channelRef.current?.postMessage({ type: "req-presence" });
+        channelRef.current?.postMessage({ type: 'req-presence' });
       }, 30);
-      channelRef.current?.postMessage({ type: "chat", chat: joinMsg });
+      channelRef.current?.postMessage({ type: 'chat', chat: joinMsg });
     },
     [setEntered, setChatLog, myId, channelRef]
   );
@@ -109,68 +105,58 @@ export function useChatHandlers({
   // 退室
   const handleExit = useCallback(() => {
     const leaveMsg: Chat = {
-      id: "sys-" + Math.random().toString(36).slice(2),
-      name: "管理人",
-      color: "#0000ff",
+      id: 'sys-' + Math.random().toString(36).slice(2),
+      name: '管理人',
+      color: '#0000ff',
       message: `${name}さん、またきておくれやすぅ。`,
       time: Date.now(),
       system: true,
     };
-    setChatLog((prev) => {
+    setChatLog((prev: Chat[]) => {
       const log = [leaveMsg, ...prev];
       saveChatLogs(log);
       return log;
     });
     channelRef.current?.postMessage({
-      type: "chat",
+      type: 'chat',
       chat: leaveMsg,
     });
     channelRef.current?.postMessage({
-      type: "leave",
+      type: 'leave',
       user: { id: myId, name, color },
     });
     setEntered(false);
     setShowRanking(false);
-    setName("");
-    setMessage("");
-  }, [
-    channelRef,
-    myId,
-    name,
-    color,
-    setEntered,
-    setShowRanking,
-    setName,
-    setMessage,
-    setChatLog,
-  ]);
+    setName('');
+    setMessage('');
+  }, [channelRef, myId, name, color, setEntered, setShowRanking, setName, setMessage, setChatLog]);
 
   // メッセージ送信
   const handleSend = useCallback(
     async (msg: string, chatLog: Chat[]) => {
       if (!msg.trim()) return;
 
-      if (msg.trim() === "cut") {
+      if (msg.trim() === 'cut') {
         startTransition(() => {
-          setChatLog((prev) => {
-            const log = prev.filter((c) => !c.message.match(/img/i));
+          setChatLog((prev: Chat[]) => {
+            const log = prev.filter((c: Chat) => !c.message.match(/img/i));
             saveChatLogs(log);
             return log;
           });
         });
-        setMessage("");
+        setMessage('');
         setShowRanking(false);
         return;
       }
-      if (msg.trim() === "clear") {
+      if (msg.trim() === 'clear') {
         startTransition(() => {
           setChatLog(() => {
             clearChatLogs();
             return [];
           });
         });
-        channelRef.current?.postMessage({ type: "clear" });
-        setMessage("");
+        channelRef.current?.postMessage({ type: 'clear' });
+        setMessage('');
         setShowRanking(false);
         return;
       }
@@ -189,8 +175,8 @@ export function useChatHandlers({
           saveChatLogs(log);
           return log;
         });
-        channelRef.current?.postMessage({ type: "chat", chat });
-        setMessage("");
+        channelRef.current?.postMessage({ type: 'chat', chat });
+        setMessage('');
         setShowRanking(false);
       });
     },

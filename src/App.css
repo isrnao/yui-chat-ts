@@ -1,14 +1,14 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
-  --yui-green: #A1FE9F;
+  --yui-green: #a1fe9f;
   --yui-pink: #ff69b4;
   --yui-pink-light: #ffe4ef;
   --yui-pink-border: #ff69b4;
   --ie-gray: #b1b1b1;
   --ie-blue: #4a90e2;
   --ie-bg: #f3f3f3;
-  --font-yui: "MS UI Gothic", Arial, sans-serif;
+  --font-yui: 'MS UI Gothic', Arial, sans-serif;
 }
 
 body {

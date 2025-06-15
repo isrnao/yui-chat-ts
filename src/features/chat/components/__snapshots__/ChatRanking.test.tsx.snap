@@ -1,0 +1,72 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`<ChatRanking /> > スナップショットが一致する 1`] = `
+<div>
+  <div
+    class="mt-4 w-full mx-auto text-[#444]"
+  >
+    <div
+      class="mb-2 text-sm font-bold"
+    >
+      発言らんきんぐ
+    </div>
+    <div
+      class="overflow-x-auto"
+    >
+      <table
+        class="w-full text-sm"
+        style="font-family: var(--font-yui);"
+      >
+        <thead>
+          <tr
+            class="text-[#444]"
+          >
+            <th
+              class="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]"
+            >
+              おなまえ
+            </th>
+            <th
+              class="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]"
+            >
+              発言回数
+            </th>
+            <th
+              class="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]"
+            >
+              最終発言時刻
+            </th>
+            <th
+              class="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]"
+            >
+              ホスト情報
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td
+              class="py-1 px-2 border-b border-[#e9d7ba] text-center"
+            >
+              A
+            </td>
+            <td
+              class="py-1 px-2 border-b border-[#e9d7ba] text-center"
+            >
+              1
+            </td>
+            <td
+              class="py-1 px-2 border-b border-[#e9d7ba] text-center"
+            >
+              formatted:10
+            </td>
+            <td
+              class="py-1 px-2 border-b border-[#e9d7ba] text-center"
+            />
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+`;

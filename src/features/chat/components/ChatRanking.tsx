@@ -1,6 +1,6 @@
-import { useChatRanking } from "@features/chat/hooks/useChatRanking";
-import { formatCountTime } from "@shared/utils/format";
-import type { Chat } from "@features/chat/types";
+import { useChatRanking } from '@features/chat/hooks/useChatRanking';
+import { formatCountTime } from '@shared/utils/format';
+import type { Chat } from '@features/chat/types';
 
 type Props = {
   chatLog: Chat[];
@@ -13,10 +13,7 @@ export default function ChatRanking({ chatLog }: Props) {
     <div className="mt-4 w-full mx-auto text-[#444]">
       <div className="mb-2 text-sm font-bold">発言らんきんぐ</div>
       <div className="overflow-x-auto">
-        <table
-          className="w-full text-sm"
-          style={{ fontFamily: "var(--font-yui)" }}
-        >
+        <table className="w-full text-sm" style={{ fontFamily: 'var(--font-yui)' }}>
           <thead>
             <tr className="text-[#444]">
               <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">
@@ -43,12 +40,8 @@ export default function ChatRanking({ chatLog }: Props) {
             )}
             {ranking.map(({ name, count, lastTime }) => (
               <tr key={name}>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
-                  {name}
-                </td>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
-                  {count}
-                </td>
+                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">{name}</td>
+                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">{count}</td>
                 <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
                   {formatCountTime(lastTime)}
                 </td>

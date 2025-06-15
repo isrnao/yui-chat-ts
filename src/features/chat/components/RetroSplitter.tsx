@@ -1,11 +1,5 @@
-import {
-  useRef,
-  useState,
-  useCallback,
-  useEffect,
-  isValidElement,
-} from "react";
-import type { ReactNode, KeyboardEvent } from "react";
+import { useRef, useState, useCallback, useEffect, isValidElement } from 'react';
+import type { ReactNode, KeyboardEvent } from 'react';
 
 export default function RetroSplitter({
   top,
@@ -32,7 +26,7 @@ export default function RetroSplitter({
       percent = Math.min(100 - (minBottom / rect.height) * 100, percent);
       return percent;
     },
-    [minTop, minBottom, topHeight],
+    [minTop, minBottom, topHeight]
   );
 
   // ドラッグ中マウスmove
@@ -40,59 +34,49 @@ export default function RetroSplitter({
     (e: MouseEvent) => {
       setTopHeight(calcPercent(e.clientY));
     },
-    [calcPercent],
+    [calcPercent]
   );
   // ドラッグ解除
   const onMouseUp = useCallback(() => {
     setDragging(false);
-    document.body.style.cursor = "";
+    document.body.style.cursor = '';
   }, []);
 
   // イベントリスナーの追加/解除
   useEffect(() => {
     if (!dragging) return;
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseup", onMouseUp);
-    document.body.style.cursor = "row-resize";
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    document.body.style.cursor = 'row-resize';
     return () => {
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseup", onMouseUp);
-      document.body.style.cursor = "";
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      document.body.style.cursor = '';
     };
   }, [dragging, onMouseMove, onMouseUp]);
 
   // top, bottomの切り替えで高さ初期化
   useEffect(() => {
-    if (
-      top &&
-      bottom &&
-      isValidElement(top) &&
-      typeof top.type === "function"
-    ) {
-      setTopHeight(top.type.name === "ChatRoom" ? 18 : 26);
+    if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
+      setTopHeight(top.type.name === 'ChatRoom' ? 18 : 26);
     }
   }, [top, bottom]);
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "ArrowUp")
+    if (e.key === 'ArrowUp')
       setTopHeight((h) =>
         Math.min(
           h + 2,
-          100 -
-            (minBottom /
-              (containerRef.current?.getBoundingClientRect().height ?? 1)) *
-              100,
-        ),
+          100 - (minBottom / (containerRef.current?.getBoundingClientRect().height ?? 1)) * 100
+        )
       );
-    if (e.key === "ArrowDown")
+    if (e.key === 'ArrowDown')
       setTopHeight((h) =>
         Math.max(
           h - 2,
-          (minTop /
-            (containerRef.current?.getBoundingClientRect().height ?? 1)) *
-            100,
-        ),
+          (minTop / (containerRef.current?.getBoundingClientRect().height ?? 1)) * 100
+        )
       );
   };
 
@@ -100,14 +84,10 @@ export default function RetroSplitter({
     <div
       ref={containerRef}
       className="flex flex-col bg-transparent select-none min-h-screen h-screen"
-      style={{ height: "100vh" }}
+      style={{ height: '100vh' }}
     >
       {/* 上側エリア */}
-      <div
-        style={{ height: `${topHeight}%`, minHeight: minTop, overflow: "auto" }}
-      >
-        {top}
-      </div>
+      <div style={{ height: `${topHeight}%`, minHeight: minTop, overflow: 'auto' }}>{top}</div>
       {/* 分割バー */}
       <div
         role="separator"
@@ -116,7 +96,7 @@ export default function RetroSplitter({
         onMouseDown={() => setDragging(true)}
         onKeyDown={onBarKeyDown}
         style={{
-          outline: "none",
+          outline: 'none',
         }}
       >
         <hr className="border-0 border-t-4 border-b border-t-[var(--ie-gray)] border-b-white w-full" />
@@ -126,7 +106,7 @@ export default function RetroSplitter({
         style={{
           height: `${100 - topHeight}%`,
           minHeight: minBottom,
-          overflow: "auto",
+          overflow: 'auto',
         }}
       >
         {bottom}

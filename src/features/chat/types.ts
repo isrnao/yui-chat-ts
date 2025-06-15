@@ -15,8 +15,8 @@ export type Participant = {
 };
 
 export type BroadcastMsg =
-  | { type: "chat"; chat: Chat }
-  | { type: "join"; user: Participant }
-  | { type: "leave"; user: Participant }
-  | { type: "req-presence" }
-  | { type: "clear" };
+  | { type: 'chat'; chat: Chat }
+  | { type: 'join'; user: Participant }
+  | { type: 'leave'; user: Participant }
+  | { type: 'req-presence' }
+  | { type: 'clear' };
