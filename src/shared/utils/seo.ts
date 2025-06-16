@@ -56,14 +56,24 @@ export const updateStructuredData = (data: Partial<SEOMetadata>) => {
   if (typeof document !== 'undefined') {
     const structuredDataScript = document.querySelector('script[type="application/ld+json"]');
     if (structuredDataScript) {
-      const currentData = JSON.parse(structuredDataScript.textContent || '{}');
-      const updatedData = {
-        ...currentData,
-        name: data.title || defaultSEOMetadata.title,
-        description: data.description || defaultSEOMetadata.description,
-        keywords: data.keywords?.join(',') || defaultSEOMetadata.keywords.join(','),
-      };
-      structuredDataScript.textContent = JSON.stringify(updatedData, null, 2);
+      try {
+        const currentData = JSON.parse(structuredDataScript.textContent || '{}');
+        const updatedData = {
+          ...currentData,
+          name: data.title || defaultSEOMetadata.title,
+          description: data.description || defaultSEOMetadata.description,
+          keywords: data.keywords?.join(',') || defaultSEOMetadata.keywords.join(','),
+        };
+        structuredDataScript.textContent = JSON.stringify(updatedData, null, 2);
+      } catch (error) {
+        // 無効なJSONの場合は新しいデータで置き換える
+        const newData = {
+          name: data.title || defaultSEOMetadata.title,
+          description: data.description || defaultSEOMetadata.description,
+          keywords: data.keywords?.join(',') || defaultSEOMetadata.keywords.join(','),
+        };
+        structuredDataScript.textContent = JSON.stringify(newData, null, 2);
+      }
     }
   }
 };
