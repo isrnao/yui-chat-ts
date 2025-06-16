@@ -108,7 +108,7 @@ export function useChatHandlers({
       system: true,
     };
     setChatLog((prev: Chat[]) => [leaveMsg, ...prev]);
-    saveChatLogs(leaveMsg);
+    await saveChatLogs(leaveMsg);
     channelRef.current?.postMessage({
       type: 'chat',
       chat: leaveMsg,
