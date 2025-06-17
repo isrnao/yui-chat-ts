@@ -66,6 +66,7 @@ export const updateStructuredData = (data: Partial<SEOMetadata>) => {
         };
         structuredDataScript.textContent = JSON.stringify(updatedData, null, 2);
       } catch (error) {
+        console.warn('Failed to parse structured data JSON:', error);
         // 無効なJSONの場合は新しいデータで置き換える
         const newData = {
           name: data.title || defaultSEOMetadata.title,
