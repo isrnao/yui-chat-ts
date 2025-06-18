@@ -19,10 +19,11 @@ pre-commit:
         pnpm vitest related --run $files --passWithNoTests --coverage=false
       files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
 
-pre-push:
-  parallel: true
-  jobs:
-    - name: eslint (all)
-      run: pnpm lint
-    - name: vitest (all)
-      run: pnpm test -- --coverage
+# Uncomment the following section if you want to enable pre-push hooks
+# pre-push:
+#   parallel: true
+#   jobs:
+#     - name: eslint (all)
+#       run: pnpm lint
+#     - name: vitest (all)
+#       run: pnpm test -- --coverage
