@@ -46,7 +46,6 @@ export default function ChatRoom({
       if (!msg.trim()) return;
       try {
         await onSend(msg);
-        setMessage('');
         return '';
       } catch (err) {
         return (err as Error)?.message || '送信エラー';
@@ -88,6 +87,7 @@ export default function ChatRoom({
         onSubmit={(e) => {
           e.preventDefault();
           const formData = new FormData(e.currentTarget);
+          setMessage('');
           startTransition(() => {
             dispatch(formData);
           });

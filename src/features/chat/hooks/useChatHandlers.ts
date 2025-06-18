@@ -83,6 +83,11 @@ export function useChatHandlers({
 
     startTransition(() => addOptimistic(optimistic));
 
+    setEntered(false);
+    setShowRanking(false);
+    setName('');
+    setMessage('');
+
     const [clientIP, userAgent] = await Promise.all([
       getClientIP(),
       Promise.resolve(getUserAgent()),
@@ -92,10 +97,6 @@ export function useChatHandlers({
 
     await saveChatLog(finalChat);
     startTransition(() => mergeChat(finalChat));
-    setEntered(false);
-    setShowRanking(false);
-    setName('');
-    setMessage('');
   }, [name, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
 
   // メッセージ送信
