@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useChatLog } from './useChatLog';
-import { loadChatLogs, saveChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
+import { loadChatLogs, saveChatLog, clearChatLogs } from '@features/chat/api/chatApi';
 import type { Chat } from '@features/chat/types';
 
 // モック化
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn(),
-  saveChatLogs: vi.fn(),
+  saveChatLog: vi.fn(),
   clearChatLogs: vi.fn(),
 }));
 
 describe('useChatLog', () => {
   const mockLoadChatLogs = vi.mocked(loadChatLogs);
-  const mockSaveChatLogs = vi.mocked(saveChatLogs);
+  const mockSaveChatLog = vi.mocked(saveChatLog);
   const mockClearChatLogs = vi.mocked(clearChatLogs);
 
   const mockChats: Chat[] = [
@@ -23,29 +23,31 @@ describe('useChatLog', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockLoadChatLogs.mockReturnValue([]);
+    mockLoadChatLogs.mockResolvedValue([]);
   });
 
-  it('should initialize with loaded chat logs', () => {
-    mockLoadChatLogs.mockReturnValue(mockChats);
+  it('should initialize with loaded chat logs', async () => {
+    mockLoadChatLogs.mockResolvedValue(mockChats);
 
     const { result } = renderHook(() => useChatLog());
 
+    await Promise.resolve();
     expect(result.current.chatLog).toEqual(mockChats);
     expect(mockLoadChatLogs).toHaveBeenCalledOnce();
   });
 
-  it('should initialize with empty array when no saved logs', () => {
-    mockLoadChatLogs.mockReturnValue([]);
+  it('should initialize with empty array when no saved logs', async () => {
+    mockLoadChatLogs.mockResolvedValue([]);
 
     const { result } = renderHook(() => useChatLog());
 
+    await Promise.resolve();
     expect(result.current.chatLog).toEqual([]);
     expect(mockLoadChatLogs).toHaveBeenCalledOnce();
   });
 
   it('should add new chat to the beginning of the log', () => {
-    mockLoadChatLogs.mockReturnValue(mockChats);
+    mockLoadChatLogs.mockResolvedValue(mockChats);
 
     const { result } = renderHook(() => useChatLog());
 
@@ -65,7 +67,7 @@ describe('useChatLog', () => {
     expect(result.current.chatLog[0]).toEqual(newChat);
     expect(result.current.chatLog[1]).toEqual(mockChats[0]);
     expect(result.current.chatLog[2]).toEqual(mockChats[1]);
-    expect(mockSaveChatLogs).toHaveBeenCalledWith([newChat, ...mockChats]);
+    expect(mockSaveChatLog).toHaveBeenCalledWith(newChat);
   });
 
   it('should limit chat log to 2000 items when adding', () => {
@@ -77,7 +79,7 @@ describe('useChatLog', () => {
       time: i,
     }));
 
-    mockLoadChatLogs.mockReturnValue(largeChatLog);
+    mockLoadChatLogs.mockResolvedValue(largeChatLog);
 
     const { result } = renderHook(() => useChatLog());
 
@@ -97,11 +99,11 @@ describe('useChatLog', () => {
     expect(result.current.chatLog[0]).toEqual(newChat);
     // 最後のアイテムは削除されているはず
     expect(result.current.chatLog.some((chat) => chat.id === '1999')).toBe(false);
-    expect(mockSaveChatLogs).toHaveBeenCalledWith(result.current.chatLog);
+    expect(mockSaveChatLog).toHaveBeenCalledWith(newChat);
   });
 
   it('should clear chat log', () => {
-    mockLoadChatLogs.mockReturnValue(mockChats);
+    mockLoadChatLogs.mockResolvedValue(mockChats);
 
     const { result } = renderHook(() => useChatLog());
 
@@ -128,7 +130,7 @@ describe('useChatLog', () => {
 
     expect(result.current.chatLog).toEqual(newChatLog);
     // setChatLogは直接保存しないことを確認
-    expect(mockSaveChatLogs).not.toHaveBeenCalled();
+    expect(mockSaveChatLog).not.toHaveBeenCalled();
   });
 
   it('should save chat logs when addChat is called multiple times', () => {
@@ -146,9 +148,9 @@ describe('useChatLog', () => {
     });
 
     expect(result.current.chatLog).toEqual([chat2, chat1]);
-    expect(mockSaveChatLogs).toHaveBeenCalledTimes(2);
-    expect(mockSaveChatLogs).toHaveBeenNthCalledWith(1, [chat1]);
-    expect(mockSaveChatLogs).toHaveBeenNthCalledWith(2, [chat2, chat1]);
+    expect(mockSaveChatLog).toHaveBeenCalledTimes(2);
+    expect(mockSaveChatLog).toHaveBeenNthCalledWith(1, chat1);
+    expect(mockSaveChatLog).toHaveBeenNthCalledWith(2, chat2);
   });
 
   it('should handle concurrent addChat calls correctly', () => {
@@ -166,14 +168,14 @@ describe('useChatLog', () => {
     });
 
     expect(result.current.chatLog).toEqual([chat3, chat2, chat1]);
-    expect(mockSaveChatLogs).toHaveBeenCalledTimes(3);
+    expect(mockSaveChatLog).toHaveBeenCalledTimes(3);
   });
 
   it('should maintain proper order when adding chats to existing log', () => {
     const existingChats: Chat[] = [
       { id: 'existing1', name: 'ExistingUser', color: '#000000', message: 'Existing', time: 50 },
     ];
-    mockLoadChatLogs.mockReturnValue(existingChats);
+    mockLoadChatLogs.mockResolvedValue(existingChats);
 
     const { result } = renderHook(() => useChatLog());
 
@@ -205,7 +207,7 @@ describe('useChatLog', () => {
 
     expect(result.current.chatLog).toEqual(manualChats);
     // setChatLogは保存しない
-    expect(mockSaveChatLogs).not.toHaveBeenCalled();
+    expect(mockSaveChatLog).not.toHaveBeenCalled();
     expect(mockClearChatLogs).not.toHaveBeenCalled();
   });
 });

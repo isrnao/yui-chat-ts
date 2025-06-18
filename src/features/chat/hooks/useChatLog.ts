@@ -1,20 +1,27 @@
-import { useCallback, useState } from 'react';
-import { loadChatLogs, saveChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
+import { useCallback, useEffect, useState } from 'react';
+import { loadChatLogs, saveChatLog, clearChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
 import type { Chat } from '@features/chat/types';
 
 export function useChatLog() {
-  const [chatLog, setChatLog] = useState<Chat[]>(() => loadChatLogs());
+  const [chatLog, setChatLog] = useState<Chat[]>([]);
 
-  const addChat = useCallback((chat: Chat) => {
-    setChatLog((prev) => {
-      const updated = [chat, ...prev].slice(0, 2000);
-      saveChatLogs(updated);
-      return updated;
+  useEffect(() => {
+    loadChatLogs().then(setChatLog);
+    const channel = subscribeChatLogs((chat) => {
+      setChatLog((prev) => [chat, ...prev].slice(0, 2000));
     });
+    return () => {
+      channel.unsubscribe();
+    };
   }, []);
 
-  const clear = useCallback(() => {
-    clearChatLogs();
+  const addChat = useCallback(async (chat: Chat) => {
+    setChatLog((prev) => [chat, ...prev].slice(0, 2000));
+    await saveChatLog(chat);
+  }, []);
+
+  const clear = useCallback(async () => {
+    await clearChatLogs();
     setChatLog([]);
   }, []);
 

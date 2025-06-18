@@ -54,3 +54,7 @@ export default tseslint.config({
   },
 });
 ```
+
+## Supabase Configuration
+
+This project saves chat logs to Supabase. Create a `.env` file based on `.env.example` and provide your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values.

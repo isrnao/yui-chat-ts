@@ -1,35 +1,33 @@
 import type { Chat } from '@features/chat/types';
+import { supabase } from './supabaseClient';
 
-// チャットAPIラッパー（axiosやfetchでAPIアクセスのみ担当）
-// ここにfetchChatLogs等を実装します
-
-const STORAGE_KEY = 'yui_chat_dat';
+const TABLE = 'chats';
 const MAX_CHAT_LOG = 2000;
 
-export function loadChatLogs(): Chat[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return [];
-    return arr.slice(0, MAX_CHAT_LOG);
-  } catch {
-    return [];
-  }
+export async function loadChatLogs(): Promise<Chat[]> {
+  const { data } = await supabase
+    .from(TABLE)
+    .select('*')
+    .order('time', { ascending: false })
+    .limit(MAX_CHAT_LOG);
+  return (data as Chat[]) || [];
 }
 
-export function saveChatLogs(log: Chat[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(log.slice(0, MAX_CHAT_LOG)));
-  } catch {
-    // ignore
-  }
+export async function saveChatLog(chat: Chat): Promise<void> {
+  await supabase.from(TABLE).insert(chat);
 }
 
-export function clearChatLogs(): void {
-  try {
-    localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // ignore
-  }
+export async function clearChatLogs(): Promise<void> {
+  await supabase.from(TABLE).delete().neq('id', '');
+}
+
+export function subscribeChatLogs(callback: (chat: Chat) => void) {
+  return supabase
+    .channel('chats')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: TABLE },
+      (payload) => callback(payload.new as Chat)
+    )
+    .subscribe();
 }
