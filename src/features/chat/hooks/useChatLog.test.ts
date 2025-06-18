@@ -20,11 +20,13 @@ describe('useChatLog', () => {  it('should initialize and return expected interf
     expect(result.current).toHaveProperty('chatLog');
     expect(result.current).toHaveProperty('setChatLog');
     expect(result.current).toHaveProperty('addChat');
+    expect(result.current).toHaveProperty('addOptimistic');
     expect(result.current).toHaveProperty('clear');
     
     expect(Array.isArray(result.current.chatLog)).toBe(true);
     expect(typeof result.current.setChatLog).toBe('function');
     expect(typeof result.current.addChat).toBe('function');
+    expect(typeof result.current.addOptimistic).toBe('function');
     expect(typeof result.current.clear).toBe('function');
   });
 });
