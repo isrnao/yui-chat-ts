@@ -1,4 +1,4 @@
-import { useCallback, useTransition } from 'react';
+import { useCallback, useTransition, startTransition } from 'react';
 import { saveChatLog, loadChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
@@ -16,6 +16,8 @@ export function useChatHandlers({
   setShowRanking,
   setName,
   setMessage,
+  addOptimistic,
+  mergeChat,
 }: {
   name: string;
   color: string;
@@ -27,6 +29,8 @@ export function useChatHandlers({
   setShowRanking: Dispatch<SetStateAction<boolean>>;
   setName: Dispatch<SetStateAction<string>>;
   setMessage: Dispatch<SetStateAction<string>>;
+  addOptimistic: (chat: Chat) => void;
+  mergeChat: (chat: Chat) => void;
 }) {
   const [, startTransition] = useTransition();
 
@@ -37,50 +41,62 @@ export function useChatHandlers({
       if (err) throw new Error(err);
       setEntered(true);
 
-      const [clientIP, userAgent] = await Promise.all([
-        getClientIP(),
-        Promise.resolve(getUserAgent()),
-      ]);
-
-      const joinMsg: Chat = {
+      const optimistic: Chat = {
         id: 'sys-' + Math.random().toString(36).slice(2),
         name: '管理人',
         color: '#0000ff',
         message: `${entryName}さん、おいでやすぅ。`,
         time: Date.now(),
         system: true,
-        ip: clientIP,
-        ua: userAgent,
+        ip: '',
+        ua: '',
       };
 
-      await saveChatLog(joinMsg);
+      startTransition(() => addOptimistic(optimistic));
+
+      const [clientIP, userAgent] = await Promise.all([
+        getClientIP(),
+        Promise.resolve(getUserAgent()),
+      ]);
+
+      const finalChat = { ...optimistic, ip: clientIP, ua: userAgent };
+
+      await saveChatLog(finalChat);
+
+      startTransition(() => mergeChat(finalChat));
     },
-    [setEntered]
+    [setEntered, addOptimistic, mergeChat]
   );
 
   // 退室
   const handleExit = useCallback(async () => {
-    const [clientIP, userAgent] = await Promise.all([
-      getClientIP(),
-      Promise.resolve(getUserAgent()),
-    ]);
-
-    const leaveMsg: Chat = {
+    const optimistic: Chat = {
       id: 'sys-' + Math.random().toString(36).slice(2),
       name: '管理人',
       color: '#0000ff',
       message: `${name}さん、またきておくれやすぅ。`,
       time: Date.now(),
       system: true,
-      ip: clientIP,
-      ua: userAgent,
+      ip: '',
+      ua: '',
     };
-    await saveChatLog(leaveMsg);
+
+    startTransition(() => addOptimistic(optimistic));
+
+    const [clientIP, userAgent] = await Promise.all([
+      getClientIP(),
+      Promise.resolve(getUserAgent()),
+    ]);
+
+    const finalChat = { ...optimistic, ip: clientIP, ua: userAgent };
+
+    await saveChatLog(finalChat);
+    startTransition(() => mergeChat(finalChat));
     setEntered(false);
     setShowRanking(false);
     setName('');
     setMessage('');
-  }, [name, setEntered, setShowRanking, setName, setMessage]);
+  }, [name, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
 
   // メッセージ送信
   const handleSend = useCallback(
@@ -100,26 +116,37 @@ export function useChatHandlers({
         return;
       }
 
-      const [clientIP, userAgent] = await Promise.all([
-        getClientIP(),
-        Promise.resolve(getUserAgent()),
-      ]);
-
-      const chat: Chat = {
+      const optimisticChat: Chat = {
         id: Math.random().toString(36).slice(2),
         name,
         color,
         message: msg,
         time: Date.now(),
         email,
+        ip: '',
+        ua: '',
+      };
+
+      startTransition(() => addOptimistic(optimisticChat));
+      setMessage('');
+      setShowRanking(false);
+
+      const [clientIP, userAgent] = await Promise.all([
+        getClientIP(),
+        Promise.resolve(getUserAgent()),
+      ]);
+
+      const finalChat = {
+        ...optimisticChat,
         ip: clientIP,
         ua: userAgent,
       };
-      await saveChatLog(chat);
-      setMessage('');
-      setShowRanking(false);
+
+      await saveChatLog(finalChat);
+
+      startTransition(() => mergeChat(finalChat));
     },
-    [name, color, email, setMessage, setShowRanking]
+    [name, color, email, setMessage, setShowRanking, addOptimistic, mergeChat]
   );
 
   // チャット履歴再読み込み
