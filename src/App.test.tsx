@@ -55,4 +55,34 @@ describe('<App />', () => {
       expect(screen.getByText(/管理人/)).toBeInTheDocument();
     });
   });
+
+  it('ランキング表示とチャットログ表示の切り替えが正しく動作する', async () => {
+    render(<App />);
+    // 利用規約同意・入室
+    await userEvent.click(screen.getByRole('button', { name: /同意|agree/i }));
+    await userEvent.type(screen.getByLabelText(/おなまえ/), 'midori');
+    await userEvent.click(screen.getByRole('button', { name: /チャットに参加/i }));
+
+    // ChatRoomが表示されるまで待機
+    expect(screen.getByPlaceholderText(/発言/)).toBeInTheDocument();
+
+    // ランキング表示リンクをクリック
+    const rankingLink = screen.getByText('[発言ランキング]');
+    await userEvent.click(rankingLink);
+
+    // ランキング表示エリアの「戻る」ボタンが表示されることを確認
+    expect(screen.getByRole('button', { name: /戻る/i })).toBeInTheDocument();
+
+    // ランキングコンポーネントが表示されることを確認
+    expect(screen.getByText('発言らんきんぐ')).toBeInTheDocument();
+
+    // 「戻る」ボタンをクリック
+    const backBtn = screen.getByRole('button', { name: /戻る/i });
+    await userEvent.click(backBtn);
+
+    // チャットログが再表示されることを確認
+    await waitFor(() => {
+      expect(screen.getByText(/管理人/)).toBeInTheDocument();
+    });
+  });
 });

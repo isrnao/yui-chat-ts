@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import ChatLogList from './ChatLogList.lazy';
+import ChatLogList from './index';
 import type { Chat, Participant } from '@features/chat/types';
 
 vi.mock('@shared/utils/format', () => ({

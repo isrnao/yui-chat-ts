@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import ChatRanking from './ChatRanking';
+import ChatRanking from './index';
 import { vi, describe, it, expect } from 'vitest';
 
 // formatCountTimeをモック（呼び出し確認もしやすい）

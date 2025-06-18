@@ -8,7 +8,7 @@ import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
 import { TermsModal } from '@shared/components';
-const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList.lazy'));
+const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function App() {
   // SEO対策

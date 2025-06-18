@@ -1,5 +1,5 @@
 import { Suspense, useState, useEffect } from 'react';
-import ChatLogList from '@features/chat/components/ChatLogList.lazy';
+import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogs } from '@features/chat/api/chatApi';
 import type { Chat } from '@features/chat/types';
 

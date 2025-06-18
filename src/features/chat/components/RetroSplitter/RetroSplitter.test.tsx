@@ -1,7 +1,7 @@
 // RetroSplitter.test.tsx
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
-import RetroSplitter from './RetroSplitter';
+import RetroSplitter from './index';
 
 function getPercentHeight(div: HTMLElement) {
   // style="height: XX%"
