@@ -26,6 +26,7 @@ export default function ChatMessage({ chat }: Props) {
           <span className="font-bold text-gray-400 px-1">{'>'}</span>
         )}
         <span className="ml-1 text-gray-700">{chat.message}</span>
+        {chat.sending && <small className="text-gray-500"> (Sending...)</small>}
         <span className="ml-2 text-gray-400 text-xs">({formatTime(chat.time)})</span>
       </div>
     </>

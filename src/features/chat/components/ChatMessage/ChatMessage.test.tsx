@@ -15,6 +15,8 @@ describe('ChatMessage', () => {
     message: 'Hello World',
     time: 1680000000000,
     email: 'alice@example.com',
+    ip: 'ip',
+    ua: 'ua',
   };
 
   const chatWithoutEmail: Chat = {
@@ -24,6 +26,19 @@ describe('ChatMessage', () => {
     message: 'Hi there',
     time: 1680000000000,
     email: '',
+    ip: 'ip',
+    ua: 'ua',
+  };
+
+  const sendingChat: Chat = {
+    id: '3',
+    name: 'Carol',
+    color: '#123456',
+    message: 'Pending',
+    time: 1680000000000,
+    ip: 'ip',
+    ua: 'ua',
+    sending: true,
   };
 
   it('renders chat message with email link', () => {
@@ -49,5 +64,11 @@ describe('ChatMessage', () => {
     const gtSymbol = screen.getByText('>', { selector: 'span' });
     expect(gtSymbol).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('shows sending indicator when sending', () => {
+    render(<ChatMessage chat={sendingChat} />);
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByText('(Sending...)')).toBeInTheDocument();
   });
 });

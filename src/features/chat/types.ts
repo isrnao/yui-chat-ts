@@ -8,6 +8,7 @@ export type Chat = {
   email?: string;
   ip: string;
   ua: string;
+  sending?: boolean;
 };
 
 export type Participant = {
