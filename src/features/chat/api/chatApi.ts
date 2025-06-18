@@ -14,7 +14,18 @@ export async function loadChatLogs(): Promise<Chat[]> {
 }
 
 export async function saveChatLog(chat: Chat): Promise<void> {
-  await supabase.from(TABLE).insert(chat);
+  const sanitized = {
+    id: chat.id,
+    name: chat.name,
+    color: chat.color,
+    message: chat.message,
+    time: chat.time,
+    system: chat.system,
+    email: chat.email,
+    ip: chat.ip,
+    ua: chat.ua,
+  } as Chat;
+  await supabase.from(TABLE).insert(sanitized);
 }
 
 export async function clearChatLogs(): Promise<void> {

@@ -30,7 +30,7 @@ export default function App() {
   });
 
   usePageView('ホーム - ゆいちゃっとTS');
-  const { chatLog, setChatLog, addOptimistic } = useChatLog();
+  const { chatLog, setChatLog, addOptimistic, mergeChat } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
   const [showTerms, setShowTerms] = useState(() => localStorage.getItem('agreed-terms') !== 'true');
@@ -54,6 +54,7 @@ export default function App() {
     setName,
     setMessage,
     addOptimistic,
+    mergeChat,
   });
 
   return (
