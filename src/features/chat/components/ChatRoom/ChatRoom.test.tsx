@@ -1,8 +1,8 @@
 // ChatRoom.test.tsx
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import ChatRoom from './ChatRoom';
-import type { ChatRoomProps } from './ChatRoom';
+import ChatRoom from './index';
+import type { ChatRoomProps } from './index';
 
 describe('ChatRoom', () => {
   let props: ChatRoomProps;
