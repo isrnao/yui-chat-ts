@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { loadChatLogs, saveChatLog, clearChatLogs } from './chatApi';
-import { supabase } from './supabaseClient';
+import { supabase } from '@shared/supabaseClient';
 import type { Chat } from '@features/chat/types';
 
-vi.mock('./supabaseClient', () => {
+vi.mock('@shared/supabaseClient', () => {
   const mockQuery = {
     select: vi.fn().mockReturnThis(),
     order: vi.fn().mockReturnThis(),

@@ -1,5 +1,5 @@
 import type { Chat } from '@features/chat/types';
-import { supabase } from './supabaseClient';
+import { supabase } from '@shared/supabaseClient';
 
 const TABLE = 'chats';
 const MAX_CHAT_LOG = 2000;
