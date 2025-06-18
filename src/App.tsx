@@ -83,7 +83,7 @@ export default function App() {
                 windowRows={windowRows}
                 setWindowRows={setWindowRows}
                 onExit={handleExit}
-                onSend={(msg) => handleSend(msg, chatLog)}
+                onSend={(msg) => handleSend(msg)}
                 onReload={handleReload}
                 onShowRanking={() => setShowRanking(true)}
               />

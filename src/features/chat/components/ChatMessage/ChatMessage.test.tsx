@@ -15,6 +15,8 @@ describe('ChatMessage', () => {
     message: 'Hello World',
     time: 1680000000000,
     email: 'alice@example.com',
+    ip: '192.168.1.1',
+    ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   };
 
   const chatWithoutEmail: Chat = {
@@ -24,6 +26,8 @@ describe('ChatMessage', () => {
     message: 'Hi there',
     time: 1680000000000,
     email: '',
+    ip: '192.168.1.2',
+    ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
   };
 
   it('renders chat message with email link', () => {

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import mdx from '@mdx-js/rollup';
 
 export default defineConfig({
-  base: './',
+  base: '/yui-chat-ts/',
   plugins: [react(), mdx()],
   build: {
     // SEO最適化のためのビルド設定

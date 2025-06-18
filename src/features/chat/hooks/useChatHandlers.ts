@@ -1,4 +1,4 @@
-import { useCallback, useTransition, startTransition } from 'react';
+import { useCallback, useTransition } from 'react';
 import { saveChatLog, loadChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
@@ -36,7 +36,7 @@ export function useChatHandlers({
 
   // 入室
   const handleEnter = useCallback(
-    async ({ name: entryName, color: entryColor }: { name: string; color: string }) => {
+    async ({ name: entryName }: { name: string; color: string }) => {
       const err = validateName(entryName);
       if (err) throw new Error(err);
       setEntered(true);
@@ -101,7 +101,7 @@ export function useChatHandlers({
 
   // メッセージ送信
   const handleSend = useCallback(
-    async (msg: string, chatLog: Chat[]) => {
+    async (msg: string) => {
       if (!msg.trim()) return;
 
       if (msg.trim() === 'cut') {
