@@ -9,8 +9,26 @@ vi.mock('@shared/utils/format', () => ({
 
 describe('ChatLogList', () => {
   const chatLog: Chat[] = [
-    { id: '1', name: 'Taro', color: '#f00', message: 'Hello', time: 1000, email: '' },
-    { id: '2', name: 'Jiro', color: '#0f0', message: 'World', time: 2000, email: 'jiro@mail.com' },
+    {
+      id: '1',
+      name: 'Taro',
+      color: '#f00',
+      message: 'Hello',
+      time: 1000,
+      email: '',
+      ip: 'test-ip',
+      ua: 'test-ua',
+    },
+    {
+      id: '2',
+      name: 'Jiro',
+      color: '#0f0',
+      message: 'World',
+      time: 2000,
+      email: 'jiro@mail.com',
+      ip: 'test-ip',
+      ua: 'test-ua',
+    },
   ];
   const participants: Participant[] = [
     { id: 'p1', name: 'Alice', color: '#111' },

@@ -10,9 +10,34 @@ describe('getRecentParticipants', () => {
 
   it('should filter out system messages and messages without name/color', () => {
     const chatLog: Chat[] = [
-      { id: '1', name: '', color: '', message: 'test', time: Date.now() },
-      { id: '2', name: 'User1', color: '#ff0000', message: 'test', time: Date.now(), system: true },
-      { id: '3', name: 'User2', color: '', message: 'test', time: Date.now() },
+      {
+        id: '1',
+        name: '',
+        color: '',
+        message: 'test',
+        time: Date.now(),
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test',
+        time: Date.now(),
+        system: true,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '3',
+        name: 'User2',
+        color: '',
+        message: 'test',
+        time: Date.now(),
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
     expect(getRecentParticipants(chatLog)).toEqual([]);
   });
@@ -20,9 +45,33 @@ describe('getRecentParticipants', () => {
   it('should return recent participants within 5 minutes', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test1', time: now - 1000 },
-      { id: '2', name: 'User2', color: '#00ff00', message: 'test2', time: now - 60000 },
-      { id: '3', name: 'User3', color: '#0000ff', message: 'test3', time: now - 400000 }, // 6分40秒前
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test1',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test2',
+        time: now - 60000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '3',
+        name: 'User3',
+        color: '#0000ff',
+        message: 'test3',
+        time: now - 400000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      }, // 6分40秒前
     ];
 
     const participants = getRecentParticipants(chatLog);
@@ -34,9 +83,33 @@ describe('getRecentParticipants', () => {
   it('should deduplicate participants by name', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test1', time: now - 1000 },
-      { id: '2', name: 'User1', color: '#ff0000', message: 'test2', time: now - 2000 },
-      { id: '3', name: 'User2', color: '#00ff00', message: 'test3', time: now - 3000 },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test1',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test2',
+        time: now - 2000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '3',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test3',
+        time: now - 3000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     const participants = getRecentParticipants(chatLog);
@@ -48,7 +121,15 @@ describe('getRecentParticipants', () => {
     const now = Date.now();
     const oldTime = now - 6 * 60 * 1000; // 6分前
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test', time: oldTime },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test',
+        time: oldTime,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     expect(getRecentParticipants(chatLog)).toEqual([]);
@@ -60,9 +141,33 @@ describe('getRecentParticipants', () => {
     const justOverFiveMinutes = now - (5 * 60 * 1000 + 1); // 5分と1ms前
 
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test1', time: exactlyFiveMinutes },
-      { id: '2', name: 'User2', color: '#00ff00', message: 'test2', time: justOverFiveMinutes },
-      { id: '3', name: 'User3', color: '#0000ff', message: 'test3', time: now - 1000 }, // 1秒前
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test1',
+        time: exactlyFiveMinutes,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test2',
+        time: justOverFiveMinutes,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '3',
+        name: 'User3',
+        color: '#0000ff',
+        message: 'test3',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      }, // 1秒前
     ];
 
     const participants = getRecentParticipants(chatLog);
@@ -75,9 +180,33 @@ describe('getRecentParticipants', () => {
   it('should handle participants with same name but different colors', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test1', time: now - 1000 },
-      { id: '2', name: 'User1', color: '#00ff00', message: 'test2', time: now - 2000 }, // 異なる色
-      { id: '3', name: 'User2', color: '#0000ff', message: 'test3', time: now - 3000 },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test1',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User1',
+        color: '#00ff00',
+        message: 'test2',
+        time: now - 2000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      }, // 異なる色
+      {
+        id: '3',
+        name: 'User2',
+        color: '#0000ff',
+        message: 'test3',
+        time: now - 3000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     const participants = getRecentParticipants(chatLog);
@@ -92,8 +221,24 @@ describe('getRecentParticipants', () => {
   it('should work with very recent messages', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test1', time: now }, // 現在時刻
-      { id: '2', name: 'User2', color: '#00ff00', message: 'test2', time: now + 1000 }, // 未来の時刻
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test1',
+        time: now,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      }, // 現在時刻
+      {
+        id: '2',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test2',
+        time: now + 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      }, // 未来の時刻
     ];
 
     const participants = getRecentParticipants(chatLog);
@@ -110,6 +255,8 @@ describe('getRecentParticipants', () => {
       color: `#${(i % 16777215).toString(16).padStart(6, '0')}`,
       message: `Message ${i}`,
       time: now - i * 1000, // 各メッセージは1秒ずつ古い
+      ip: 'test-ip',
+      ua: 'test-ua',
     }));
 
     const startTime = performance.now();
@@ -129,7 +276,15 @@ describe('getRecentParticipants', () => {
 
   it('should maintain referential equality when input is same', () => {
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test', time: Date.now() - 1000 },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test',
+        time: Date.now() - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog), {
@@ -150,8 +305,24 @@ describe('useParticipants', () => {
   it('should return participants from chat log', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test', time: now - 1000 },
-      { id: '2', name: 'User2', color: '#00ff00', message: 'test', time: now - 2000 },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        id: '2',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test',
+        time: now - 2000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     const { result } = renderHook(() => useParticipants(chatLog));
@@ -164,7 +335,15 @@ describe('useParticipants', () => {
   it('should update when chat log changes', () => {
     const now = Date.now();
     const initialChatLog: Chat[] = [
-      { id: '1', name: 'User1', color: '#ff0000', message: 'test', time: now - 1000 },
+      {
+        id: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'test',
+        time: now - 1000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog), {
@@ -175,7 +354,15 @@ describe('useParticipants', () => {
 
     const updatedChatLog: Chat[] = [
       ...initialChatLog,
-      { id: '2', name: 'User2', color: '#00ff00', message: 'test', time: now - 2000 },
+      {
+        id: '2',
+        name: 'User2',
+        color: '#00ff00',
+        message: 'test',
+        time: now - 2000,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
     ];
 
     rerender({ chatLog: updatedChatLog });

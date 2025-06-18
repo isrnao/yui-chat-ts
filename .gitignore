@@ -36,3 +36,4 @@ coverage/
 
 # その他
 logs/
+settings.local.json

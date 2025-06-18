@@ -24,10 +24,8 @@ export async function clearChatLogs(): Promise<void> {
 export function subscribeChatLogs(callback: (chat: Chat) => void) {
   return supabase
     .channel('chats')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: TABLE },
-      (payload) => callback(payload.new as Chat)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) =>
+      callback(payload.new as Chat)
     )
     .subscribe();
 }

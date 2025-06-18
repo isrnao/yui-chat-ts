@@ -1,6 +1,7 @@
 import { useCallback, useTransition } from 'react';
 import { saveChatLog, loadChatLogs, clearChatLogs } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
+import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
 import type { Chat } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 
@@ -36,6 +37,11 @@ export function useChatHandlers({
       if (err) throw new Error(err);
       setEntered(true);
 
+      const [clientIP, userAgent] = await Promise.all([
+        getClientIP(),
+        Promise.resolve(getUserAgent()),
+      ]);
+
       const joinMsg: Chat = {
         id: 'sys-' + Math.random().toString(36).slice(2),
         name: '管理人',
@@ -43,16 +49,22 @@ export function useChatHandlers({
         message: `${entryName}さん、おいでやすぅ。`,
         time: Date.now(),
         system: true,
+        ip: clientIP,
+        ua: userAgent,
       };
 
-      setChatLog((prev: Chat[]) => [joinMsg, ...prev]);
       await saveChatLog(joinMsg);
     },
-    [setEntered, setChatLog]
+    [setEntered]
   );
 
   // 退室
   const handleExit = useCallback(async () => {
+    const [clientIP, userAgent] = await Promise.all([
+      getClientIP(),
+      Promise.resolve(getUserAgent()),
+    ]);
+
     const leaveMsg: Chat = {
       id: 'sys-' + Math.random().toString(36).slice(2),
       name: '管理人',
@@ -60,14 +72,15 @@ export function useChatHandlers({
       message: `${name}さん、またきておくれやすぅ。`,
       time: Date.now(),
       system: true,
+      ip: clientIP,
+      ua: userAgent,
     };
-    setChatLog((prev: Chat[]) => [leaveMsg, ...prev]);
     await saveChatLog(leaveMsg);
     setEntered(false);
     setShowRanking(false);
     setName('');
     setMessage('');
-  }, [name, color, setEntered, setShowRanking, setName, setMessage, setChatLog]);
+  }, [name, setEntered, setShowRanking, setName, setMessage]);
 
   // メッセージ送信
   const handleSend = useCallback(
@@ -75,39 +88,38 @@ export function useChatHandlers({
       if (!msg.trim()) return;
 
       if (msg.trim() === 'cut') {
-        startTransition(() => {
-          setChatLog((prev: Chat[]) => prev.filter((c: Chat) => !c.message.match(/img/i)));
-        });
+        // TODO: Implement image filtering in Supabase
         setMessage('');
         setShowRanking(false);
         return;
       }
       if (msg.trim() === 'clear') {
-        startTransition(() => {
-          setChatLog(() => []);
-        });
         await clearChatLogs();
         setMessage('');
         setShowRanking(false);
         return;
       }
 
-      startTransition(() => {
-        const chat: Chat = {
-          id: Math.random().toString(36).slice(2),
-          name,
-          color,
-          message: msg,
-          time: Date.now(),
-          email,
-        };
-        setChatLog([chat, ...chatLog]);
-        saveChatLog(chat);
-        setMessage('');
-        setShowRanking(false);
-      });
+      const [clientIP, userAgent] = await Promise.all([
+        getClientIP(),
+        Promise.resolve(getUserAgent()),
+      ]);
+
+      const chat: Chat = {
+        id: Math.random().toString(36).slice(2),
+        name,
+        color,
+        message: msg,
+        time: Date.now(),
+        email,
+        ip: clientIP,
+        ua: userAgent,
+      };
+      await saveChatLog(chat);
+      setMessage('');
+      setShowRanking(false);
     },
-    [name, color, email, setChatLog, setMessage, setShowRanking]
+    [name, color, email, setMessage, setShowRanking]
   );
 
   // チャット履歴再読み込み

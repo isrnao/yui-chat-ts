@@ -15,6 +15,7 @@ export default [
       'README.md',
       'package.json',
       'tsconfig*.json',
+      '*.md',
     ],
   },
   {

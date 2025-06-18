@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { loadChatLogs, saveChatLog, clearChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
+import {
+  loadChatLogs,
+  saveChatLog,
+  clearChatLogs,
+  subscribeChatLogs,
+} from '@features/chat/api/chatApi';
 import type { Chat } from '@features/chat/types';
 
 export function useChatLog() {
@@ -22,7 +27,7 @@ export function useChatLog() {
 
   const clear = useCallback(async () => {
     await clearChatLogs();
-    setChatLog([]);
+    // Supabaseリアルタイム購読でクリアが反映されるため、ローカル状態は変更しない
   }, []);
 
   return { chatLog, setChatLog, addChat, clear };

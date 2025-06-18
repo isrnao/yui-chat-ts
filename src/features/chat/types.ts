@@ -6,6 +6,8 @@ export type Chat = {
   time: number;
   system?: boolean;
   email?: string;
+  ip: string;
+  ua: string;
 };
 
 export type Participant = {
