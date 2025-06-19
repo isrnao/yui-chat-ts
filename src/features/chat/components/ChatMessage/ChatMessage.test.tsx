@@ -54,4 +54,57 @@ describe('ChatMessage', () => {
     expect(gtSymbol).toBeInTheDocument();
     expect(screen.queryByRole('link')).not.toBeInTheDocument();
   });
+
+  it('renders optimistic chat message with "送信中..." status', () => {
+    const optimisticChat: Chat = {
+      id: '3',
+      name: 'Charlie',
+      color: '#0000ff',
+      message: 'Sending...',
+      time: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year in future
+      client_time: Date.now(),
+      optimistic: true,
+      ip: '192.168.1.3',
+      ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)',
+    };
+
+    render(<ChatMessage chat={optimisticChat} />);
+
+    expect(screen.getByText('Charlie')).toHaveStyle({ color: '#0000ff' });
+    expect(screen.getByText('Sending...')).toBeInTheDocument();
+
+    // Should show "送信中..." instead of formatted time
+    expect(screen.getByText('(送信中...)')).toBeInTheDocument();
+
+    // Should have amber color and pulse animation for optimistic status
+    const timeElement = screen.getByText('(送信中...)');
+    expect(timeElement).toHaveClass('text-amber-500');
+    expect(timeElement).toHaveClass('animate-pulse');
+  });
+
+  it('renders regular chat message with formatted time', () => {
+    const regularChat: Chat = {
+      id: '4',
+      name: 'David',
+      color: '#ff00ff',
+      message: 'Regular message',
+      time: 1680000000000,
+      optimistic: false,
+      ip: '192.168.1.4',
+      ua: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+    };
+
+    render(<ChatMessage chat={regularChat} />);
+
+    expect(screen.getByText('David')).toHaveStyle({ color: '#ff00ff' });
+    expect(screen.getByText('Regular message')).toBeInTheDocument();
+
+    // Should show formatted time for regular messages
+    expect(screen.getByText('(TIME(1680000000000))')).toBeInTheDocument();
+
+    // Should have gray color for regular time display
+    const timeElement = screen.getByText('(TIME(1680000000000))');
+    expect(timeElement).toHaveClass('text-gray-400');
+    expect(timeElement).not.toHaveClass('text-amber-500', 'animate-pulse');
+  });
 });

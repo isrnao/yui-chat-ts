@@ -74,7 +74,9 @@ export const useSEO = (options: UseSEOOptions = {}) => {
         if (options.keywords) data.keywords = options.keywords.join(',');
         structuredDataScript.textContent = JSON.stringify(data, null, 2);
       } catch (error) {
-        console.warn('Failed to update structured data:', error);
+        if (import.meta.env.DEV) {
+          console.warn('Failed to update structured data:', error);
+        }
       }
     }
   }, [options.title, options.description, options.keywords, options.canonical, options.ogImage]);

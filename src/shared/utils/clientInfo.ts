@@ -16,14 +16,12 @@ export async function getClientIP(): Promise<string> {
         if (data.ip) return data.ip;
         if (data.origin) return data.origin;
       } catch (error) {
-        console.warn(`Failed to get IP from ${service}:`, error);
         continue;
       }
     }
 
     return 'unknown';
   } catch (error) {
-    console.error('Failed to get client IP:', error);
     return 'unknown';
   }
 }

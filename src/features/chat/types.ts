@@ -3,7 +3,9 @@ export type Chat = {
   name: string;
   color: string;
   message: string;
-  time: number;
+  time: number; // Unix timestamp (milliseconds) - サーバー側で設定
+  client_time?: number; // クライアント側の投稿時刻（楽観的更新用）
+  optimistic?: boolean; // 楽観的更新フラグ（送信中のメッセージ）
   system?: boolean;
   email?: string;
   ip: string;

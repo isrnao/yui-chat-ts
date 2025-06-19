@@ -1,9 +1,6 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
-import {
-  loadInitialChatLogs,
-  loadChatLogsWithPaging,
-} from '@features/chat/api/chatApi';
+import { loadInitialChatLogs, loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
 import type { Chat } from '@features/chat/types';
 

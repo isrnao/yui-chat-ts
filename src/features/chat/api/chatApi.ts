@@ -82,22 +82,8 @@ export async function loadChatLogs(useCache = true): Promise<Chat[]> {
       .limit(MAX_CHAT_LOG);
 
     if (error) {
-      // 本番環境では最小限のログのみ
-      if (import.meta.env.DEV) {
-        console.error('❌ Supabase query error:', error);
-      }
-
-      // 401 Unauthorized の場合はより詳細な情報を提供（開発環境のみ）
+      // 401 Unauthorized の場合はモックデータで代替
       if (error.code === '401' || error.message.includes('JWT')) {
-        if (import.meta.env.DEV) {
-          console.error('🔐 Authentication Error Details:');
-          console.log('  - Check if VITE_SUPABASE_ANON_KEY is correct');
-          console.log('  - Check if the API key has not expired');
-          console.log('  - Check Supabase project settings');
-          console.log('🔄 Using fallback mock data due to auth error');
-        }
-
-        // 認証エラーの場合はモックデータで代替
         return mockChatData;
       }
 
@@ -133,9 +119,6 @@ export async function loadChatLogsWithPaging(
     if (offset === 0 && useCache && chatLogsCache) {
       const now = Date.now();
       if (now - chatLogsCache.timestamp < CACHE_DURATION) {
-        if (import.meta.env.DEV) {
-          console.log('📦 Using cached chat logs for pagination');
-        }
         return {
           data: chatLogsCache.data.slice(0, limit),
           hasMore: chatLogsCache.data.length > limit,
@@ -150,9 +133,6 @@ export async function loadChatLogsWithPaging(
       .range(offset, offset + limit - 1);
 
     if (error) {
-      if (import.meta.env.DEV) {
-        console.error('❌ Supabase pagination query error:', error);
-      }
       throw new Error(`Supabase pagination error: ${error.message} (${error.code})`);
     }
 
@@ -179,23 +159,31 @@ export async function loadInitialChatLogs(limit = 100): Promise<Chat[]> {
   return result.data;
 }
 
-export async function saveChatLog(chat: Chat): Promise<void> {
+export async function saveChatLog(chat: Chat): Promise<Chat> {
   const sanitized = {
     id: chat.id,
     name: chat.name,
     color: chat.color,
     message: chat.message,
-    time: chat.time,
+    // timeは除外 - Supabaseでサーバー側のタイムスタンプを使用
     system: chat.system,
     email: chat.email,
     ip: chat.ip,
     ua: chat.ua,
-  } as Chat;
+  };
 
-  await supabase.from(TABLE).insert(sanitized);
+  // insertして、サーバー側のタイムスタンプ付きでデータを取得
+  const { data, error } = await supabase.from(TABLE).insert(sanitized).select('*').single();
+
+  if (error) {
+    throw new Error(`Failed to save chat: ${error.message}`);
+  }
 
   // 新しいチャットが追加されたらキャッシュを無効化
   invalidateCache();
+
+  // サーバー側のタイムスタンプを含むデータを返す
+  return data as Chat;
 }
 
 export async function clearChatLogs(): Promise<void> {

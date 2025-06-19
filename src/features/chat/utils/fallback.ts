@@ -8,6 +8,8 @@ export const mockChatData: Chat[] = [
     color: '#2563eb',
     message: 'チャットシステムに接続中です...',
     time: Date.now(),
+    client_time: Date.now(),
+    optimistic: false, // モックデータは送信済み
     system: true,
     email: '',
     ip: '',
@@ -19,6 +21,8 @@ export const mockChatData: Chat[] = [
     color: '#ec4899',
     message: 'こんにちは！チャットへようこそ✨',
     time: Date.now() - 60000,
+    client_time: Date.now() - 60000,
+    optimistic: false, // モックデータは送信済み
     system: false,
     email: '',
     ip: '',
@@ -30,6 +34,8 @@ export const mockChatData: Chat[] = [
     color: '#059669',
     message: 'よろしくお願いします！',
     time: Date.now() - 120000,
+    client_time: Date.now() - 120000,
+    optimistic: false, // モックデータは送信済み
     system: false,
     email: '',
     ip: '',
@@ -45,10 +51,10 @@ export function isOnline(): boolean {
 // ネットワーク状態の監視
 export function monitorNetworkStatus(): void {
   window.addEventListener('online', () => {
-    console.log('🌐 Network connection restored');
+    // ネットワーク復旧時の処理
   });
 
   window.addEventListener('offline', () => {
-    console.log('📴 Network connection lost - using fallback data');
+    // ネットワーク切断時の処理
   });
 }

@@ -5,6 +5,22 @@ import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
 import type { Chat } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 
+// 楽観的更新用のタイムスタンプを生成
+// 確実に先頭に表示されるよう、十分未来の時刻を使用
+function getOptimisticTimestamp(): number {
+  // 現在時刻 + 1年（確実に先頭に表示される）
+  return Date.now() + 365 * 24 * 60 * 60 * 1000;
+}
+
+// 楽観的更新用のチャットを作成
+function createOptimisticChat(baseChat: Omit<Chat, 'time' | 'optimistic'>): Chat {
+  return {
+    ...baseChat,
+    time: getOptimisticTimestamp(),
+    optimistic: true, // 楽観的更新フラグを追加
+  };
+}
+
 export function useChatHandlers({
   name,
   color,
@@ -41,16 +57,16 @@ export function useChatHandlers({
       if (err) throw new Error(err);
       setEntered(true);
 
-      const optimistic: Chat = {
+      const optimistic = createOptimisticChat({
         id: 'sys-' + Math.random().toString(36).slice(2),
         name: '管理人',
         color: '#0000ff',
         message: `${entryName}さん、おいでやすぅ。`,
-        time: Date.now(),
+        client_time: Date.now(),
         system: true,
         ip: '',
         ua: '',
-      };
+      });
 
       startTransition(() => addOptimistic(optimistic));
 
@@ -59,27 +75,26 @@ export function useChatHandlers({
         Promise.resolve(getUserAgent()),
       ]);
 
-      const finalChat = { ...optimistic, ip: clientIP, ua: userAgent };
+      const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
 
-      await saveChatLog(finalChat);
+      // サーバーから正確なタイムスタンプ付きでデータを取得
+      const savedChat = await saveChatLog(chatToSave);
 
-      startTransition(() => mergeChat(finalChat));
+      startTransition(() => mergeChat(savedChat));
     },
     [setEntered, addOptimistic, mergeChat]
-  );
-
-  // 退室
+  ); // 退室
   const handleExit = useCallback(async () => {
-    const optimistic: Chat = {
+    const optimistic = createOptimisticChat({
       id: 'sys-' + Math.random().toString(36).slice(2),
       name: '管理人',
       color: '#0000ff',
       message: `${name}さん、またきておくれやすぅ。`,
-      time: Date.now(),
+      client_time: Date.now(),
       system: true,
       ip: '',
       ua: '',
-    };
+    });
 
     startTransition(() => addOptimistic(optimistic));
 
@@ -93,10 +108,12 @@ export function useChatHandlers({
       Promise.resolve(getUserAgent()),
     ]);
 
-    const finalChat = { ...optimistic, ip: clientIP, ua: userAgent };
+    const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
 
-    await saveChatLog(finalChat);
-    startTransition(() => mergeChat(finalChat));
+    // サーバーから正確なタイムスタンプ付きでデータを取得
+    const savedChat = await saveChatLog(chatToSave);
+
+    startTransition(() => mergeChat(savedChat));
   }, [name, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
 
   // メッセージ送信
@@ -117,18 +134,18 @@ export function useChatHandlers({
         return;
       }
 
-      const optimisticChat: Chat = {
+      const optimistic = createOptimisticChat({
         id: Math.random().toString(36).slice(2),
         name,
         color,
         message: msg,
-        time: Date.now(),
+        client_time: Date.now(),
         email,
         ip: '',
         ua: '',
-      };
+      });
 
-      startTransition(() => addOptimistic(optimisticChat));
+      startTransition(() => addOptimistic(optimistic));
       setMessage('');
       setShowRanking(false);
 
@@ -137,15 +154,16 @@ export function useChatHandlers({
         Promise.resolve(getUserAgent()),
       ]);
 
-      const finalChat = {
-        ...optimisticChat,
+      const chatToSave = {
+        ...optimistic,
         ip: clientIP,
         ua: userAgent,
       };
 
-      await saveChatLog(finalChat);
+      // サーバーから正確なタイムスタンプ付きでデータを取得
+      const savedChat = await saveChatLog(chatToSave);
 
-      startTransition(() => mergeChat(finalChat));
+      startTransition(() => mergeChat(savedChat));
     },
     [name, color, email, setMessage, setShowRanking, addOptimistic, mergeChat]
   );

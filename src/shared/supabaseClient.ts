@@ -6,8 +6,10 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 // 環境変数の確認
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('❌ Supabase environment variables are missing');
-  console.log('VITE_SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
-  console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
+  if (import.meta.env.DEV) {
+    console.log('VITE_SUPABASE_URL:', supabaseUrl ? '✅ Set' : '❌ Missing');
+    console.log('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? '✅ Set' : '❌ Missing');
+  }
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
