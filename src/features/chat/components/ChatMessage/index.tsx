@@ -34,9 +34,7 @@ export default function ChatMessage({ chat }: Props) {
           <span className="font-bold text-gray-400 px-1">{'>'}</span>
         )}
         <span className="ml-1 text-gray-700">{chat.message}</span>
-        <span
-          className={`ml-2 text-xs ${chat.optimistic ? 'text-amber-500 animate-pulse' : 'text-gray-400'}`}
-        >
+        <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
           ({getTimeDisplay(chat)})
         </span>
       </div>
