@@ -7,7 +7,7 @@ export function getRecentParticipants(chatLog: Chat[]): Participant[] {
     chatLog
       .filter((c) => c.name && c.color && !c.system && now - c.time <= 5 * 60 * 1000)
       .reduce((map, c) => {
-        map.set(c.name, { id: c.name, name: c.name, color: c.color });
+        map.set(c.name, { uuid: c.uuid, name: c.name, color: c.color });
         return map;
       }, new Map<string, Participant>())
       .values()

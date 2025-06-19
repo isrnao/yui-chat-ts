@@ -13,7 +13,7 @@ export function useChatLog() {
   const mergeChat = useCallback(
     (chat: Chat) => {
       setChatLog((prev) => {
-        const idx = prev.findIndex((c) => c.id === chat.id);
+        const idx = prev.findIndex((c) => c.uuid === chat.uuid);
         if (idx !== -1) {
           const next = [...prev];
           next[idx] = chat;
@@ -25,7 +25,7 @@ export function useChatLog() {
     [setChatLog]
   );
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, (state: Chat[], chat: Chat) => {
-    const index = state.findIndex((c) => c.id === chat.id);
+    const index = state.findIndex((c) => c.uuid === chat.uuid);
     if (index !== -1) {
       const next = [...state];
       next[index] = chat;
