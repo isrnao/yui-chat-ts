@@ -76,9 +76,9 @@ describe('ChatMessage', () => {
     // Should show "送信中..." instead of formatted time
     expect(screen.getByText('(送信中...)')).toBeInTheDocument();
 
-    // Should have amber color and pulse animation for optimistic status
+    // Should have gray color and pulse animation for optimistic status
     const timeElement = screen.getByText('(送信中...)');
-    expect(timeElement).toHaveClass('text-amber-500');
+    expect(timeElement).toHaveClass('text-gray-400');
     expect(timeElement).toHaveClass('animate-pulse');
   });
 
@@ -105,6 +105,6 @@ describe('ChatMessage', () => {
     // Should have gray color for regular time display
     const timeElement = screen.getByText('(TIME(1680000000000))');
     expect(timeElement).toHaveClass('text-gray-400');
-    expect(timeElement).not.toHaveClass('text-amber-500', 'animate-pulse');
+    expect(timeElement).not.toHaveClass('animate-pulse');
   });
 });
