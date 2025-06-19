@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { generateChatId } from '@shared/utils/uuid';
 import type { Chat } from '@features/chat/types';
 import {
   saveChatLogOptimistic,
@@ -24,11 +23,8 @@ export function useOptimisticChat({
 
   const sendChatOptimistic = useCallback(
     async (chatData: Omit<Chat, 'uuid' | 'time' | 'optimistic'>) => {
-      const optimisticUuid = generateChatId();
-      const optimisticChat = createOptimisticChat({
-        ...chatData,
-        uuid: optimisticUuid,
-      });
+      const optimisticChat = createOptimisticChat(chatData);
+      const optimisticUuid = optimisticChat.uuid;
 
       try {
         // UIを即座に更新
