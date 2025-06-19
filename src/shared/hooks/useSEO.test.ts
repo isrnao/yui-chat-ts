@@ -184,13 +184,15 @@ describe('useSEO', () => {
 
     it('should handle multiple calls with different options', () => {
       const { rerender } = renderHook(
-        ({ options }: { options: UseSEOOptions }) => useSEO(options),
-        { initialProps: { options: { title: 'First Title' } } }
+        ({ options }: { options?: UseSEOOptions }) => useSEO(options),
+        { initialProps: { options: { title: 'First Title' } as UseSEOOptions } }
       );
 
       expect(document.title).toBe('First Title');
 
-      rerender({ options: { title: 'Second Title', description: 'New Description' } });
+      rerender({
+        options: { title: 'Second Title', description: 'New Description' } as UseSEOOptions,
+      });
 
       expect(document.title).toBe('Second Title');
       const metaDescription = document.querySelector('meta[name="description"]');
@@ -274,7 +276,7 @@ describe('useSEO', () => {
 
     it('should re-run effect when dependencies change', () => {
       const { rerender } = renderHook(
-        ({ options }: { options: UseSEOOptions }) => useSEO(options),
+        ({ options }: { options?: UseSEOOptions }) => useSEO(options),
         {
           initialProps: {
             options: {

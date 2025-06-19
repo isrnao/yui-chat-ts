@@ -5,6 +5,14 @@ type Props = {
   chat: Chat;
 };
 
+// 楽観的更新時の時刻表示を生成
+function getTimeDisplay(chat: Chat): string {
+  if (chat.optimistic) {
+    return '送信中...';
+  }
+  return formatTime(chat.time);
+}
+
 export default function ChatMessage({ chat }: Props) {
   return (
     <>
@@ -26,7 +34,11 @@ export default function ChatMessage({ chat }: Props) {
           <span className="font-bold text-gray-400 px-1">{'>'}</span>
         )}
         <span className="ml-1 text-gray-700">{chat.message}</span>
-        <span className="ml-2 text-gray-400 text-xs">({formatTime(chat.time)})</span>
+        <span
+          className={`ml-2 text-xs ${chat.optimistic ? 'text-amber-500 animate-pulse' : 'text-gray-400'}`}
+        >
+          ({getTimeDisplay(chat)})
+        </span>
       </div>
     </>
   );

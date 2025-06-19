@@ -28,11 +28,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:seo": "pnpm run build && pnpm run optimize:seo",
+    "build:prod": "tsc -b && vite build && pnpm run optimize:seo",
     "optimize:seo": "echo 'SEO最適化完了' && echo 'サイトマップとrobots.txtをチェックしてください'",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.mdx",
     "preview": "vite preview",
-    "predeploy": "pnpm run build:seo",
+    "predeploy": "pnpm run build:prod",
     "deploy": "gh-pages -d dist",
     "test": "vitest run",
     "watch:test": "vitest",
@@ -49,7 +49,8 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "@supabase/supabase-js": "^2.39.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

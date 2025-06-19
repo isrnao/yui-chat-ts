@@ -1,16 +1,22 @@
-import { useState, lazy, Suspense, useId } from 'react';
+import { useState, lazy, Suspense, useId, useEffect } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
+import { preloadCriticalResources, earlyDataFetch } from '@features/chat/hooks/usePreloadChatLogs';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
-import { TermsModal } from '@shared/components';
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function App() {
+  // 重要なリソースのプリロードと早期データ取得
+  useEffect(() => {
+    preloadCriticalResources();
+    // 早期データ取得（認証付き）
+    earlyDataFetch();
+  }, []);
   // SEO対策
   useSEO({
     title: 'ゆいちゃっとTS - 無料お気楽チャット',
@@ -30,10 +36,9 @@ export default function App() {
   });
 
   usePageView('ホーム - ゆいちゃっとTS');
-  const { chatLog, setChatLog } = useChatLog();
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
-  const [showTerms, setShowTerms] = useState(() => localStorage.getItem('agreed-terms') !== 'true');
   const [name, setName] = useState('');
   const [color, setColor] = useState('#ff69b4');
   const [message, setMessage] = useState('');
@@ -53,17 +58,12 @@ export default function App() {
     setShowRanking,
     setName,
     setMessage,
+    addOptimistic,
+    mergeChat,
   });
 
   return (
     <>
-      <TermsModal
-        open={showTerms}
-        onAgree={() => {
-          localStorage.setItem('agreed-terms', 'true');
-          setShowTerms(false);
-        }}
-      />
       <main className="flex flex-col min-h-screen bg-[var(--yui-green)]" role="main">
         <header className="sr-only">
           <h1>ゆいちゃっとTS - 無料お気楽チャット</h1>
@@ -81,7 +81,7 @@ export default function App() {
                 windowRows={windowRows}
                 setWindowRows={setWindowRows}
                 onExit={handleExit}
-                onSend={(msg) => handleSend(msg, chatLog)}
+                onSend={(msg) => handleSend(msg)}
                 onReload={handleReload}
                 onShowRanking={() => setShowRanking(true)}
               />
@@ -110,6 +110,7 @@ export default function App() {
               >
                 <ChatLogList
                   chatLog={chatLog}
+                  isLoading={isLoading}
                   windowRows={windowRows}
                   participants={participants}
                 />

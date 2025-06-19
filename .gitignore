@@ -32,6 +32,8 @@ coverage/
 # 環境変数ファイル
 .env
 .env.*
+!*.example
 
 # その他
 logs/
+settings.local.json
