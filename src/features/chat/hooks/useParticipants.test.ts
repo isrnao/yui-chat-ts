@@ -11,7 +11,7 @@ describe('getRecentParticipants', () => {
   it('should filter out system messages and messages without name/color', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: '',
         color: '',
         message: 'test',
@@ -20,7 +20,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User1',
         color: '#ff0000',
         message: 'test',
@@ -30,7 +30,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User2',
         color: '',
         message: 'test',
@@ -46,7 +46,7 @@ describe('getRecentParticipants', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test1',
@@ -55,7 +55,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#00ff00',
         message: 'test2',
@@ -64,7 +64,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User3',
         color: '#0000ff',
         message: 'test3',
@@ -76,15 +76,15 @@ describe('getRecentParticipants', () => {
 
     const participants = getRecentParticipants(chatLog);
     expect(participants).toHaveLength(2);
-    expect(participants).toContainEqual({ id: 'User1', name: 'User1', color: '#ff0000' });
-    expect(participants).toContainEqual({ id: 'User2', name: 'User2', color: '#00ff00' });
+    expect(participants).toContainEqual({ uuid: '1', name: 'User1', color: '#ff0000' });
+    expect(participants).toContainEqual({ uuid: '2', name: 'User2', color: '#00ff00' });
   });
 
   it('should deduplicate participants by name', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test1',
@@ -93,7 +93,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User1',
         color: '#ff0000',
         message: 'test2',
@@ -102,7 +102,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User2',
         color: '#00ff00',
         message: 'test3',
@@ -122,7 +122,7 @@ describe('getRecentParticipants', () => {
     const oldTime = now - 6 * 60 * 1000; // 6分前
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test',
@@ -142,7 +142,7 @@ describe('getRecentParticipants', () => {
 
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test1',
@@ -151,7 +151,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#00ff00',
         message: 'test2',
@@ -160,7 +160,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User3',
         color: '#0000ff',
         message: 'test3',
@@ -181,7 +181,7 @@ describe('getRecentParticipants', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test1',
@@ -190,7 +190,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User1',
         color: '#00ff00',
         message: 'test2',
@@ -199,7 +199,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       }, // 異なる色
       {
-        id: '3',
+        uuid: '3',
         name: 'User2',
         color: '#0000ff',
         message: 'test3',
@@ -222,7 +222,7 @@ describe('getRecentParticipants', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test1',
@@ -231,7 +231,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       }, // 現在時刻
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#00ff00',
         message: 'test2',
@@ -250,7 +250,7 @@ describe('getRecentParticipants', () => {
   it('should handle performance with large datasets', () => {
     const now = Date.now();
     const chatLog: Chat[] = Array.from({ length: 5000 }, (_, i) => ({
-      id: String(i),
+      uuid: String(i),
       name: `User${i % 200}`, // 200人のユーザー
       color: `#${(i % 16777215).toString(16).padStart(6, '0')}`,
       message: `Message ${i}`,
@@ -277,7 +277,7 @@ describe('getRecentParticipants', () => {
   it('should maintain referential equality when input is same', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test',
@@ -306,7 +306,7 @@ describe('useParticipants', () => {
     const now = Date.now();
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test',
@@ -315,7 +315,7 @@ describe('useParticipants', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#00ff00',
         message: 'test',
@@ -328,15 +328,15 @@ describe('useParticipants', () => {
     const { result } = renderHook(() => useParticipants(chatLog));
 
     expect(result.current).toHaveLength(2);
-    expect(result.current).toContainEqual({ id: 'User1', name: 'User1', color: '#ff0000' });
-    expect(result.current).toContainEqual({ id: 'User2', name: 'User2', color: '#00ff00' });
+    expect(result.current).toContainEqual({ uuid: '1', name: 'User1', color: '#ff0000' });
+    expect(result.current).toContainEqual({ uuid: '2', name: 'User2', color: '#00ff00' });
   });
 
   it('should update when chat log changes', () => {
     const now = Date.now();
     const initialChatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#ff0000',
         message: 'test',
@@ -355,7 +355,7 @@ describe('useParticipants', () => {
     const updatedChatLog: Chat[] = [
       ...initialChatLog,
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#00ff00',
         message: 'test',

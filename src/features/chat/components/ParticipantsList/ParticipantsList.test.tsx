@@ -9,8 +9,8 @@ vi.mock('@shared/utils/format', () => ({
 
 describe('ParticipantsList', () => {
   const participants: Participant[] = [
-    { id: 'p1', name: 'Alice', color: '#ff0000' },
-    { id: 'p2', name: 'Bob', color: '#00ff00' },
+    { uuid: 'p1', name: 'Alice', color: '#ff0000' },
+    { uuid: 'p2', name: 'Bob', color: '#00ff00' },
   ];
 
   beforeEach(() => {

@@ -10,7 +10,7 @@ vi.mock('@shared/utils/format', () => ({
 describe('ChatLogList', () => {
   const chatLog: Chat[] = [
     {
-      id: '1',
+      uuid: '1',
       name: 'Taro',
       color: '#f00',
       message: 'Hello',
@@ -20,7 +20,7 @@ describe('ChatLogList', () => {
       ua: 'test-ua',
     },
     {
-      id: '2',
+      uuid: '2',
       name: 'Jiro',
       color: '#0f0',
       message: 'World',
@@ -31,8 +31,8 @@ describe('ChatLogList', () => {
     },
   ];
   const participants: Participant[] = [
-    { id: 'p1', name: 'Alice', color: '#111' },
-    { id: 'p2', name: 'Bob', color: '#222' },
+    { uuid: 'p1', name: 'Alice', color: '#111' },
+    { uuid: 'p2', name: 'Bob', color: '#222' },
   ];
 
   beforeEach(() => {

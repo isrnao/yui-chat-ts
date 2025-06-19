@@ -15,7 +15,7 @@ export default function ParticipantsList({ participants }: Props) {
       ) : (
         participants.map((p) => (
           <span
-            key={p.id}
+            key={p.uuid}
             className="font-bold text-xs"
             style={{
               color: p.color,
