@@ -3,7 +3,7 @@ import type { Chat } from '@features/chat/types';
 // モックデータ（認証エラー時のフォールバック用）
 export const mockChatData: Chat[] = [
   {
-    id: 'mock-1',
+    uuid: 'mock-1',
     name: 'システム',
     color: '#2563eb',
     message: 'チャットシステムに接続中です...',
@@ -16,7 +16,7 @@ export const mockChatData: Chat[] = [
     ua: '',
   },
   {
-    id: 'mock-2',
+    uuid: 'mock-2',
     name: 'ゆい',
     color: '#ec4899',
     message: 'こんにちは！チャットへようこそ✨',
@@ -29,7 +29,7 @@ export const mockChatData: Chat[] = [
     ua: '',
   },
   {
-    id: 'mock-3',
+    uuid: 'mock-3',
     name: 'たろう',
     color: '#059669',
     message: 'よろしくお願いします！',

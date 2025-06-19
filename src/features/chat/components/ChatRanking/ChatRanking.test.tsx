@@ -17,7 +17,7 @@ describe('<ChatRanking />', () => {
     // 仮のチャットログデータ
     const chatLog = [
       {
-        id: '1',
+        uuid: '1',
         name: 'みどり',
         color: '#00f',
         message: 'hi',
@@ -27,7 +27,7 @@ describe('<ChatRanking />', () => {
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'みどり',
         color: '#00f',
         message: 'hello',
@@ -37,7 +37,7 @@ describe('<ChatRanking />', () => {
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'ゆい',
         color: '#f0f',
         message: 'やっほー',
@@ -62,7 +62,7 @@ describe('<ChatRanking />', () => {
   it('スナップショットが一致する', () => {
     const chatLog = [
       {
-        id: 'a',
+        uuid: 'a',
         name: 'A',
         color: '#000',
         message: 'a',

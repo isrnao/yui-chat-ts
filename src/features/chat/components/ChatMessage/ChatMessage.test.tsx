@@ -9,7 +9,7 @@ vi.mock('@shared/utils/format', () => ({
 
 describe('ChatMessage', () => {
   const chatWithEmail: Chat = {
-    id: '1',
+    uuid: '1',
     name: 'Alice',
     color: '#ff0000',
     message: 'Hello World',
@@ -20,7 +20,7 @@ describe('ChatMessage', () => {
   };
 
   const chatWithoutEmail: Chat = {
-    id: '2',
+    uuid: '2',
     name: 'Bob',
     color: '#00ff00',
     message: 'Hi there',
@@ -57,7 +57,7 @@ describe('ChatMessage', () => {
 
   it('renders optimistic chat message with "送信中..." status', () => {
     const optimisticChat: Chat = {
-      id: '3',
+      uuid: '3',
       name: 'Charlie',
       color: '#0000ff',
       message: 'Sending...',
@@ -84,7 +84,7 @@ describe('ChatMessage', () => {
 
   it('renders regular chat message with formatted time', () => {
     const regularChat: Chat = {
-      id: '4',
+      uuid: '4',
       name: 'David',
       color: '#ff00ff',
       message: 'Regular message',

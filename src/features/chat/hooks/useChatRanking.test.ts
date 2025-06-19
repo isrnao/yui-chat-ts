@@ -12,7 +12,7 @@ describe('useChatRanking', () => {
   it('should filter out system messages and messages without name', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: '',
         color: '#000',
         message: 'test',
@@ -21,7 +21,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User1',
         color: '#000',
         message: 'test',
@@ -31,7 +31,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User2',
         color: '#000',
         message: 'test',
@@ -53,7 +53,7 @@ describe('useChatRanking', () => {
   it('should count messages per user', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -62,7 +62,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#000',
         message: 'test2',
@@ -71,7 +71,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User1',
         color: '#000',
         message: 'test3',
@@ -80,7 +80,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '4',
+        uuid: '4',
         name: 'User1',
         color: '#000',
         message: 'test4',
@@ -103,7 +103,7 @@ describe('useChatRanking', () => {
   it('should sort by count descending, then by lastTime descending', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -112,7 +112,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       }, // count: 1, lastTime: 100
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#000',
         message: 'test2',
@@ -121,7 +121,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       }, // count: 2, lastTime: 300
       {
-        id: '3',
+        uuid: '3',
         name: 'User3',
         color: '#000',
         message: 'test3',
@@ -130,7 +130,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       }, // count: 2, lastTime: 500
       {
-        id: '4',
+        uuid: '4',
         name: 'User2',
         color: '#000',
         message: 'test4',
@@ -139,7 +139,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '5',
+        uuid: '5',
         name: 'User3',
         color: '#000',
         message: 'test5',
@@ -161,7 +161,7 @@ describe('useChatRanking', () => {
   it('should update ranking when chat log changes', () => {
     const initialChatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -181,7 +181,7 @@ describe('useChatRanking', () => {
     const updatedChatLog: Chat[] = [
       ...initialChatLog,
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#000',
         message: 'test2',
@@ -190,7 +190,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User2',
         color: '#000',
         message: 'test3',
@@ -209,7 +209,7 @@ describe('useChatRanking', () => {
   it('should handle users with same count and same lastTime', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -218,7 +218,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#000',
         message: 'test2',
@@ -238,7 +238,7 @@ describe('useChatRanking', () => {
   it('should track lastTime correctly for multiple messages from same user', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -247,7 +247,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User1',
         color: '#000',
         message: 'test2',
@@ -256,7 +256,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       }, // 古い時間
       {
-        id: '3',
+        uuid: '3',
         name: 'User1',
         color: '#000',
         message: 'test3',
@@ -274,7 +274,7 @@ describe('useChatRanking', () => {
   it('should handle empty names correctly', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: '',
         color: '#000',
         message: 'test1',
@@ -283,7 +283,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: null as any,
         color: '#000',
         message: 'test2',
@@ -292,7 +292,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: undefined as any,
         color: '#000',
         message: 'test3',
@@ -301,7 +301,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '4',
+        uuid: '4',
         name: 'ValidUser',
         color: '#000',
         message: 'test4',
@@ -319,7 +319,7 @@ describe('useChatRanking', () => {
   it('should handle mixed system and regular messages', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'regular',
@@ -328,7 +328,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'System',
         color: '#000',
         message: 'system msg',
@@ -338,7 +338,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '3',
+        uuid: '3',
         name: 'User1',
         color: '#000',
         message: 'another regular',
@@ -347,7 +347,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '4',
+        uuid: '4',
         name: 'User2',
         color: '#000',
         message: 'regular2',
@@ -366,7 +366,7 @@ describe('useChatRanking', () => {
 
   it('should handle very large chat logs efficiently', () => {
     const largeChatLog: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
-      id: String(i),
+      uuid: String(i),
       name: `User${i % 100}`, // 100人のユーザーが10回ずつ投稿
       color: '#000000',
       message: `Message ${i}`,
@@ -386,7 +386,7 @@ describe('useChatRanking', () => {
   it('should return stable results for same input', () => {
     const chatLog: Chat[] = [
       {
-        id: '1',
+        uuid: '1',
         name: 'User1',
         color: '#000',
         message: 'test1',
@@ -395,7 +395,7 @@ describe('useChatRanking', () => {
         ua: 'test-ua',
       },
       {
-        id: '2',
+        uuid: '2',
         name: 'User2',
         color: '#000',
         message: 'test2',

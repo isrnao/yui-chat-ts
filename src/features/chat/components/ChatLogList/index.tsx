@@ -2,6 +2,7 @@ import type { Chat, Participant } from '@features/chat/types';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import Divider from '../shared/Divider';
+import { sortChatsByTime } from '@shared/utils/uuid';
 
 type Props = {
   chatLog: Chat[];
@@ -16,7 +17,7 @@ export default function ChatLogList({
   windowRows,
   participants,
 }: Props) {
-  const chats = [...chatLog].sort((a, b) => b.time - a.time).slice(0, windowRows);
+  const chats = sortChatsByTime([...chatLog]).slice(0, windowRows);
 
   // 読み込み中の場合は専用のローディング表示を返す
   if (isLoading) {
@@ -33,7 +34,7 @@ export default function ChatLogList({
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
       {chats.map((c) => (
-        <div key={c.id}>
+        <div key={c.uuid}>
           <ChatMessage chat={c} />
           <Divider />
         </div>

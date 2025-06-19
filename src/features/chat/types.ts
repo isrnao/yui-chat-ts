@@ -1,5 +1,5 @@
 export type Chat = {
-  id: string;
+  uuid: string; // UUID v7 (サーバー側で生成される主キー)
   name: string;
   color: string;
   message: string;
@@ -13,7 +13,7 @@ export type Chat = {
 };
 
 export type Participant = {
-  id: string;
+  uuid: string;
   name: string;
   color: string;
 };
