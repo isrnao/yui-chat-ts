@@ -6,9 +6,13 @@ import type { Chat } from '@features/chat/types';
 export default function ChatLogPage() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(50);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadChatLogs().then(setChatLog);
+    setIsLoading(true);
+    loadChatLogs()
+      .then(setChatLog)
+      .finally(() => setIsLoading(false));
   }, []);
 
   // 参加者表示用（空リストでOK）
@@ -33,12 +37,20 @@ export default function ChatLogPage() {
             </option>
           ))}
         </select>
-        <button className="ie-btn" onClick={() => loadChatLogs().then(setChatLog)}>
+        <button 
+          className="ie-btn" 
+          onClick={() => {
+            setIsLoading(true);
+            loadChatLogs()
+              .then(setChatLog)
+              .finally(() => setIsLoading(false));
+          }}
+        >
           再読込
         </button>
       </div>
       <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList chatLog={chatLog} windowRows={windowRows} participants={[]} />
+        <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} participants={[]} />
       </Suspense>
     </main>
   );

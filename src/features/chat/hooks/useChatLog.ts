@@ -9,6 +9,7 @@ import type { Chat } from '@features/chat/types';
 
 export function useChatLog() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const mergeChat = useCallback(
     (chat: Chat) => {
       setChatLog((prev) => {
@@ -34,7 +35,10 @@ export function useChatLog() {
   });
 
   useEffect(() => {
-    loadChatLogs().then(setChatLog);
+    setIsLoading(true);
+    loadChatLogs()
+      .then(setChatLog)
+      .finally(() => setIsLoading(false));
     const channel = subscribeChatLogs((chat) => {
       mergeChat(chat);
     });
@@ -63,6 +67,7 @@ export function useChatLog() {
 
   return {
     chatLog: optimisticLog,
+    isLoading,
     setChatLog,
     addChat,
     addOptimistic,

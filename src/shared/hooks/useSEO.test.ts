@@ -190,7 +190,9 @@ describe('useSEO', () => {
 
       expect(document.title).toBe('First Title');
 
-      rerender({ options: { title: 'Second Title', description: 'New Description' } as UseSEOOptions });
+      rerender({
+        options: { title: 'Second Title', description: 'New Description' } as UseSEOOptions,
+      });
 
       expect(document.title).toBe('Second Title');
       const metaDescription = document.querySelector('meta[name="description"]');

@@ -5,12 +5,22 @@ import Divider from '../shared/Divider';
 
 type Props = {
   chatLog: Chat[];
+  isLoading?: boolean;
   windowRows: number;
   participants: Participant[];
 };
 
-export default function ChatLogList({ chatLog, windowRows, participants }: Props) {
+export default function ChatLogList({ chatLog, isLoading = false, windowRows, participants }: Props) {
   const chats = [...chatLog].sort((a, b) => b.time - a.time).slice(0, windowRows);
+
+  // 読み込み中の場合は専用のローディング表示を返す
+  if (isLoading) {
+    return (
+      <div className="text-gray-400 mt-8 animate-pulse">
+        チャットログを読み込み中...
+      </div>
+    );
+  }
 
   return (
     <div

@@ -30,10 +30,9 @@ export default function App() {
   });
 
   usePageView('ホーム - ゆいちゃっとTS');
-  const { chatLog, setChatLog, addOptimistic, mergeChat } = useChatLog();
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog();
   const participants = useParticipants(chatLog);
   const [entered, setEntered] = useState(false);
-  const [showTerms, setShowTerms] = useState(() => localStorage.getItem('agreed-terms') !== 'true');
   const [name, setName] = useState('');
   const [color, setColor] = useState('#ff69b4');
   const [message, setMessage] = useState('');
@@ -59,13 +58,6 @@ export default function App() {
 
   return (
     <>
-      <TermsModal
-        open={showTerms}
-        onAgree={() => {
-          localStorage.setItem('agreed-terms', 'true');
-          setShowTerms(false);
-        }}
-      />
       <main className="flex flex-col min-h-screen bg-[var(--yui-green)]" role="main">
         <header className="sr-only">
           <h1>ゆいちゃっとTS - 無料お気楽チャット</h1>
@@ -112,6 +104,7 @@ export default function App() {
               >
                 <ChatLogList
                   chatLog={chatLog}
+                  isLoading={isLoading}
                   windowRows={windowRows}
                   participants={participants}
                 />
