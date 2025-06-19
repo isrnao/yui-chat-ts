@@ -1,19 +1,67 @@
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useCallback } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
-import { loadChatLogs } from '@features/chat/api/chatApi';
+import {
+  loadInitialChatLogs,
+  loadChatLogsWithPaging,
+} from '@features/chat/api/chatApi';
+import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
 import type { Chat } from '@features/chat/types';
 
 export default function ChatLogPage() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(50);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // プリロードフック使用
+  const preloadPromise = usePreloadChatLogs();
+
+  const loadInitialData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      // プリロードされたデータがあれば使用
+      let initialData: Chat[];
+      if (preloadPromise) {
+        initialData = await preloadPromise;
+      } else {
+        // 初回は少量のデータを素早く読み込み
+        initialData = await loadInitialChatLogs(Math.min(windowRows, 100));
+      }
+
+      setChatLog(initialData);
+      setHasMore(initialData.length >= Math.min(windowRows, 100));
+    } catch (error) {
+      console.error('Failed to load chat logs:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [windowRows, preloadPromise]);
+
+  const loadMoreData = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    try {
+      const result = await loadChatLogsWithPaging(50, chatLog.length, false);
+      setChatLog((prev) => [...prev, ...result.data]);
+      setHasMore(result.hasMore);
+    } catch (error) {
+      console.error('Failed to load more chat logs:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [chatLog.length, isLoadingMore, hasMore]);
 
   useEffect(() => {
-    setIsLoading(true);
-    loadChatLogs()
-      .then(setChatLog)
-      .finally(() => setIsLoading(false));
-  }, []);
+    loadInitialData();
+  }, [loadInitialData]);
+
+  const handleRefresh = useCallback(() => {
+    setChatLog([]);
+    setHasMore(true);
+    loadInitialData();
+  }, [loadInitialData]);
 
   // 参加者表示用（空リストでOK）
   return (
@@ -31,26 +79,28 @@ export default function ChatLogPage() {
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}
         >
-          {[10, 30, 50, 100, 200, 1000].map((v) => (
+          {[10, 30, 50, 100, 200].map((v) => (
             <option key={v} value={v}>
               {v}
             </option>
           ))}
         </select>
-        <button 
-          className="ie-btn" 
-          onClick={() => {
-            setIsLoading(true);
-            loadChatLogs()
-              .then(setChatLog)
-              .finally(() => setIsLoading(false));
-          }}
-        >
+        <button className="ie-btn" onClick={handleRefresh}>
           再読込
         </button>
+        {hasMore && !isLoading && (
+          <button className="ie-btn" onClick={loadMoreData} disabled={isLoadingMore}>
+            {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
+          </button>
+        )}
       </div>
       <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} participants={[]} />
+        <ChatLogList
+          chatLog={chatLog}
+          isLoading={isLoading}
+          windowRows={windowRows}
+          participants={[]}
+        />
       </Suspense>
     </main>
   );

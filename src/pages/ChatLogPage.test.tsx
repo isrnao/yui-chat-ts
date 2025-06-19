@@ -15,6 +15,8 @@ vi.mock('@features/chat/components/ChatLogList', () => ({
 // Mock chatApi - Supabaseとの複雑な統合を回避
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn().mockResolvedValue([]),
+  loadInitialChatLogs: vi.fn().mockResolvedValue([]),
+  getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
 }));
 
 describe('ChatLogPage Component', () => {

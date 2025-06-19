@@ -9,6 +9,7 @@ describe('chatApi', () => {
 
     // 必要な関数がエクスポートされていることを確認
     expect(typeof chatApi.loadChatLogs).toBe('function');
+    expect(typeof chatApi.loadInitialChatLogs).toBe('function');
     expect(typeof chatApi.saveChatLog).toBe('function');
     expect(typeof chatApi.clearChatLogs).toBe('function');
     expect(typeof chatApi.subscribeChatLogs).toBe('function');

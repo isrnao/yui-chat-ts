@@ -8,6 +8,8 @@ import { useChatLog } from './useChatLog';
 // APIモック
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn().mockResolvedValue([]),
+  loadInitialChatLogs: vi.fn().mockResolvedValue([]),
+  getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
   saveChatLog: vi.fn().mockResolvedValue(undefined),
   clearChatLogs: vi.fn().mockResolvedValue(undefined),
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),

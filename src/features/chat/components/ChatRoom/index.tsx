@@ -130,7 +130,7 @@ export default function ChatRoom({
           aria-label="ログ行数"
           disabled={isPending}
         >
-          {[30, 50, 40, 20, 10, 100, 1000].map((v) => (
+          {[30, 50, 40, 20, 10, 100].map((v) => (
             <option key={v} value={v}>
               {v}
             </option>

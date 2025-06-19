@@ -1,16 +1,22 @@
-import { useState, lazy, Suspense, useId } from 'react';
+import { useState, lazy, Suspense, useId, useEffect } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
+import { preloadCriticalResources, earlyDataFetch } from '@features/chat/hooks/usePreloadChatLogs';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
-import { TermsModal } from '@shared/components';
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function App() {
+  // 重要なリソースのプリロードと早期データ取得
+  useEffect(() => {
+    preloadCriticalResources();
+    // 早期データ取得（認証付き）
+    earlyDataFetch();
+  }, []);
   // SEO対策
   useSEO({
     title: 'ゆいちゃっとTS - 無料お気楽チャット',
