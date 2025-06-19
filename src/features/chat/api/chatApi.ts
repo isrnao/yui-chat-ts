@@ -160,30 +160,40 @@ export async function loadInitialChatLogs(limit = 100): Promise<Chat[]> {
 }
 
 export async function saveChatLog(chat: Chat): Promise<Chat> {
-  const sanitized = {
-    id: chat.id,
-    name: chat.name,
-    color: chat.color,
-    message: chat.message,
-    // timeは除外 - Supabaseでサーバー側のタイムスタンプを使用
-    system: chat.system,
-    email: chat.email,
-    ip: chat.ip,
-    ua: chat.ua,
-  };
+  startPerf();
 
-  // insertして、サーバー側のタイムスタンプ付きでデータを取得
-  const { data, error } = await supabase.from(TABLE).insert(sanitized).select('*').single();
+  return retryApiCall(async () => {
+    const sanitized = {
+      id: chat.id,
+      name: chat.name,
+      color: chat.color,
+      message: chat.message,
+      // timeは除外 - Supabaseでサーバー側のタイムスタンプを使用
+      system: chat.system,
+      email: chat.email,
+      ip: chat.ip,
+      ua: chat.ua,
+    };
 
-  if (error) {
-    throw new Error(`Failed to save chat: ${error.message}`);
-  }
+    // insertして、必要な列のみを取得（パフォーマンス向上）
+    const { data, error } = await supabase
+      .from(TABLE)
+      .insert(sanitized)
+      .select('id,name,color,message,time,system,email')
+      .single();
 
-  // 新しいチャットが追加されたらキャッシュを無効化
-  invalidateCache();
+    if (error) {
+      throw new Error(`Failed to save chat: ${error.message}`);
+    }
 
-  // サーバー側のタイムスタンプを含むデータを返す
-  return data as Chat;
+    // 新しいチャットが追加されたらキャッシュを無効化
+    invalidateCache();
+
+    endPerf('saveChatLog');
+
+    // サーバー側のタイムスタンプを含むデータを返す
+    return data as Chat;
+  });
 }
 
 export async function clearChatLogs(): Promise<void> {
