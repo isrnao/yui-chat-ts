@@ -66,7 +66,7 @@ export function extractTimestampFromUUIDv7(id: string): number | null {
  * UUID v7の特性を活用して高速化（Supabase側でUUID v7が主キーの場合に最適化）
  */
 export function sortChatsByTime<T extends { uuid: string; time: number }>(chats: T[]): T[] {
-  return chats.sort((a, b) => {
+  return [...chats].sort((a, b) => {
     // UUID v7がサーバー側で生成されている場合、UUIDソートが最も正確
     if (isUUIDv7(a.uuid) && isUUIDv7(b.uuid)) {
       return b.uuid.localeCompare(a.uuid); // 降順（新しいものが先）
