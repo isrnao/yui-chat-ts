@@ -6,6 +6,7 @@ Thumbs.db
 node_modules/
 dist/
 dist-ssr/
+storybook-static/
 
 # ログ・一時ファイル
 *.log
@@ -37,3 +38,4 @@ coverage/
 # その他
 logs/
 settings.local.json
+chromatic-diagnostics.json
