@@ -1,41 +1,57 @@
 import { supabase } from '@shared/supabaseClient';
 import type { Chat } from '@features/chat/types';
 
+type SupabaseSuccess<T> = { data: T; error: null };
+type SupabaseSuccessWithCount<T> = SupabaseSuccess<T[]> & { count: number };
+
+const createAsync = <T>(factory: () => T) => async () => factory();
+const asSuccess = <T>(data: T): SupabaseSuccess<T> => ({ data, error: null });
+const asSuccessWithCount = <T>(data: T[]): SupabaseSuccessWithCount<T> => ({
+  data,
+  count: data.length,
+  error: null,
+});
+
+const noopUnsubscribe = () => {};
+const createSubscription = () => ({ unsubscribe: noopUnsubscribe });
+const resolveEmpty = createAsync(() => ({ error: null }));
+
 function createQuery(chatLog: Chat[]) {
-  const orderQuery = {
-    limit: async () => ({ data: chatLog, error: null }),
-    range: async () => ({ data: chatLog, count: chatLog.length, error: null }),
-  };
+  const resolveFullLog = createAsync(() => asSuccess(chatLog));
+  const resolveWithCount = createAsync(() => asSuccessWithCount(chatLog));
 
   const query = {
     select: () => query,
-    order: () => orderQuery,
-    limit: async () => ({ data: chatLog, error: null }),
-    range: async () => ({ data: chatLog, count: chatLog.length, error: null }),
+    order: () => ({
+      limit: resolveFullLog,
+      range: resolveWithCount,
+    }),
+    limit: resolveFullLog,
+    range: resolveWithCount,
     insert: (payload: unknown) => {
-      const response = { data: null, error: null };
+      const response = asSuccess<null>(null);
       return {
         select: () => ({
-          single: async () => ({
-            data: {
+          single: createAsync(() =>
+            asSuccess({
               uuid: 'mock-inserted',
               time: Date.now(),
               ...(payload as object),
-            },
-            error: null,
-          }),
+            })
+          ),
         }),
-        then: (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(response)),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve(resolve(response)),
       };
     },
     delete: () => ({
-      neq: async () => ({ error: null }),
-      lt: async () => ({ error: null }),
+      neq: resolveEmpty,
+      lt: resolveEmpty,
     }),
     eq: () => query,
     gte: () => query,
     lte: () => query,
-    single: async () => ({ data: chatLog[0] ?? null, error: null }),
+    single: createAsync(() => asSuccess(chatLog[0] ?? null)),
   };
 
   return query;
@@ -44,25 +60,36 @@ function createQuery(chatLog: Chat[]) {
 function createChannel() {
   return {
     on: () => ({
-      subscribe: () => ({
-        unsubscribe: () => {},
-      }),
+      subscribe: () => createSubscription(),
     }),
-    subscribe: () => ({
-      unsubscribe: () => {},
-    }),
+    subscribe: () => createSubscription(),
   };
 }
 
-export function setupSupabaseStoryMocks(chatLog: Chat[]) {
-  const originalFrom = supabase.from.bind(supabase);
-  const originalChannel = supabase.channel.bind(supabase);
+type MockQueryBuilder = ReturnType<typeof createQuery>;
+type MockChannel = ReturnType<typeof createChannel>;
 
-  (supabase as any).from = () => createQuery(chatLog);
-  (supabase as any).channel = () => createChannel();
+type SupabaseFrom = (typeof supabase)['from'];
+type SupabaseChannel = (typeof supabase)['channel'];
+
+type SupabaseMockClient = Omit<typeof supabase, 'from' | 'channel'> & {
+  from: (...args: Parameters<SupabaseFrom>) => MockQueryBuilder;
+  channel: (...args: Parameters<SupabaseChannel>) => MockChannel;
+};
+
+export function setupSupabaseStoryMocks(chatLog: Chat[]) {
+  const supabaseMock = supabase as unknown as SupabaseMockClient;
+
+  const originalFrom = supabaseMock.from;
+  const originalChannel = supabaseMock.channel;
+
+  supabaseMock.from = (..._args: Parameters<SupabaseFrom>) => createQuery(chatLog);
+  supabaseMock.channel = (
+    ..._args: Parameters<SupabaseChannel>
+  ) => createChannel();
 
   return () => {
-    (supabase as any).from = originalFrom;
-    (supabase as any).channel = originalChannel;
+    supabaseMock.from = originalFrom;
+    supabaseMock.channel = originalChannel;
   };
 }
