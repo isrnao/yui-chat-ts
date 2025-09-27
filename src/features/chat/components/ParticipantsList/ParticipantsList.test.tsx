@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import ParticipantsList from './index';
 import type { Participant } from '@features/chat/types';
@@ -12,25 +12,20 @@ describe('ParticipantsList', () => {
     { uuid: 'p1', name: 'Alice', color: '#ff0000' },
     { uuid: 'p2', name: 'Bob', color: '#00ff00' },
   ];
-
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(1680000000000);
-  });
+  const fixedTime = 1680000000000;
 
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
   });
 
   it('renders "（なし）" when no participants', () => {
-    render(<ParticipantsList participants={[]} />);
+    render(<ParticipantsList participants={[]} updatedAt={fixedTime} />);
     expect(screen.getByText('参加者:')).toBeInTheDocument();
     expect(screen.getByText('（なし）')).toBeInTheDocument();
   });
 
   it('renders participants with their colors', () => {
-    render(<ParticipantsList participants={participants} />);
+    render(<ParticipantsList participants={participants} updatedAt={fixedTime} />);
 
     const alice = screen.getByText('Alice');
     const bob = screen.getByText('Bob');
@@ -40,7 +35,7 @@ describe('ParticipantsList', () => {
   });
 
   it('displays current time in header', () => {
-    render(<ParticipantsList participants={[]} />);
+    render(<ParticipantsList participants={[]} updatedAt={fixedTime} />);
 
     const timeElement = screen.getByText(/\[TIME\(/);
     expect(timeElement).toBeInTheDocument();
