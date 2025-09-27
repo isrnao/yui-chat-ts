@@ -13,9 +13,15 @@ function TopPlaceholder() {
 }
 
 function BottomPreview() {
+  const fixedCurrentTime = sampleChatLog[0]?.time ?? Date.parse('2024-01-01T12:00:00Z');
   return (
     <div className="h-full bg-white/90 p-4">
-      <ChatLogList chatLog={sampleChatLog} participants={sampleParticipants} windowRows={50} />
+      <ChatLogList
+        chatLog={sampleChatLog}
+        participants={sampleParticipants}
+        windowRows={50}
+        currentTime={fixedCurrentTime}
+      />
     </div>
   );
 }

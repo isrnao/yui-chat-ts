@@ -17,6 +17,7 @@ const meta = {
     participants: sampleParticipants,
     windowRows: 50,
     isLoading: false,
+    currentTime: Date.parse('2024-01-01T12:00:00Z'),
   },
   argTypes: {
     isLoading: {

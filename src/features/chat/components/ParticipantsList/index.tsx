@@ -3,12 +3,15 @@ import type { Participant } from '@features/chat/types';
 
 type Props = {
   participants: Participant[];
+  updatedAt: number;
 };
 
-export default function ParticipantsList({ participants }: Props) {
+export default function ParticipantsList({ participants, updatedAt }: Props) {
+  const formattedTime = formatTime(updatedAt).slice(0, 5);
+
   return (
     <div className="text-xs mb-2 flex flex-wrap gap-2 items-center">
-      <span className="text-xs text-gray-500 mr-2">[{formatTime(Date.now()).slice(0, 5)}]</span>
+      <span className="text-xs text-gray-500 mr-2">[{formattedTime}]</span>
       <span className="text-xs">参加者:</span>
       {participants.length === 0 ? (
         <b className="text-xs">（なし）</b>

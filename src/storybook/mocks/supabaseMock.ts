@@ -4,7 +4,10 @@ import type { Chat } from '@features/chat/types';
 type SupabaseSuccess<T> = { data: T; error: null };
 type SupabaseSuccessWithCount<T> = SupabaseSuccess<T[]> & { count: number };
 
-const createAsync = <T>(factory: () => T) => async () => factory();
+const createAsync =
+  <T>(factory: () => T) =>
+  async () =>
+    factory();
 const asSuccess = <T>(data: T): SupabaseSuccess<T> => ({ data, error: null });
 const asSuccessWithCount = <T>(data: T[]): SupabaseSuccessWithCount<T> => ({
   data,
@@ -40,8 +43,7 @@ function createQuery(chatLog: Chat[]) {
             })
           ),
         }),
-        then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve(resolve(response)),
+        then: (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(response)),
       };
     },
     delete: () => ({
@@ -84,9 +86,7 @@ export function setupSupabaseStoryMocks(chatLog: Chat[]) {
   const originalChannel = supabaseMock.channel;
 
   supabaseMock.from = (..._args: Parameters<SupabaseFrom>) => createQuery(chatLog);
-  supabaseMock.channel = (
-    ..._args: Parameters<SupabaseChannel>
-  ) => createChannel();
+  supabaseMock.channel = (..._args: Parameters<SupabaseChannel>) => createChannel();
 
   return () => {
     supabaseMock.from = originalFrom;

@@ -9,6 +9,7 @@ type Props = {
   isLoading?: boolean;
   windowRows: number;
   participants: Participant[];
+  currentTime?: number;
 };
 
 export default function ChatLogList({
@@ -16,8 +17,10 @@ export default function ChatLogList({
   isLoading = false,
   windowRows,
   participants,
+  currentTime,
 }: Props) {
   const chats = sortChatsByTime([...chatLog]).slice(0, windowRows);
+  const headerTimestamp = chats[0]?.time ?? currentTime ?? Date.now();
 
   // 読み込み中の場合は専用のローディング表示を返す
   if (isLoading) {
@@ -29,7 +32,7 @@ export default function ChatLogList({
       className="overflow-y-auto rounded-none mt-2 [font-family:var(--font-yui)]"
       data-testid="chat-log-list"
     >
-      <ParticipantsList participants={participants} />
+      <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
       {/* IE風区切り線（上下二重線） */}
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
