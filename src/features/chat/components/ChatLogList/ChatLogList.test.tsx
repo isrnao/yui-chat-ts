@@ -42,12 +42,7 @@ describe('ChatLogList', () => {
 
   it('renders no message when chatLog is empty', () => {
     render(
-      <ChatLogList
-        chatLog={[]}
-        windowRows={10}
-        participants={[]}
-        currentTime={fixedCurrentTime}
-      />
+      <ChatLogList chatLog={[]} windowRows={10} participants={[]} currentTime={fixedCurrentTime} />
     );
     expect(screen.getByText('まだ発言はありません。')).toBeInTheDocument();
     expect(screen.getByText('参加者:')).toBeInTheDocument();
