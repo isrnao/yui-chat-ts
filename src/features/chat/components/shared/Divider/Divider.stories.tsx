@@ -14,7 +14,7 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   render: () => (
-    <div className="w-80 text-sm space-y-2" style={{ fontFamily: 'var(--font-yui)' }}>
+    <div className="w-80 text-sm space-y-2 font-yui">
       <p>上側のコンテンツ</p>
       <Divider />
       <p>下側のコンテンツ</p>

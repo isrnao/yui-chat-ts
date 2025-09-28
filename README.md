@@ -58,3 +58,9 @@ export default tseslint.config({
 ## Supabase Configuration
 
 This project saves chat logs to Supabase. Create a `.env` file based on `.env.example` and provide your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values.
+
+## Styling Notes
+
+- The root `main` element owns the viewport height via `min-h-dvh`; descendant panes should rely on flex sizing plus `overflow-y-auto` instead of duplicating `min-height` styles.
+- Layout containers apply horizontal padding once with `px-[var(--page-gap)]`. Any child that needs to span edge to edge should add the `bleed-x` utility class.
+- Design tokens (brand colors, IE-inspired grays, and the retro font stack) live in `src/styles/theme.css`, making classes like `bg-yui-green`, `border-ie-gray`, and `font-yui` available across the app.

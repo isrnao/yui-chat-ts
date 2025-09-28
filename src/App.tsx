@@ -64,13 +64,7 @@ export default function App() {
 
   return (
     <>
-      <main
-        className="flex flex-col bg-[var(--yui-green)]"
-        role="main"
-        style={{
-          minHeight: '100dvh',
-        }}
-      >
+      <main className="flex flex-col bg-yui-green min-h-dvh h-dvh overflow-hidden" role="main">
         <header className="sr-only">
           <h1>ゆいちゃっとTS - 無料お気楽チャット</h1>
           <p>リアルタイムでみんなとおしゃべりを楽しめる無料のブラウザチャットです。</p>
@@ -122,7 +116,7 @@ export default function App() {
                 />
               </Suspense>
             ) : (
-              <div className="relative">
+              <div className="relative px-[var(--page-gap)] pb-[var(--page-gap)]">
                 <button
                   className="absolute right-0 top-0 text-xs underline text-blue-700 px-2 py-1"
                   onClick={() => setShowRanking(false)}

@@ -2,6 +2,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadInitialChatLogs, loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
+import Button from '@shared/components/Button';
 import type { Chat } from '@features/chat/types';
 
 export default function ChatLogPage() {
@@ -62,17 +63,12 @@ export default function ChatLogPage() {
 
   // 参加者表示用（空リストでOK）
   return (
-    <main className="flex flex-col items-center min-h-screen bg-yui-green/10">
-      <header
-        className="text-2xl font-bold text-yui-pink my-6"
-        style={{ fontFamily: 'var(--tw-font-yui, sans-serif)' }}
-      >
-        チャットログ閲覧
-      </header>
+    <main className="flex flex-col items-center min-h-dvh bg-yui-green/10">
+      <header className="text-2xl font-bold text-yui-pink my-6 font-yui">チャットログ閲覧</header>
       <div className="mb-4 flex items-center gap-2">
         <span className="text-xs">表示行数:</span>
         <select
-          className="ie-select"
+          className="border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd]"
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}
         >
@@ -82,13 +78,13 @@ export default function ChatLogPage() {
             </option>
           ))}
         </select>
-        <button className="ie-btn" onClick={handleRefresh}>
+        <Button type="button" onClick={handleRefresh}>
           再読込
-        </button>
+        </Button>
         {hasMore && !isLoading && (
-          <button className="ie-btn" onClick={loadMoreData} disabled={isLoadingMore}>
+          <Button type="button" onClick={loadMoreData} disabled={isLoadingMore}>
             {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
-          </button>
+          </Button>
         )}
       </div>
       <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>

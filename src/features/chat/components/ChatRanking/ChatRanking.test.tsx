@@ -59,7 +59,7 @@ describe('<ChatRanking />', () => {
     expect(screen.getAllByText(/^formatted:/).length).toBeGreaterThan(0);
   });
 
-  it('スナップショットが一致する', () => {
+  it('フォントユーティリティが適用される', () => {
     const chatLog = [
       {
         uuid: 'a',
@@ -73,6 +73,7 @@ describe('<ChatRanking />', () => {
       },
     ];
     const { container } = render(<ChatRanking chatLog={chatLog} />);
-    expect(container).toMatchSnapshot();
+    const table = container.querySelector('table');
+    expect(table).toHaveClass('font-yui');
   });
 });

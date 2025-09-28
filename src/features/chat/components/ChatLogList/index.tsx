@@ -30,22 +30,16 @@ export default function ChatLogList({
 
   return (
     <div
-      className="overflow-y-auto rounded-none mt-2 pb-4 [font-family:var(--font-yui)]"
+      className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
-      <div className="px-[var(--page-gap)]">
-        <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
-      </div>
+      <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
       {/* IE風区切り線（上下二重線） */}
       <Divider />
-      {chats.length === 0 && (
-        <div className="px-[var(--page-gap)] text-gray-400 py-3">まだ発言はありません。</div>
-      )}
+      {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
       {chats.map((c) => (
         <Fragment key={c.uuid}>
-          <div className="px-[var(--page-gap)]">
-            <ChatMessage chat={c} />
-          </div>
+          <ChatMessage chat={c} />
           <Divider />
         </Fragment>
       ))}

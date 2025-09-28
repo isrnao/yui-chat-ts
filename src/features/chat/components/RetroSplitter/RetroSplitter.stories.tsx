@@ -5,8 +5,8 @@ import { sampleChatLog, sampleParticipants } from '../../../../storybook/mocks/c
 
 function TopPlaceholder() {
   return (
-    <div className="h-full w-full bg-white/70 p-6" style={{ fontFamily: 'var(--font-yui)' }}>
-      <h2 className="text-xl font-bold text-[var(--yui-pink)] mb-2">上側の領域</h2>
+    <div className="h-full w-full bg-white/70 p-6 font-yui">
+      <h2 className="text-xl font-bold text-yui-pink mb-2">上側の領域</h2>
       <p className="text-sm text-gray-600">ドラッグまたは矢印キーで高さを調整できます。</p>
     </div>
   );
