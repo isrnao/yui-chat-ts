@@ -20,7 +20,7 @@ function ChatRoomContainer({
   useEffect(() => setWindowRows(initialWindowRows), [initialWindowRows]);
 
   return (
-    <div className="max-w-3xl mx-auto p-4 bg-white border border-gray-200">
+    <div className="max-w-3xl mx-auto p-4">
       <ChatRoom
         message={message}
         setMessage={setMessage}

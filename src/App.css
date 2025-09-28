@@ -9,10 +9,19 @@
   --ie-blue: #4a90e2;
   --ie-bg: #f3f3f3;
   --font-yui: 'MS UI Gothic', Arial, sans-serif;
+  --page-gap: clamp(12px, 3vw, 28px);
+  --retro-splitter-height: 100dvh;
 }
 
 body {
   margin: 0;
   background-color: var(--yui-green);
   font-family: var(--font-yui);
+  box-sizing: border-box;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100dvh;
 }

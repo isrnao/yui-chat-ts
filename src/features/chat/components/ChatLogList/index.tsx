@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import type { Chat, Participant } from '@features/chat/types';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
@@ -29,18 +30,24 @@ export default function ChatLogList({
 
   return (
     <div
-      className="overflow-y-auto rounded-none mt-2 [font-family:var(--font-yui)]"
+      className="overflow-y-auto rounded-none mt-2 pb-4 [font-family:var(--font-yui)]"
       data-testid="chat-log-list"
     >
-      <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
+      <div className="px-[var(--page-gap)]">
+        <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
+      </div>
       {/* IE風区切り線（上下二重線） */}
       <Divider />
-      {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
+      {chats.length === 0 && (
+        <div className="px-[var(--page-gap)] text-gray-400 py-3">まだ発言はありません。</div>
+      )}
       {chats.map((c) => (
-        <div key={c.uuid}>
-          <ChatMessage chat={c} />
+        <Fragment key={c.uuid}>
+          <div className="px-[var(--page-gap)]">
+            <ChatMessage chat={c} />
+          </div>
           <Divider />
-        </div>
+        </Fragment>
       ))}
     </div>
   );

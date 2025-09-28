@@ -36,7 +36,7 @@ export default function EntryForm({
   const rowsId = useId();
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col px-[var(--page-gap)] pb-[var(--page-gap)]">
       <header
         className="mb-1 text-2xl font-bold text-[var(--yui-pink)]"
         style={{ fontFamily: 'var(--font-yui)' }}

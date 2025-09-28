@@ -60,7 +60,7 @@ export default function ChatRoom({
   }, [chatLog, isPending]);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col px-[var(--page-gap)] pb-[var(--page-gap)]">
       <div className="mb-1 flex gap-2">
         <a
           href="#"
@@ -123,7 +123,7 @@ export default function ChatRoom({
           ログ行数
         </label>
         <select
-          className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+          className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] px-2 py-0.5 text-sm rounded-none shadow-none outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
           id={rowsId}
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}
