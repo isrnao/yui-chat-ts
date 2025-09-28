@@ -50,7 +50,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build Storybook (with stats for TurboSnap)
-        run: pnpm build-storybook -- --stats-json
+        run: pnpm build-storybook
 
       - name: Ensure preview-stats.json exists
         run: |

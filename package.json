@@ -47,7 +47,7 @@
     "lighthouse:ci": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output json --quiet --chrome-flags='--headless'",
     "analyze:bundle": "npx vite-bundle-analyzer dist",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
+    "build-storybook": "storybook build --stats-json",
     "chromatic": "chromatic --project-token=$CHROMATIC_PROJECT_TOKEN",
     "chromatic:dryrun": "dotenv -e .env -- chromatic --dry-run --debug"
   },
