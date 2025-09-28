@@ -52,6 +52,12 @@ jobs:
       - name: Build Storybook (with stats for TurboSnap)
         run: pnpm build-storybook -- --stats-json
 
+      - name: Ensure preview-stats.json exists
+        run: |
+          if [ -f storybook-static/storybook-stats.json ] && [ ! -f storybook-static/preview-stats.json ]; then
+            mv storybook-static/storybook-stats.json storybook-static/preview-stats.json
+          fi
+
       - name: Publish to Chromatic
         uses: chromaui/action@latest
         with:
