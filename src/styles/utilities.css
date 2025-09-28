@@ -1,0 +1,13 @@
+@utility min-h-dvh {
+  min-height: 100dvh;
+}
+
+@utility h-dvh {
+  height: 100dvh;
+}
+
+@utility bleed-x {
+  --_gap: var(--page-gap, 0px);
+  width: calc(100% + (var(--_gap) * 2));
+  margin-inline: calc(var(--_gap) * -1);
+}

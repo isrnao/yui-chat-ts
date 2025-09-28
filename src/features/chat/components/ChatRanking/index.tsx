@@ -13,7 +13,7 @@ export default function ChatRanking({ chatLog }: Props) {
     <div className="mt-4 w-full mx-auto text-[#444]">
       <div className="mb-2 text-sm font-bold">発言らんきんぐ</div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm" style={{ fontFamily: 'var(--font-yui)' }}>
+        <table className="w-full text-sm font-yui">
           <thead>
             <tr className="text-[#444]">
               <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">

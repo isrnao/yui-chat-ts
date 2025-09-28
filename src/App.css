@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@import './styles/theme.css';
+@import './styles/utilities.css';
 
 :root {
   --yui-green: #a1fe9f;
@@ -10,18 +12,19 @@
   --ie-bg: #f3f3f3;
   --font-yui: 'MS UI Gothic', Arial, sans-serif;
   --page-gap: clamp(12px, 3vw, 28px);
-  --retro-splitter-height: 100dvh;
+  color-scheme: light;
+  scrollbar-gutter: stable both-edges;
 }
 
 body {
   margin: 0;
-  background-color: var(--yui-green);
+  background-color: var(--color-yui-green, var(--yui-green));
   font-family: var(--font-yui);
-  box-sizing: border-box;
-  min-height: 100dvh;
   overflow-x: hidden;
 }
 
-#root {
-  min-height: 100dvh;
+*,
+::before,
+::after {
+  box-sizing: border-box;
 }

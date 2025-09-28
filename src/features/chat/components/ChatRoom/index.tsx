@@ -60,7 +60,7 @@ export default function ChatRoom({
   }, [chatLog, isPending]);
 
   return (
-    <div className="flex flex-col px-[var(--page-gap)] pb-[var(--page-gap)]">
+    <div className="flex flex-col">
       <div className="mb-1 flex gap-2">
         <a
           href="#"
@@ -92,7 +92,7 @@ export default function ChatRoom({
             dispatch(formData);
           });
         }}
-        className="flex gap-2 mt-2 mb-3 w-full max-w-2xl px-4 [font-family:var(--font-yui)] flex-wrap"
+        className="flex gap-2 mt-2 mb-3 w-full max-w-2xl px-4 font-yui flex-wrap"
         autoComplete="off"
       >
         <div className="flex flex-nowrap gap-2">
@@ -123,7 +123,7 @@ export default function ChatRoom({
           ログ行数
         </label>
         <select
-          className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] px-2 py-0.5 text-sm rounded-none shadow-none outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+          className="ml-2 border-2 border-ie-gray [border-style:inset] px-2 py-0.5 text-sm rounded-none shadow-none outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd]"
           id={rowsId}
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}

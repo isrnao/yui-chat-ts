@@ -9,17 +9,15 @@ describe('Divider', () => {
     const hr = container.querySelector('hr');
     expect(hr).toBeInTheDocument();
     expect(hr).toHaveClass(
+      'bleed-x',
       'border-0',
       'border-t-2',
       'border-b',
-      'border-t-[var(--ie-gray)]',
+      'border-t-ie-gray',
       'border-b-white',
       'h-0',
       'my-2'
     );
-    expect(hr).toHaveStyle({
-      width: 'calc(100% + (var(--page-gap, 0px) * 2))',
-      marginInline: 'calc(var(--page-gap, 0px) * -1)',
-    });
+    expect(hr).not.toHaveAttribute('style');
   });
 });

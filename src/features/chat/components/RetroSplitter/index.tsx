@@ -80,19 +80,23 @@ export default function RetroSplitter({
       );
   };
 
+  const containerHeight = containerRef.current?.getBoundingClientRect().height ?? 0;
+  const minPercent = containerHeight ? (minTop / containerHeight) * 100 : 0;
+  const maxPercent = containerHeight ? 100 - (minBottom / containerHeight) * 100 : 100;
+  const clampedMinPercent = Math.max(0, Math.min(minPercent, 100));
+  const clampedMaxPercent = Math.max(clampedMinPercent, Math.min(maxPercent, 100));
+
   return (
     <div
       ref={containerRef}
-      className="flex flex-col bg-transparent select-none"
-      style={{ height: 'var(--retro-splitter-height, 100dvh)' }}
+      className="flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
     >
       {/* 上側エリア */}
       <div
+        className="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
         style={{
           height: `${topHeight}%`,
           minHeight: minTop,
-          overflowY: 'auto',
-          overflowX: 'visible',
         }}
       >
         {top}
@@ -101,24 +105,24 @@ export default function RetroSplitter({
       <div
         role="separator"
         aria-label="上下の領域を分割するバー"
+        aria-description="上下の境界です。矢印キーで調整できます"
+        aria-orientation="horizontal"
+        aria-valuenow={Math.round(topHeight)}
+        aria-valuemin={Math.round(clampedMinPercent)}
+        aria-valuemax={Math.round(clampedMaxPercent)}
         tabIndex={0}
         onMouseDown={() => setDragging(true)}
         onKeyDown={onBarKeyDown}
-        style={{
-          outline: 'none',
-          width: 'calc(100% + (var(--page-gap, 0px) * 2))',
-          marginInline: 'calc(var(--page-gap, 0px) * -1)',
-        }}
+        className="bleed-x cursor-row-resize outline-none"
       >
-        <hr className="border-0 border-t-4 border-b border-t-[var(--ie-gray)] border-b-white w-full" />
+        <hr className="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full" />
       </div>
       {/* 下側エリア */}
       <div
+        className="overflow-y-auto min-h-0"
         style={{
           height: `${100 - topHeight}%`,
           minHeight: minBottom,
-          overflowY: 'auto',
-          overflowX: 'visible',
         }}
       >
         {bottom}

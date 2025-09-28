@@ -36,13 +36,8 @@ export default function EntryForm({
   const rowsId = useId();
 
   return (
-    <div className="flex flex-col px-[var(--page-gap)] pb-[var(--page-gap)]">
-      <header
-        className="mb-1 text-2xl font-bold text-[var(--yui-pink)]"
-        style={{ fontFamily: 'var(--font-yui)' }}
-      >
-        ゆいちゃっと
-      </header>
+    <div className="flex flex-col">
+      <header className="mb-1 text-2xl font-bold text-yui-pink font-yui">ゆいちゃっと</header>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -108,7 +103,7 @@ export default function EntryForm({
         <div className="mb-2 flex items-center">
           <label htmlFor={rowsId}>ログ行数:</label>
           <select
-            className="ml-2 border-2 border-[var(--ie-gray)] [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none outline-none [font-family:var(--font-yui)] focus:border-2 focus:border-[var(--ie-blue)] focus:bg-[#f8fafd]"
+            className="ml-2 border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd]"
             id={rowsId}
             name="windowRows"
             value={windowRows}
