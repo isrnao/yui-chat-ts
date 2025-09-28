@@ -83,11 +83,20 @@ export default function RetroSplitter({
   return (
     <div
       ref={containerRef}
-      className="flex flex-col bg-transparent select-none min-h-screen h-screen"
-      style={{ height: '100vh' }}
+      className="flex flex-col bg-transparent select-none"
+      style={{ height: 'var(--retro-splitter-height, 100dvh)' }}
     >
       {/* 上側エリア */}
-      <div style={{ height: `${topHeight}%`, minHeight: minTop, overflow: 'auto' }}>{top}</div>
+      <div
+        style={{
+          height: `${topHeight}%`,
+          minHeight: minTop,
+          overflowY: 'auto',
+          overflowX: 'visible',
+        }}
+      >
+        {top}
+      </div>
       {/* 分割バー */}
       <div
         role="separator"
@@ -97,6 +106,8 @@ export default function RetroSplitter({
         onKeyDown={onBarKeyDown}
         style={{
           outline: 'none',
+          width: 'calc(100% + (var(--page-gap, 0px) * 2))',
+          marginInline: 'calc(var(--page-gap, 0px) * -1)',
         }}
       >
         <hr className="border-0 border-t-4 border-b border-t-[var(--ie-gray)] border-b-white w-full" />
@@ -106,7 +117,8 @@ export default function RetroSplitter({
         style={{
           height: `${100 - topHeight}%`,
           minHeight: minBottom,
-          overflow: 'auto',
+          overflowY: 'auto',
+          overflowX: 'visible',
         }}
       >
         {bottom}

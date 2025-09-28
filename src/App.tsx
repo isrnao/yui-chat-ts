@@ -64,7 +64,13 @@ export default function App() {
 
   return (
     <>
-      <main className="flex flex-col min-h-screen bg-[var(--yui-green)]" role="main">
+      <main
+        className="flex flex-col bg-[var(--yui-green)]"
+        role="main"
+        style={{
+          minHeight: '100dvh',
+        }}
+      >
         <header className="sr-only">
           <h1>ゆいちゃっとTS - 無料お気楽チャット</h1>
           <p>リアルタイムでみんなとおしゃべりを楽しめる無料のブラウザチャットです。</p>

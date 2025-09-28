@@ -17,5 +17,9 @@ describe('Divider', () => {
       'h-0',
       'my-2'
     );
+    expect(hr).toHaveStyle({
+      width: 'calc(100% + (var(--page-gap, 0px) * 2))',
+      marginInline: 'calc(var(--page-gap, 0px) * -1)',
+    });
   });
 });

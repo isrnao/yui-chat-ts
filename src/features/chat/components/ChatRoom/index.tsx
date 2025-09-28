@@ -60,7 +60,7 @@ export default function ChatRoom({
   }, [chatLog, isPending]);
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col px-[var(--page-gap)] pb-[var(--page-gap)]">
       <div className="mb-1 flex gap-2">
         <a
           href="#"
