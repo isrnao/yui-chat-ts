@@ -21,7 +21,7 @@ export default function ChatLogList({
   currentTime,
 }: Props) {
   const chats = sortChatsByTime([...chatLog]).slice(0, windowRows);
-  const headerTimestamp = chats[0]?.time ?? currentTime ?? Date.now();
+  const displayTime = currentTime ?? Date.now();
 
   // 読み込み中の場合は専用のローディング表示を返す
   if (isLoading) {
@@ -33,7 +33,7 @@ export default function ChatLogList({
       className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
-      <ParticipantsList participants={participants} updatedAt={headerTimestamp} />
+      <ParticipantsList participants={participants} currentTime={displayTime} />
       {/* IE風区切り線（上下二重線） */}
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}

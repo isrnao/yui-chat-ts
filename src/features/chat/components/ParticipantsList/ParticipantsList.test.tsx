@@ -19,13 +19,13 @@ describe('ParticipantsList', () => {
   });
 
   it('renders "（なし）" when no participants', () => {
-    render(<ParticipantsList participants={[]} updatedAt={fixedTime} />);
+    render(<ParticipantsList participants={[]} currentTime={fixedTime} />);
     expect(screen.getByText('参加者:')).toBeInTheDocument();
     expect(screen.getByText('（なし）')).toBeInTheDocument();
   });
 
   it('renders participants with their colors', () => {
-    render(<ParticipantsList participants={participants} updatedAt={fixedTime} />);
+    render(<ParticipantsList participants={participants} currentTime={fixedTime} />);
 
     const alice = screen.getByText('Alice');
     const bob = screen.getByText('Bob');
@@ -35,7 +35,7 @@ describe('ParticipantsList', () => {
   });
 
   it('displays current time in header', () => {
-    render(<ParticipantsList participants={[]} updatedAt={fixedTime} />);
+    render(<ParticipantsList participants={[]} currentTime={fixedTime} />);
 
     const timeElement = screen.getByText(/\[TIME\(/);
     expect(timeElement).toBeInTheDocument();

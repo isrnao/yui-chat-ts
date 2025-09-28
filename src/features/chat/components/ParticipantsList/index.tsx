@@ -3,11 +3,11 @@ import type { Participant } from '@features/chat/types';
 
 type Props = {
   participants: Participant[];
-  updatedAt: number;
+  currentTime: number;
 };
 
-export default function ParticipantsList({ participants, updatedAt }: Props) {
-  const formattedTime = formatTime(updatedAt).slice(0, 5);
+export default function ParticipantsList({ participants, currentTime }: Props) {
+  const formattedTime = formatTime(currentTime).slice(0, 5);
 
   return (
     <div className="text-xs mb-2 flex flex-wrap gap-2 items-center">
