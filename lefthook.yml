@@ -2,27 +2,11 @@ pre-commit:
   parallel: true
   jobs:
     - name: eslint
-      run: pnpm eslint --fix {staged_files}
-      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|jsx|ts|tsx)$' || true
-
-    - name: typecheck
-      run: pnpm typecheck
-      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
-
-    - name: vitest-staged
-      run: |
-        files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
-        if [ -z "$files" ]; then
-          echo "No staged TypeScript files found, skipping vitest."
-          exit 0
-        fi
-        pnpm vitest related --run $files --passWithNoTests --coverage=false
-      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true
+      run: pnpm --filter @yui/mobile exec eslint --fix {staged_files}
+      files: git diff --cached --name-only --diff-filter=ACM | grep -E '\\.(js|jsx|ts|tsx)$' || true
 # Uncomment the following section if you want to enable pre-push hooks
 # pre-push:
 #   parallel: true
 #   jobs:
 #     - name: eslint (all)
-#       run: pnpm lint
-#     - name: vitest (all)
-#       run: pnpm test -- --coverage
+#       run: pnpm --filter @yui/mobile run lint

@@ -1,0 +1,46 @@
+{
+  "name": "@yui/shared",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./index": "./src/index.ts",
+    "./chat/types": "./src/chat/types.ts",
+    "./supabase": "./src/supabase/createClient.ts",
+    "./api/chat": "./src/api/chat.ts",
+    "./utils/uuid": "./src/utils/uuid.ts",
+    "./utils/fallback": "./src/utils/fallback.ts",
+    "./chat/selectors": "./src/chat/selectors.ts",
+    "./chat/hooks": "./src/chat/hooks/index.ts",
+    "./chat/validation": "./src/chat/validation.ts",
+    "./bootstrap/preload": "./src/bootstrap/preload.ts",
+    "./platform/clientInfo": {
+      "react-native": "./src/platform/clientInfo.native.ts",
+      "default": "./src/platform/clientInfo.web.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@supabase/supabase-js": "^2.39.6",
+    "react": ">=18",
+    "react-native": ">=0.81"
+  },
+  "peerDependenciesMeta": {
+    "react-native": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "@supabase/supabase-js": "^2.39.6",
+    "typescript": "~5.5.4"
+  },
+  "main": "./src/index.ts",
+  "module": "./src/index.ts",
+  "types": "./src/index.ts"
+}
