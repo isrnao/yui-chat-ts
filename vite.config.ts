@@ -1,10 +1,47 @@
 import { defineConfig } from 'vitest/config';
+import type { Plugin, IndexHtmlTransformContext } from 'vite';
 import react from '@vitejs/plugin-react';
 import mdx from '@mdx-js/rollup';
 
+const inlineCriticalCss = (): Plugin => ({
+  name: 'inline-critical-css',
+  apply: 'build',
+  enforce: 'post',
+  transformIndexHtml(html: string, ctx: IndexHtmlTransformContext) {
+    if (!ctx?.bundle) return html;
+    let transformed = html;
+
+    Object.entries(ctx.bundle).forEach(([fileName, asset]) => {
+      const outputAsset = asset as { type?: string; source?: string | Uint8Array };
+      if (outputAsset.type !== 'asset' || !fileName.endsWith('.css')) return;
+      const source =
+        typeof outputAsset.source === 'string'
+          ? outputAsset.source
+          : outputAsset.source?.toString();
+      if (!source) return;
+
+      const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const linkPattern = new RegExp(`<link[^>]+href="[^"]*${escapedFileName}"[^>]*>`, 'i');
+      transformed = transformed.replace(
+        linkPattern,
+        `<style data-inline="${fileName}">${source}</style>`
+      );
+    });
+
+    return transformed;
+  },
+  generateBundle(_: unknown, bundle: Record<string, { type?: string }>) {
+    Object.keys(bundle).forEach((fileName) => {
+      if (fileName.endsWith('.css')) {
+        delete bundle[fileName];
+      }
+    });
+  },
+});
+
 export default defineConfig({
   base: '/yui-chat-ts/',
-  plugins: [react(), mdx()],
+  plugins: [react(), mdx(), inlineCriticalCss()],
   build: {
     // SEO最適化のためのビルド設定
     rollupOptions: {

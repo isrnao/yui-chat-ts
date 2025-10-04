@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, isValidElement } from 'react';
+import { useRef, useState, useCallback, useEffect, useLayoutEffect, isValidElement } from 'react';
 import type { ReactNode, KeyboardEvent } from 'react';
 
 export default function RetroSplitter({
@@ -15,15 +15,54 @@ export default function RetroSplitter({
   const containerRef = useRef<HTMLDivElement>(null);
   const [topHeight, setTopHeight] = useState(30); // percent
   const [dragging, setDragging] = useState(false);
+  const rafRef = useRef<number | null>(null);
+  const metricsRef = useRef({ height: 0, top: 0 });
+  const [metrics, setMetrics] = useState({ height: 0, top: 0 });
+
+  // 親要素のジオメトリ変化をバッチで検知
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+
+    const updateMetrics = () => {
+      const rect = node.getBoundingClientRect();
+      const nextMetrics = { height: rect.height, top: rect.top };
+      metricsRef.current = nextMetrics;
+      setMetrics((prev) => {
+        const heightDiff = Math.abs(prev.height - nextMetrics.height);
+        const topDiff = Math.abs(prev.top - nextMetrics.top);
+        return heightDiff > 0.5 || topDiff > 0.5 ? nextMetrics : prev;
+      });
+    };
+
+    updateMetrics();
+
+    const observer = new ResizeObserver((_entries, _observer) => {
+      updateMetrics();
+    });
+    observer.observe(node);
+
+    const handleViewportChange = () => updateMetrics();
+    window.addEventListener('scroll', handleViewportChange, { passive: true });
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('orientationchange', handleViewportChange);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', handleViewportChange);
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('orientationchange', handleViewportChange);
+    };
+  }, []);
 
   // パーセント計算ロジック分離
   const calcPercent = useCallback(
     (clientY: number) => {
-      const rect = containerRef.current?.getBoundingClientRect();
-      if (!rect) return topHeight;
-      let percent = ((clientY - rect.top) / rect.height) * 100;
-      percent = Math.max((minTop / rect.height) * 100, percent);
-      percent = Math.min(100 - (minBottom / rect.height) * 100, percent);
+      const { height, top } = metricsRef.current;
+      if (!height) return topHeight;
+      let percent = ((clientY - top) / height) * 100;
+      percent = Math.max((minTop / height) * 100, percent);
+      percent = Math.min(100 - (minBottom / height) * 100, percent);
       return percent;
     },
     [minTop, minBottom, topHeight]
@@ -32,7 +71,14 @@ export default function RetroSplitter({
   // ドラッグ中マウスmove
   const onMouseMove = useCallback(
     (e: MouseEvent) => {
-      setTopHeight(calcPercent(e.clientY));
+      const { clientY } = e;
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      rafRef.current = requestAnimationFrame(() => {
+        setTopHeight(calcPercent(clientY));
+      });
     },
     [calcPercent]
   );
@@ -55,6 +101,16 @@ export default function RetroSplitter({
     };
   }, [dragging, onMouseMove, onMouseUp]);
 
+  useEffect(
+    () => () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    },
+    []
+  );
+
   // top, bottomの切り替えで高さ初期化
   useEffect(() => {
     if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
@@ -64,23 +120,12 @@ export default function RetroSplitter({
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'ArrowUp')
-      setTopHeight((h) =>
-        Math.min(
-          h + 2,
-          100 - (minBottom / (containerRef.current?.getBoundingClientRect().height ?? 1)) * 100
-        )
-      );
-    if (e.key === 'ArrowDown')
-      setTopHeight((h) =>
-        Math.max(
-          h - 2,
-          (minTop / (containerRef.current?.getBoundingClientRect().height ?? 1)) * 100
-        )
-      );
+    const height = metrics.height || metricsRef.current.height || 1;
+    if (e.key === 'ArrowUp') setTopHeight((h) => Math.min(h + 2, 100 - (minBottom / height) * 100));
+    if (e.key === 'ArrowDown') setTopHeight((h) => Math.max(h - 2, (minTop / height) * 100));
   };
 
-  const containerHeight = containerRef.current?.getBoundingClientRect().height ?? 0;
+  const containerHeight = metrics.height;
   const minPercent = containerHeight ? (minTop / containerHeight) * 100 : 0;
   const maxPercent = containerHeight ? 100 - (minBottom / containerHeight) * 100 : 100;
   const clampedMinPercent = Math.max(0, Math.min(minPercent, 100));
