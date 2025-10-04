@@ -1,71 +1,58 @@
 import { defineConfig } from 'vitest/config';
-import type { Plugin, IndexHtmlTransformContext } from 'vite';
 import react from '@vitejs/plugin-react';
 import mdx from '@mdx-js/rollup';
 
-const inlineCriticalCss = (): Plugin => {
-  const inlined = new Set<string>();
-
-  return {
-    name: 'inline-critical-css',
-    apply: 'build',
-    enforce: 'post',
-    transformIndexHtml(html: string, ctx: IndexHtmlTransformContext) {
-      if (!ctx?.bundle || !html.includes('<div id="root"></div>')) return html;
-      let transformed = html;
-
-      Object.entries(ctx.bundle).forEach(([fileName, asset]) => {
-        const outputAsset = asset as { type?: string; source?: string | Uint8Array };
-        if (outputAsset.type !== 'asset' || !fileName.endsWith('.css')) return;
-        const source =
-          typeof outputAsset.source === 'string'
-            ? outputAsset.source
-            : outputAsset.source?.toString();
-        if (!source) return;
-
-        const escapedFileName = fileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const linkPattern = new RegExp(`<link[^>]+href="[^"]*${escapedFileName}"[^>]*>`, 'i');
-        if (linkPattern.test(transformed)) {
-          transformed = transformed.replace(
-            linkPattern,
-            `<style data-inline="${fileName}">${source}</style>`
-          );
-          inlined.add(fileName);
-        }
-      });
-
-      return transformed;
-    },
-    generateBundle(_: unknown, bundle: Record<string, { type?: string }>) {
-      inlined.forEach((fileName) => {
-        if (bundle[fileName]) {
-          delete bundle[fileName];
-        }
-      });
-    },
-  };
-};
-
 export default defineConfig({
   base: '/yui-chat-ts/',
-  plugins: [react(), mdx(), inlineCriticalCss()],
+  plugins: [react(), mdx()],
   build: {
+    target: 'es2022',
+    modulePreload: {
+      polyfill: false,
+    },
     // SEO最適化のためのビルド設定
     rollupOptions: {
+      treeshake: 'recommended',
       output: {
         // ファイル名にハッシュを含める（キャッシュ対策）
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        // チャンク分割の最適化
-        manualChunks: {
-          vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return;
+
+          const normalized = id.replace(/\\/g, '/');
+          const segments = normalized.split('node_modules/');
+          let remainder = segments.pop();
+          if (!remainder) return;
+
+          while (remainder.startsWith('.pnpm/')) {
+            const nextIndex = remainder.indexOf('node_modules/');
+            if (nextIndex === -1) return;
+            remainder = remainder.slice(nextIndex + 'node_modules/'.length);
+          }
+
+          const parts = remainder.split('/').filter(Boolean);
+          if (parts.length === 0) return;
+          const [first, second] = parts;
+
+          const baseName = first.startsWith('@') && second ? `${first.slice(1)}-${second}` : first;
+
+          if (first === '@supabase' && second) {
+            return 'vendor-supabase';
+          }
+
+          if (['react', 'react-dom', 'scheduler'].includes(baseName)) {
+            return 'vendor-react';
+          }
+
+          return `vendor-${baseName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
         },
       },
     },
     // CSSコード分割を有効にしてパフォーマンス向上
     cssCodeSplit: true,
+    cssMinify: 'lightningcss',
     // ソースマップを本番環境では無効化
     sourcemap: false,
     // チャンクサイズ警告を500KBに設定
@@ -76,7 +63,6 @@ export default defineConfig({
       compress: {
         drop_console: true, // console.logを本番環境では削除
         drop_debugger: true,
-        pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
         // 未使用コードの除去
         dead_code: true,
         unused: true,

@@ -18,6 +18,11 @@ export default function RetroSplitter({
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
   const [metrics, setMetrics] = useState({ height: 0, top: 0 });
+  const topHeightRef = useRef(topHeight);
+
+  useEffect(() => {
+    topHeightRef.current = topHeight;
+  }, [topHeight]);
 
   // 親要素のジオメトリ変化をバッチで検知
   useLayoutEffect(() => {
@@ -37,7 +42,7 @@ export default function RetroSplitter({
 
     updateMetrics();
 
-    const observer = new ResizeObserver((_entries, _observer) => {
+    const observer = new ResizeObserver(() => {
       updateMetrics();
     });
     observer.observe(node);
@@ -59,13 +64,13 @@ export default function RetroSplitter({
   const calcPercent = useCallback(
     (clientY: number) => {
       const { height, top } = metricsRef.current;
-      if (!height) return topHeight;
+      if (!height) return topHeightRef.current;
       let percent = ((clientY - top) / height) * 100;
       percent = Math.max((minTop / height) * 100, percent);
       percent = Math.min(100 - (minBottom / height) * 100, percent);
       return percent;
     },
-    [minTop, minBottom, topHeight]
+    [minTop, minBottom]
   );
 
   // ドラッグ中マウスmove
