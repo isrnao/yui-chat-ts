@@ -25,6 +25,13 @@ describe('RetroSplitter', () => {
         toJSON: () => {},
       };
     });
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(
+      (cb: Parameters<typeof window.requestAnimationFrame>[0]) => {
+        cb(0);
+        return 0;
+      }
+    );
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
   });
 
   afterEach(() => {
