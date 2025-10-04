@@ -46,8 +46,7 @@ export default defineConfig({
             return 'vendor-react';
           }
 
-          const pkg = baseName;
-          return `vendor-${pkg.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+          return `vendor-${baseName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
         },
       },
     },
