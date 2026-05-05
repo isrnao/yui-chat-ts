@@ -8,8 +8,20 @@ vi.mock('@features/chat/api/chatApi', () => ({
   loadInitialChatLogs: vi.fn().mockResolvedValue([]),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
   saveChatLog: vi.fn(),
+  saveChatLogOptimistic: vi.fn().mockResolvedValue({ uuid: 'test', time: Date.now() }),
   clearChatLogs: vi.fn(),
+  clearChatLogsByName: vi.fn().mockResolvedValue(undefined),
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  broadcastLookEvent: vi.fn(),
+  broadcastUnlookEvent: vi.fn(),
+  onLookBroadcast: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('@features/chat/utils/webAudioPlayer', () => ({
+  playNotificationSound: vi.fn(),
+  stopNotificationSound: vi.fn(),
+  isAudioUnlocked: vi.fn().mockReturnValue(false),
+  unlockAudio: vi.fn(),
 }));
 
 vi.mock('@shared/utils/clientInfo', () => ({
