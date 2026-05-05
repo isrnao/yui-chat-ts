@@ -7,6 +7,7 @@ import {
   isAudioUnlocked,
   unlockAudio,
 } from '@features/chat/utils/webAudioPlayer';
+import type { RoomId } from '@features/chat/rooms';
 
 /**
  * look/unlook Broadcast 受信で通知音を再生・停止するフック。
@@ -16,7 +17,10 @@ import {
  *
  * @param _channelRef - 将来の拡張用。現在は chatApi 内部の共有チャネルを使用。
  */
-export function useLookSound(_channelRef: React.RefObject<RealtimeChannel | null>): {
+export function useLookSound(
+  _channelRef: React.RefObject<RealtimeChannel | null>,
+  roomId: RoomId
+): {
   isAudioEnabled: boolean;
   enableAudio: () => Promise<void>;
 } {
@@ -24,7 +28,7 @@ export function useLookSound(_channelRef: React.RefObject<RealtimeChannel | null
 
   // Broadcast リスナーの登録・解除
   useEffect(() => {
-    const unsubscribe = onLookBroadcast((event) => {
+    const unsubscribe = onLookBroadcast(roomId, (event) => {
       if (event.type === 'look') {
         playNotificationSound();
       } else if (event.type === 'unlook') {
@@ -33,7 +37,7 @@ export function useLookSound(_channelRef: React.RefObject<RealtimeChannel | null
     });
 
     return unsubscribe;
-  }, []);
+  }, [roomId]);
 
   // ユーザーインタラクションで AudioContext を有効化する
   const enableAudio = useCallback(async () => {

@@ -4,6 +4,7 @@ import { loadInitialChatLogs, loadChatLogsWithPaging } from '@features/chat/api/
 import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
 import Button from '@shared/components/Button';
 import type { Chat } from '@features/chat/types';
+import { DEFAULT_ROOM_ID } from '@features/chat/rooms';
 
 export default function ChatLogPage() {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
@@ -13,7 +14,7 @@ export default function ChatLogPage() {
   const [hasMore, setHasMore] = useState(true);
 
   // プリロードフック使用
-  const preloadPromise = usePreloadChatLogs();
+  const preloadPromise = usePreloadChatLogs(DEFAULT_ROOM_ID);
 
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
@@ -24,7 +25,7 @@ export default function ChatLogPage() {
         initialData = await preloadPromise;
       } else {
         // 初回は少量のデータを素早く読み込み
-        initialData = await loadInitialChatLogs(Math.min(windowRows, 100));
+        initialData = await loadInitialChatLogs(DEFAULT_ROOM_ID, Math.min(windowRows, 100));
       }
 
       setChatLog(initialData);
@@ -41,7 +42,7 @@ export default function ChatLogPage() {
 
     setIsLoadingMore(true);
     try {
-      const result = await loadChatLogsWithPaging(50, chatLog.length, false);
+      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, 50, chatLog.length, false);
       setChatLog((prev) => [...prev, ...result.data]);
       setHasMore(result.hasMore);
     } catch (error) {

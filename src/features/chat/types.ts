@@ -1,3 +1,5 @@
+import type { RoomId } from './rooms';
+
 // --- フォントスタイル ---
 
 export type FontSize = 1 | 2 | 3 | 4 | 5;
@@ -104,6 +106,7 @@ export type ChatMetadata = {
 
 export type Chat = {
   uuid: string; // UUID v7 (サーバー側で生成される主キー)
+  room_id?: RoomId; // 部屋ごとのログ分離。旧データとの互換のため optional
   name: string;
   color: string;
   message: string;
