@@ -13,6 +13,7 @@ import type { AvatarId } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { buildChatRoomPath, matchRoute } from '@features/chat/routing';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+import TopPage from '@features/top/TopPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
@@ -91,6 +92,7 @@ function ChatPage({ roomId }: { roomId: RoomId }) {
             />
           ) : (
             <EntryForm
+              roomTitle={room.title}
               name={name}
               setName={setName}
               color={color}
@@ -162,6 +164,10 @@ export default function App() {
 
   if (route.type === 'redirect') {
     return null;
+  }
+
+  if (route.type === 'top') {
+    return <TopPage />;
   }
 
   return <ChatPage roomId={route.roomId} />;

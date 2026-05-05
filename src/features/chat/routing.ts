@@ -1,6 +1,7 @@
 import { DEFAULT_ROOM_ID, isEnabledRoomId, type RoomId } from './rooms';
 
 export type RouteMatch =
+  | { type: 'top' }
   | { type: 'chat-room'; roomId: RoomId }
   | { type: 'redirect'; to: string }
   | { type: 'not-found' };
@@ -37,7 +38,7 @@ export function matchRoute(pathname: string): RouteMatch {
   const segments = normalizedPath === '' ? [] : normalizedPath.split('/').filter(Boolean);
 
   if (segments.length === 0) {
-    return { type: 'redirect', to: buildChatRoomPath(DEFAULT_ROOM_ID) };
+    return { type: 'top' };
   }
 
   if (segments.length === 1 && segments[0] === 'chat') {

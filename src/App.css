@@ -28,3 +28,42 @@ body {
 ::after {
   box-sizing: border-box;
 }
+
+.okiraku-header {
+  background-image: var(--okiraku-head);
+  background-position: 0 0;
+  background-repeat: repeat-x;
+}
+
+.okiraku-primary-tab {
+  background-image: var(--okiraku-navi);
+  background-position: -161px -178px;
+  background-repeat: no-repeat;
+  color: #333;
+  text-decoration: none;
+}
+
+.okiraku-primary-tab:hover,
+.okiraku-primary-tab:focus,
+.okiraku-primary-tab-active {
+  background-position: -28px -178px;
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.okiraku-secondary-tab {
+  color: #fff;
+  text-decoration: none;
+}
+
+.okiraku-secondary-tab:hover,
+.okiraku-secondary-tab:focus,
+.okiraku-secondary-tab-active {
+  background-image: var(--okiraku-navi);
+  background-position: -30px -218px;
+  background-repeat: no-repeat;
+  color: #333;
+  font-weight: 700;
+  text-decoration: none;
+}

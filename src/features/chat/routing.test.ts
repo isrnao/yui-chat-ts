@@ -12,13 +12,10 @@ describe('chat routing', () => {
     });
   });
 
-  it('redirects root to the default room', async () => {
-    const { matchRoute, buildChatRoomPath } = await import('./routing');
+  it('matches root as the top page', async () => {
+    const { matchRoute } = await import('./routing');
 
-    expect(matchRoute('/yui-chat-ts/')).toEqual({
-      type: 'redirect',
-      to: buildChatRoomPath('superbeginner'),
-    });
+    expect(matchRoute('/yui-chat-ts/')).toEqual({ type: 'top' });
   });
 
   it('rejects unsupported rooms', async () => {

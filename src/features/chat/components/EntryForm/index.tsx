@@ -8,6 +8,7 @@ import type { AvatarId } from '@features/chat/types';
 import { prefetchClientIP } from '@shared/utils/clientInfo';
 
 type EntryFormProps = {
+  roomTitle?: string;
   name: string;
   setName: Dispatch<SetStateAction<string>>;
   color: string;
@@ -26,6 +27,7 @@ type EntryFormProps = {
 };
 
 export default function EntryForm({
+  roomTitle = 'ゆいちゃっと',
   name,
   setName,
   color,
@@ -69,7 +71,7 @@ export default function EntryForm({
 
   return (
     <div className="flex flex-col">
-      <header className="mb-1 text-2xl font-bold text-yui-pink font-yui">ゆいちゃっと</header>
+      <header className="mb-1 text-2xl font-bold text-yui-pink font-yui">{roomTitle}</header>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
