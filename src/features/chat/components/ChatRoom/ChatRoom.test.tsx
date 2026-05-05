@@ -69,7 +69,7 @@ describe('ChatRoom', () => {
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: '送信テスト' } });
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
-    await waitFor(() => expect(props.onSend).toHaveBeenCalledWith('送信テスト'));
+    await waitFor(() => expect(props.onSend).toHaveBeenCalledWith('送信テスト', undefined));
     // 成功時 setMessage('') が呼ばれる
   });
 

@@ -1,7 +1,9 @@
 import type { Chat } from '@features/chat/types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
 import { generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
+import { normalizeChat } from '../utils/normalizeMetadata';
 
 const TABLE = 'chats';
 const MAX_CHAT_LOG = 100;
@@ -82,7 +84,8 @@ export async function loadChatLogs(useCache = true): Promise<Chat[]> {
     // UUID v7の主キーを活用して高速ソート
     const { data, error } = await supabase
       .from(TABLE)
-      .select('uuid,name,color,message,time,system,email,ip,ua')
+      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
+      .eq('deleted', false)
       .order('uuid', { ascending: false }) // UUID v7の時系列順序性を活用
       .limit(MAX_CHAT_LOG);
 
@@ -99,7 +102,7 @@ export async function loadChatLogs(useCache = true): Promise<Chat[]> {
       return [];
     }
 
-    const chatData = (data as Chat[]) || [];
+    const chatData = (data ?? []).map(normalizeChat);
 
     // キャッシュに保存
     chatLogsCache = {
@@ -133,7 +136,8 @@ export async function loadChatLogsWithPaging(
 
     const { data, count, error } = await supabase
       .from(TABLE)
-      .select('uuid,name,color,message,time,system,email,ip,ua', { count: 'exact' })
+      .select('uuid,name,color,message,time,system,email,ip,ua,metadata', { count: 'exact' })
+      .eq('deleted', false)
       .order('uuid', { ascending: false }) // UUID v7の時系列順序性を活用
       .range(offset, offset + limit - 1);
 
@@ -141,7 +145,7 @@ export async function loadChatLogsWithPaging(
       throw new Error(`Supabase pagination error: ${error.message} (${error.code})`);
     }
 
-    const chatData = (data as Chat[]) || [];
+    const chatData = (data ?? []).map(normalizeChat);
 
     // 初回読み込み時はキャッシュに保存
     if (offset === 0) {
@@ -179,6 +183,7 @@ export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
       email: chat.email,
       ip: chat.ip,
       ua: chat.ua,
+      metadata: chat.metadata ?? null,
     };
 
     // selectを最小限に（uuidとtimeのみ）してパフォーマンス向上
@@ -222,13 +227,14 @@ export async function saveChatLog(chat: Chat): Promise<Chat> {
       email: chat.email,
       ip: chat.ip,
       ua: chat.ua,
+      metadata: chat.metadata ?? null,
     };
 
     // insertして、必要な列のみを取得（パフォーマンス向上）
     const { data, error } = await supabase
       .from(TABLE)
       .insert(sanitized)
-      .select('uuid,name,color,message,time,system,email,ip,ua')
+      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
       .single();
 
     if (error) {
@@ -256,6 +262,7 @@ export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
     email: chat.email,
     ip: chat.ip,
     ua: chat.ua,
+    metadata: chat.metadata ?? null,
   };
 
   // バックグラウンドでの非同期実行
@@ -278,6 +285,12 @@ export async function clearChatLogs(): Promise<void> {
   await supabase.from(TABLE).delete().neq('uuid', '');
 
   // チャットログがクリアされたらキャッシュを無効化
+  invalidateCache();
+}
+
+// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
+export async function clearChatLogsByName(name: string): Promise<void> {
+  await supabase.from(TABLE).update({ deleted: true }).eq('name', name);
   invalidateCache();
 }
 
@@ -358,7 +371,8 @@ export async function loadChatLogsByTimeRange(
 
     let query = supabase
       .from(TABLE)
-      .select('uuid,name,color,message,time,system,email')
+      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
+      .eq('deleted', false)
       .gte('uuid', startUUID) // UUID v7による効率的な範囲検索
       .order('uuid', { ascending: false })
       .limit(limit);
@@ -373,15 +387,75 @@ export async function loadChatLogsByTimeRange(
       throw new Error(`Supabase time range query error: ${error.message} (${error.code})`);
     }
 
-    return (data as Chat[]) || [];
+    return (data ?? []).map(normalizeChat);
   });
 }
 
+// --- Realtime チャネル管理 ---
+
+// --- Realtime チャネル管理 ---
+
+// Broadcast 用の共有チャネル
+let broadcastChannel: RealtimeChannel | null = null;
+let broadcastSubscribed = false;
+
+function getOrCreateBroadcastChannel(): RealtimeChannel {
+  if (!broadcastChannel) {
+    broadcastChannel = supabase.channel('chats-broadcast');
+    broadcastSubscribed = false;
+  }
+  return broadcastChannel;
+}
+
+function ensureBroadcastSubscribed(): void {
+  if (!broadcastSubscribed) {
+    broadcastChannel!.subscribe();
+    broadcastSubscribed = true;
+  }
+}
+
+// Postgres Changes 用（subscribeChatLogs 専用チャネル）
 export function subscribeChatLogs(callback: (chat: Chat) => void) {
-  return supabase
-    .channel('chats')
+  const channel = supabase
+    .channel('chats-postgres')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) =>
-      callback(payload.new as Chat)
+      callback(normalizeChat(payload.new))
     )
     .subscribe();
+  return channel;
+}
+
+// --- Broadcast: look/unlook イベント ---
+
+export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
+
+export function broadcastLookEvent(messageId: string): void {
+  const channel = getOrCreateBroadcastChannel();
+  ensureBroadcastSubscribed();
+  channel.send({
+    type: 'broadcast',
+    event: 'look',
+    payload: { type: 'look', messageId } satisfies LookEvent,
+  });
+}
+
+export function broadcastUnlookEvent(): void {
+  const channel = getOrCreateBroadcastChannel();
+  ensureBroadcastSubscribed();
+  channel.send({
+    type: 'broadcast',
+    event: 'look',
+    payload: { type: 'unlook' } satisfies LookEvent,
+  });
+}
+
+export function onLookBroadcast(callback: (event: LookEvent) => void): () => void {
+  const channel = getOrCreateBroadcastChannel();
+  channel.on('broadcast', { event: 'look' }, (payload) => {
+    callback(payload.payload as LookEvent);
+  });
+  ensureBroadcastSubscribed();
+  return () => {
+    // No-op: listener is cleaned up when the channel is unsubscribed
+  };
 }

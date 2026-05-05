@@ -35,6 +35,7 @@ vi.mock('@shared/supabaseClient', () => ({
     channel: vi.fn().mockReturnValue({
       on: vi.fn().mockReturnThis(),
       subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),
+      send: vi.fn().mockResolvedValue('ok'),
     }),
   },
 }));
