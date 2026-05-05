@@ -35,9 +35,8 @@ export default function ParticipantsList({ participants, currentTime }: Props) {
       <span className="text-xs text-gray-600 ml-2">
         ｜<span className="underline">ランキング</span>｜<span className="underline">詩</span>｜
         <span className="underline">待</span>｜<span className="underline">フィルタ方法</span>｜
-        <span className="underline">ルール</span>｜
-        <span className="underline">勧誘は禁止です</span>｜
-        <span className="underline">みんなっ【いいね】してね！</span>
+        <span className="underline">ルール</span>｜<span className="underline">勧誘は禁止です</span>
+        ｜<span className="underline">みんなっ【いいね】してね！</span>
       </span>
     </div>
   );

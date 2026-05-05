@@ -396,11 +396,13 @@ export async function loadChatLogsByTimeRange(
 
 // --- Realtime チャネル管理 ---
 
-// --- Realtime チャネル管理 ---
-
 // Broadcast 用の共有チャネル
 let broadcastChannel: RealtimeChannel | null = null;
 let broadcastSubscribed = false;
+
+// look イベントのコールバック集合（StrictMode の二重登録に強い設計）
+const lookCallbacks = new Set<(event: LookEvent) => void>();
+let lookListenerAttached = false;
 
 function getOrCreateBroadcastChannel(): RealtimeChannel {
   if (!broadcastChannel) {
@@ -415,6 +417,17 @@ function ensureBroadcastSubscribed(): void {
     broadcastChannel!.subscribe();
     broadcastSubscribed = true;
   }
+}
+
+function ensureLookListenerAttached(): void {
+  if (lookListenerAttached) return;
+  const channel = getOrCreateBroadcastChannel();
+  channel.on('broadcast', { event: 'look' }, (payload) => {
+    const event = payload.payload as LookEvent;
+    // 登録されているすべてのコールバックに dispatch
+    for (const cb of lookCallbacks) cb(event);
+  });
+  lookListenerAttached = true;
 }
 
 // Postgres Changes 用（subscribeChatLogs 専用チャネル）
@@ -453,12 +466,11 @@ export function broadcastUnlookEvent(): void {
 }
 
 export function onLookBroadcast(callback: (event: LookEvent) => void): () => void {
-  const channel = getOrCreateBroadcastChannel();
-  channel.on('broadcast', { event: 'look' }, (payload) => {
-    callback(payload.payload as LookEvent);
-  });
+  ensureLookListenerAttached();
   ensureBroadcastSubscribed();
-  // Supabase JS v2 は個別リスナーの解除をサポートしていない。
-  // チャネル自体のライフサイクルはアプリ全体で共有するため no-op。
-  return () => {};
+  lookCallbacks.add(callback);
+  // コールバック集合からの削除で解除できる（StrictMode の二重登録にも耐える）
+  return () => {
+    lookCallbacks.delete(callback);
+  };
 }

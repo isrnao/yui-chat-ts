@@ -64,8 +64,9 @@ export default function EntryForm({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
-          updateSettings({ name, color, email, avatar });
           await onEnter({ name, color, email, silent, avatar });
+          // 入室成功後に localStorage を更新（バリデーション失敗時は保存しない）
+          updateSettings({ name, color, email, avatar });
         }}
         autoComplete="off"
       >

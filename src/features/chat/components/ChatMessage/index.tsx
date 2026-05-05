@@ -44,7 +44,7 @@ function MessageBody({ message, chat }: { message: string; chat: Chat }) {
           </a>
         ) : (
           <span key={i}>{seg.content}</span>
-        ),
+        )
       )}
     </span>
   );

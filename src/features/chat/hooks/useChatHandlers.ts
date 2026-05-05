@@ -241,7 +241,7 @@ export function useChatHandlers({
         }
       }
     },
-    [name, color, email, setMessage, setShowRanking, addOptimistic, mergeChat]
+    [name, color, email, setMessage, setShowRanking, setChatLog, addOptimistic, mergeChat]
   );
 
   // チャット履歴再読み込み

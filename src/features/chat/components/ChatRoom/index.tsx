@@ -50,15 +50,14 @@ export default function ChatRoom({
   const boldId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // フォントスタイル状態（デフォルト太字）
+  // フォントスタイル状態（デフォルト太字 = bold が常に true なので metadata は常に付与される）
   const [fontSize, setFontSize] = useState<FontSize>(2);
   const [fontColor, setFontColor] = useState<FontColorName>('black');
   const [bold, setBold] = useState(true);
 
-  // メタデータを構築する（フォントスタイルは常に有効）
-  function buildMetadata(): ChatMetadata | undefined {
-    const hasAvatar = avatar && avatar !== 'none';
-
+  // メタデータを構築する
+  // デフォルト値（size=2, color=black）はペイロード削減のため省略し、bold はレガシー準拠で常に保存する。
+  function buildMetadata(): ChatMetadata {
     const meta: ChatMetadata = { version: 1 };
 
     const fontStyle: NonNullable<ChatMetadata['fontStyle']> = {};
@@ -67,12 +66,10 @@ export default function ChatRoom({
     if (bold) fontStyle.bold = true;
     if (Object.keys(fontStyle).length > 0) meta.fontStyle = fontStyle;
 
-    if (hasAvatar) {
+    if (avatar && avatar !== 'none') {
       meta.avatar = avatar as Exclude<AvatarId, 'none'>;
     }
 
-    // 何も指定がなければ undefined を返す
-    if (!meta.fontStyle && !meta.avatar) return undefined;
     return meta;
   }
 
@@ -88,7 +85,7 @@ export default function ChatRoom({
         return (err as Error)?.message || '送信エラー';
       }
     },
-    '',
+    ''
   );
 
   useEffect(() => {
