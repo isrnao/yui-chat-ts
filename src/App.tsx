@@ -1,13 +1,17 @@
-import { useState, lazy, Suspense, useId, useEffect } from 'react';
+import { useState, useRef, lazy, Suspense, useId, useEffect } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
+import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import { preloadCriticalResources, earlyDataFetch } from '@features/chat/hooks/usePreloadChatLogs';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
+import type { AvatarId } from '@features/chat/types';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function App() {
@@ -45,7 +49,12 @@ export default function App() {
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
   const [email, setEmail] = useState('');
+  const [avatar, setAvatar] = useState<AvatarId>('none');
   const myId = useId();
+
+  // look音声通知フック（Broadcast受信で自動再生）
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  useLookSound(channelRef);
 
   const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
     name,
@@ -81,9 +90,11 @@ export default function App() {
                 windowRows={windowRows}
                 setWindowRows={setWindowRows}
                 onExit={handleExit}
-                onSend={(msg) => handleSend(msg)}
+                onSend={(msg, metadata) => handleSend(msg, metadata)}
                 onReload={handleReload}
                 onShowRanking={() => setShowRanking(true)}
+                avatar={avatar}
+                userName={name}
               />
             ) : (
               <EntryForm
@@ -93,9 +104,10 @@ export default function App() {
                 setColor={setColor}
                 email={email}
                 setEmail={setEmail}
-                windowRows={windowRows}
-                setWindowRows={setWindowRows}
-                onEnter={handleEnter}
+                onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
+                  setAvatar(a);
+                  return handleEnter({ name: n, color: c, email: e, silent });
+                }}
               />
             )
           }

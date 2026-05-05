@@ -214,8 +214,8 @@ describe('getRecentParticipants', () => {
 
     const user1 = participants.find((p) => p.name === 'User1');
     expect(user1).toBeDefined();
-    // Mapは後から追加されたもので上書きされるため、最後に見つかった色が使われる
-    expect(user1?.color).toBe('#00ff00');
+    // 時刻昇順にソートして処理するため、最新メッセージの色が採用される
+    expect(user1?.color).toBe('#ff0000');
   });
 
   it('should work with very recent messages', () => {
