@@ -1,19 +1,27 @@
 import { buildChatRoomPath } from '@features/chat/routing';
+import type { RoomId } from '@features/chat/rooms';
 
-export type Count = number | string | null;
+export type RoomLink = {
+  label: string;
+  href: string;
+  /** 内部ルームの場合のみ設定される。外部リンクや未対応部屋では undefined */
+  roomId?: RoomId;
+  /** true (または未指定の外部URL) のとき target="_blank" rel="noopener noreferrer" を付与する */
+  external?: boolean;
+};
 
 export type ChatDirectoryGroup = {
   title: string;
   note: string;
   tone: 'pink' | 'orange' | 'green' | 'blue' | 'purple' | 'gray';
-  items: Array<{ label: string; count: Count; href: string }>;
+  items: RoomLink[];
 };
 
 export type PickupGroup = {
   title: string;
   note: string;
   tone: 'pink' | 'orange' | 'green' | 'blue';
-  items: Array<{ label: string; count: Count; href: string }>;
+  items: RoomLink[];
 };
 
 export const guideLinks = [
@@ -46,7 +54,14 @@ export const tabNav = [
   { label: 'なりきりチャット', href: '#pickup-narikiri' },
 ];
 
-const placeholderHref = '#';
+/**
+ * 内部ルーム (`/yui-chat-ts/chat/<roomId>`) へのリンクを生成する。
+ * 参加者数はランタイムに `useRoomCounts` 経由で Supabase から取得され、
+ * 取得できない場合は表示側で 0 にフォールバックされる。
+ */
+function room(label: string, roomId: RoomId): RoomLink {
+  return { label, href: buildChatRoomPath(roomId), roomId, external: false };
+}
 
 export const chatDirectoryGroups: ChatDirectoryGroup[] = [
   {
@@ -54,10 +69,10 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '常連さんはやさしくしてね',
     tone: 'pink',
     items: [
-      { label: '超初心者チャット', count: 1, href: buildChatRoomPath('superbeginner') },
-      { label: '初めましてチャット', count: 0, href: placeholderHref },
-      { label: 'みんなのチャット', count: 9, href: placeholderHref },
-      { label: '夢と希望のチャット', count: 0, href: placeholderHref },
+      room('超初心者チャット', 'superbeginner'),
+      room('初めましてチャット', 'hajime'),
+      room('みんなのチャット', 'ofall'),
+      room('夢と希望のチャット', 'yume'),
     ],
   },
   {
@@ -65,11 +80,11 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '学生同士で楽しくチャット',
     tone: 'orange',
     items: [
-      { label: '小学生チャット', count: 1, href: placeholderHref },
-      { label: '中学生チャット', count: 0, href: placeholderHref },
-      { label: '中学生チャット３', count: 0, href: placeholderHref },
-      { label: '高校生チャット', count: 0, href: placeholderHref },
-      { label: '大学生チャット', count: 0, href: placeholderHref },
+      room('小学生チャット', 'elementary'),
+      room('中学生チャット', 'juniorhighschool'),
+      room('中学生チャット３', 'juniorhighschool3'),
+      room('高校生チャット', 'highschool'),
+      room('大学生チャット', 'daigaku'),
     ],
   },
   {
@@ -77,9 +92,9 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '年が近いと話しやすいよね',
     tone: 'orange',
     items: [
-      { label: '１０代チャット', count: 0, href: placeholderHref },
-      { label: '２０代チャット', count: 0, href: placeholderHref },
-      { label: '３０代チャット', count: 1, href: placeholderHref },
+      room('１０代チャット', '10generations'),
+      room('２０代チャット', '20generations'),
+      room('３０代チャット', '30generations'),
     ],
   },
   {
@@ -87,10 +102,10 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'またーり＆もふもふ',
     tone: 'green',
     items: [
-      { label: '旨い店チャット', count: 0, href: placeholderHref },
-      { label: 'お洒落チャット', count: 0, href: placeholderHref },
-      { label: 'ニュースチャット', count: 0, href: placeholderHref },
-      { label: '人生相談チャット', count: 0, href: placeholderHref },
+      room('旨い店チャット', 'umaimise'),
+      room('お洒落チャット', 'osare'),
+      room('ニュースチャット', 'news'),
+      room('人生相談チャット', 'jinsei'),
     ],
   },
   {
@@ -98,11 +113,11 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'アニメキャラなりきり',
     tone: 'green',
     items: [
-      { label: 'アニメチャット', count: 0, href: placeholderHref },
-      { label: 'リボーンチャット', count: 0, href: placeholderHref },
-      { label: 'モンスターハンターチャット', count: 1, href: placeholderHref },
-      { label: '銀魂チャット', count: 0, href: placeholderHref },
-      { label: 'ローゼンメイデンチャット', count: 0, href: placeholderHref },
+      room('アニメチャット', 'anime'),
+      room('リボーンチャット', 'reborn'),
+      room('モンスターハンターチャット', 'monhan'),
+      room('銀魂チャット', 'kintama'),
+      room('ローゼンメイデンチャット', 'rozen'),
     ],
   },
   {
@@ -110,9 +125,9 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'ゲーマー同士で語ろう',
     tone: 'blue',
     items: [
-      { label: 'ゲームチャット', count: 0, href: placeholderHref },
-      { label: 'パズドラチャット', count: 0, href: placeholderHref },
-      { label: '3DSチャット', count: 0, href: placeholderHref },
+      room('ゲームチャット', 'game'),
+      room('パズドラチャット', 'pazudora'),
+      room('3DSチャット', '3ds'),
     ],
   },
   {
@@ -120,9 +135,9 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '季節イベントのチャット',
     tone: 'pink',
     items: [
-      { label: '夏休みチャット', count: 0, href: placeholderHref },
-      { label: '花火大会チャット', count: 0, href: placeholderHref },
-      { label: '春休みチャット', count: 0, href: placeholderHref },
+      room('夏休みチャット', 'natsuyasumi'),
+      room('花火大会チャット', 'hanabi-taikai'),
+      room('春休みチャット', 'haruyasumi'),
     ],
   },
   {
@@ -130,12 +145,12 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'ご近所さんを探そう',
     tone: 'blue',
     items: [
-      { label: '関東チャット', count: 0, href: placeholderHref },
-      { label: '北海道・東北チャット', count: 0, href: placeholderHref },
-      { label: '東海チャット', count: 0, href: placeholderHref },
-      { label: '関西チャット', count: 1, href: placeholderHref },
-      { label: '中・四国チャット', count: 0, href: placeholderHref },
-      { label: '九州・沖縄チャット', count: 0, href: placeholderHref },
+      room('関東チャット', 'area_kantoh'),
+      room('北海道・東北チャット', 'area_hok_touho'),
+      room('東海チャット', 'area_toukai'),
+      room('関西チャット', 'area_kansai'),
+      room('中・四国チャット', 'area_chu_shi'),
+      room('九州・沖縄チャット', 'area_kyu_oki'),
     ],
   },
   {
@@ -143,11 +158,11 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '気の合う仲間を見つけよう',
     tone: 'blue',
     items: [
-      { label: '音楽チャット', count: 1, href: placeholderHref },
-      { label: 'ダンスチャット', count: 1, href: placeholderHref },
-      { label: '旅行チャット', count: 0, href: placeholderHref },
-      { label: 'ダーツチャット', count: 1, href: placeholderHref },
-      { label: '卓球チャット', count: 1, href: placeholderHref },
+      room('音楽チャット', 'music'),
+      room('ダンスチャット', 'dance'),
+      room('旅行チャット', 'travel'),
+      room('ダーツチャット', 'darts'),
+      room('卓球チャット', 'tabletennis'),
     ],
   },
   {
@@ -155,14 +170,14 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'メルヘン＆特殊チャット',
     tone: 'green',
     items: [
-      { label: 'おみくじチャット', count: 0, href: placeholderHref },
-      { label: 'カオスチャット', count: 0, href: placeholderHref },
-      { label: 'プチチャット', count: 1, href: placeholderHref },
-      { label: 'ギャルチャット', count: 0, href: placeholderHref },
-      { label: 'メルヘンチャット１', count: null, href: placeholderHref },
-      { label: 'メルヘンチャット２', count: null, href: placeholderHref },
-      { label: '元祖カラフルチャット', count: null, href: placeholderHref },
-      { label: 'ホッシーと秘密の部屋', count: null, href: placeholderHref },
+      room('おみくじチャット', 'omikuji'),
+      room('カオスチャット', 'mico'),
+      room('プチチャット', 'puchi'),
+      room('ギャルチャット', 'gyamikuji'),
+      room('メルヘンチャット１', 'meruhen1'),
+      room('メルヘンチャット２', 'meruhen2'),
+      room('元祖カラフルチャット', 'colorful'),
+      room('ホッシーと秘密の部屋', 'hoshi'),
     ],
   },
   {
@@ -170,12 +185,12 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: '関東の20代大集合！',
     tone: 'purple',
     items: [
-      { label: 'カラオケ', count: null, href: placeholderHref },
-      { label: 'カラオケ２', count: null, href: placeholderHref },
-      { label: 'スポーツ', count: null, href: placeholderHref },
-      { label: '星ぞら', count: null, href: placeholderHref },
-      { label: 'お昼寝', count: null, href: placeholderHref },
-      { label: '牡蠣フライ', count: null, href: placeholderHref },
+      room('カラオケ', 'karaoke'),
+      room('カラオケ２', 'karaoke2'),
+      room('スポーツ', 'sports'),
+      room('星ぞら', 'hoshizora'),
+      room('お昼寝', 'ohirune'),
+      room('牡蠣フライ', 'kakifry'),
     ],
   },
   {
@@ -183,16 +198,16 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'チャット開拓の歴史的場所',
     tone: 'gray',
     items: [
-      { label: 'VIPチャット', count: 0, href: placeholderHref },
-      { label: '初めてチャット', count: 1, href: placeholderHref },
-      { label: 'まったりチャット', count: 0, href: placeholderHref },
-      { label: 'わいわいチャット', count: 0, href: placeholderHref },
-      { label: '常連チャット', count: 0, href: placeholderHref },
-      { label: '小・中学生チャット', count: 0, href: placeholderHref },
-      { label: '元祖２０代チャット', count: 0, href: placeholderHref },
-      { label: '３０代以上チャット', count: 0, href: placeholderHref },
-      { label: 'バトルチャット', count: null, href: placeholderHref },
-      { label: '２ショットチャット', count: null, href: placeholderHref },
+      room('VIPチャット', 'vip'),
+      room('初めてチャット', 'hajime-old'),
+      room('まったりチャット', 'mattari'),
+      room('わいわいチャット', 'wai2'),
+      room('常連チャット', 'joren'),
+      room('小・中学生チャット', 'shouchu'),
+      room('元祖２０代チャット', '20dai'),
+      room('３０代以上チャット', '30dai'),
+      room('バトルチャット', 'battle'),
+      room('２ショットチャット', '2shot'),
     ],
   },
 ];
@@ -202,6 +217,8 @@ export const latestLogins = [
   '東日本の大学生チャットにいなおさんが入室しました。',
   '高校生チャットで友達探し02にタマ(。^ω^。)さんが入室しました。',
 ];
+
+const placeholderHref = '#';
 
 export const pickupGroups: PickupGroup[] = [
   {
@@ -213,11 +230,7 @@ export const pickupGroups: PickupGroup[] = [
       '空気読めない中学生チャット',
       '恋に恋する中学生チャット01',
       '中学生チャット友達探し02',
-    ].map((label) => ({
-      label,
-      count: 0,
-      href: placeholderHref,
-    })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
   {
     title: '小学生チャット',
@@ -228,11 +241,7 @@ export const pickupGroups: PickupGroup[] = [
       'VIPな小学生チャット02',
       '純情可憐な小学生チャット',
       '都会の小学生チャット',
-    ].map((label) => ({
-      label,
-      count: 0,
-      href: placeholderHref,
-    })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
   {
     title: '高校生チャット',
@@ -243,11 +252,7 @@ export const pickupGroups: PickupGroup[] = [
       '服について話そ高校生チャット',
       '空気読めない高校生チャット',
       '友達作ろう高校生チャット01',
-    ].map((label) => ({
-      label,
-      count: 0,
-      href: placeholderHref,
-    })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
   {
     title: 'なりきりチャット',
@@ -273,7 +278,7 @@ export const pickupGroups: PickupGroup[] = [
       'BLEACHチャット',
       '青の祓魔師チャット',
       '東方チャット',
-    ].map((label, index) => ({ label, count: index === 2 ? 6 : 0, href: placeholderHref })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
   {
     title: '大学生チャット',
@@ -284,11 +289,7 @@ export const pickupGroups: PickupGroup[] = [
       '大学生チャット進路相談室',
       '可愛くなれない大学生チャット',
       'ゲーム中毒の大学生チャット',
-    ].map((label) => ({
-      label,
-      count: 0,
-      href: placeholderHref,
-    })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
   {
     title: '社会人チャット',
@@ -299,11 +300,7 @@ export const pickupGroups: PickupGroup[] = [
       '予備スペース',
       '純粋乙女な社会人チャット',
       '関西の社会人チャット',
-    ].map((label) => ({
-      label,
-      count: 0,
-      href: placeholderHref,
-    })),
+    ].map((label) => ({ label, href: placeholderHref })),
   },
 ];
 

@@ -9,9 +9,40 @@ import {
   profiles,
   tabNav,
   type ChatDirectoryGroup,
-  type Count,
   type PickupGroup,
+  type RoomLink,
 } from './data';
+import { useRoomCounts } from './hooks/useRoomCounts';
+import type { RoomCountMap } from './api/roomCountsApi';
+
+function isExternalLink(item: RoomLink): boolean {
+  if (item.external === false) return false;
+  if (item.external === true) return true;
+  // 未指定のときは href から判定 (http(s):// を外部扱い、/ や # は内部扱い)
+  return /^https?:\/\//.test(item.href);
+}
+
+/** 部屋リンクから表示用のユーザー数を決定する。
+ *  `roomId` を持ち Supabase からの値があればその値、それ以外は常に 0。 */
+function resolveCount(item: RoomLink, liveCounts: RoomCountMap): number {
+  if (item.roomId && liveCounts[item.roomId] !== undefined) {
+    return liveCounts[item.roomId] as number;
+  }
+  return 0;
+}
+
+function RoomAnchor({ item, className }: { item: RoomLink; className: string }) {
+  const external = isExternalLink(item);
+  return (
+    <a
+      className={className}
+      href={item.href}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      {item.label}
+    </a>
+  );
+}
 
 const toneClass: Record<ChatDirectoryGroup['tone'] | PickupGroup['tone'], string> = {
   pink: 'text-pink-500',
@@ -22,12 +53,7 @@ const toneClass: Record<ChatDirectoryGroup['tone'] | PickupGroup['tone'], string
   gray: 'text-gray-500',
 };
 
-function CountBadge({ count }: { count: Count }) {
-  if (count == null) return null;
-  if (typeof count === 'string') {
-    return <span className="ml-1 text-[11px] text-orange-500">{count}</span>;
-  }
-
+function CountBadge({ count }: { count: number }) {
   const color = count === 0 ? 'text-gray-400' : count >= 4 ? 'text-orange-500' : 'text-emerald-500';
   return <span className={`ml-1 font-bold ${color}`}>{count}人</span>;
 }
@@ -40,7 +66,7 @@ function SectionTitle({ children }: { children: ReactNode }) {
   );
 }
 
-function RoomList({ group }: { group: ChatDirectoryGroup }) {
+function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts: RoomCountMap }) {
   return (
     <section className="mb-3">
       <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
@@ -48,10 +74,8 @@ function RoomList({ group }: { group: ChatDirectoryGroup }) {
       <ul className="mt-1 text-[12px] leading-[1.38]">
         {group.items.map((item) => (
           <li key={item.label} className="before:mr-1 before:text-orange-300 before:content-['○']">
-            <a className="font-bold text-blue-600 hover:underline" href={item.href}>
-              {item.label}
-            </a>
-            <CountBadge count={item.count} />
+            <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
+            <CountBadge count={resolveCount(item, liveCounts)} />
           </li>
         ))}
       </ul>
@@ -59,7 +83,15 @@ function RoomList({ group }: { group: ChatDirectoryGroup }) {
   );
 }
 
-function PickupList({ group, id }: { group: PickupGroup; id: string }) {
+function PickupList({
+  group,
+  id,
+  liveCounts,
+}: {
+  group: PickupGroup;
+  id: string;
+  liveCounts: RoomCountMap;
+}) {
   return (
     <section id={id} className="mb-4 break-inside-avoid">
       <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
@@ -67,10 +99,8 @@ function PickupList({ group, id }: { group: PickupGroup; id: string }) {
       <ul className="mt-1 text-[12px] leading-[1.42]">
         {group.items.map((item) => (
           <li key={item.label} className="before:mr-1 before:text-orange-300 before:content-['○']">
-            <a className="font-bold text-blue-600 hover:underline" href={item.href}>
-              {item.label}
-            </a>
-            <CountBadge count={item.count} />
+            <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
+            <CountBadge count={resolveCount(item, liveCounts)} />
           </li>
         ))}
       </ul>
@@ -173,20 +203,20 @@ function Header() {
   );
 }
 
-function LeftColumn() {
+function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   return (
     <aside className="border-r border-gray-300 bg-white px-2 py-2 max-md:order-2 max-md:border-r-0">
       <SectionTitle>チャット</SectionTitle>
       <div className="pt-3">
         {chatDirectoryGroups.map((group) => (
-          <RoomList key={group.title} group={group} />
+          <RoomList key={group.title} group={group} liveCounts={liveCounts} />
         ))}
       </div>
     </aside>
   );
 }
 
-function MainColumn() {
+function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   const pickupIds = [
     'pickup-junior-high',
     'pickup-elementary',
@@ -212,7 +242,12 @@ function MainColumn() {
       </section>
       <div className="columns-1 gap-7 px-2 md:columns-2">
         {pickupGroups.map((group, index) => (
-          <PickupList key={group.title} group={group} id={pickupIds[index]} />
+          <PickupList
+            key={group.title}
+            group={group}
+            id={pickupIds[index]}
+            liveCounts={liveCounts}
+          />
         ))}
       </div>
       <SectionTitle>チャットのプロフィールを作成しよう！</SectionTitle>
@@ -411,6 +446,8 @@ export default function TopPage() {
   });
   usePageView('お気楽チャット トップ');
 
+  const { counts: liveCounts } = useRoomCounts();
+
   return (
     <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
       <Header />
@@ -426,8 +463,8 @@ export default function TopPage() {
           </p>
         </section>
         <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">
-          <LeftColumn />
-          <MainColumn />
+          <LeftColumn liveCounts={liveCounts} />
+          <MainColumn liveCounts={liveCounts} />
           <RightColumn />
         </div>
         <Community />
