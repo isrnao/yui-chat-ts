@@ -42,6 +42,12 @@ ALTER TABLE chats ADD COLUMN IF NOT EXISTS deleted BOOLEAN DEFAULT FALSE;
 CREATE INDEX IF NOT EXISTS idx_chats_deleted ON chats (deleted) WHERE deleted = FALSE;
 
 -- RLS: UPDATE ポリシーを追加（clear コマンドによる論理削除に必要）
+-- `deleted` カラムのみ更新可能にし、未削除→削除済みの遷移だけを許可する
 -- 再実行可能にするため DROP IF EXISTS を挟む
+REVOKE UPDATE ON chats FROM PUBLIC;
+GRANT UPDATE (deleted) ON chats TO PUBLIC;
 DROP POLICY IF EXISTS "public-update" ON chats;
-CREATE POLICY "public-update" ON chats FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "public-update" ON chats
+  FOR UPDATE
+  USING (deleted = FALSE)
+  WITH CHECK (deleted = TRUE);
