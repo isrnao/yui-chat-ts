@@ -20,7 +20,7 @@ describe('ParticipantsList', () => {
 
   it('renders "（なし）" when no participants', () => {
     render(<ParticipantsList participants={[]} currentTime={fixedTime} />);
-    expect(screen.getByText('参加者:')).toBeInTheDocument();
+    expect(screen.getByText('参加者(0):')).toBeInTheDocument();
     expect(screen.getByText('（なし）')).toBeInTheDocument();
   });
 

@@ -104,6 +104,7 @@ export default function EntryForm({
               setEmail('');
               setSilent(false);
               setAvatar('none');
+              updateSettings({ name: '', color: '#ff69b4', email: '', avatar: 'none' });
             }}
           >
             リセット

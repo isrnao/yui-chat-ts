@@ -25,7 +25,7 @@ describe('ChatRoom', () => {
     render(<ChatRoom {...props} />);
     expect(screen.getByRole('textbox', { name: '発言' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '発言' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'リロード' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '更新' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'ログ行数' })).toBeInTheDocument();
     expect(screen.getByText('[退室]')).toBeInTheDocument();
     expect(screen.getByText('[発言ランキング]')).toBeInTheDocument();
@@ -57,9 +57,9 @@ describe('ChatRoom', () => {
     expect(props.onShowRanking).toHaveBeenCalled();
   });
 
-  it('calls onReload when リロード button clicked', () => {
+  it('calls onReload when 更新 button clicked', () => {
     render(<ChatRoom {...props} />);
-    fireEvent.click(screen.getByRole('button', { name: 'リロード' }));
+    fireEvent.click(screen.getByRole('button', { name: '更新' }));
     expect(props.onReload).toHaveBeenCalled();
   });
 
@@ -69,7 +69,9 @@ describe('ChatRoom', () => {
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: '送信テスト' } });
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
-    await waitFor(() => expect(props.onSend).toHaveBeenCalledWith('送信テスト', undefined));
+    await waitFor(() =>
+      expect(props.onSend).toHaveBeenCalledWith('送信テスト', { version: 1, fontStyle: { bold: true } }),
+    );
     // 成功時 setMessage('') が呼ばれる
   });
 

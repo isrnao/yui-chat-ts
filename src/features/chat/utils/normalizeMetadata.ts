@@ -74,8 +74,12 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.avatar = input.avatar;
     }
 
-    if (input.kind === 'normal' || input.kind === 'fortune') {
+    if (input.kind === 'normal' || input.kind === 'fortune' || input.kind === 'admin') {
       result.kind = input.kind;
+    }
+
+    if (typeof input.userColor === 'string') {
+      result.userColor = input.userColor;
     }
 
     return result;

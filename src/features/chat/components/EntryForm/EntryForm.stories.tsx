@@ -1,28 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import {
-  useEffect,
-  useState,
-  type ComponentProps,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useEffect, useState, type ComponentProps, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import EntryForm from './index';
 
 type EntryFormProps = ComponentProps<typeof EntryForm>;
 
 type EntryFormStoryArgs = Partial<
-  Pick<
-    EntryFormProps,
-    'name' | 'color' | 'email' | 'windowRows' | 'error' | 'isPending' | 'onEnter'
-  >
+  Pick<EntryFormProps, 'name' | 'color' | 'email' | 'error' | 'isPending' | 'onEnter'>
 >;
 
 function EntryFormContainer({
   name: initialName = 'ゆい',
   color: initialColor = '#ff69b4',
   email: initialEmail = '',
-  windowRows: initialRows = 30,
   error,
   isPending,
   onEnter,
@@ -30,12 +20,10 @@ function EntryFormContainer({
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
   const [email, setEmail] = useState(initialEmail);
-  const [windowRows, setWindowRows] = useState(initialRows);
 
   useEffect(() => setName(initialName), [initialName]);
   useEffect(() => setColor(initialColor), [initialColor]);
   useEffect(() => setEmail(initialEmail), [initialEmail]);
-  useEffect(() => setWindowRows(initialRows), [initialRows]);
 
   return (
     <EntryForm
@@ -45,8 +33,6 @@ function EntryFormContainer({
       setColor={setColor}
       email={email}
       setEmail={setEmail}
-      windowRows={windowRows}
-      setWindowRows={setWindowRows}
       error={error}
       isPending={isPending}
       onEnter={onEnter ?? fn()}
@@ -76,19 +62,16 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const noopStringDispatch = (() => undefined) as Dispatch<SetStateAction<string>>;
-const noopNumberDispatch = (() => undefined) as Dispatch<SetStateAction<number>>;
 
 export const Default: Story = {
   args: {
     name: 'ゆい',
     color: '#ff69b4',
     email: '',
-    windowRows: 30,
     onEnter: fn(),
     setName: noopStringDispatch,
     setColor: noopStringDispatch,
     setEmail: noopStringDispatch,
-    setWindowRows: noopNumberDispatch,
   } satisfies Partial<EntryFormProps>,
   render: (args) => (
     <div className="max-w-md">
@@ -102,13 +85,11 @@ export const WithError: Story = {
     name: 'ゆい',
     color: '#ff69b4',
     email: '',
-    windowRows: 30,
     error: 'おなまえを入力してください',
     onEnter: fn(),
     setName: noopStringDispatch,
     setColor: noopStringDispatch,
     setEmail: noopStringDispatch,
-    setWindowRows: noopNumberDispatch,
   } satisfies Partial<EntryFormProps>,
   render: (args) => (
     <div className="max-w-md">
@@ -122,13 +103,11 @@ export const Pending: Story = {
     name: 'ゆい',
     color: '#ff69b4',
     email: '',
-    windowRows: 30,
     isPending: true,
     onEnter: fn(),
     setName: noopStringDispatch,
     setColor: noopStringDispatch,
     setEmail: noopStringDispatch,
-    setWindowRows: noopNumberDispatch,
   } satisfies Partial<EntryFormProps>,
   render: (args) => (
     <div className="max-w-md">

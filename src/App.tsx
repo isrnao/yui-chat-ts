@@ -52,9 +52,9 @@ export default function App() {
   const [avatar, setAvatar] = useState<AvatarId>('none');
   const myId = useId();
 
-  // look音声通知フック
+  // look音声通知フック（Broadcast受信で自動再生）
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const { isAudioEnabled, enableAudio } = useLookSound(channelRef);
+  useLookSound(channelRef);
 
   const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
     name,
@@ -94,8 +94,7 @@ export default function App() {
                 onReload={handleReload}
                 onShowRanking={() => setShowRanking(true)}
                 avatar={avatar}
-                isAudioEnabled={isAudioEnabled}
-                enableAudio={enableAudio}
+                userName={name}
               />
             ) : (
               <EntryForm

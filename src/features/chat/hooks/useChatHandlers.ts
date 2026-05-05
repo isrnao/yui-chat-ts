@@ -63,6 +63,7 @@ export function useChatHandlers({
   const handleEnter = useCallback(
     async ({
       name: entryName,
+      color: entryColor,
       silent = false,
     }: {
       name: string;
@@ -79,12 +80,19 @@ export function useChatHandlers({
 
       const optimistic = createOptimisticChat({
         name: '管理人',
-        color: '#0000ff',
+        color: '#ffffff',
         message: `${entryName} さん、Welcome to お気楽チャット☆`,
         client_time: Date.now(),
         system: true,
         ip: '',
         ua: '',
+        metadata: {
+          version: 1,
+          avatar: 'hoshi1',
+          kind: 'admin',
+          userColor: entryColor,
+          fontStyle: { bold: true },
+        },
       });
 
       startTransition(() => addOptimistic(optimistic));
@@ -106,12 +114,19 @@ export function useChatHandlers({
   const handleExit = useCallback(async () => {
     const optimistic = createOptimisticChat({
       name: '管理人',
-      color: '#0000ff',
+      color: '#ffffff',
       message: `${name}さん、またきておくれやすぅ。`,
       client_time: Date.now(),
       system: true,
       ip: '',
       ua: '',
+      metadata: {
+        version: 1,
+        avatar: 'hoshi1',
+        kind: 'admin',
+        userColor: color,
+        fontStyle: { bold: true },
+      },
     });
 
     startTransition(() => addOptimistic(optimistic));
@@ -131,7 +146,7 @@ export function useChatHandlers({
     const savedChat = await saveChatLogOptimistic(chatToSave);
 
     startTransition(() => mergeChat(savedChat));
-  }, [name, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
+  }, [name, color, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）
   const handleSend = useCallback(
@@ -203,7 +218,12 @@ export function useChatHandlers({
             system: true,
             ip: '',
             ua: '',
-            metadata: { version: 1, kind: 'fortune', avatar: 'miko1' },
+            metadata: {
+              version: 1,
+              kind: 'fortune',
+              avatar: 'miko1',
+              fontStyle: { bold: true },
+            },
           });
 
           startTransition(() => addOptimistic(fortuneOptimistic));

@@ -454,12 +454,11 @@ export function broadcastUnlookEvent(): void {
 
 export function onLookBroadcast(callback: (event: LookEvent) => void): () => void {
   const channel = getOrCreateBroadcastChannel();
-  const handler = (payload: { payload: unknown }) => {
+  channel.on('broadcast', { event: 'look' }, (payload) => {
     callback(payload.payload as LookEvent);
-  };
-  channel.on('broadcast', { event: 'look' }, handler);
+  });
   ensureBroadcastSubscribed();
-  return () => {
-    channel.off('broadcast', { event: 'look' }, handler);
-  };
+  // Supabase JS v2 は個別リスナーの解除をサポートしていない。
+  // チャネル自体のライフサイクルはアプリ全体で共有するため no-op。
+  return () => {};
 }

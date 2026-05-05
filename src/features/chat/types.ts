@@ -95,7 +95,9 @@ export type ChatMetadata = {
   version: 1;
   fontStyle?: FontStyleMetadata;
   avatar?: Exclude<AvatarId, 'none'>;
-  kind?: 'normal' | 'fortune';
+  kind?: 'normal' | 'fortune' | 'admin';
+  /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
+  userColor?: string;
 };
 
 // --- チャットメッセージ ---
