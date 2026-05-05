@@ -27,6 +27,8 @@ vi.mock('@features/chat/utils/webAudioPlayer', () => ({
 vi.mock('@shared/utils/clientInfo', () => ({
   getClientIP: vi.fn().mockResolvedValue('127.0.0.1'),
   getUserAgent: vi.fn().mockReturnValue('test-agent'),
+  prefetchClientIP: vi.fn(),
+  resetClientIPCache: vi.fn(),
 }));
 
 beforeEach(() => {

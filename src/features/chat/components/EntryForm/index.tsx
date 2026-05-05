@@ -1,10 +1,11 @@
-import { useId, useState, useEffect } from 'react';
+import { useId, useState, useEffect, useRef } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { AVATAR_IDS } from '@features/chat/types';
 import type { AvatarId } from '@features/chat/types';
+import { prefetchClientIP } from '@shared/utils/clientInfo';
 
 type EntryFormProps = {
   name: string;
@@ -45,6 +46,14 @@ export default function EntryForm({
   const { settings, updateSettings } = useSettings();
   const [silent, setSilent] = useState(false);
   const [avatar, setAvatar] = useState<AvatarId>(settings.avatar);
+  const prefetchedRef = useRef(false);
+
+  // 入室フォームへの最初のユーザーインタラクションでクライアントIPを先行取得
+  function triggerPrefetch() {
+    if (prefetchedRef.current) return;
+    prefetchedRef.current = true;
+    prefetchClientIP();
+  }
 
   // localStorage から設定値を復元して親の state を初期化（マウント時1回のみ）
   const [initialized, setInitialized] = useState(false);
@@ -82,7 +91,11 @@ export default function EntryForm({
             value={name}
             maxLength={24}
             size={20}
-            onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => {
+              triggerPrefetch();
+              setName(e.target.value);
+            }}
+            onFocus={triggerPrefetch}
             required
             autoFocus
             aria-label="おなまえ"
