@@ -32,6 +32,24 @@ export const guideLinks = [
   'コンタクト',
 ];
 
+/**
+ * ガイドメニュー項目のアイコン種別。`guideLinks` とインデックス対応する。
+ * 判別ユニオンにより、`GuideIcon` コンポーネントの switch 分岐で網羅性チェックを効かせる。
+ */
+export type GuideIconKind = 'faq' | 'tutorial' | 'heart' | 'profile' | 'mail';
+
+/**
+ * `guideLinks` と同じ順序・同じ長さのアイコン種別配列。
+ * 両者を zip して `GuideMenu` に渡す。
+ */
+export const guideIcons: readonly GuideIconKind[] = [
+  'faq', // チャットのFAQ・よくある質問
+  'tutorial', // チャットの使い方
+  'heart', // チャットのルール・マナー
+  'profile', // プロフィール作成
+  'mail', // コンタクト
+] as const;
+
 export const primaryNav = [
   'チャット',
   'ランキング',

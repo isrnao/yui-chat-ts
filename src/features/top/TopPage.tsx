@@ -1,17 +1,15 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
-import type { CSSProperties, ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import {
   chatDirectoryGroups,
-  guideLinks,
   latestLogins,
   pickupGroups,
-  primaryNav,
   profiles,
-  tabNav,
   type ChatDirectoryGroup,
   type PickupGroup,
   type RoomLink,
 } from './data';
+import { Header } from './components/header/Header';
 import { useRoomCounts } from './hooks/useRoomCounts';
 import type { RoomCountMap } from './api/roomCountsApi';
 
@@ -108,98 +106,6 @@ function PickupList({
         ＋ {group.title}について詳しく見る
       </a>
     </section>
-  );
-}
-
-function Header() {
-  const imageBase = `${import.meta.env.BASE_URL}okiraku/images`;
-  const headerStyle = {
-    '--okiraku-head': `url(${imageBase}/head.png)`,
-    '--okiraku-navi': `url(${imageBase}/navi.png)`,
-  } as CSSProperties;
-  const guideIcons = ['faq.png', 'tutorial.png', 'heart.png', 'profile.png', 'email.gif'];
-
-  return (
-    <header className="bg-white" style={headerStyle}>
-      <div className="okiraku-header">
-        <div className="mx-auto max-w-[990px] pt-5">
-          <div className="flex min-h-[86px] flex-col gap-3 px-1 md:flex-row md:items-start md:justify-between md:pb-3">
-            <h1 className="m-0 h-[60px] w-[212px]">
-              <a className="block h-[60px] w-[212px] no-underline" href={import.meta.env.BASE_URL}>
-                <img
-                  className="block h-[60px] w-[212px]"
-                  src={`${imageBase}/logo.png`}
-                  alt="お気楽チャット"
-                  width="212"
-                  height="60"
-                />
-              </a>
-            </h1>
-            <nav aria-label="ガイドメニュー" className="pt-7">
-              <ul className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] font-bold text-blue-600">
-                {guideLinks.map((label, index) => (
-                  <li key={label} className="h-5">
-                    <a className="flex items-center hover:underline" href="#">
-                      <img
-                        className="mr-1 h-4 w-4"
-                        src={`${imageBase}/${guideIcons[index]}`}
-                        alt=""
-                        width="16"
-                        height="16"
-                      />
-                      {label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-          </div>
-        </div>
-      </div>
-      <div className="mx-auto max-w-[990px]">
-        <nav aria-label="メインナビゲーション" className="px-0">
-          <ul className="flex flex-wrap items-start text-[13px] font-normal md:h-[35px] md:flex-nowrap">
-            {primaryNav.map((label, index) => (
-              <li key={label} className="h-[35px] shrink-0">
-                <a
-                  className={`okiraku-primary-tab block h-[35px] w-[110px] text-center leading-[36px] outline-none ${
-                    index === 0 ? 'okiraku-primary-tab-active' : ''
-                  }`}
-                  href="#"
-                  aria-current={index === 0 ? 'page' : undefined}
-                >
-                  {label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div
-          aria-hidden="true"
-          className="h-[5px] bg-gradient-to-b from-[#00c7ff] via-[#00a9e8] to-[#0079c8] shadow-[inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-1px_0_rgba(0,105,185,0.8)]"
-        />
-        <nav
-          aria-label="チャット種別タブ"
-          className="bg-gradient-to-b from-[#12bdf4] to-[#008ed7] px-0"
-        >
-          <ul className="flex flex-wrap items-start text-[13px] font-bold md:flex-nowrap">
-            {tabNav.map((item, index) => (
-              <li key={item.label} className="h-[44px] shrink-0">
-                <a
-                  className={`okiraku-secondary-tab block h-[42px] w-[138px] text-center leading-[42px] outline-none ${
-                    index === 0 ? 'okiraku-secondary-tab-active leading-[48px]' : ''
-                  }`}
-                  href={item.href}
-                  aria-current={index === 0 ? 'page' : undefined}
-                >
-                  {item.label}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </div>
-    </header>
   );
 }
 
@@ -457,9 +363,11 @@ export default function TopPage() {
             お気楽チャット - チャットで友達探し＆仲間作り
           </h2>
           <p className="mt-1 leading-relaxed">
-            お気楽チャットは、夢と希望を持って気楽に楽しめる<strong>チャット</strong>
-            です。地球と日本の将来を担う若者たちの人生経験をより豊かにすることをひとつの目標としています。
-            中学生チャット、小学生チャット、高校生、社会人、主婦、まだ見ぬ親友、引きこもり、魑魅魍魎、宇宙人、魔法少女まで、みんなが楽しめるチャットです。
+            このサイトは、2000年代に毎日のように過ごした思い出のチャットを再現した、私的な非公式個人サイトです。
+            当時ここで出会った人たちも、今では大人になり、それぞれの人生を歩んでいると思います。
+            それでも、ふとした時にあの頃の「お気楽チャット」を思い出し、懐かしい名前を探したり、誰かに一言を残したくなることがあります。
+            そんな人たちがもう一度立ち寄れる、思い出の待ち合わせ場所になれば嬉しいです。
+            あの頃の雰囲気や、今となっては少し恥ずかしい黒歴史も含めて、懐かしんでもらえたら嬉しいです。
           </p>
         </section>
         <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">
