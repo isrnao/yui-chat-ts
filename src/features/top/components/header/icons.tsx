@@ -160,7 +160,14 @@ export function GuideIcon({ kind, className }: GuideIconProps) {
     case 'mail':
       return (
         <svg {...commonProps}>
-          <rect x="1.5" y="3.5" width="13" height="9" rx="1" fill="var(--ochat-h-guide-icon-blue)" />
+          <rect
+            x="1.5"
+            y="3.5"
+            width="13"
+            height="9"
+            rx="1"
+            fill="var(--ochat-h-guide-icon-blue)"
+          />
           <path d="M1.5 4 L8 9 L14.5 4" stroke="#ffffff" strokeWidth="1" fill="none" />
         </svg>
       );

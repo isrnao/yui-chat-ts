@@ -64,13 +64,7 @@ function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
 /**
  * 1段目（プライマリ）タブ行。白〜薄グレーグラデ背景、アクティブ項目のみ青グラデ + 白文字。
  */
-function PrimaryTabs({
-  items,
-  activeIndex,
-}: {
-  items: readonly string[];
-  activeIndex: number;
-}) {
+function PrimaryTabs({ items, activeIndex }: { items: readonly string[]; activeIndex: number }) {
   return (
     <nav aria-label="メインナビゲーション" className="ochat-header__primary">
       <ul className="ochat-header__primary-list">
@@ -80,11 +74,7 @@ function PrimaryTabs({
             'ochat-header__primary-tab' + (isActive ? ' ochat-header__primary-tab--active' : '');
           return (
             <li key={label} className="ochat-header__primary-item">
-              <a
-                className={className}
-                href="#"
-                aria-current={isActive ? 'page' : undefined}
-              >
+              <a className={className} href="#" aria-current={isActive ? 'page' : undefined}>
                 {label}
               </a>
             </li>
