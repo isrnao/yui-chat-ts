@@ -65,7 +65,7 @@ export const primaryNav = [
 ];
 
 export const tabNav = [
-  { label: 'チャット', href: '/' },
+  { label: 'チャット', href: import.meta.env.BASE_URL },
   { label: '中学生チャット', href: '#pickup-junior-high' },
   { label: '小学生チャット', href: '#pickup-elementary' },
   { label: '高校生チャット', href: '#pickup-high-school' },

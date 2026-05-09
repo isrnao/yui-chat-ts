@@ -49,6 +49,10 @@ describe('<App />', () => {
 
     render(<App />);
 
-    expect(screen.getAllByText('超初心者チャット')[0]).toBeInTheDocument();
+    const visibleTitle = screen
+      .getAllByText('超初心者チャット')
+      .find((el) => !el.closest('.sr-only'));
+    expect(visibleTitle).toBeDefined();
+    expect(visibleTitle?.tagName).toBe('HEADER');
   });
 });
