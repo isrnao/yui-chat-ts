@@ -12,11 +12,15 @@ import ChatRanking from '@features/chat/components/ChatRanking';
 import type { AvatarId } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { buildChatRoomPath, matchRoute } from '@features/chat/routing';
+import type { RouteMatch } from '@features/chat/routing';
+import { matchChanariRoute } from '@features/chanari-chat/routing';
+import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import TopPage from '@features/top/TopPage';
 import NotFoundPage from './pages/NotFoundPage';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
+const ChanariChatPage = lazy(() => import('@features/chanari-chat/ChanariChatPage'));
 
 function ChatPage({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
@@ -137,12 +141,18 @@ function ChatPage({ roomId }: { roomId: RoomId }) {
   );
 }
 
+function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
+  const chanari = matchChanariRoute(pathname);
+  if (chanari !== null) return chanari;
+  return matchRoute(pathname);
+}
+
 export default function App() {
-  const [route, setRoute] = useState(() => matchRoute(window.location.pathname));
+  const [route, setRoute] = useState(() => resolveRoute(window.location.pathname));
 
   useEffect(() => {
     const handlePopState = () => {
-      setRoute(matchRoute(window.location.pathname));
+      setRoute(resolveRoute(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -155,8 +165,16 @@ export default function App() {
     if (route.type !== 'redirect') return;
 
     window.history.replaceState(null, '', route.to);
-    setRoute(matchRoute(window.location.pathname));
+    setRoute(resolveRoute(window.location.pathname));
   }, [route]);
+
+  if (route.type === 'chanari-room') {
+    return (
+      <Suspense fallback={null}>
+        <ChanariChatPage roomId={route.roomId} />
+      </Suspense>
+    );
+  }
 
   if (route.type === 'not-found') {
     return <NotFoundPage />;

@@ -12,10 +12,11 @@ export default [
       'coverage',
       'docs',
       '**/*.mdx',
+      '**/*.md',
       'README.md',
       'package.json',
       'tsconfig*.json',
-      '*.md',
+      '.kiro',
     ],
   },
   {
@@ -58,7 +59,7 @@ export default [
     rules: {},
   },
   {
-    files: ['**/*.{js,ts,tsx,jsx,md}'],
+    files: ['**/*.{js,ts,tsx,jsx}'],
     plugins: { prettier },
     rules: {
       'prettier/prettier': 'warn',
