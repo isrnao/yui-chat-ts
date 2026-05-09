@@ -33,7 +33,7 @@ export const CHAT_ROOMS: Record<RoomId, RoomMeta> = {
 };
 
 export function isRoomId(value: string): value is RoomId {
-  return value in CHAT_ROOMS;
+  return Object.prototype.hasOwnProperty.call(CHAT_ROOMS, value);
 }
 
 export function isEnabledRoomId(value: string): value is RoomId {
