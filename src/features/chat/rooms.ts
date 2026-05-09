@@ -73,6 +73,28 @@ export const CHAT_ROOM_IDS = [
   '30dai',
   'battle',
   '2shot',
+  // 管理者チャット
+  'com_sb',
+  // なりきりチャット (chanari)
+  'durarara',
+  'vocaloid',
+  'hetaria',
+  'gintama',
+  'inazuma11',
+  'tenipri',
+  'touhou',
+  'basara',
+  'inazuma11go',
+  'bakatesu',
+  'working',
+  'akb48',
+  'majutu',
+  'bleach',
+  'kuroshitsuji',
+  'keion',
+  'dgrayman',
+  'haruhi',
+  'railgun',
 ] as const;
 
 export type RoomId = (typeof CHAT_ROOM_IDS)[number];
@@ -165,6 +187,28 @@ const ROOM_TITLES: Record<RoomId, string> = {
   '30dai': '３０代以上チャット',
   battle: 'バトルチャット',
   '2shot': '２ショットチャット',
+
+  com_sb: '管理者チャット',
+
+  durarara: 'デュラララ チャット',
+  vocaloid: 'ボカロチャット',
+  hetaria: 'ヘタリア チャット',
+  gintama: '銀魂なりきりチャット',
+  inazuma11: 'イナズマイレブンチャット',
+  tenipri: 'テニプリチャット',
+  touhou: '東方チャット',
+  basara: '戦国BASARAチャット',
+  inazuma11go: 'イナGOチャット',
+  bakatesu: 'バカテスチャット',
+  working: 'WORKING!!チャット',
+  akb48: 'AKB48チャット',
+  majutu: 'とある魔術の禁書目録チャット',
+  bleach: 'BLEACHチャット',
+  kuroshitsuji: '黒執事チャット',
+  keion: 'けいおんチャット',
+  dgrayman: 'Dグレチャット',
+  haruhi: '涼宮ハルヒの憂鬱チャット',
+  railgun: 'とある科学のレールガンチャット',
 };
 
 function buildRoomMeta(): Record<RoomId, RoomMeta> {
