@@ -27,6 +27,9 @@ function ChatPage({ roomId }: { roomId: RoomId }) {
 
   useEffect(() => {
     preloadCriticalResources();
+  }, []);
+
+  useEffect(() => {
     earlyDataFetch(roomId);
   }, [roomId]);
 
