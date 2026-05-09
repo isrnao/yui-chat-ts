@@ -2,7 +2,7 @@ import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import type { ReactNode } from 'react';
 import {
   chatDirectoryGroups,
-  latestLogins,
+  news,
   pickupGroups,
   profiles,
   type ChatDirectoryGroup,
@@ -91,20 +91,25 @@ function PickupList({
   liveCounts: RoomCountMap;
 }) {
   return (
-    <section id={id} className="mb-4 break-inside-avoid">
+    <section id={id} className="mb-[5px] break-inside-avoid">
       <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
       <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
       <ul className="mt-1 text-[12px] leading-[1.42]">
         {group.items.map((item) => (
-          <li key={item.label} className="before:mr-1 before:text-orange-300 before:content-['○']">
+          <li
+            key={item.label}
+            className="whitespace-nowrap before:mr-1 before:text-orange-300 before:content-['○']"
+          >
             <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
             <CountBadge count={resolveCount(item, liveCounts)} />
           </li>
         ))}
       </ul>
-      <a className="mt-1 block text-[11px] text-gray-500 hover:underline" href="#">
-        ＋ {group.title}について詳しく見る
-      </a>
+      {group.moreHref && (
+        <a className="mt-1 block text-[11px] text-gray-500 hover:underline" href={group.moreHref}>
+          ＋ {group.title}について詳しく見る
+        </a>
+      )}
     </section>
   );
 }
@@ -138,15 +143,27 @@ function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
       <section className="px-2 py-3">
         <h3 className="text-[13px] font-bold">チャットの最新情報</h3>
         <ul className="mt-2 text-[12px] leading-[1.55]">
-          {latestLogins.map((text, index) => (
-            <li key={text} className="text-blue-600">
-              ○ <a href="#">{text.split('に')[0]}</a>に{text.split('に').slice(1).join('に')}
-              <span className="ml-2 text-sky-500">2012-11-07 10:{18 - index}:49</span>
+          {news.map((item, newsIndex) => (
+            <li key={newsIndex} className="text-gray-700">
+              ○{' '}
+              {item.parts.map((part, partIndex) =>
+                typeof part === 'string' ? (
+                  <span key={partIndex}>{part}</span>
+                ) : (
+                  <a
+                    key={partIndex}
+                    href={part.linkHref}
+                    className="font-bold text-blue-600 hover:underline"
+                  >
+                    {part.linkLabel}
+                  </a>
+                )
+              )}
             </li>
           ))}
         </ul>
       </section>
-      <div className="columns-1 gap-7 px-2 md:columns-2">
+      <div className="px-2">
         {pickupGroups.map((group, index) => (
           <PickupList
             key={group.title}

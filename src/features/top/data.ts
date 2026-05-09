@@ -1,4 +1,5 @@
 import { buildChatRoomPath } from '@features/chat/routing';
+import { buildChanariRoomPath } from '@features/chanari-chat/routing';
 import type { RoomId } from '@features/chat/rooms';
 
 export type RoomLink = {
@@ -22,6 +23,7 @@ export type PickupGroup = {
   note: string;
   tone: 'pink' | 'orange' | 'green' | 'blue';
   items: RoomLink[];
+  moreHref?: string;
 };
 
 export const guideLinks = [
@@ -81,6 +83,14 @@ function room(label: string, roomId: RoomId): RoomLink {
   return { label, href: buildChatRoomPath(roomId), roomId, external: false };
 }
 
+/**
+ * chanari UI (`/yui-chat-ts/chanari/<roomId>`) へのリンクを生成する。
+ * なりきりチャット系のルームで使用する。
+ */
+function chanariRoom(label: string, roomId: RoomId): RoomLink {
+  return { label, href: buildChanariRoomPath(roomId), roomId, external: false };
+}
+
 export const chatDirectoryGroups: ChatDirectoryGroup[] = [
   {
     title: '初心者チャット',
@@ -131,11 +141,11 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'アニメキャラなりきり',
     tone: 'green',
     items: [
-      room('アニメチャット', 'anime'),
-      room('リボーンチャット', 'reborn'),
-      room('モンスターハンターチャット', 'monhan'),
-      room('銀魂チャット', 'kintama'),
-      room('ローゼンメイデンチャット', 'rozen'),
+      chanariRoom('アニメチャット', 'anime'),
+      chanariRoom('リボーンチャット', 'reborn'),
+      chanariRoom('モンスターハンターチャット', 'monhan'),
+      chanariRoom('銀魂チャット', 'gintama'),
+      chanariRoom('ローゼンメイデンチャット', 'rozen'),
     ],
   },
   {
@@ -230,15 +240,31 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
   },
 ];
 
-export const latestLogins = [
-  '中学生チャットで友達探し01にかつひろさんが入室しました。',
-  '東日本の大学生チャットにいなおさんが入室しました。',
-  '高校生チャットで友達探し02にタマ(。^ω^。)さんが入室しました。',
+export type NewsPart = string | { linkLabel: string; linkHref: string };
+
+export type NewsItem = {
+  parts: NewsPart[];
+};
+
+/* 表示イメージ
+'中学生チャットで友達探し01にかつひろさんが入室しました。',
+'東日本の大学生チャットにいなおさんが入室しました。',
+'高校生チャットで友達探し02にタマ(。^ω^。)さんが入室しました。',
+*/
+export const news: NewsItem[] = [
+  {
+    parts: [
+      '問い合わせは',
+      { linkLabel: '管理者チャット', linkHref: buildChatRoomPath('com_sb') },
+      'に連絡してください。',
+    ],
+  },
 ];
 
-const placeholderHref = '#';
+// const placeholderHref = '#';
 
 export const pickupGroups: PickupGroup[] = [
+  /* 廃止
   {
     title: '中学生チャット',
     note: '全国の中学生集まれ〜！',
@@ -273,32 +299,6 @@ export const pickupGroups: PickupGroup[] = [
     ].map((label) => ({ label, href: placeholderHref })),
   },
   {
-    title: 'なりきりチャット',
-    note: '好きなキャラになりきろう',
-    tone: 'orange',
-    items: [
-      '銀魂なりきりチャット',
-      'ボカロチャット',
-      '黒子のバスケチャット',
-      'オリキャラなりきりチャット',
-      'ヘタリア チャット',
-      'デュラララ チャット',
-      'イナGOチャット',
-      'フェアリーテイルチャット',
-      '黒執事なりきりチャット',
-      'BASARAチャット',
-      '薄桜鬼チャット',
-      'リボーンチャット',
-      'スケットダンスチャット',
-      'NARUTO-ナルト-チャット',
-      'うたプリチャット',
-      'Ibなりきりチャット',
-      'BLEACHチャット',
-      '青の祓魔師チャット',
-      '東方チャット',
-    ].map((label) => ({ label, href: placeholderHref })),
-  },
-  {
     title: '大学生チャット',
     note: '全国の大学生集まれ〜！',
     tone: 'green',
@@ -319,6 +319,34 @@ export const pickupGroups: PickupGroup[] = [
       '純粋乙女な社会人チャット',
       '関西の社会人チャット',
     ].map((label) => ({ label, href: placeholderHref })),
+  },
+  */
+  {
+    title: 'なりきりチャット',
+    note: '好きなキャラになりきろう',
+    tone: 'orange',
+    items: [
+      chanariRoom('デュラララ チャット', 'durarara'),
+      chanariRoom('ボカロチャット', 'vocaloid'),
+      chanariRoom('ヘタリア チャット', 'hetaria'),
+      chanariRoom('銀魂なりきりチャット', 'gintama'),
+      chanariRoom('イナズマイレブンチャット', 'inazuma11'),
+      chanariRoom('テニプリチャット', 'tenipri'),
+      chanariRoom('リボーンチャット', 'reborn'),
+      chanariRoom('東方チャット', 'touhou'),
+      chanariRoom('戦国BASARAチャット', 'basara'),
+      chanariRoom('イナGOチャット', 'inazuma11go'),
+      chanariRoom('バカテスチャット', 'bakatesu'),
+      chanariRoom('WORKING!!チャット', 'working'),
+      chanariRoom('AKB48チャット', 'akb48'),
+      chanariRoom('とある魔術の禁書目録チャット', 'majutu'),
+      chanariRoom('BLEACHチャット', 'bleach'),
+      chanariRoom('黒執事チャット', 'kuroshitsuji'),
+      chanariRoom('けいおんチャット', 'keion'),
+      chanariRoom('Dグレチャット', 'dgrayman'),
+      chanariRoom('涼宮ハルヒの憂鬱チャット', 'haruhi'),
+      chanariRoom('とある科学のレールガンチャット', 'railgun'),
+    ],
   },
 ];
 
