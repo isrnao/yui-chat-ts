@@ -9,6 +9,16 @@ import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
 function isSavedMatchForTemp(saved: Chat, temp: Chat): boolean {
+  // 強い鍵: optimisticNonce が両側で揃っていれば、ユーザー間 / メッセージ間衝突なく一致判定できる。
+  const tempNonce = temp.metadata?.optimisticNonce;
+  const savedNonce = saved.metadata?.optimisticNonce;
+  if (tempNonce && savedNonce) {
+    return saved.optimistic !== true && tempNonce === savedNonce;
+  }
+
+  // 後方互換フォールバック: nonce 未付与の旧データ向け。
+  // 同一 client_time + name + message + room_id + color + system すべて一致したら同一とみなす。
+  // 短いメッセージ + 同名ユーザー同時送信で誤判定し得るが、nonce 付き経路に移行すれば解消する。
   return (
     saved.optimistic !== true &&
     saved.client_time === temp.client_time &&
@@ -23,7 +33,7 @@ function isSavedMatchForTemp(saved: Chat, temp: Chat): boolean {
 export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
   // temp UUID の楽観的更新は、対応する savedChat が
   // 既に base state に届いている場合は重複表示を避けるためスキップする
-  if (chat.uuid.startsWith('temp-') && typeof chat.client_time === 'number') {
+  if (chat.uuid.startsWith('temp-')) {
     const duplicate = state.some((c) => isSavedMatchForTemp(c, chat));
     if (duplicate) {
       return state;

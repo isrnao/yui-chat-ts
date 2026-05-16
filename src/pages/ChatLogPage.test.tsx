@@ -29,7 +29,8 @@ vi.mock('@features/chat/components/ChatLogList', () => ({
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn().mockResolvedValue([mockChat]),
   loadInitialChatLogs: vi.fn().mockResolvedValue([mockChat]),
-  loadChatLogsWithPaging: vi.fn().mockResolvedValue({ data: [], hasMore: false }),
+  // ChatLogPage は loadChatLogsWithPaging の戻り値で初期表示を組み立てる
+  loadChatLogsWithPaging: vi.fn().mockResolvedValue({ data: [mockChat], hasMore: false }),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
 }));
 

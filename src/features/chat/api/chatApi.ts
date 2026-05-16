@@ -14,6 +14,7 @@ import {
   replaceOptimisticInCache,
   getCacheInfo as resourceGetCacheInfo,
   getPagingHasMore,
+  getSnapshotHasMore,
 } from './chatLogResource';
 export { prefetchChatLogs } from './chatLogResource';
 
@@ -83,9 +84,14 @@ export async function loadChatLogsWithPaging(
 ): Promise<{ data: Chat[]; hasMore: boolean }> {
   if (offset === 0) {
     const snapshot = await resourceLoadChatLogs(roomId, useCache);
+    // hasMore は次の 2 条件のいずれかで真:
+    //   (1) 要求 limit より snapshot が長い → snapshot 内に未表示分がある
+    //   (2) snapshot 自体が canonical cap (MAX_CHAT_LOG) に張り付いており、
+    //       テーブルにさらに続きが存在することが分かっている
+    const snapshotHasMoreFlag = getSnapshotHasMore(roomId) ?? false;
     return {
       data: snapshot.slice(0, limit),
-      hasMore: snapshot.length >= limit,
+      hasMore: snapshot.length > limit || snapshotHasMoreFlag,
     };
   }
 
@@ -226,9 +232,16 @@ export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
 }
 
 export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
-  await supabase.from(TABLE).delete().eq('room_id', roomId).neq('uuid', '');
-
-  // チャットログがクリアされたらキャッシュを無効化
+  // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
+  // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ deleted: true })
+    .eq('room_id', roomId)
+    .eq('deleted', false);
+  if (error) {
+    throw new Error(`Failed to clear chat logs: ${error.message}`);
+  }
   invalidateCache(roomId);
 }
 
@@ -264,12 +277,22 @@ export async function invalidateCacheAsync(): Promise<void> {
 
 // 楽観的更新用のヘルパー関数
 export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'optimistic'>): Chat {
+  // optimisticNonce: 楽観的更新の重複表示防止用のランダム識別子。
+  // saveChatLogOptimistic がそのまま metadata に詰めて保存し、
+  // realtime INSERT で同じ nonce が echo されるため、temp UUID と savedChat の
+  // 同一性判定 (reduceOptimisticChat) を (client_time + name + message) より厳密に行える。
+  const nonce =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  const baseMetadata = chatData.metadata ?? { version: 1 as const };
   return {
     ...chatData,
     uuid: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
     time: Date.now(), // クライアント側の一時的なタイムスタンプ
     client_time: Date.now(),
     optimistic: true,
+    metadata: { ...baseMetadata, optimisticNonce: nonce },
   };
 }
 
@@ -333,68 +356,103 @@ export async function loadChatLogsByTimeRange(
 }
 
 // --- Realtime チャネル管理 ---
+//
+// room 単位で 1 channel を共有し、refCount で生死を管理する設計。
+// 同 room に対する複数 subscribe (StrictMode の二重 mount 含む) を
+// 同一 channel 上の listener Set に集約することで、
+// `chats-postgres-${roomId}` 等の channel 名衝突と leak を回避する。
 
-// Broadcast 用の共有チャネル
-const broadcastChannels: Partial<Record<RoomId, RealtimeChannel>> = {};
-const broadcastSubscribed = new Set<RoomId>();
+export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
 
-// look イベントのコールバック集合（StrictMode の二重登録に強い設計）
-const lookCallbacks = new Map<RoomId, Set<(event: LookEvent) => void>>();
-const lookListenersAttached = new Set<RoomId>();
+type PostgresListener = (chat: Chat) => void;
+type LookListener = (event: LookEvent) => void;
 
-function getOrCreateLookCallbacks(roomId: RoomId): Set<(event: LookEvent) => void> {
-  if (!lookCallbacks.has(roomId)) {
-    lookCallbacks.set(roomId, new Set());
-  }
-  return lookCallbacks.get(roomId)!;
-}
+// Postgres Changes (INSERT) の購読 registry
+type PostgresEntry = {
+  channel: RealtimeChannel;
+  listeners: Set<PostgresListener>;
+};
+const postgresEntries = new Map<RoomId, PostgresEntry>();
 
-function getOrCreateBroadcastChannel(roomId: RoomId): RealtimeChannel {
-  if (!broadcastChannels[roomId]) {
-    broadcastChannels[roomId] = supabase.channel(`chats-broadcast-${roomId}`);
-  }
-  return broadcastChannels[roomId]!;
-}
+// Broadcast (look/unlook) の購読 registry
+type BroadcastEntry = {
+  channel: RealtimeChannel;
+  listeners: Set<LookListener>;
+};
+const broadcastEntries = new Map<RoomId, BroadcastEntry>();
 
-function ensureBroadcastSubscribed(roomId: RoomId): void {
-  if (!broadcastSubscribed.has(roomId)) {
-    getOrCreateBroadcastChannel(roomId).subscribe();
-    broadcastSubscribed.add(roomId);
-  }
-}
-
-function ensureLookListenerAttached(roomId: RoomId): void {
-  if (lookListenersAttached.has(roomId)) return;
-  const channel = getOrCreateBroadcastChannel(roomId);
-  channel.on('broadcast', { event: 'look' }, (payload) => {
-    const event = payload.payload as LookEvent;
-    // 登録されているすべてのコールバックに dispatch
-    for (const cb of getOrCreateLookCallbacks(roomId)) cb(event);
-  });
-  lookListenersAttached.add(roomId);
-}
-
-// Postgres Changes 用（subscribeChatLogs 専用チャネル）
-export function subscribeChatLogs(roomId: RoomId, callback: (chat: Chat) => void) {
+function createPostgresEntry(roomId: RoomId): PostgresEntry {
+  const listeners = new Set<PostgresListener>();
   const channel = supabase
     .channel(`chats-postgres-${roomId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: TABLE, filter: `room_id=eq.${roomId}` },
-      (payload) => callback(normalizeChat(payload.new))
+      (payload) => {
+        const chat = normalizeChat(payload.new);
+        for (const listener of listeners) listener(chat);
+      }
     )
     .subscribe();
-  return channel;
+  return { channel, listeners };
+}
+
+function createBroadcastEntry(roomId: RoomId): BroadcastEntry {
+  const listeners = new Set<LookListener>();
+  const channel = supabase
+    .channel(`chats-broadcast-${roomId}`)
+    .on('broadcast', { event: 'look' }, (payload) => {
+      const event = payload.payload as LookEvent;
+      for (const listener of listeners) listener(event);
+    })
+    .subscribe();
+  return { channel, listeners };
+}
+
+function getOrCreateBroadcastEntry(roomId: RoomId): BroadcastEntry {
+  let entry = broadcastEntries.get(roomId);
+  if (!entry) {
+    entry = createBroadcastEntry(roomId);
+    broadcastEntries.set(roomId, entry);
+  }
+  return entry;
+}
+
+/**
+ * Postgres Changes 用の購読を登録する。
+ * 同 room の複数購読者は同一 channel を共有し、最後の解除で channel が破棄される。
+ */
+export function subscribeChatLogs(
+  roomId: RoomId,
+  callback: PostgresListener
+): { unsubscribe: () => void } {
+  let entry = postgresEntries.get(roomId);
+  if (!entry) {
+    entry = createPostgresEntry(roomId);
+    postgresEntries.set(roomId, entry);
+  }
+  entry.listeners.add(callback);
+
+  return {
+    unsubscribe() {
+      const current = postgresEntries.get(roomId);
+      if (!current) return;
+      current.listeners.delete(callback);
+      if (current.listeners.size === 0) {
+        supabase.removeChannel(current.channel);
+        postgresEntries.delete(roomId);
+      }
+    },
+  };
 }
 
 // --- Broadcast: look/unlook イベント ---
 
-export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
-
 export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
-  const channel = getOrCreateBroadcastChannel(roomId);
-  ensureBroadcastSubscribed(roomId);
-  channel.send({
+  // 送信は listener が居ない部屋でも channel を起こす必要があるが、
+  // listener 0 のままだと cleanup タイミングが無いので listener 解除時に揃えて落とす。
+  const entry = getOrCreateBroadcastEntry(roomId);
+  entry.channel.send({
     type: 'broadcast',
     event: 'look',
     payload: { type: 'look', messageId } satisfies LookEvent,
@@ -402,22 +460,24 @@ export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
 }
 
 export function broadcastUnlookEvent(roomId: RoomId): void {
-  const channel = getOrCreateBroadcastChannel(roomId);
-  ensureBroadcastSubscribed(roomId);
-  channel.send({
+  const entry = getOrCreateBroadcastEntry(roomId);
+  entry.channel.send({
     type: 'broadcast',
     event: 'look',
     payload: { type: 'unlook' } satisfies LookEvent,
   });
 }
 
-export function onLookBroadcast(roomId: RoomId, callback: (event: LookEvent) => void): () => void {
-  ensureLookListenerAttached(roomId);
-  ensureBroadcastSubscribed(roomId);
-  const roomCallbacks = getOrCreateLookCallbacks(roomId);
-  roomCallbacks.add(callback);
-  // コールバック集合からの削除で解除できる（StrictMode の二重登録にも耐える）
+export function onLookBroadcast(roomId: RoomId, callback: LookListener): () => void {
+  const entry = getOrCreateBroadcastEntry(roomId);
+  entry.listeners.add(callback);
   return () => {
-    roomCallbacks.delete(callback);
+    const current = broadcastEntries.get(roomId);
+    if (!current) return;
+    current.listeners.delete(callback);
+    if (current.listeners.size === 0) {
+      supabase.removeChannel(current.channel);
+      broadcastEntries.delete(roomId);
+    }
   };
 }

@@ -19,6 +19,12 @@ const snapshotInflight = new Map<RoomId, Promise<Chat[]>>();
 const pagingInflight = new Map<string, Promise<Chat[]>>();
 const pagingHasMore = new Map<string, boolean>();
 const cacheGeneration = new Map<RoomId, number>();
+/**
+ * canonical snapshot がテーブルの全件を含んでいない (= さらに続きが存在する) かどうか。
+ * `MAX_CHAT_LOG + 1` 件をフェッチして `MAX_CHAT_LOG` 件を超えていたら true。
+ * room が未取得 / オフラインフォールバック中は undefined。
+ */
+const snapshotHasMore = new Map<RoomId, boolean>();
 
 function startPerf(): number {
   return performance.now();
@@ -90,28 +96,40 @@ async function fetchSnapshot(
   return retryApiCall(async () => {
     if (!isOnline()) {
       endPerf('loadChatLogs-offline', startTime);
+      // オフラインフォールバック中は「続きがあるか」は不明なので false 扱い。
+      if (getCacheGeneration(roomId) === generation) {
+        snapshotHasMore.set(roomId, false);
+      }
       return getOfflineChatData(roomId);
     }
 
+    // hasMore を正確に返すため MAX_CHAT_LOG + 1 件取得し、超過分の有無で判定する。
+    // 超過分は表示・キャッシュには含めない。
     const { data, error } = await supabase
       .from(TABLE)
       .select(SELECT_COLUMNS)
       .eq('room_id', roomId)
       .eq('deleted', false)
       .order('uuid', { ascending: false })
-      .limit(MAX_CHAT_LOG);
+      .limit(MAX_CHAT_LOG + 1);
 
     if (error) {
       if (error.code === '401' || error.message.includes('JWT')) {
+        if (getCacheGeneration(roomId) === generation) {
+          snapshotHasMore.set(roomId, false);
+        }
         return getOfflineChatData(roomId);
       }
 
       throw new Error(`Supabase error: ${error.message} (${error.code})`);
     }
 
-    const chatData = (data ?? []).map(normalizeChat);
+    const rows = (data ?? []).map(normalizeChat);
+    const hasMore = rows.length > MAX_CHAT_LOG;
+    const chatData = hasMore ? rows.slice(0, MAX_CHAT_LOG) : rows;
     if (getCacheGeneration(roomId) === generation) {
       setCachedChatLogs(roomId, chatData);
+      snapshotHasMore.set(roomId, hasMore);
     }
     endPerf('loadChatLogs-network', startTime);
 
@@ -242,6 +260,7 @@ export function invalidateCache(roomId?: RoomId): void {
   if (roomId) {
     cache.delete(roomId);
     snapshotInflight.delete(roomId);
+    snapshotHasMore.delete(roomId);
     bumpCacheGeneration(roomId);
     for (const key of pagingInflight.keys()) {
       if (key.startsWith(`${roomId}|`)) {
@@ -259,6 +278,7 @@ export function invalidateCache(roomId?: RoomId): void {
   const roomsToInvalidate = new Set<RoomId>([
     ...cache.keys(),
     ...snapshotInflight.keys(),
+    ...snapshotHasMore.keys(),
     ...cacheGeneration.keys(),
   ]);
   for (const key of pagingInflight.keys()) {
@@ -270,6 +290,7 @@ export function invalidateCache(roomId?: RoomId): void {
 
   cache.clear();
   snapshotInflight.clear();
+  snapshotHasMore.clear();
   pagingInflight.clear();
   pagingHasMore.clear();
   for (const room of roomsToInvalidate) {
@@ -317,6 +338,14 @@ export function getPagingHasMore(
   return pagingHasMore.get(getPagingKey(roomId, offset, limit));
 }
 
+/**
+ * canonical snapshot (offset=0) に追加で続きが存在するかどうか。
+ * 未取得 / オフラインフォールバック中は undefined を返す。
+ */
+export function getSnapshotHasMore(roomId: RoomId): boolean | undefined {
+  return snapshotHasMore.get(roomId);
+}
+
 export const chatLogResource = {
   loadChatLogs,
   loadChatLogsWithPaging,
@@ -326,4 +355,5 @@ export const chatLogResource = {
   applyOptimisticToCache,
   getCacheInfo,
   getPagingHasMore,
+  getSnapshotHasMore,
 };
