@@ -1,10 +1,14 @@
 export type ChanariTopHeaderProps = {
   backHref: string;
-  helpHref: string;
+  helpHref?: string;
   title: string;
   description: string;
   sloganLabel?: string;
 };
+
+function isExternalHref(href: string): boolean {
+  return href.startsWith('http://') || href.startsWith('https://');
+}
 
 export default function ChanariTopHeader({
   backHref,
@@ -13,20 +17,31 @@ export default function ChanariTopHeader({
   description,
   sloganLabel,
 }: ChanariTopHeaderProps) {
+  const backExternal = isExternalHref(backHref);
+  const helpExternal = helpHref ? isExternalHref(helpHref) : false;
+
   return (
     <>
       <div id="chat-topheader">
         <div id="chat-topheader-left">
-          <a href={backHref} target="_blank" rel="noreferrer noopener">
+          <a
+            href={backHref}
+            {...(backExternal ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
+          >
             なりきりチャットにもどる
           </a>
           {sloganLabel && <span>{sloganLabel}</span>}
         </div>
-        <div id="chat-topheader-right">
-          <a href={helpHref} target="_blank" rel="noreferrer noopener">
-            ヘルプ
-          </a>
-        </div>
+        {helpHref && (
+          <div id="chat-topheader-right">
+            <a
+              href={helpHref}
+              {...(helpExternal ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
+            >
+              ヘルプ
+            </a>
+          </div>
+        )}
       </div>
       <div id="header">
         <p id="desc">{description}</p>
