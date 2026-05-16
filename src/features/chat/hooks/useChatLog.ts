@@ -17,8 +17,11 @@ function isSavedMatchForTemp(saved: Chat, temp: Chat): boolean {
   }
 
   // 後方互換フォールバック: nonce 未付与の旧データ向け。
-  // 同一 client_time + name + message + room_id + color + system すべて一致したら同一とみなす。
-  // 短いメッセージ + 同名ユーザー同時送信で誤判定し得るが、nonce 付き経路に移行すれば解消する。
+  // client_time が両側で数値であることを必須にし、未設定行同士 (undefined === undefined) で
+  // 全く別メッセージが誤一致するのを防ぐ。
+  if (typeof temp.client_time !== 'number' || typeof saved.client_time !== 'number') {
+    return false;
+  }
   return (
     saved.optimistic !== true &&
     saved.client_time === temp.client_time &&

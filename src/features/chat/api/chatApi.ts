@@ -276,6 +276,11 @@ export async function invalidateCacheAsync(): Promise<void> {
 }
 
 // 楽観的更新用のヘルパー関数
+// 楽観的更新中の time は「サーバー時刻より十分先」に置き、ChatLogList の
+// time-desc フォールバック sort で常に先頭に来ることを保証する。
+// savedChat にマージされた時点でサーバー側の正しい time に置換される。
+const OPTIMISTIC_TIME_OFFSET_MS = 365 * 24 * 60 * 60 * 1000;
+
 export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'optimistic'>): Chat {
   // optimisticNonce: 楽観的更新の重複表示防止用のランダム識別子。
   // saveChatLogOptimistic がそのまま metadata に詰めて保存し、
@@ -285,12 +290,13 @@ export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'opt
     typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  const now = Date.now();
   const baseMetadata = chatData.metadata ?? { version: 1 as const };
   return {
     ...chatData,
-    uuid: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
-    time: Date.now(), // クライアント側の一時的なタイムスタンプ
-    client_time: Date.now(),
+    uuid: `temp-${now}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
+    time: now + OPTIMISTIC_TIME_OFFSET_MS, // 先頭表示保証用の未来時刻
+    client_time: now,
     optimistic: true,
     metadata: { ...baseMetadata, optimisticNonce: nonce },
   };
