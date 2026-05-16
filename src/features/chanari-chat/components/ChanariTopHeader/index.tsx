@@ -1,5 +1,7 @@
 export type ChanariTopHeaderProps = {
   backHref: string;
+  /** 戻るリンクの文言。省略時は遷移先が外部 URL かどうかで自動選択する。 */
+  backLabel?: string;
   helpHref?: string;
   title: string;
   description: string;
@@ -12,6 +14,7 @@ function isExternalHref(href: string): boolean {
 
 export default function ChanariTopHeader({
   backHref,
+  backLabel,
   helpHref,
   title,
   description,
@@ -19,6 +22,10 @@ export default function ChanariTopHeader({
 }: ChanariTopHeaderProps) {
   const backExternal = isExternalHref(backHref);
   const helpExternal = helpHref ? isExternalHref(helpHref) : false;
+  // backHref が in-app トップを指している既定状態では「お気楽チャットトップへ」と表示し、
+  // 外部のなりきりサイトに戻すユースケースでは従来の文言を使う。
+  const resolvedBackLabel =
+    backLabel ?? (backExternal ? 'なりきりチャットにもどる' : 'お気楽チャットトップへ');
 
   return (
     <>
@@ -28,7 +35,7 @@ export default function ChanariTopHeader({
             href={backHref}
             {...(backExternal ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
           >
-            なりきりチャットにもどる
+            {resolvedBackLabel}
           </a>
           {sloganLabel && <span>{sloganLabel}</span>}
         </div>
