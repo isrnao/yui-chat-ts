@@ -14,23 +14,26 @@ jobs:
     # Operating System
     runs-on: ubuntu-latest
     env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      CHROMATIC_BRANCH: ${{ github.event.pull_request.head.ref || github.ref_name }}
+      CHROMATIC_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      CHROMATIC_SLUG: ${{ github.repository }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
     # Job steps
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0 # Required to retrieve git history
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: '10'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '24'
           cache: 'pnpm'
