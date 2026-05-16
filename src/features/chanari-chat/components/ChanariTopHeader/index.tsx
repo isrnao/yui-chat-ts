@@ -8,8 +8,22 @@ export type ChanariTopHeaderProps = {
   sloganLabel?: string;
 };
 
+/**
+ * `href` が現在の origin の外を指しているかを判定する。
+ * 相対 URL や同一 origin の絶対 URL は false (= 内部リンク扱い、同タブ遷移) を返す。
+ *
+ * SSR や window 不在の環境では new URL() の base 解決ができないため、
+ * 接頭辞だけで判断するフォールバックを使う。
+ */
 function isExternalHref(href: string): boolean {
-  return href.startsWith('http://') || href.startsWith('https://');
+  if (typeof window === 'undefined' || !window.location) {
+    return href.startsWith('http://') || href.startsWith('https://');
+  }
+  try {
+    return new URL(href, window.location.href).origin !== window.location.origin;
+  } catch {
+    return false;
+  }
 }
 
 export default function ChanariTopHeader({
