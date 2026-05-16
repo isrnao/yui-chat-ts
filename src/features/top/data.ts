@@ -144,7 +144,8 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
       chanariRoom('アニメチャット', 'anime'),
       chanariRoom('リボーンチャット', 'reborn'),
       chanariRoom('モンスターハンターチャット', 'monhan'),
-      chanariRoom('銀魂チャット', 'gintama'),
+      // 通常チャットとして /chat/gintama に遷移する (なりきりは pickup 側で別途扱う)
+      room('銀魂チャット', 'gintama'),
       chanariRoom('ローゼンメイデンチャット', 'rozen'),
     ],
   },
