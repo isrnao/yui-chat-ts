@@ -96,9 +96,10 @@ async function fetchSnapshot(
   return retryApiCall(async () => {
     if (!isOnline()) {
       endPerf('loadChatLogs-offline', startTime);
-      // オフラインフォールバック中は「続きがあるか」は不明なので false 扱い。
+      // オフラインフォールバック中は「続きがあるか」を確定できないため、エントリ自体を削除して
+      // getSnapshotHasMore は undefined を返す ("未取得" 状態) ようにする。
       if (getCacheGeneration(roomId) === generation) {
-        snapshotHasMore.set(roomId, false);
+        snapshotHasMore.delete(roomId);
       }
       return getOfflineChatData(roomId);
     }
@@ -115,8 +116,9 @@ async function fetchSnapshot(
 
     if (error) {
       if (error.code === '401' || error.message.includes('JWT')) {
+        // 認証 fallback も同様に「未取得」扱いにする (復旧後に再判定したいため)。
         if (getCacheGeneration(roomId) === generation) {
-          snapshotHasMore.set(roomId, false);
+          snapshotHasMore.delete(roomId);
         }
         return getOfflineChatData(roomId);
       }
