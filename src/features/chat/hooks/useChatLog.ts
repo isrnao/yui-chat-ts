@@ -6,8 +6,9 @@ import {
   subscribeChatLogs,
 } from '@features/chat/api/chatApi';
 import type { Chat } from '@features/chat/types';
+import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
-export function useChatLog() {
+export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const mergeChat = useCallback(
@@ -36,34 +37,34 @@ export function useChatLog() {
 
   useEffect(() => {
     setIsLoading(true);
-    loadChatLogs()
+    loadChatLogs(roomId)
       .then(setChatLog)
       .finally(() => setIsLoading(false));
-    const channel = subscribeChatLogs((chat) => {
+    const channel = subscribeChatLogs(roomId, (chat) => {
       mergeChat(chat);
     });
     return () => {
       channel.unsubscribe();
     };
-  }, [mergeChat]);
+  }, [mergeChat, roomId]);
 
   const addChat = useCallback(
     async (chat: Chat) => {
       startTransition(() => {
         addOptimistic(chat);
       });
-      await saveChatLog(chat);
+      await saveChatLog(roomId, chat);
       startTransition(() => {
         mergeChat(chat);
       });
     },
-    [addOptimistic, mergeChat]
+    [addOptimistic, mergeChat, roomId]
   );
 
   const clear = useCallback(async () => {
-    await clearChatLogs();
+    await clearChatLogs(roomId);
     // Supabaseリアルタイム購読でクリアが反映されるため、ローカル状態は変更しない
-  }, []);
+  }, [roomId]);
 
   return {
     chatLog: optimisticLog,
