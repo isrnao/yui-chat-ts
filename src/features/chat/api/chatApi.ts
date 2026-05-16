@@ -461,16 +461,16 @@ function sendBroadcastLookPayload(roomId: RoomId, payload: LookEvent): void {
   const entry = getOrCreateBroadcastEntry(roomId);
   // channel.send は Promise を返す。listener が居なかった場合は送信完了後に
   // (= 他に listener が追加されていないことを確認したうえで) channel を破棄する。
-  void Promise.resolve(
-    entry.channel.send({ type: 'broadcast', event: 'look', payload })
-  ).finally(() => {
-    if (hadListeners) return;
-    const current = broadcastEntries.get(roomId);
-    if (!current) return;
-    if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
-    supabase.removeChannel(current.channel);
-    broadcastEntries.delete(roomId);
-  });
+  void Promise.resolve(entry.channel.send({ type: 'broadcast', event: 'look', payload })).finally(
+    () => {
+      if (hadListeners) return;
+      const current = broadcastEntries.get(roomId);
+      if (!current) return;
+      if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
+      supabase.removeChannel(current.channel);
+      broadcastEntries.delete(roomId);
+    }
+  );
 }
 
 export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
