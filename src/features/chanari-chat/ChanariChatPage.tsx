@@ -3,7 +3,6 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { RoomId } from '@features/chat/rooms';
 import { getRoomMeta } from '@features/chat/rooms';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
-import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
@@ -22,7 +21,6 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const myId = useId();
 
   const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
-  const participants = useParticipants(chatLog);
   const channelRef = useRef<RealtimeChannel | null>(null);
   useLookSound(channelRef, roomId);
 
@@ -107,12 +105,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
             }
           >
-            <ChatLogList
-              chatLog={chatLog}
-              isLoading={isLoading}
-              windowRows={windowRows}
-              participants={participants}
-            />
+            <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
           </Suspense>
         }
       />

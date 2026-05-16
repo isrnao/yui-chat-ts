@@ -274,7 +274,7 @@ describe('getRecentParticipants', () => {
     expect(participants.length).toBeLessThanOrEqual(expectedUserCount);
   });
 
-  it('should maintain referential equality when input is same', () => {
+  it('should maintain referential equality when chatLog reference is unchanged', () => {
     const chatLog: Chat[] = [
       {
         uuid: '1',
@@ -296,8 +296,8 @@ describe('getRecentParticipants', () => {
     // 同じデータで再レンダリング
     rerender({ chatLog });
 
-    // useDeferredValueにより、同じ結果が返される
-    expect(result.current).toEqual(firstResult);
+    // useDeferredValue + useMemo により、同じ chatLog 参照では再計算されない
+    expect(result.current).toBe(firstResult);
   });
 });
 

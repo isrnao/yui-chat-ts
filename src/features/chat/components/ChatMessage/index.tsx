@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { formatTime } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
@@ -102,7 +103,7 @@ function AdminMessage({ chat }: { chat: Chat }) {
   );
 }
 
-export default function ChatMessage({ chat }: Props) {
+function ChatMessage({ chat }: Props) {
   // 管理人メッセージは専用レンダリング
   if (chat.metadata?.kind === 'admin') {
     return <AdminMessage chat={chat} />;
@@ -148,3 +149,5 @@ export default function ChatMessage({ chat }: Props) {
     </div>
   );
 }
+
+export default memo(ChatMessage);

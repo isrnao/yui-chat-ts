@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import RetroSplitter from './index';
 import ChatLogList from '../ChatLogList';
-import { sampleChatLog, sampleParticipants } from '../../../../storybook/mocks/chatSamples';
+import { sampleChatLog } from '../../../../storybook/mocks/chatSamples';
 
 function TopPlaceholder() {
   return (
@@ -13,15 +13,9 @@ function TopPlaceholder() {
 }
 
 function BottomPreview() {
-  const fixedCurrentTime = sampleChatLog[0]?.time ?? Date.parse('2024-01-01T12:00:00Z');
   return (
     <div className="h-full bg-white/90 p-4">
-      <ChatLogList
-        chatLog={sampleChatLog}
-        participants={sampleParticipants}
-        windowRows={50}
-        currentTime={fixedCurrentTime}
-      />
+      <ChatLogList chatLog={sampleChatLog} windowRows={50} />
     </div>
   );
 }

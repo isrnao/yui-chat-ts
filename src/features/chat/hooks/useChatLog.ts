@@ -8,6 +8,37 @@ import {
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
+function isSavedMatchForTemp(saved: Chat, temp: Chat): boolean {
+  return (
+    saved.optimistic !== true &&
+    saved.client_time === temp.client_time &&
+    saved.name === temp.name &&
+    saved.message === temp.message &&
+    saved.room_id === temp.room_id &&
+    saved.color === temp.color &&
+    Boolean(saved.system) === Boolean(temp.system)
+  );
+}
+
+export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
+  // temp UUID の楽観的更新は、対応する savedChat が
+  // 既に base state に届いている場合は重複表示を避けるためスキップする
+  if (chat.uuid.startsWith('temp-') && typeof chat.client_time === 'number') {
+    const duplicate = state.some((c) => isSavedMatchForTemp(c, chat));
+    if (duplicate) {
+      return state;
+    }
+  }
+
+  const index = state.findIndex((c) => c.uuid === chat.uuid);
+  if (index !== -1) {
+    const next = [...state];
+    next[index] = chat;
+    return next.slice(0, 2000);
+  }
+  return [chat, ...state].slice(0, 2000);
+}
+
 export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -25,15 +56,7 @@ export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
     },
     [setChatLog]
   );
-  const [optimisticLog, addOptimistic] = useOptimistic(chatLog, (state: Chat[], chat: Chat) => {
-    const index = state.findIndex((c) => c.uuid === chat.uuid);
-    if (index !== -1) {
-      const next = [...state];
-      next[index] = chat;
-      return next.slice(0, 2000);
-    }
-    return [chat, ...state].slice(0, 2000);
-  });
+  const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
   useEffect(() => {
     setIsLoading(true);
