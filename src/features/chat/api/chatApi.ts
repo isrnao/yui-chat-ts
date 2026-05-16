@@ -7,6 +7,7 @@ import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import {
   loadChatLogs as resourceLoadChatLogs,
+  loadChatLogsSnapshot as resourceLoadChatLogsSnapshot,
   loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
   loadInitialChatLogs as resourceLoadInitialChatLogs,
   invalidateCache as resourceInvalidateCache,
@@ -14,9 +15,8 @@ import {
   replaceOptimisticInCache,
   getCacheInfo as resourceGetCacheInfo,
   getPagingHasMore,
-  getSnapshotHasMore,
 } from './chatLogResource';
-export { prefetchChatLogs } from './chatLogResource';
+export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
 
 const TABLE = 'chats';
 
@@ -83,15 +83,21 @@ export async function loadChatLogsWithPaging(
   useCache = true
 ): Promise<{ data: Chat[]; hasMore: boolean }> {
   if (offset === 0) {
-    const snapshot = await resourceLoadChatLogs(roomId, useCache);
+    // hasMore は snapshot 取得と同じ往復で確定した値を使う。
+    // resourceLoadChatLogsSnapshot は { data, hasMore } を返すため、
+    // 取得中に invalidateCache が走って世代が変わっても、この呼び出し固有の
+    // hasMore がロストすることはない (#15 対策)。
+    const { data: snapshot, hasMore: snapshotHasMore } = await resourceLoadChatLogsSnapshot(
+      roomId,
+      useCache
+    );
     // hasMore は次の 2 条件のいずれかで真:
     //   (1) 要求 limit より snapshot が長い → snapshot 内に未表示分がある
     //   (2) snapshot 自体が canonical cap (MAX_CHAT_LOG) に張り付いており、
     //       テーブルにさらに続きが存在することが分かっている
-    const snapshotHasMoreFlag = getSnapshotHasMore(roomId) ?? false;
     return {
       data: snapshot.slice(0, limit),
-      hasMore: snapshot.length > limit || snapshotHasMoreFlag,
+      hasMore: snapshot.length > limit || snapshotHasMore === true,
     };
   }
 
