@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { loadInitialChatLogs } from '@features/chat/api/chatApi';
+import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 
 /**
@@ -7,7 +8,7 @@ import type { RoomId } from '@features/chat/rooms';
  * ページ読み込み後すぐにバックグラウンドでデータを取得開始
  */
 export function usePreloadChatLogs(roomId: RoomId) {
-  const preloadPromiseRef = useRef<Promise<any> | null>(null);
+  const preloadPromiseRef = useRef<Promise<Chat[]> | null>(null);
   const previousRoomIdRef = useRef<RoomId | null>(null);
 
   useEffect(() => {
@@ -25,17 +26,4 @@ export function usePreloadChatLogs(roomId: RoomId) {
   }, [roomId]);
 
   return preloadPromiseRef.current;
-}
-
-/**
- * アプリケーション起動時の早期データ取得
- * プリフェッチの代わりに、認証付きで早期にデータを取得
- */
-export async function earlyDataFetch(roomId: RoomId): Promise<void> {
-  try {
-    // 少量のデータを早期取得（認証付き）
-    await loadInitialChatLogs(roomId, 50);
-  } catch (error) {
-    // エラーは静かに処理
-  }
 }
