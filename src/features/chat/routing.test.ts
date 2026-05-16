@@ -12,18 +12,36 @@ describe('chat routing', () => {
     });
   });
 
-  it('redirects root to the default room', async () => {
-    const { matchRoute, buildChatRoomPath } = await import('./routing');
+  it('matches other registered rooms', async () => {
+    const { matchRoute } = await import('./routing');
 
-    expect(matchRoute('/yui-chat-ts/')).toEqual({
-      type: 'redirect',
-      to: buildChatRoomPath('superbeginner'),
+    expect(matchRoute('/yui-chat-ts/chat/hajime')).toEqual({
+      type: 'chat-room',
+      roomId: 'hajime',
+    });
+    expect(matchRoute('/yui-chat-ts/chat/ofall')).toEqual({
+      type: 'chat-room',
+      roomId: 'ofall',
+    });
+    expect(matchRoute('/yui-chat-ts/chat/area_kantoh')).toEqual({
+      type: 'chat-room',
+      roomId: 'area_kantoh',
+    });
+    expect(matchRoute('/yui-chat-ts/chat/hajime-old')).toEqual({
+      type: 'chat-room',
+      roomId: 'hajime-old',
     });
   });
 
-  it('rejects unsupported rooms', async () => {
+  it('matches root as the top page', async () => {
     const { matchRoute } = await import('./routing');
 
-    expect(matchRoute('/yui-chat-ts/chat/hajime')).toEqual({ type: 'not-found' });
+    expect(matchRoute('/yui-chat-ts/')).toEqual({ type: 'top' });
+  });
+
+  it('rejects unknown rooms', async () => {
+    const { matchRoute } = await import('./routing');
+
+    expect(matchRoute('/yui-chat-ts/chat/unknown-room')).toEqual({ type: 'not-found' });
   });
 });

@@ -1,10 +1,8 @@
-import { DEFAULT_ROOM_ID, isEnabledRoomId, type RoomId } from './rooms';
+import { DEFAULT_ROOM_ID, isEnabledRoomId, type RoomId } from '@features/chat/rooms';
 
-export type RouteMatch =
-  | { type: 'top' }
-  | { type: 'chat-room'; roomId: RoomId }
-  | { type: 'redirect'; to: string }
-  | { type: 'not-found' };
+export type ChanariRouteMatch =
+  | { type: 'chanari-room'; roomId: RoomId }
+  | { type: 'redirect'; to: string };
 
 function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, '');
@@ -25,29 +23,29 @@ function stripBasePath(pathname: string): string {
   return trimmedPath;
 }
 
-export function buildChatRoomPath(roomId: RoomId): string {
+export function buildChanariRoomPath(roomId: RoomId): string {
   const baseUrl = import.meta.env.BASE_URL.endsWith('/')
     ? import.meta.env.BASE_URL.slice(0, -1)
     : import.meta.env.BASE_URL;
 
-  return `${baseUrl}/chat/${roomId}`;
+  return `${baseUrl}/chanari/${roomId}`;
 }
 
-export function matchRoute(pathname: string): RouteMatch {
+export function matchChanariRoute(pathname: string): ChanariRouteMatch | null {
   const normalizedPath = stripBasePath(pathname);
   const segments = normalizedPath === '' ? [] : normalizedPath.split('/').filter(Boolean);
 
-  if (segments.length === 0) {
-    return { type: 'top' };
+  if (segments.length === 0 || segments[0] !== 'chanari') {
+    return null;
   }
 
-  if (segments.length === 1 && segments[0] === 'chat') {
-    return { type: 'redirect', to: buildChatRoomPath(DEFAULT_ROOM_ID) };
+  if (segments.length === 1 && segments[0] === 'chanari') {
+    return { type: 'redirect', to: buildChanariRoomPath(DEFAULT_ROOM_ID) };
   }
 
-  if (segments.length === 2 && segments[0] === 'chat' && isEnabledRoomId(segments[1])) {
-    return { type: 'chat-room', roomId: segments[1] };
+  if (segments.length === 2 && segments[0] === 'chanari' && isEnabledRoomId(segments[1])) {
+    return { type: 'chanari-room', roomId: segments[1] };
   }
 
-  return { type: 'not-found' };
+  return null;
 }

@@ -1,0 +1,400 @@
+import { usePageView, useSEO } from '@shared/hooks/useSEO';
+import type { ReactNode } from 'react';
+import {
+  chatDirectoryGroups,
+  news,
+  pickupGroups,
+  profiles,
+  type ChatDirectoryGroup,
+  type PickupGroup,
+  type RoomLink,
+} from './data';
+import { Header } from './components/header/Header';
+import { useRoomCounts } from './hooks/useRoomCounts';
+import type { RoomCountMap } from './api/roomCountsApi';
+
+function isExternalLink(item: RoomLink): boolean {
+  if (item.external === false) return false;
+  if (item.external === true) return true;
+  // 未指定のときは href から判定 (http(s):// を外部扱い、/ や # は内部扱い)
+  return /^https?:\/\//.test(item.href);
+}
+
+/** 部屋リンクから表示用のユーザー数を決定する。
+ *  `roomId` を持ち Supabase からの値があればその値、それ以外は常に 0。 */
+function resolveCount(item: RoomLink, liveCounts: RoomCountMap): number {
+  if (item.roomId && liveCounts[item.roomId] !== undefined) {
+    return liveCounts[item.roomId] as number;
+  }
+  return 0;
+}
+
+function RoomAnchor({ item, className }: { item: RoomLink; className: string }) {
+  const external = isExternalLink(item);
+  return (
+    <a
+      className={className}
+      href={item.href}
+      {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+    >
+      {item.label}
+    </a>
+  );
+}
+
+const toneClass: Record<ChatDirectoryGroup['tone'] | PickupGroup['tone'], string> = {
+  pink: 'text-pink-500',
+  orange: 'text-orange-500',
+  green: 'text-green-500',
+  blue: 'text-sky-500',
+  purple: 'text-fuchsia-500',
+  gray: 'text-gray-500',
+};
+
+function CountBadge({ count }: { count: number }) {
+  const color = count === 0 ? 'text-gray-400' : count >= 4 ? 'text-orange-500' : 'text-emerald-500';
+  return <span className={`ml-1 font-bold ${color}`}>{count}人</span>;
+}
+
+function SectionTitle({ children }: { children: ReactNode }) {
+  return (
+    <h2 className="border-y border-gray-300 bg-white px-2 py-[7px] text-[14px] font-bold leading-none text-gray-800">
+      {children}
+    </h2>
+  );
+}
+
+function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts: RoomCountMap }) {
+  return (
+    <section className="mb-3">
+      <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
+      <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
+      <ul className="mt-1 text-[12px] leading-[1.38]">
+        {group.items.map((item) => (
+          <li key={item.label} className="before:mr-1 before:text-orange-300 before:content-['○']">
+            <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
+            <CountBadge count={resolveCount(item, liveCounts)} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function PickupList({
+  group,
+  id,
+  liveCounts,
+}: {
+  group: PickupGroup;
+  id: string;
+  liveCounts: RoomCountMap;
+}) {
+  return (
+    <section id={id} className="mb-[5px] break-inside-avoid">
+      <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
+      <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
+      <ul className="mt-1 text-[12px] leading-[1.42]">
+        {group.items.map((item) => (
+          <li
+            key={item.label}
+            className="whitespace-nowrap before:mr-1 before:text-orange-300 before:content-['○']"
+          >
+            <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
+            <CountBadge count={resolveCount(item, liveCounts)} />
+          </li>
+        ))}
+      </ul>
+      {group.moreHref && (
+        <a className="mt-1 block text-[11px] text-gray-500 hover:underline" href={group.moreHref}>
+          ＋ {group.title}について詳しく見る
+        </a>
+      )}
+    </section>
+  );
+}
+
+function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
+  return (
+    <aside className="border-r border-gray-300 bg-white px-2 py-2 max-md:order-2 max-md:border-r-0">
+      <SectionTitle>チャット</SectionTitle>
+      <div className="pt-3">
+        {chatDirectoryGroups.map((group) => (
+          <RoomList key={group.title} group={group} liveCounts={liveCounts} />
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
+  const pickupIds = [
+    'pickup-junior-high',
+    'pickup-elementary',
+    'pickup-high-school',
+    'pickup-narikiri',
+    'pickup-college',
+    'pickup-worker',
+  ];
+
+  return (
+    <section className="bg-white px-2 py-2 max-md:order-1">
+      <SectionTitle>注目のチャット ピックアップ</SectionTitle>
+      <section className="px-2 py-3">
+        <h3 className="text-[13px] font-bold">チャットの最新情報</h3>
+        <ul className="mt-2 text-[12px] leading-[1.55]">
+          {news.map((item, newsIndex) => (
+            <li key={newsIndex} className="text-gray-700">
+              ○{' '}
+              {item.parts.map((part, partIndex) =>
+                typeof part === 'string' ? (
+                  <span key={partIndex}>{part}</span>
+                ) : (
+                  <a
+                    key={partIndex}
+                    href={part.linkHref}
+                    className="font-bold text-blue-600 hover:underline"
+                  >
+                    {part.linkLabel}
+                  </a>
+                )
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+      <div className="px-2">
+        {pickupGroups.map((group, index) => (
+          <PickupList
+            key={group.title}
+            group={group}
+            id={pickupIds[index]}
+            liveCounts={liveCounts}
+          />
+        ))}
+      </div>
+      <SectionTitle>チャットのプロフィールを作成しよう！</SectionTitle>
+      <section className="px-2 py-3">
+        <p className="text-[12px] leading-relaxed">
+          <span className="mr-2 inline-block border-2 border-red-500 px-2 py-1 text-[22px] font-black text-red-600">
+            Vururu
+          </span>
+          <a className="font-bold text-blue-600 hover:underline" href="#">
+            プロフィール作成ならVururu
+          </a>
+          と連携しました。チャット入室時 Vururu
+          のプロフィールIDを入力すると、プロフィールが表示されます。
+        </p>
+        <div className="mt-3 grid max-w-[430px] grid-cols-4 gap-x-6 gap-y-3">
+          {profiles.map(([name, avatar], index) => (
+            <a
+              key={`${name}-${index}`}
+              className="text-center text-[11px] font-bold text-blue-600 hover:underline"
+              href="#"
+            >
+              <img
+                className="mx-auto h-[72px] w-[72px] border border-gray-200 object-contain"
+                src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
+                alt=""
+                loading="lazy"
+              />
+              <span>{name}</span>
+            </a>
+          ))}
+        </div>
+      </section>
+    </section>
+  );
+}
+
+function RightColumn() {
+  return (
+    <aside className="border-l border-gray-300 bg-white px-2 py-2 max-lg:col-span-2 max-lg:border-l-0 max-md:order-3">
+      <div className="grid grid-cols-2 gap-2">
+        <section className="min-h-[122px]">
+          <SectionTitle>
+            <span className="text-blue-600">@chat_a</span>のつぶやき
+          </SectionTitle>
+        </section>
+        <section>
+          <SectionTitle>つぶやき／ブックマーク</SectionTitle>
+          <div className="p-2 text-center text-[12px]">
+            <div className="mb-2 font-bold text-gray-500">つぶやいてね</div>
+            <button className="rounded border border-sky-600 bg-sky-500 px-3 py-1 text-white">
+              ツイート
+            </button>
+          </div>
+        </section>
+      </div>
+      <div className="mt-3 space-y-3">
+        <section>
+          <SectionTitle>詩集／待ち合わせ／壁紙</SectionTitle>
+          <div className="p-3 text-center text-[12px]">
+            <img
+              className="mx-auto mb-2 h-[82px] w-[134px]"
+              src={`${import.meta.env.BASE_URL}okiraku/images/town.gif`}
+              alt=""
+              width="134"
+              height="82"
+              loading="lazy"
+            />
+            <a className="block font-bold text-blue-600 hover:underline" href="#">
+              お気楽チャット詩集掲示板
+            </a>
+            <a className="block font-bold text-blue-600 hover:underline" href="#">
+              チャット待ち合わせ掲示板
+            </a>
+          </div>
+        </section>
+        <section>
+          <SectionTitle>特設コーナー</SectionTitle>
+          <div className="p-3 text-[12px] leading-relaxed">
+            <img
+              className="mx-auto mb-2 h-[88px] w-[300px] border border-gray-300"
+              src={`${import.meta.env.BASE_URL}okiraku/images/rosenmembers_s.jpg`}
+              alt=""
+              width="300"
+              height="88"
+              loading="lazy"
+            />
+            <a className="font-bold text-blue-600 hover:underline" href="#">
+              ローゼンメイデンチャット
+            </a>
+            の「ねこ」さんが、ユーザーの皆さんのステキな似顔絵を書いてくれました。
+          </div>
+        </section>
+        <section>
+          <SectionTitle>チャットのルール・マナー</SectionTitle>
+          <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
+            <li>お初さんを歓迎しましょう。</li>
+            <li>必ずあいさつをしましょう。</li>
+            <li>簡単な自己紹介をしましょう。</li>
+            <li>相手の気持ちを考えて会話をしましょう。</li>
+            <li>チャットのルール・マナーについて詳しく見る</li>
+          </ul>
+        </section>
+        <section>
+          <SectionTitle>チャットの使い方</SectionTitle>
+          <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
+            <li>チャットに関する設定は全てココから！</li>
+            <li>文字を装飾するエフェクト</li>
+            <li>Filter（フィルタ）設定ボタンの使い方</li>
+            <li>おみくじの追加方法</li>
+            <li>チャットの使い方について詳しく見る</li>
+          </ul>
+        </section>
+      </div>
+    </aside>
+  );
+}
+
+function Community() {
+  const items = [
+    [
+      'プロフィール作成',
+      'プロフィール作成ならVururu。プロフのことならVururuへGo!プロフィール作成サービス。',
+    ],
+    ['美人チャット', '全国のチャット美人が集まる美人チャット。真の美人とは心が美しいのです。'],
+    ['オフ会ならC-Dream', 'オフ会ならココ！C-Dreamでは、毎週たくさんのオフ会が開催されています。'],
+    ['頼むから重力に従ってくれ', 'ダンス動画とコミュニティーのおすすめコーナー。'],
+  ];
+
+  return (
+    <section className="border-t border-gray-300 bg-white">
+      <SectionTitle>コミュニティー</SectionTitle>
+      <div className="grid gap-2 p-2 md:grid-cols-[1fr_1fr_1fr_2.6fr]">
+        {items.map(([title, body], index) => (
+          <article key={title} className="text-[12px] leading-relaxed">
+            <div
+              className={`mb-2 h-[96px] border border-gray-200 ${
+                index === 3
+                  ? 'bg-slate-900 text-white'
+                  : 'bg-gradient-to-br from-orange-100 to-sky-100'
+              } grid place-items-center overflow-hidden text-center text-[14px] font-bold`}
+            >
+              {index === 0 ? (
+                <div className="w-24 bg-white p-1 text-left text-[8px] text-red-500">
+                  Vururu
+                  <div className="mt-1 grid grid-cols-3 gap-1">
+                    {profiles.slice(0, 6).map(([, avatar], profileIndex) => (
+                      <img
+                        key={`${avatar}-${profileIndex}`}
+                        src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
+                        alt=""
+                        className="h-5 w-5"
+                      />
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                title
+              )}
+            </div>
+            <h3 className="font-bold">{title}</h3>
+            <p>{body}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="bg-blue-700 text-white">
+      <div className="mx-auto grid max-w-[990px] gap-5 px-1 py-5 text-[12px] leading-7 md:grid-cols-4">
+        {['チャット', '中学生チャット', 'なりきりチャット', 'オフ会'].map((title) => (
+          <section key={title}>
+            <h2 className="font-bold">{title}</h2>
+            <ul className="text-sky-100">
+              <li>○ チャットのルール・マナー</li>
+              <li>○ チャットの使い方</li>
+              <li>○ チャットのよくある質問</li>
+            </ul>
+          </section>
+        ))}
+        <p className="col-span-full mt-3">©1997-2012 チャットならお気楽チャット.</p>
+        <p className="col-span-full">お気楽チャットはYahooカテゴリーに登録されています</p>
+      </div>
+    </footer>
+  );
+}
+
+export default function TopPage() {
+  useSEO({
+    title: 'お気楽チャット - チャットで友達探し＆仲間作り | ゆいちゃっとTS',
+    description: 'お気楽チャットは気軽に楽しめる無料チャットです。友達探しと仲間作りを楽しもう。',
+    keywords: ['お気楽チャット', 'チャット', '無料チャット', '友達探し', '仲間作り'],
+    canonical: 'https://isrnao.github.io/yui-chat-ts/',
+  });
+  usePageView('お気楽チャット トップ');
+
+  const { counts: liveCounts } = useRoomCounts();
+
+  return (
+    <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
+      <Header />
+      <main className="mx-auto max-w-[990px] border-x border-gray-300 bg-white">
+        <section className="border-b border-gray-300 px-2 py-3">
+          <h2 className="text-[13px] font-bold text-blue-700">
+            お気楽チャット - チャットで友達探し＆仲間作り
+          </h2>
+          <p className="mt-1 leading-relaxed">
+            このサイトは、2000年代に毎日のように過ごした思い出のチャットを再現した、私的な非公式個人サイトです。
+            当時ここで出会った人たちも、今では大人になり、それぞれの人生を歩んでいると思います。
+            それでも、ふとした時にあの頃の「お気楽チャット」を思い出し、懐かしい名前を探したり、誰かに一言を残したくなることがあります。
+            そんな人たちがもう一度立ち寄れる、思い出の待ち合わせ場所になれば嬉しいです。
+            あの頃の雰囲気や、今となっては少し恥ずかしい黒歴史も含めて、懐かしんでもらえたら嬉しいです。
+          </p>
+        </section>
+        <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">
+          <LeftColumn liveCounts={liveCounts} />
+          <MainColumn liveCounts={liveCounts} />
+          <RightColumn />
+        </div>
+        <Community />
+      </main>
+      <Footer />
+    </div>
+  );
+}

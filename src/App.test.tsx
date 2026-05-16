@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import App from './App';
 
 // 複雑なSupabase統合部分はモック化
@@ -34,6 +34,7 @@ vi.mock('@shared/utils/clientInfo', () => ({
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
+  window.history.replaceState(null, '', '/yui-chat-ts/');
 });
 
 describe('<App />', () => {
@@ -41,5 +42,17 @@ describe('<App />', () => {
     render(<App />);
     // アプリが正常にレンダリングされることを確認
     expect(document.body).toBeInTheDocument();
+  });
+
+  it('shows the current room title in the entry form', () => {
+    window.history.replaceState(null, '', '/yui-chat-ts/chat/superbeginner');
+
+    render(<App />);
+
+    const visibleTitle = screen
+      .getAllByText('超初心者チャット')
+      .find((el) => !el.closest('.sr-only'));
+    expect(visibleTitle).toBeDefined();
+    expect(visibleTitle?.tagName).toBe('HEADER');
   });
 });
