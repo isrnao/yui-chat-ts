@@ -5,7 +5,7 @@ import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 
 const TABLE = 'chats';
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,ip,ua,metadata';
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,metadata';
 const MAX_CHAT_LOG = 100;
 const CACHE_DURATION = 5 * 60 * 1000;
 
