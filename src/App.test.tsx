@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
+import { loadChatLogs } from '@features/chat/api/chatApi';
+import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
 
 // 複雑なSupabase統合部分はモック化
 vi.mock('@features/chat/api/chatApi', () => ({
@@ -24,6 +26,10 @@ vi.mock('@features/chat/utils/webAudioPlayer', () => ({
   unlockAudio: vi.fn(),
 }));
 
+vi.mock('@features/top/api/roomCountsApi', () => ({
+  fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+}));
+
 vi.mock('@shared/utils/clientInfo', () => ({
   getClientIP: vi.fn().mockResolvedValue('127.0.0.1'),
   getUserAgent: vi.fn().mockReturnValue('test-agent'),
@@ -38,24 +44,57 @@ beforeEach(() => {
 });
 
 describe('<App />', () => {
-  it('should render the app without crashing', () => {
+  it('shows the top page immediately without route loading fallback', async () => {
     render(<App />);
-    // アプリが正常にレンダリングされることを確認
-    expect(document.body).toBeInTheDocument();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
+    expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(fetchRoomParticipantCounts).toHaveBeenCalled();
+    });
   });
 
-  it('shows the current room title in the entry form', async () => {
+  it('shows the current room title in the entry form immediately', async () => {
     window.history.replaceState(null, '', '/yui-chat-ts/chat/superbeginner');
 
     render(<App />);
-
-    // ルートが lazy なので解決を待つ
-    await screen.findAllByText('超初心者チャット');
 
     const visibleTitle = screen
       .getAllByText('超初心者チャット')
       .find((el) => !el.closest('.sr-only'));
     expect(visibleTitle).toBeDefined();
     expect(visibleTitle?.tagName).toBe('HEADER');
+
+    await waitFor(() => {
+      expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
+    });
+  });
+
+  it('shows the chanari entry form immediately without route loading fallback', async () => {
+    window.history.replaceState(null, '', '/yui-chat-ts/chanari/durarara');
+
+    render(<App />);
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'デュラララ チャット' })
+    ).toBeInTheDocument();
+    expect(screen.queryByText('読み込み中…')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(loadChatLogs).toHaveBeenCalledWith('durarara');
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('チャットログを読み込み中...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('shows the not found page immediately without route loading fallback', () => {
+    window.history.replaceState(null, '', '/yui-chat-ts/not-found');
+
+    render(<App />);
+
+    expect(screen.getByRole('heading', { level: 1, name: '４０４ＥＲＲＯＲ' })).toBeInTheDocument();
+    expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
   });
 });
