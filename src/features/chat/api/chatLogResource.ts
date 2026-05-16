@@ -79,11 +79,7 @@ function isFreshCache(entry: CacheEntry): boolean {
   return Date.now() - entry.timestamp < CACHE_DURATION;
 }
 
-function setCachedChatLogs(
-  roomId: RoomId,
-  data: Chat[],
-  hasMore: boolean | undefined
-): void {
+function setCachedChatLogs(roomId: RoomId, data: Chat[], hasMore: boolean | undefined): void {
   cache.set(roomId, {
     data: data.slice(0, MAX_CHAT_LOG),
     hasMore,

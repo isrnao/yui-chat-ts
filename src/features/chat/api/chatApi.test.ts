@@ -121,4 +121,234 @@ describe('chatApi', () => {
       await expect(chatApi.clearChatLogs(ROOM_ID)).rejects.toThrow(/boom/);
     });
   });
+
+  /**
+   * 再利用 helper: supabase.channel / removeChannel を差し替えて
+   * 1 つの "channel instance" を返す。次回 channel() 呼び出しまでは
+   * 同じインスタンスを共有することを呼び出し側で確認できる。
+   */
+  function installChannelMock() {
+    const postgresListeners: Array<(payload: { new: unknown }) => void> = [];
+    const broadcastListeners: Array<(payload: { payload: unknown }) => void> = [];
+    let pendingSend: { resolve: (value: string) => void } | null = null;
+
+    const channelInstance = {
+      on: vi.fn(
+        (
+          kind: string,
+          filter: Record<string, unknown> | { event?: string },
+          callback: (payload: unknown) => void
+        ) => {
+          if (kind === 'postgres_changes') {
+            postgresListeners.push(callback as (payload: { new: unknown }) => void);
+          } else if (kind === 'broadcast') {
+            broadcastListeners.push(callback as (payload: { payload: unknown }) => void);
+          }
+          // 未使用引数を ESLint 警告から守るためのダミー参照
+          void filter;
+          return channelInstance;
+        }
+      ),
+      subscribe: vi.fn(() => channelInstance),
+      send: vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            pendingSend = { resolve };
+          })
+      ),
+    };
+
+    const channel = vi.fn(() => channelInstance);
+    const removeChannel = vi.fn();
+
+    return {
+      channelInstance,
+      channel,
+      removeChannel,
+      postgresListeners,
+      broadcastListeners,
+      /** 直近の channel.send 呼び出しの Promise を resolve する */
+      resolvePendingSend() {
+        pendingSend?.resolve('ok');
+        pendingSend = null;
+      },
+    };
+  }
+
+  describe('subscribeChatLogs registry lifecycle', () => {
+    it('shares a single channel across concurrent subscribes for the same room', async () => {
+      const harness = installChannelMock();
+      const { supabase } = await import('@shared/supabaseClient');
+      (supabase as unknown as Record<string, unknown>).channel = harness.channel;
+      (supabase as unknown as Record<string, unknown>).removeChannel = harness.removeChannel;
+
+      const chatApi = await import('./chatApi');
+      const sub1 = chatApi.subscribeChatLogs(ROOM_ID, () => {});
+      const sub2 = chatApi.subscribeChatLogs(ROOM_ID, () => {});
+
+      // 同じ room 名で 2 回 subscribe しても supabase.channel は 1 回しか呼ばれない
+      expect(harness.channel).toHaveBeenCalledTimes(1);
+      expect(harness.channel).toHaveBeenCalledWith(`chats-postgres-${ROOM_ID}`);
+
+      // 1 回目の unsubscribe では channel を破棄しない
+      sub1.unsubscribe();
+      expect(harness.removeChannel).not.toHaveBeenCalled();
+
+      // 最後の unsubscribe で removeChannel が呼ばれて registry から消える
+      sub2.unsubscribe();
+      expect(harness.removeChannel).toHaveBeenCalledTimes(1);
+      expect(harness.removeChannel).toHaveBeenCalledWith(harness.channelInstance);
+    });
+
+    it('dispatches realtime INSERT payloads to all attached listeners', async () => {
+      const harness = installChannelMock();
+      const { supabase } = await import('@shared/supabaseClient');
+      (supabase as unknown as Record<string, unknown>).channel = harness.channel;
+      (supabase as unknown as Record<string, unknown>).removeChannel = harness.removeChannel;
+
+      const chatApi = await import('./chatApi');
+      const calls1: Chat[] = [];
+      const calls2: Chat[] = [];
+      const sub1 = chatApi.subscribeChatLogs(ROOM_ID, (chat) => calls1.push(chat));
+      const sub2 = chatApi.subscribeChatLogs(ROOM_ID, (chat) => calls2.push(chat));
+
+      const inserted = makeChat(1);
+      // registry の on() は 1 度だけ呼ばれ、その中で内部 dispatch される設計
+      harness.postgresListeners[0]({ new: inserted });
+
+      expect(calls1).toHaveLength(1);
+      expect(calls2).toHaveLength(1);
+      expect(calls1[0].uuid).toBe(inserted.uuid);
+      expect(calls2[0].uuid).toBe(inserted.uuid);
+
+      sub1.unsubscribe();
+      sub2.unsubscribe();
+    });
+  });
+
+  describe('broadcast send-only channel cleanup', () => {
+    it('removes the channel after a send when no listener is attached', async () => {
+      const harness = installChannelMock();
+      const { supabase } = await import('@shared/supabaseClient');
+      (supabase as unknown as Record<string, unknown>).channel = harness.channel;
+      (supabase as unknown as Record<string, unknown>).removeChannel = harness.removeChannel;
+
+      const chatApi = await import('./chatApi');
+      chatApi.broadcastLookEvent(ROOM_ID, 'msg-1');
+
+      expect(harness.channel).toHaveBeenCalledWith(`chats-broadcast-${ROOM_ID}`);
+      expect(harness.removeChannel).not.toHaveBeenCalled();
+
+      // send が解決した後に cleanup が走る
+      harness.resolvePendingSend();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(harness.removeChannel).toHaveBeenCalledTimes(1);
+      expect(harness.removeChannel).toHaveBeenCalledWith(harness.channelInstance);
+    });
+
+    it('keeps the channel when an active listener is attached', async () => {
+      const harness = installChannelMock();
+      const { supabase } = await import('@shared/supabaseClient');
+      (supabase as unknown as Record<string, unknown>).channel = harness.channel;
+      (supabase as unknown as Record<string, unknown>).removeChannel = harness.removeChannel;
+
+      const chatApi = await import('./chatApi');
+      const unsub = chatApi.onLookBroadcast(ROOM_ID, () => {});
+
+      chatApi.broadcastLookEvent(ROOM_ID, 'msg-1');
+      harness.resolvePendingSend();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      // listener が居る間は send 完了後も channel を維持する
+      expect(harness.removeChannel).not.toHaveBeenCalled();
+
+      // listener 解除で初めて removeChannel が走る
+      unsub();
+      expect(harness.removeChannel).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not remove the channel when a listener is added between send call and send completion', async () => {
+      const harness = installChannelMock();
+      const { supabase } = await import('@shared/supabaseClient');
+      (supabase as unknown as Record<string, unknown>).channel = harness.channel;
+      (supabase as unknown as Record<string, unknown>).removeChannel = harness.removeChannel;
+
+      const chatApi = await import('./chatApi');
+      // listener=0 で send 開始 → finally 内で hadListeners=false が記録される
+      chatApi.broadcastLookEvent(ROOM_ID, 'msg-1');
+      // 送信完了前に listener が登録されると、cleanup は size>0 を見て maintain する
+      const unsub = chatApi.onLookBroadcast(ROOM_ID, () => {});
+
+      harness.resolvePendingSend();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(harness.removeChannel).not.toHaveBeenCalled();
+      unsub();
+      expect(harness.removeChannel).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('createOptimisticChat', () => {
+    it('attaches a fresh optimisticNonce while preserving caller-supplied metadata', async () => {
+      const chatApi = await import('./chatApi');
+      const result = chatApi.createOptimisticChat({
+        room_id: ROOM_ID,
+        name: 'Taro',
+        color: '#f00',
+        message: 'Hello',
+        client_time: 0, // overwritten by helper
+        ip: '',
+        ua: '',
+        metadata: { version: 1, fontStyle: { bold: true } },
+      });
+
+      expect(result.uuid.startsWith('temp-')).toBe(true);
+      expect(result.optimistic).toBe(true);
+      expect(typeof result.client_time).toBe('number');
+      // time は先頭表示保証用に +1 年シフトされている
+      expect(result.time).toBeGreaterThan((result.client_time ?? 0) + 300 * 24 * 60 * 60 * 1000);
+      expect(result.metadata?.fontStyle).toEqual({ bold: true });
+      expect(typeof result.metadata?.optimisticNonce).toBe('string');
+      expect((result.metadata?.optimisticNonce ?? '').length).toBeGreaterThan(0);
+    });
+
+    it('generates a unique nonce per call', async () => {
+      const chatApi = await import('./chatApi');
+      const base = {
+        room_id: ROOM_ID,
+        name: 'Taro',
+        color: '#f00',
+        message: 'Hello',
+        client_time: 0,
+        ip: '',
+        ua: '',
+      };
+      const a = chatApi.createOptimisticChat(base);
+      const b = chatApi.createOptimisticChat(base);
+
+      expect(a.metadata?.optimisticNonce).toBeDefined();
+      expect(b.metadata?.optimisticNonce).toBeDefined();
+      expect(a.metadata?.optimisticNonce).not.toBe(b.metadata?.optimisticNonce);
+    });
+
+    it('synthesizes a default metadata object when none is provided', async () => {
+      const chatApi = await import('./chatApi');
+      const result = chatApi.createOptimisticChat({
+        room_id: ROOM_ID,
+        name: 'Taro',
+        color: '#f00',
+        message: 'Hello',
+        client_time: 0,
+        ip: '',
+        ua: '',
+      });
+
+      expect(result.metadata?.version).toBe(1);
+      expect(typeof result.metadata?.optimisticNonce).toBe('string');
+    });
+  });
 });
