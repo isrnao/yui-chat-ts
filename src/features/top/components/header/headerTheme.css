@@ -200,8 +200,9 @@
   color: var(--ochat-h-guide-link);
 }
 
-.ochat-header__guide-link:hover,
-.ochat-header__guide-link:focus {
+/* disabled プレースホルダーには hover を当てない (操作不能なのに反応するように見えるのを防ぐ) */
+.ochat-header__guide-link:not(:disabled):hover,
+.ochat-header__guide-link:not(:disabled):focus {
   color: var(--ochat-h-guide-link-hover);
   text-decoration: underline;
 }
@@ -276,9 +277,14 @@
   color: var(--ochat-h-primary-tab-fg);
 }
 
+/*
+ * --active は明示的な「現在地」状態 (現状は付与する callsite なし)。
+ * hover/focus は disabled プレースホルダーには適用せず、
+ * 遷移可能なタブにのみアクティブ風の青グラデーションを当てる。
+ */
 .ochat-header__primary-tab--active,
-.ochat-header__primary-tab:hover,
-.ochat-header__primary-tab:focus {
+.ochat-header__primary-tab:not(:disabled):hover,
+.ochat-header__primary-tab:not(:disabled):focus {
   background: linear-gradient(
     to bottom,
     var(--ochat-h-primary-tab-active-bg-top) 0%,
