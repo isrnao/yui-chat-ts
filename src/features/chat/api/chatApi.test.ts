@@ -83,4 +83,42 @@ describe('chatApi', () => {
     expect(result.data).toHaveLength(80);
     expect(result.hasMore).toBe(false);
   });
+
+  describe('clearChatLogs', () => {
+    it('issues a logical delete (update deleted=true) scoped to the room', async () => {
+      // Supabase クエリビルダのチェイン: .update().eq().eq() を辿って await されることを再現する。
+      const eqDeleted = vi.fn(() => Promise.resolve({ error: null }));
+      const eqRoom = vi.fn(() => ({ eq: eqDeleted }));
+      const update = vi.fn(() => ({ eq: eqRoom }));
+
+      const { supabase } = await import('@shared/supabaseClient');
+      const from = supabase.from as Mock;
+      from.mockReset();
+      from.mockReturnValue({ update });
+
+      const chatApi = await import('./chatApi');
+      await chatApi.clearChatLogs(ROOM_ID);
+
+      // hard delete ではなく update({ deleted: true }) で呼ばれること
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(update).toHaveBeenCalledWith({ deleted: true });
+      // room_id 一致 → deleted=false 一致 でフィルタされる (再削除や既消し行への二重 update を防ぐ)
+      expect(eqRoom).toHaveBeenCalledWith('room_id', ROOM_ID);
+      expect(eqDeleted).toHaveBeenCalledWith('deleted', false);
+    });
+
+    it('throws when supabase reports an error', async () => {
+      const eqDeleted = vi.fn(() => Promise.resolve({ error: { message: 'boom', code: '42' } }));
+      const eqRoom = vi.fn(() => ({ eq: eqDeleted }));
+      const update = vi.fn(() => ({ eq: eqRoom }));
+
+      const { supabase } = await import('@shared/supabaseClient');
+      const from = supabase.from as Mock;
+      from.mockReset();
+      from.mockReturnValue({ update });
+
+      const chatApi = await import('./chatApi');
+      await expect(chatApi.clearChatLogs(ROOM_ID)).rejects.toThrow(/boom/);
+    });
+  });
 });

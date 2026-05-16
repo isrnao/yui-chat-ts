@@ -101,6 +101,68 @@ describe('ChatLogList', () => {
     expect(screen.getByText(`(TIME(${FIXED_NOW - 2000}))`)).toBeInTheDocument();
   });
 
+  it('sorts out-of-order chatLog by uuid v7 desc (newer first) before slicing by windowRows', () => {
+    // out-of-order: 古いメッセージが配列先頭、新しいメッセージが配列末尾
+    // (本実装が prepend を前提に sort をスキップする回帰を防ぐためのテスト)
+    const outOfOrder: Chat[] = [
+      {
+        uuid: '0191b8a0-0001-7000-8000-000000000001', // uuid v7: 古め
+        name: 'Older',
+        color: '#000',
+        message: 'OLDER_MESSAGE',
+        time: FIXED_NOW - 5000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        uuid: '0191b8a0-9999-7000-8000-000000000002', // uuid v7: 新しめ
+        name: 'Newer',
+        color: '#000',
+        message: 'NEWER_MESSAGE',
+        time: FIXED_NOW - 1000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+    ];
+
+    // windowRows=1: sort 後の先頭 (= Newer) だけが描画される
+    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
+    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
+    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
+  });
+
+  it('falls back to time-desc sort when uuids are not v7 (e.g. temp- or test ids)', () => {
+    // uuid が temp-* / 単純 id のときは isUUIDv7 が false を返し、time-desc に fallback する
+    const outOfOrder: Chat[] = [
+      {
+        uuid: 'A',
+        name: 'Older',
+        color: '#000',
+        message: 'OLDER_MESSAGE',
+        time: FIXED_NOW - 5000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        uuid: 'B',
+        name: 'Newer',
+        color: '#000',
+        message: 'NEWER_MESSAGE',
+        time: FIXED_NOW - 1000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+    ];
+
+    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
+    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
+    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
+  });
+
   it('does not recompute sorted/sliced chats when parent rerenders with the same chatLog reference', () => {
     // sortChatsByTime は ChatLogList の useMemo 内で呼ばれる。useMemo deps が
     // [chatLog, windowRows] のため、参照不変な再 render では再実行されない。
