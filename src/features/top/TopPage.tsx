@@ -110,7 +110,7 @@ function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: Roo
 
 function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   return (
-    <aside className="border-r border-gray-300 bg-white px-2 py-2 max-md:order-2 max-md:border-r-0">
+    <aside className="border-r border-gray-300 bg-white px-2 py-2 max-md:order-1 max-md:border-r-0">
       <SectionTitle>チャット</SectionTitle>
       <div className="pt-3">
         {chatDirectoryGroups.map((group) => (
@@ -123,7 +123,7 @@ function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
 
 function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   return (
-    <section className="bg-white px-2 py-2 max-md:order-1">
+    <section className="bg-white px-2 py-2 max-md:order-2">
       <SectionTitle>注目のチャット ピックアップ</SectionTitle>
       <section className="px-2 py-3">
         <h3 className="text-[13px] font-bold">チャットの最新情報</h3>
