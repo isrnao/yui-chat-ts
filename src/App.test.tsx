@@ -44,10 +44,13 @@ describe('<App />', () => {
     expect(document.body).toBeInTheDocument();
   });
 
-  it('shows the current room title in the entry form', () => {
+  it('shows the current room title in the entry form', async () => {
     window.history.replaceState(null, '', '/yui-chat-ts/chat/superbeginner');
 
     render(<App />);
+
+    // ルートが lazy なので解決を待つ
+    await screen.findAllByText('超初心者チャット');
 
     const visibleTitle = screen
       .getAllByText('超初心者チャット')

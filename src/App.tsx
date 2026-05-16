@@ -1,148 +1,15 @@
-import { useState, useRef, lazy, Suspense, useId, useEffect } from 'react';
-import { useChatLog } from '@features/chat/hooks/useChatLog';
-import { useParticipants } from '@features/chat/hooks/useParticipants';
-import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
-import { useLookSound } from '@features/chat/hooks/useLookSound';
-import { useSEO, usePageView } from '@shared/hooks/useSEO';
-import { preloadCriticalResources, earlyDataFetch } from '@features/chat/hooks/usePreloadChatLogs';
-import ChatRoom from '@features/chat/components/ChatRoom';
-import EntryForm from '@features/chat/components/EntryForm';
-import RetroSplitter from '@features/chat/components/RetroSplitter';
-import ChatRanking from '@features/chat/components/ChatRanking';
-import type { AvatarId } from '@features/chat/types';
-import type { RealtimeChannel } from '@supabase/supabase-js';
-import { buildChatRoomPath, matchRoute } from '@features/chat/routing';
+import { useEffect, useState } from 'react';
+import { matchRoute } from '@features/chat/routing';
 import type { RouteMatch } from '@features/chat/routing';
 import { matchChanariRoute } from '@features/chanari-chat/routing';
 import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
-import { getRoomMeta, type RoomId } from '@features/chat/rooms';
-import TopPage from '@features/top/TopPage';
-import NotFoundPage from './pages/NotFoundPage';
+import LazyRouteHost from '@shared/components/LazyRouteHost';
+import type { RoomId } from '@features/chat/rooms';
 
-const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
-const ChanariChatPage = lazy(() => import('@features/chanari-chat/ChanariChatPage'));
-
-function ChatPage({ roomId }: { roomId: RoomId }) {
-  const room = getRoomMeta(roomId);
-
-  useEffect(() => {
-    preloadCriticalResources();
-  }, []);
-
-  useEffect(() => {
-    earlyDataFetch(roomId);
-  }, [roomId]);
-
-  useSEO({
-    title: `${room.title} | ゆいちゃっとTS`,
-    description: `${room.title}をブラウザですぐに使えるお気楽チャットとして公開しています。`,
-    keywords: ['ゆいちゃっとTS', 'お気楽チャット', '無料チャット', room.title],
-    canonical: `https://isrnao.github.io${buildChatRoomPath(roomId)}`,
-  });
-
-  usePageView(`${room.title} - ゆいちゃっとTS`);
-
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
-  const participants = useParticipants(chatLog);
-  const [entered, setEntered] = useState(false);
-  const [name, setName] = useState('');
-  const [color, setColor] = useState('#ff69b4');
-  const [message, setMessage] = useState('');
-  const [windowRows, setWindowRows] = useState(30);
-  const [showRanking, setShowRanking] = useState(false);
-  const [email, setEmail] = useState('');
-  const [avatar, setAvatar] = useState<AvatarId>('none');
-  const myId = useId();
-
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  useLookSound(channelRef, roomId);
-
-  const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
-    roomId,
-    name,
-    color,
-    email,
-    myId,
-    entered,
-    setEntered,
-    setChatLog,
-    setShowRanking,
-    setName,
-    setMessage,
-    addOptimistic,
-    mergeChat,
-  });
-
-  return (
-    <main className="flex min-h-dvh h-dvh flex-col overflow-hidden bg-yui-green" role="main">
-      <header className="sr-only">
-        <h1>{room.title}</h1>
-        <p>{room.description}</p>
-      </header>
-      <RetroSplitter
-        minTop={100}
-        minBottom={100}
-        top={
-          entered ? (
-            <ChatRoom
-              message={message}
-              setMessage={setMessage}
-              chatLog={chatLog}
-              windowRows={windowRows}
-              setWindowRows={setWindowRows}
-              onExit={handleExit}
-              onSend={(msg, metadata) => handleSend(msg, metadata)}
-              onReload={handleReload}
-              onShowRanking={() => setShowRanking(true)}
-              avatar={avatar}
-              userName={name}
-            />
-          ) : (
-            <EntryForm
-              roomTitle={room.title}
-              name={name}
-              setName={setName}
-              color={color}
-              setColor={setColor}
-              email={email}
-              setEmail={setEmail}
-              onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
-                setAvatar(a);
-                return handleEnter({ name: n, color: c, email: e, silent });
-              }}
-            />
-          )
-        }
-        bottom={
-          !showRanking ? (
-            <Suspense
-              fallback={
-                <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
-              }
-            >
-              <ChatLogList
-                chatLog={chatLog}
-                isLoading={isLoading}
-                windowRows={windowRows}
-                participants={participants}
-              />
-            </Suspense>
-          ) : (
-            <div className="relative px-[var(--page-gap)] pb-[var(--page-gap)]">
-              <button
-                className="absolute right-0 top-0 px-2 py-1 text-xs text-blue-700 underline"
-                onClick={() => setShowRanking(false)}
-              >
-                戻る
-              </button>
-              <ChatRanking chatLog={chatLog} />
-            </div>
-          )
-        }
-      />
-    </main>
-  );
-}
+const topFactory = () => import('./routes/TopRoute');
+const chatFactory = () => import('./routes/ChatRoute');
+const chanariFactory = () => import('./routes/ChanariRoute');
+const notFoundFactory = () => import('./routes/NotFoundRoute');
 
 function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
   const chanari = matchChanariRoute(pathname);
@@ -171,25 +38,22 @@ export default function App() {
     setRoute(resolveRoute(window.location.pathname));
   }, [route]);
 
-  if (route.type === 'chanari-room') {
-    return (
-      <Suspense fallback={null}>
-        <ChanariChatPage roomId={route.roomId} />
-      </Suspense>
-    );
-  }
-
-  if (route.type === 'not-found') {
-    return <NotFoundPage />;
-  }
-
-  if (route.type === 'redirect') {
-    return null;
-  }
-
-  if (route.type === 'top') {
-    return <TopPage />;
-  }
-
-  return <ChatPage roomId={route.roomId} />;
+  return (
+    <>
+      {route.type === 'top' && <LazyRouteHost factory={topFactory} />}
+      {route.type === 'chat-room' && (
+        <LazyRouteHost<{ roomId: RoomId }>
+          factory={chatFactory}
+          componentProps={{ roomId: route.roomId }}
+        />
+      )}
+      {route.type === 'chanari-room' && (
+        <LazyRouteHost<{ roomId: RoomId }>
+          factory={chanariFactory}
+          componentProps={{ roomId: route.roomId }}
+        />
+      )}
+      {route.type === 'not-found' && <LazyRouteHost factory={notFoundFactory} />}
+    </>
+  );
 }

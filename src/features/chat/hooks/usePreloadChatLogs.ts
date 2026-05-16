@@ -39,25 +39,3 @@ export async function earlyDataFetch(roomId: RoomId): Promise<void> {
     // エラーは静かに処理
   }
 }
-
-/**
- * 優先度の高いリソースのプリフェッチ
- */
-export function preloadCriticalResources() {
-  try {
-    // DNS プリフェッチ
-    const dnsLink = document.createElement('link');
-    dnsLink.rel = 'dns-prefetch';
-    dnsLink.href = 'https://tklxdjqlvwntdsfxfcwo.supabase.co';
-    document.head.appendChild(dnsLink);
-
-    // プリコネクト
-    const preconnectLink = document.createElement('link');
-    preconnectLink.rel = 'preconnect';
-    preconnectLink.href = 'https://tklxdjqlvwntdsfxfcwo.supabase.co';
-    preconnectLink.crossOrigin = 'anonymous';
-    document.head.appendChild(preconnectLink);
-  } catch (error) {
-    // エラーは静かに処理
-  }
-}
