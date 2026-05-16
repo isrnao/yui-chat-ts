@@ -408,16 +408,16 @@ const mergeChat = useCallback((chat: Chat) => {
 
 `loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。
 
-| 関数                         | 用途                   | 特徴                                                         |
-| ---------------------------- | ---------------------- | ------------------------------------------------------------ |
-| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate |
-| `saveChatLog()`              | 従来互換の保存         | 全カラム select                                              |
-| `saveChatLogFireAndForget()` | 非ブロッキング保存     | レスポンス不要の最高速版                                     |
-| `clearChatLogs(roomId)`      | room 単位の全件削除    | room を絞ってキャッシュ無効化                                |
-| `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `deleted=true` UPDATE                                        |
-| `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                     |
-| `subscribeChatLogs()`        | リアルタイム購読       | room ごとに 1 channel を共有                                 |
-| `broadcastLookEvent()` 等    | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                          |
+| 関数                         | 用途                   | 特徴                                                                              |
+| ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
+| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate                      |
+| `saveChatLog()`              | 従来互換の保存         | 全カラム select                                                                   |
+| `saveChatLogFireAndForget()` | 非ブロッキング保存     | レスポンス不要の最高速版                                                          |
+| `clearChatLogs(roomId)`      | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
+| `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
+| `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
+| `subscribeChatLogs()`        | リアルタイム購読       | room ごとに 1 channel を共有                                                      |
+| `broadcastLookEvent()` 等    | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                                               |
 
 ### 7.3 features/top/api/roomCountsApi.ts
 
@@ -437,15 +437,17 @@ type Chat = {
   color: string;
   message: string;
   time: number; // Unix timestamp ms（サーバー側で設定）
-  client_time?: number; // クライアント投稿時刻（楽観的更新の dedup キー）
+  client_time?: number; // クライアント投稿時刻（楽観的更新 dedup の fallback キー）
   optimistic?: boolean; // 楽観的更新フラグ
   system?: boolean; // システムメッセージフラグ
   email?: string;
   ip: string; // クライアント IP（読み出し時は通常 SELECT しない）
   ua: string; // User-Agent（同上）
-  metadata?: ChatMetadata; // フォントスタイル / アバター / kind / userColor 等
+  metadata?: ChatMetadata; // フォントスタイル / アバター / kind / userColor / optimisticNonce 等
 };
 ```
+
+楽観的更新の dedup 主キーは `metadata.optimisticNonce`（`createOptimisticChat` がランダム生成）で、両側に nonce が揃っていればこちらだけで一致判定する。`client_time` は nonce 未付与の旧データへの fallback キーとして使うが、両側で数値であることを必須条件とする（`undefined === undefined` の誤一致を避けるため）。
 
 `ChatMetadata.kind = 'admin'` の管理人発言には `userColor` を持たせ、Welcome / 退室メッセージを `ParticipantsList` への参加者集計に用います（`useParticipants.getRecentParticipants` 参照）。
 
@@ -509,17 +511,17 @@ type Chat = {
 
 ### 9.2 主要コンポーネント
 
-| コンポーネント                  | 責務                                                                      |
-| ------------------------------- | ------------------------------------------------------------------------- |
-| `RetroSplitter`                 | 上下ペインのリサイズ可能な分割レイアウト                                  |
-| `ChatRoom`                      | メッセージ入力・送信・退室ボタン                                          |
-| `EntryForm`                     | 名前・色・メール入力、入室ボタン                                          |
-| `ChatLogList` (memo + lazy)     | メッセージ履歴の表示。`useMemo` で slice、内部で `useParticipants` を呼ぶ |
-| `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                      |
-| `ChatRanking`                   | 発言数ランキング表示                                                      |
-| `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                        |
-| `TopPage` + `components/header` | 旧ヘッダー（テキスト + CSS）、左カラムのルームリンク群                    |
-| `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔            |
+| コンポーネント                  | 責務                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `RetroSplitter`                 | 上下ペインのリサイズ可能な分割レイアウト                                                                                      |
+| `ChatRoom`                      | メッセージ入力・送信・退室ボタン                                                                                              |
+| `EntryForm`                     | 名前・色・メール入力、入室ボタン                                                                                              |
+| `ChatLogList` (memo + lazy)     | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ |
+| `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                          |
+| `ChatRanking`                   | 発言数ランキング表示                                                                                                          |
+| `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                            |
+| `TopPage` + `components/header` | 旧ヘッダー（テキスト + CSS）、左カラムのルームリンク群                                                                        |
+| `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                |
 
 ### 9.3 トップページ
 

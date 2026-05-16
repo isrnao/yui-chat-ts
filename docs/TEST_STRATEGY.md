@@ -100,7 +100,7 @@ src/features/chat/api/
 | キャッシュは `MAX_CHAT_LOG = 100` 件に trim される                      | 同上                                               |
 | `useOptimistic` の reducer が temp と saved の重複を抑制する            | `useChatLog.test.ts`                               |
 | `useParticipants` は同一 `chatLog` 参照では再計算しない                 | `useParticipants.test.ts`                          |
-| `ChatLogList` は同一 `chatLog` 参照では `slice` を再実行しない          | `ChatLogList.test.tsx`                             |
+| `ChatLogList` は同一 `chatLog` 参照では `sort/slice` を再実行しない     | `ChatLogList.test.tsx`                             |
 | `useNowMinute` は 1 分境界で更新される                                  | `useNowMinute.test.ts`                             |
 | `/chat/:roomId` / `/chanari/:roomId` / unknown が正しく解決される       | `routing.test.ts` / `chanari-chat/routing.test.ts` |
 | 各ルートが即時描画される（ローディング fallback を挟まない）            | `App.test.tsx`                                     |
