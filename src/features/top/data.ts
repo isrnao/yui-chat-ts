@@ -373,22 +373,3 @@ export const pickupGroups: PickupGroup[] = [
     ],
   },
 ];
-
-export const profiles = [
-  ['おなまえ', 'hoshi1'],
-  ['霊灰石', 'tuki1'],
-  ['れお', 'hoshi2'],
-  ['まーた', 'hoshi3'],
-  ['三日月猫', 'hoshi4'],
-  ['ゴン', 'tuki2'],
-  ['Ghost', 'hoshi5'],
-  ['ずんだmochi', 'miko1'],
-  ['彩乃', 'hoshi6'],
-  ['綾', 'tuki3'],
-  ['おなまえ', 'hoshi7'],
-  ['†白雪王子†', 'tuki4'],
-  ['---', 'hoshi8'],
-  ['こころ', 'hoshi1'],
-  ['みぅ', 'tuki1'],
-  ['おなまえ', 'hoshi2'],
-] as const;

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { guideMenu, primaryNav, tabNav } from '../../data';
 import type { GuideIconKind } from '../../data';
-import { GuideIcon, WingIcon } from './icons';
+import { GuideIcon, TsBadge, WingIcon } from './icons';
 import './headerTheme.css';
 
 /**
@@ -33,7 +33,10 @@ function LogoBlock() {
             <span className="ochat-header__logo-url-dot">.</span>
             <span className="ochat-header__logo-url-com">chat</span>
           </span>
-          <span className="ochat-header__logo-title">お気楽チャット</span>
+          <span className="ochat-header__logo-title-row">
+            <span className="ochat-header__logo-title">お気楽チャット</span>
+            <TsBadge className="ochat-header__logo-ts" />
+          </span>
         </span>
       </a>
     </h1>

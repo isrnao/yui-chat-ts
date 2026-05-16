@@ -95,6 +95,38 @@ export function WingIcon({ size = 38, className, ...rest }: WingIconProps) {
   );
 }
 
+/**
+ * TypeScript 公式ロゴ風の TS バッジ。お気楽チャット**TS** であることを示す装飾。
+ *
+ * - 公式 TS ロゴと同じ青系 (`#3178C6`) の角丸正方形に、白の "TS" を右下寄せで配置
+ * - 視覚的補助のみのため `aria-hidden="true"`（隣接する "お気楽チャット" のテキストで
+ *   accessible name を確保し、SR にロゴ名を二重に読み上げさせない）
+ */
+export function TsBadge({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 27 27"
+      className={className}
+      aria-hidden="true"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect width="27" height="27" rx="3" fill="#3178C6" />
+      <text
+        x="25"
+        y="22"
+        textAnchor="end"
+        fontFamily="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif"
+        fontWeight="700"
+        fontSize="14"
+        letterSpacing="-0.5"
+        fill="#ffffff"
+      >
+        TS
+      </text>
+    </svg>
+  );
+}
+
 type GuideIconProps = {
   kind: GuideIconKind;
   className?: string;

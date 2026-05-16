@@ -4,7 +4,6 @@ import {
   chatDirectoryGroups,
   news,
   pickupGroups,
-  profiles,
   type ChatDirectoryGroup,
   type PickupGroup,
   type RoomLink,
@@ -323,57 +322,6 @@ function RightColumn() {
   );
 }
 
-function Community() {
-  const items = [
-    [
-      'プロフィール作成',
-      'プロフィール作成ならVururu。プロフのことならVururuへGo!プロフィール作成サービス。',
-    ],
-    ['美人チャット', '全国のチャット美人が集まる美人チャット。真の美人とは心が美しいのです。'],
-    ['オフ会ならC-Dream', 'オフ会ならココ！C-Dreamでは、毎週たくさんのオフ会が開催されています。'],
-    ['頼むから重力に従ってくれ', 'ダンス動画とコミュニティーのおすすめコーナー。'],
-  ];
-
-  return (
-    <section className="border-t border-gray-300 bg-white">
-      <SectionTitle>コミュニティー</SectionTitle>
-      <div className="grid gap-2 p-2 md:grid-cols-[1fr_1fr_1fr_2.6fr]">
-        {items.map(([title, body], index) => (
-          <article key={title} className="text-[12px] leading-relaxed">
-            <div
-              className={`mb-2 h-[96px] border border-gray-200 ${
-                index === 3
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-gradient-to-br from-orange-100 to-sky-100'
-              } grid place-items-center overflow-hidden text-center text-[14px] font-bold`}
-            >
-              {index === 0 ? (
-                <div className="w-24 bg-white p-1 text-left text-[8px] text-red-500">
-                  Vururu
-                  <div className="mt-1 grid grid-cols-3 gap-1">
-                    {profiles.slice(0, 6).map(([, avatar], profileIndex) => (
-                      <img
-                        key={`${avatar}-${profileIndex}`}
-                        src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
-                        alt=""
-                        className="h-5 w-5"
-                      />
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                title
-              )}
-            </div>
-            <h3 className="font-bold">{title}</h3>
-            <p>{body}</p>
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function Footer() {
   return (
     <footer className="bg-blue-700 text-white">
@@ -388,8 +336,11 @@ function Footer() {
             </ul>
           </section>
         ))}
-        <p className="col-span-full mt-3">©1997-2012 チャットならお気楽チャット.</p>
-        <p className="col-span-full">お気楽チャットはYahooカテゴリーに登録されています</p>
+        <p className="col-span-full mt-3">
+          ©2026 お気楽チャットTS.
+          <br />
+          Inspired by 1997-2017 チャットならお気楽チャット
+        </p>
       </div>
     </footer>
   );
@@ -427,7 +378,6 @@ export default function TopPage() {
           <MainColumn liveCounts={liveCounts} />
           <RightColumn />
         </div>
-        <Community />
       </main>
       <Footer />
     </div>

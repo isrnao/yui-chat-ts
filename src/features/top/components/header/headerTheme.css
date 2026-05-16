@@ -77,7 +77,7 @@
   font-size: inherit;
   font-weight: inherit;
   line-height: 1;
-  width: 220px;
+  width: 250px;
   height: 48px;
 }
 
@@ -87,7 +87,7 @@
   gap: 4px;
   text-decoration: none;
   color: inherit;
-  width: 220px;
+  width: 250px;
   height: 48px;
   overflow: hidden;
 }
@@ -134,6 +134,20 @@
 
 .ochat-header__logo-url-com {
   color: var(--ochat-h-logo-url-com);
+}
+
+.ochat-header__logo-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* TsBadge は title の text-shadow を継承しないよう独立行を切る */
+}
+
+.ochat-header__logo-ts {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: block;
 }
 
 .ochat-header__logo-title {
