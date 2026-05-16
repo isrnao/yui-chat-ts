@@ -163,12 +163,12 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
     note: 'アニメキャラなりきり',
     tone: 'green',
     items: [
-      chanariRoom('アニメチャット', 'anime'),
-      chanariRoom('リボーンチャット', 'reborn'),
-      chanariRoom('モンスターハンターチャット', 'monhan'),
-      // 通常チャットとして /chat/gintama に遷移する (なりきりは pickup 側で別途扱う)
+      // アニメ系の左カラム導線は通常チャットへ統一 (なりきりは pickup 側で別途扱う)
+      room('アニメチャット', 'anime'),
+      room('リボーンチャット', 'reborn'),
+      room('モンスターハンターチャット', 'monhan'),
       room('銀魂チャット', 'gintama'),
-      chanariRoom('ローゼンメイデンチャット', 'rozen'),
+      room('ローゼンメイデンチャット', 'rozen'),
     ],
   },
   {
