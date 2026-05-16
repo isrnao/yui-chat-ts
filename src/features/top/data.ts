@@ -24,6 +24,8 @@ export type PickupGroup = {
   tone: 'pink' | 'orange' | 'green' | 'blue';
   items: RoomLink[];
   moreHref?: string;
+  /** ピックアップ見出しへジャンプするためのアンカー id (省略時は id 無し) */
+  anchorId?: string;
 };
 
 export const guideLinks = [
@@ -53,6 +55,7 @@ export const guideIcons: readonly GuideIconKind[] = [
 ] as const;
 
 export const primaryNav = [
+  /* 準備中
   'チャット',
   'ランキング',
   'プロフィール',
@@ -62,15 +65,16 @@ export const primaryNav = [
   'リンク集',
   'オフ会',
   '管理人より',
+  */
 ];
 
 export const tabNav = [
   { label: 'チャット', href: import.meta.env.BASE_URL },
-  { label: '中学生チャット', href: '#pickup-junior-high' },
-  { label: '小学生チャット', href: '#pickup-elementary' },
-  { label: '高校生チャット', href: '#pickup-high-school' },
-  { label: '大学生チャット', href: '#pickup-college' },
-  { label: '社会人チャット', href: '#pickup-worker' },
+  { label: '中学生チャット', href: buildChatRoomPath('juniorhighschool') },
+  { label: '小学生チャット', href: buildChatRoomPath('elementary') },
+  { label: '高校生チャット', href: buildChatRoomPath('highschool') },
+  { label: '大学生チャット', href: buildChatRoomPath('daigaku') },
+  { label: '超初心者チャット', href: buildChatRoomPath('superbeginner') },
   { label: 'なりきりチャット', href: '#pickup-narikiri' },
 ];
 
@@ -326,6 +330,7 @@ export const pickupGroups: PickupGroup[] = [
     title: 'なりきりチャット',
     note: '好きなキャラになりきろう',
     tone: 'orange',
+    anchorId: 'pickup-narikiri',
     items: [
       chanariRoom('デュラララ チャット', 'durarara'),
       chanariRoom('ボカロチャット', 'vocaloid'),

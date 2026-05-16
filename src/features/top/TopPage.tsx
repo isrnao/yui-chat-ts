@@ -81,18 +81,12 @@ function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts
   );
 }
 
-function PickupList({
-  group,
-  id,
-  liveCounts,
-}: {
-  group: PickupGroup;
-  id: string;
-  liveCounts: RoomCountMap;
-}) {
+function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: RoomCountMap }) {
   return (
-    <section id={id} className="mb-[5px] break-inside-avoid">
-      <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
+    <section className="mb-[5px] break-inside-avoid">
+      <h3 id={group.anchorId} className="text-[13px] font-bold leading-tight text-gray-800">
+        {group.title}
+      </h3>
       <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
       <ul className="mt-1 text-[12px] leading-[1.42]">
         {group.items.map((item) => (
@@ -128,15 +122,6 @@ function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
 }
 
 function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
-  const pickupIds = [
-    'pickup-junior-high',
-    'pickup-elementary',
-    'pickup-high-school',
-    'pickup-narikiri',
-    'pickup-college',
-    'pickup-worker',
-  ];
-
   return (
     <section className="bg-white px-2 py-2 max-md:order-1">
       <SectionTitle>注目のチャット ピックアップ</SectionTitle>
@@ -164,13 +149,8 @@ function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
         </ul>
       </section>
       <div className="px-2">
-        {pickupGroups.map((group, index) => (
-          <PickupList
-            key={group.title}
-            group={group}
-            id={pickupIds[index]}
-            liveCounts={liveCounts}
-          />
+        {pickupGroups.map((group) => (
+          <PickupList key={group.title} group={group} liveCounts={liveCounts} />
         ))}
       </div>
       <SectionTitle>チャットのプロフィールを作成しよう！</SectionTitle>
