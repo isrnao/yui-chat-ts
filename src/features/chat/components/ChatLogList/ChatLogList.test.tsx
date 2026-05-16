@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
+import * as uuidUtils from '@shared/utils/uuid';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -100,12 +101,11 @@ describe('ChatLogList', () => {
     expect(screen.getByText(`(TIME(${FIXED_NOW - 2000}))`)).toBeInTheDocument();
   });
 
-  it('does not recompute sliced chats when parent rerenders with the same chatLog reference', () => {
+  it('does not recompute sorted/sliced chats when parent rerenders with the same chatLog reference', () => {
+    // sortChatsByTime は ChatLogList の useMemo 内で呼ばれる。useMemo deps が
+    // [chatLog, windowRows] のため、参照不変な再 render では再実行されない。
+    const sortSpy = vi.spyOn(uuidUtils, 'sortChatsByTime');
     const stableChatLog = [...chatLog].reverse();
-    const sliceSpy = vi.fn((start?: number, end?: number) =>
-      Array.prototype.slice.call(stableChatLog, start, end)
-    );
-    stableChatLog.slice = sliceSpy as Chat[]['slice'];
 
     function Host() {
       const [tick, setTick] = useState(0);
@@ -120,10 +120,14 @@ describe('ChatLogList', () => {
     }
 
     render(<Host />);
-    expect(sliceSpy).toHaveBeenCalledTimes(1);
+    const initialCallCount = sortSpy.mock.calls.length;
+    expect(initialCallCount).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: /rerender/ }));
 
-    expect(sliceSpy).toHaveBeenCalledTimes(1);
+    // 親の tick だけが変わって chatLog 参照は不変なので sort 呼び出しは増えない
+    expect(sortSpy.mock.calls.length).toBe(initialCallCount);
+
+    sortSpy.mockRestore();
   });
 });

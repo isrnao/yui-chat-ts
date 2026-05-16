@@ -1,6 +1,7 @@
 import { Fragment, memo, useMemo } from 'react';
 import type { Chat } from '@features/chat/types';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
+import { sortChatsByTime } from '@shared/utils/uuid';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import Divider from '../shared/Divider';
@@ -12,7 +13,10 @@ type Props = {
 };
 
 function ChatLogList({ chatLog, isLoading = false, windowRows }: Props) {
-  const chats = useMemo(() => chatLog.slice(0, windowRows), [chatLog, windowRows]);
+  // 表示境界で uuid v7 降順を保証する。useChatLog の reducer / mergeChat は
+  // 常に prepend するため通常時系列だが、out-of-order な realtime INSERT や
+  // 楽観的更新と保存済みログの合流順序に対する防御として明示的に sort する。
+  const chats = useMemo(() => sortChatsByTime(chatLog).slice(0, windowRows), [chatLog, windowRows]);
   const participants = useParticipants(chatLog);
 
   // 読み込み中の場合は専用のローディング表示を返す
