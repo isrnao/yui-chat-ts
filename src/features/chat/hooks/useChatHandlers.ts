@@ -5,6 +5,7 @@ import {
   clearChatLogsByName,
   broadcastLookEvent,
   broadcastUnlookEvent,
+  createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
@@ -13,23 +14,6 @@ import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneB
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import type { RoomId } from '@features/chat/rooms';
-
-// 楽観的更新用のタイムスタンプを生成
-// 確実に先頭に表示されるよう、十分未来の時刻を使用
-function getOptimisticTimestamp(): number {
-  // 現在時刻 + 1年（確実に先頭に表示される）
-  return Date.now() + 365 * 24 * 60 * 60 * 1000;
-}
-
-// 楽観的更新用のチャットを作成（サーバー側でUUID v7とtimeを生成）
-function createOptimisticChat(baseChat: Omit<Chat, 'uuid' | 'time' | 'optimistic'>): Chat {
-  return {
-    ...baseChat,
-    uuid: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
-    time: getOptimisticTimestamp(),
-    optimistic: true, // 楽観的更新フラグを追加
-  };
-}
 
 export function useChatHandlers({
   roomId,

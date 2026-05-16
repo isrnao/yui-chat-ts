@@ -59,8 +59,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
         top={
           <div className="chanari-scope">
             <ChanariTopHeader
-              backHref="https://chanari.com/"
-              helpHref="https://chanari.com/help/"
+              backHref={import.meta.env.BASE_URL}
               title={room.title}
               description={room.description}
               sloganLabel="ヽ(。д。)ﾉ常連さん募集中～！"

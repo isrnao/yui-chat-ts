@@ -3,6 +3,7 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
+import * as uuidUtils from '@shared/utils/uuid';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -100,12 +101,73 @@ describe('ChatLogList', () => {
     expect(screen.getByText(`(TIME(${FIXED_NOW - 2000}))`)).toBeInTheDocument();
   });
 
-  it('does not recompute sliced chats when parent rerenders with the same chatLog reference', () => {
+  it('sorts out-of-order chatLog by uuid v7 desc (newer first) before slicing by windowRows', () => {
+    // out-of-order: 古いメッセージが配列先頭、新しいメッセージが配列末尾
+    // (本実装が prepend を前提に sort をスキップする回帰を防ぐためのテスト)
+    const outOfOrder: Chat[] = [
+      {
+        uuid: '0191b8a0-0001-7000-8000-000000000001', // uuid v7: 古め
+        name: 'Older',
+        color: '#000',
+        message: 'OLDER_MESSAGE',
+        time: FIXED_NOW - 5000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        uuid: '0191b8a0-9999-7000-8000-000000000002', // uuid v7: 新しめ
+        name: 'Newer',
+        color: '#000',
+        message: 'NEWER_MESSAGE',
+        time: FIXED_NOW - 1000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+    ];
+
+    // windowRows=1: sort 後の先頭 (= Newer) だけが描画される
+    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
+    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
+    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
+  });
+
+  it('falls back to time-desc sort when uuids are not v7 (e.g. temp- or test ids)', () => {
+    // uuid が temp-* / 単純 id のときは isUUIDv7 が false を返し、time-desc に fallback する
+    const outOfOrder: Chat[] = [
+      {
+        uuid: 'A',
+        name: 'Older',
+        color: '#000',
+        message: 'OLDER_MESSAGE',
+        time: FIXED_NOW - 5000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+      {
+        uuid: 'B',
+        name: 'Newer',
+        color: '#000',
+        message: 'NEWER_MESSAGE',
+        time: FIXED_NOW - 1000,
+        email: '',
+        ip: 'test-ip',
+        ua: 'test-ua',
+      },
+    ];
+
+    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
+    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
+    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
+  });
+
+  it('does not recompute sorted/sliced chats when parent rerenders with the same chatLog reference', () => {
+    // sortChatsByTime は ChatLogList の useMemo 内で呼ばれる。useMemo deps が
+    // [chatLog, windowRows] のため、参照不変な再 render では再実行されない。
+    const sortSpy = vi.spyOn(uuidUtils, 'sortChatsByTime');
     const stableChatLog = [...chatLog].reverse();
-    const sliceSpy = vi.fn((start?: number, end?: number) =>
-      Array.prototype.slice.call(stableChatLog, start, end)
-    );
-    stableChatLog.slice = sliceSpy as Chat[]['slice'];
 
     function Host() {
       const [tick, setTick] = useState(0);
@@ -120,10 +182,14 @@ describe('ChatLogList', () => {
     }
 
     render(<Host />);
-    expect(sliceSpy).toHaveBeenCalledTimes(1);
+    const initialCallCount = sortSpy.mock.calls.length;
+    expect(initialCallCount).toBeGreaterThanOrEqual(1);
 
     fireEvent.click(screen.getByRole('button', { name: /rerender/ }));
 
-    expect(sliceSpy).toHaveBeenCalledTimes(1);
+    // 親の tick だけが変わって chatLog 参照は不変なので sort 呼び出しは増えない
+    expect(sortSpy.mock.calls.length).toBe(initialCallCount);
+
+    sortSpy.mockRestore();
   });
 });

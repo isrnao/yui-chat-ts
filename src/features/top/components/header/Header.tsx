@@ -12,11 +12,17 @@ import './headerTheme.css';
  */
 function LogoBlock() {
   return (
-    <h1 className="ochat-header__logo-h1" aria-label="お気楽チャット">
+    <h1 className="ochat-header__logo-h1">
+      {/*
+        h1 / a に二重に accessible name を持たせないため:
+          - h1 は visible text ("お気楽チャット") からそのまま name を導出する
+            (URL 部分は aria-hidden 済み)
+          - a 側も aria-label は付けず、リンク先のヒントは title 属性で補う
+       */}
       <a
         className="ochat-header__logo"
         href={import.meta.env.BASE_URL}
-        aria-label="お気楽チャット トップへ"
+        title="お気楽チャットのトップへ"
       >
         <WingIcon className="ochat-header__logo-wing" />
         <span className="ochat-header__logo-texts">
@@ -43,6 +49,9 @@ type GuideMenuItem = {
 /**
  * ガイドメニュー。各項目は `<GuideIcon>` + テキストで構成され、
  * アイコンは装飾扱い（`aria-hidden="true"`）。
+ *
+ * 現状は遷移先未定のため `<button type="button">` でプレースホルダー描画する。
+ * 遷移先が確定したら `<a href={item.href}>` に戻す。
  */
 function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
   return (
@@ -50,10 +59,10 @@ function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
       <ul className="ochat-header__guide-list">
         {items.map((item) => (
           <li key={item.label} className="ochat-header__guide-item">
-            <a className="ochat-header__guide-link" href={item.href}>
+            <button type="button" className="ochat-header__guide-link" disabled>
               <GuideIcon kind={item.iconKind} className="ochat-header__guide-icon" />
               <span>{item.label}</span>
-            </a>
+            </button>
           </li>
         ))}
       </ul>
@@ -63,8 +72,12 @@ function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
 
 /**
  * 1段目（プライマリ）タブ行。白〜薄グレーグラデ背景、アクティブ項目のみ青グラデ + 白文字。
+ *
+ * 現状は遷移先未定のため `<button type="button">` でプレースホルダー描画する。
+ * `activeIndex` は CSS によるビジュアル強調のみで用い、`aria-current` は付与しない
+ * (現在地を表すページが存在しないため)。
  */
-function PrimaryTabs({ items, activeIndex }: { items: readonly string[]; activeIndex: number }) {
+function PrimaryTabs({ items, activeIndex }: { items: readonly string[]; activeIndex?: number }) {
   return (
     <nav aria-label="メインナビゲーション" className="ochat-header__primary">
       <ul className="ochat-header__primary-list">
@@ -74,9 +87,9 @@ function PrimaryTabs({ items, activeIndex }: { items: readonly string[]; activeI
             'ochat-header__primary-tab' + (isActive ? ' ochat-header__primary-tab--active' : '');
           return (
             <li key={label} className="ochat-header__primary-item">
-              <a className={className} href="#" aria-current={isActive ? 'page' : undefined}>
+              <button type="button" className={className} disabled>
                 {label}
-              </a>
+              </button>
             </li>
           );
         })}
@@ -149,7 +162,8 @@ export function Header(): ReactNode {
         <LogoBlock />
         <GuideMenu items={guideItems} />
       </div>
-      <PrimaryTabs items={primaryNav} activeIndex={0} />
+      {/* PrimaryTabs は遷移先未定。activeIndex は渡さず、視覚的にも非アクティブで描画する */}
+      <PrimaryTabs items={primaryNav} />
       <div className="ochat-header__seam" aria-hidden="true" />
       <SecondaryTabs items={tabNav} activeIndex={0} />
     </header>

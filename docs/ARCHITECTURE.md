@@ -188,25 +188,25 @@ type ChanariRouteMatch =
   | { type: 'redirect'; to: string };
 ```
 
-| パターン                  | 結果                                                |
-| ------------------------- | --------------------------------------------------- |
-| `/`                       | `TopRoute`                                          |
+| パターン                  | 結果                                                 |
+| ------------------------- | ---------------------------------------------------- |
+| `/`                       | `TopRoute`                                           |
 | `/chat`                   | `/chat/superbeginner` へ `replaceState` リダイレクト |
-| `/chat/:roomId` (有効)    | `ChatRoute`                                         |
+| `/chat/:roomId` (有効)    | `ChatRoute`                                          |
 | `/chanari`                | `/chanari/superbeginner` へリダイレクト              |
-| `/chanari/:roomId` (有効) | `ChanariRoute`                                      |
-| 上記以外                  | `NotFoundRoute`                                     |
+| `/chanari/:roomId` (有効) | `ChanariRoute`                                       |
+| 上記以外                  | `NotFoundRoute`                                      |
 
 App.tsx は `popstate` 監視と `redirect` 種別の自動再評価を担当します。各ルートコンポーネントは**静的 import** で読み込まれ（route 単位の `React.lazy` は導入していません）、`ChatLogList` のみ `ChatRoute` 内で `React.lazy` 化されています。
 
 ### 4.3 レイヤー構成
 
-| レイヤー          | 責務                       | 主要ファイル                                                                |
-| ----------------- | -------------------------- | --------------------------------------------------------------------------- |
-| UI コンポーネント | 描画・ユーザー操作         | `features/*/components/`、`shared/components/`                              |
-| カスタムフック    | 状態管理・ビジネスロジック | `features/*/hooks/`、`shared/hooks/`                                        |
+| レイヤー          | 責務                       | 主要ファイル                                                                     |
+| ----------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| UI コンポーネント | 描画・ユーザー操作         | `features/*/components/`、`shared/components/`                                   |
+| カスタムフック    | 状態管理・ビジネスロジック | `features/*/hooks/`、`shared/hooks/`                                             |
 | API 層            | データ取得・永続化・通信   | `features/chat/api/chatLogResource.ts`、`chatApi.ts`、`top/api/roomCountsApi.ts` |
-| Supabase Client   | DB 接続・認証              | `shared/supabaseClient.ts`                                                  |
+| Supabase Client   | DB 接続・認証              | `shared/supabaseClient.ts`                                                       |
 
 ---
 
@@ -257,7 +257,7 @@ mergeChat(newChat)
     └─ 新規 → 先頭に追加（最大 2000 件保持）
 ```
 
-`chatApi.ts` 内で `broadcastChannels` / `lookCallbacks` を room 単位の Map で持ち、複数の購読者が同一 channel を共有します。
+`chatApi.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) と `broadcastEntries` (`chats-broadcast-${roomId}`) の refcount registry を持ち、Postgres Changes と Broadcast はそれぞれ room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄され、send-only 利用（listener 0 での `broadcastLookEvent` / `broadcastUnlookEvent`）も送信完了後に同様に破棄されます。
 
 ### 5.3 初期読み込みフロー
 
@@ -311,17 +311,17 @@ fetchRoomParticipantCounts()
 
 外部状態管理ライブラリ（Redux, Zustand 等）は使用せず、React 組み込みの Hooks で完結しています。
 
-| フック                | 用途                                  | React API                                                       |
-| --------------------- | ------------------------------------- | --------------------------------------------------------------- |
-| `useChatLog`          | チャットログ全体の管理 + 楽観的更新   | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
-| `useChatHandlers`     | 入室・退室・送信・リロード            | `useCallback`, `useTransition`                                  |
-| `useParticipants`     | 参加者リスト導出                      | `useDeferredValue` → `useMemo`                                  |
-| `useNowMinute`        | 1 分境界で再評価する現在時刻          | `useState`, `useEffect` (`setTimeout` + `setInterval`)          |
-| `useRoomCounts`       | トップ用ルーム別参加人数              | `useState`, `useEffect`                                         |
-| `useChanariSettings`  | Chanari の設定永続化                  | `useState`, `useEffect` (`localStorage`)                        |
-| `useReloadInterval`   | Chanari のリロード間隔タイマー        | `useEffect`                                                     |
-| `useSEO`              | メタデータ管理                        | `useEffect`                                                     |
-| `useBroadcastChannel` | クロスタブ通信                        | `useRef`, `useEffect`                                           |
+| フック                | 用途                                | React API                                                           |
+| --------------------- | ----------------------------------- | ------------------------------------------------------------------- |
+| `useChatLog`          | チャットログ全体の管理 + 楽観的更新 | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
+| `useChatHandlers`     | 入室・退室・送信・リロード          | `useCallback`, `useTransition`                                      |
+| `useParticipants`     | 参加者リスト導出                    | `useDeferredValue` → `useMemo`                                      |
+| `useNowMinute`        | 1 分境界で再評価する現在時刻        | `useState`, `useEffect` (`setTimeout` + `setInterval`)              |
+| `useRoomCounts`       | トップ用ルーム別参加人数            | `useState`, `useEffect`                                             |
+| `useChanariSettings`  | Chanari の設定永続化                | `useState`, `useEffect` (`localStorage`)                            |
+| `useReloadInterval`   | Chanari のリロード間隔タイマー      | `useEffect`                                                         |
+| `useSEO`              | メタデータ管理                      | `useEffect`                                                         |
+| `useBroadcastChannel` | クロスタブ通信                      | `useRef`, `useEffect`                                               |
 
 ### 6.2 useChatLog の内部構造
 
@@ -372,18 +372,20 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ### 7.1 chatLogResource.ts（取得・キャッシュ・dedupe の集約）
 
-| エクスポート                              | 用途                                          |
-| ----------------------------------------- | --------------------------------------------- |
-| `loadChatLogs(roomId, useCache?)`         | canonical snapshot（最大 100 件）             |
-| `loadChatLogsWithPaging(roomId, offset, limit, useCache?)` | `offset===0` は snapshot を slice。`offset>0` は独立クエリ |
-| `loadInitialChatLogs(roomId, limit?)`     | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス |
-| `prefetchChatLogs(roomId)`                | 結果を捨てつつキャッシュ充填する best-effort  |
-| `invalidateCache(roomId?)`                | room 指定 or 全体クリア、in-flight も解除     |
-| `applyOptimisticToCache(roomId, chat)`    | 楽観的 chat をキャッシュ先頭に挿入            |
-| `replaceOptimisticInCache(tempUuid, serverChat)` | temp 行を server chat で置換           |
-| `getCacheInfo(roomId?)`                   | キャッシュ有無 / age を返す                   |
-| `getPagingHasMore(roomId, offset, limit)` | 直近の paging クエリの `count` 由来判定       |
-| `chatLogResource`                         | 上記をまとめたオブジェクト                    |
+| エクスポート                                               | 用途                                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `loadChatLogsSnapshot(roomId, useCache?)`                  | canonical snapshot を `{ data, hasMore }` shape で取得（取得結果に hasMore を同梱） |
+| `loadChatLogs(roomId, useCache?)`                          | `loadChatLogsSnapshot` の `data` のみを返す後方互換 API                             |
+| `loadChatLogsWithPaging(roomId, offset, limit, useCache?)` | `offset===0` は snapshot を slice。`offset>0` は独立クエリ                          |
+| `loadInitialChatLogs(roomId, limit?)`                      | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス                                  |
+| `prefetchChatLogs(roomId)`                                 | 結果を捨てつつキャッシュ充填する best-effort                                        |
+| `invalidateCache(roomId?)`                                 | room 指定 or 全体クリア、in-flight も解除                                           |
+| `applyOptimisticToCache(roomId, chat)`                     | 楽観的 chat をキャッシュ先頭に挿入                                                  |
+| `replaceOptimisticInCache(tempUuid, serverChat)`           | temp 行を server chat で置換                                                        |
+| `getCacheInfo(roomId?)`                                    | キャッシュ有無 / age を返す                                                         |
+| `getPagingHasMore(roomId, offset, limit)`                  | 直近の paging クエリの `count` 由来判定                                             |
+| `getSnapshotHasMore(roomId)`                               | 観測用: 直近 snapshot 取得時の hasMore（未取得 / オフライン中は undefined）         |
+| `chatLogResource`                                          | 上記をまとめたオブジェクト                                                          |
 
 主要な内部状態:
 
@@ -406,18 +408,18 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ### 7.2 chatApi.ts（書き込み / Realtime / 互換ラッパー）
 
-`loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。
+`loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` / `getSnapshotHasMore` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。`loadChatLogsWithPaging(offset===0)` は `loadChatLogsSnapshot` を直接呼び、`hasMore` を **取得結果と同じ往復で確定した値** から組み立てるため、取得中に `invalidateCache` が走って generation が更新されても hasMore がロストしません。
 
-| 関数                         | 用途                     | 特徴                                                       |
-| ---------------------------- | ------------------------ | ---------------------------------------------------------- |
-| `saveChatLogOptimistic()`    | 楽観的更新用保存         | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate |
-| `saveChatLog()`              | 従来互換の保存           | 全カラム select                                            |
-| `saveChatLogFireAndForget()` | 非ブロッキング保存       | レスポンス不要の最高速版                                   |
-| `clearChatLogs(roomId)`      | room 単位の全件削除      | room を絞ってキャッシュ無効化                              |
-| `clearChatLogsByName()`      | 指定ユーザーの論理削除   | `deleted=true` UPDATE                                      |
-| `loadChatLogsByTimeRange()`  | 時間範囲検索             | UUID v7 範囲クエリ最適化                                   |
-| `subscribeChatLogs()`        | リアルタイム購読         | room ごとに 1 channel を共有                               |
-| `broadcastLookEvent()` 等    | look/unlook 通知の同報   | Realtime broadcast チャネルを再利用                        |
+| 関数                         | 用途                   | 特徴                                                                              |
+| ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
+| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate                      |
+| `saveChatLog()`              | 従来互換の保存         | 全カラム select                                                                   |
+| `saveChatLogFireAndForget()` | 非ブロッキング保存     | レスポンス不要の最高速版                                                          |
+| `clearChatLogs(roomId)`      | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
+| `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
+| `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
+| `subscribeChatLogs()`        | リアルタイム購読       | room ごとに 1 channel を共有                                                      |
+| `broadcastLookEvent()` 等    | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                                               |
 
 ### 7.3 features/top/api/roomCountsApi.ts
 
@@ -431,21 +433,23 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ```typescript
 type Chat = {
-  uuid: string;            // UUID v7（サーバー側で自動生成、主キー）
-  room_id?: RoomId;        // 部屋ごとのログ分離（旧データ互換のため optional）
+  uuid: string; // UUID v7（サーバー側で自動生成、主キー）
+  room_id?: RoomId; // 部屋ごとのログ分離（旧データ互換のため optional）
   name: string;
   color: string;
   message: string;
-  time: number;            // Unix timestamp ms（サーバー側で設定）
-  client_time?: number;    // クライアント投稿時刻（楽観的更新の dedup キー）
-  optimistic?: boolean;    // 楽観的更新フラグ
-  system?: boolean;        // システムメッセージフラグ
+  time: number; // Unix timestamp ms（サーバー側で設定）
+  client_time?: number; // クライアント投稿時刻（楽観的更新 dedup の fallback キー）
+  optimistic?: boolean; // 楽観的更新フラグ
+  system?: boolean; // システムメッセージフラグ
   email?: string;
-  ip: string;              // クライアント IP（読み出し時は通常 SELECT しない）
-  ua: string;              // User-Agent（同上）
-  metadata?: ChatMetadata; // フォントスタイル / アバター / kind / userColor 等
+  ip: string; // クライアント IP（読み出し時は通常 SELECT しない）
+  ua: string; // User-Agent（同上）
+  metadata?: ChatMetadata; // フォントスタイル / アバター / kind / userColor / optimisticNonce 等
 };
 ```
+
+楽観的更新の dedup 主キーは `metadata.optimisticNonce`（`createOptimisticChat` がランダム生成）で、両側に nonce が揃っていればこちらだけで一致判定する。`client_time` は nonce 未付与の旧データへの fallback キーとして使うが、両側で数値であることを必須条件とする（`undefined === undefined` の誤一致を避けるため）。
 
 `ChatMetadata.kind = 'admin'` の管理人発言には `userColor` を持たせ、Welcome / 退室メッセージを `ParticipantsList` への参加者集計に用います（`useParticipants.getRecentParticipants` 参照）。
 
@@ -495,12 +499,12 @@ type Chat = {
 
 ```css
 /* src/styles/theme.css */
---color-yui-green: #a1fe9f;       /* メイン背景色 */
---color-yui-pink: #ff69b4;        /* アクセントカラー */
---color-yui-pink-light: #ffe4ef;  /* ライトピンク */
---color-ie-gray: #b1b1b1;         /* IE 風グレー */
---color-ie-blue: #4a90e2;         /* IE 風ブルー */
---color-ie-bg: #f3f3f3;           /* IE 風背景 */
+--color-yui-green: #a1fe9f; /* メイン背景色 */
+--color-yui-pink: #ff69b4; /* アクセントカラー */
+--color-yui-pink-light: #ffe4ef; /* ライトピンク */
+--color-ie-gray: #b1b1b1; /* IE 風グレー */
+--color-ie-blue: #4a90e2; /* IE 風ブルー */
+--color-ie-bg: #f3f3f3; /* IE 風背景 */
 
 --font-yui: 'Zen Maru Gothic', 'MS UI Gothic', Arial, sans-serif;
 ```
@@ -509,17 +513,17 @@ type Chat = {
 
 ### 9.2 主要コンポーネント
 
-| コンポーネント                  | 責務                                                            |
-| ------------------------------- | --------------------------------------------------------------- |
-| `RetroSplitter`                 | 上下ペインのリサイズ可能な分割レイアウト                        |
-| `ChatRoom`                      | メッセージ入力・送信・退室ボタン                                |
-| `EntryForm`                     | 名前・色・メール入力、入室ボタン                                |
-| `ChatLogList` (memo + lazy)     | メッセージ履歴の表示。`useMemo` で slice、内部で `useParticipants` を呼ぶ |
-| `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）            |
-| `ChatRanking`                   | 発言数ランキング表示                                            |
-| `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製              |
-| `TopPage` + `components/header` | 旧ヘッダー（テキスト + CSS）、左カラムのルームリンク群          |
-| `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔  |
+| コンポーネント                  | 責務                                                                                                                          |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `RetroSplitter`                 | 上下ペインのリサイズ可能な分割レイアウト                                                                                      |
+| `ChatRoom`                      | メッセージ入力・送信・退室ボタン                                                                                              |
+| `EntryForm`                     | 名前・色・メール入力、入室ボタン                                                                                              |
+| `ChatLogList` (memo + lazy)     | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ |
+| `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                          |
+| `ChatRanking`                   | 発言数ランキング表示                                                                                                          |
+| `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                            |
+| `TopPage` + `components/header` | 旧ヘッダー（テキスト + CSS）、左カラムのルームリンク群                                                                        |
+| `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                |
 
 ### 9.3 トップページ
 
@@ -545,29 +549,29 @@ type Chat = {
 
 ### 10.1 ビルド最適化
 
-| 最適化       | 設定                                                              |
-| ------------ | ----------------------------------------------------------------- |
+| 最適化       | 設定                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------- |
 | コード分割   | Vite の `manualChunks` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
-| Tree Shaking | Rollup `treeshake: 'recommended'`                                 |
-| 圧縮         | Terser（`console.log` 削除、変数名短縮）                          |
-| CSS 圧縮     | Lightning CSS                                                     |
-| ターゲット   | ES2022                                                            |
+| Tree Shaking | Rollup `treeshake: 'recommended'`                                                           |
+| 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                    |
+| CSS 圧縮     | Lightning CSS                                                                               |
+| ターゲット   | ES2022                                                                                      |
 
 ### 10.2 ランタイム最適化
 
-| 最適化                           | 実装                                                                     |
-| -------------------------------- | ------------------------------------------------------------------------ |
-| 遅延読み込み                     | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）     |
-| 楽観的更新                       | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止       |
-| トランジション                   | `useTransition` / `startTransition` で低優先度更新                       |
-| 派生値のメモ化                   | `ChatLogList` / `ChatMessage` を `React.memo`、`chats = useMemo(...)`    |
-| `useParticipants`                | `useDeferredValue(chatLog)` の出力を `useMemo` に通し、再計算を抑制      |
-| 時刻更新の節約                   | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`     |
-| API 取得 dedupe                  | `chatLogResource` の `snapshotInflight` / `pagingInflight`               |
-| キャッシュ                       | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止 |
-| Supabase 帯域削減                | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ |
-| Realtime チャネル共有            | room ごとに 1 channel を再利用、look broadcast も同 channel に相乗り     |
-| パフォーマンス監視               | 3 秒超の API 呼び出しを `console.warn`                                   |
+| 最適化                | 実装                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------- |
+| 遅延読み込み          | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）               |
+| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                 |
+| トランジション        | `useTransition` / `startTransition` で低優先度更新                                 |
+| 派生値のメモ化        | `ChatLogList` / `ChatMessage` を `React.memo`、`chats = useMemo(...)`              |
+| `useParticipants`     | `useDeferredValue(chatLog)` の出力を `useMemo` に通し、再計算を抑制                |
+| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`               |
+| API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                         |
+| キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止         |
+| Supabase 帯域削減     | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ |
+| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
+| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                             |
 
 ---
 
@@ -664,7 +668,7 @@ jobs:
     - actions/setup-node@v3  (node 18)
     - npm install -g pnpm
     - pnpm install
-    - pnpm test               # continue-on-error: true
+    - pnpm test # continue-on-error: true
 ```
 
 `.github/workflows/chromatic.yml` — Storybook ビジュアルリグレッション
@@ -733,12 +737,12 @@ VITE_SUPABASE_ANON_KEY=public-anon-key
 
 ### 15.3 コード品質ツール
 
-| ツール     | 設定ファイル        | 主な設定                                                |
-| ---------- | ------------------- | ------------------------------------------------------- |
+| ツール     | 設定ファイル        | 主な設定                                                                          |
+| ---------- | ------------------- | --------------------------------------------------------------------------------- |
 | ESLint     | `eslint.config.js`  | React Hooks, React Refresh, Prettier 連携、`.kiro` 等を ignore、Markdown は対象外 |
-| Prettier   | `.prettierrc`       | シングルクォート、100 文字幅、セミコロンあり            |
-| TypeScript | `tsconfig.app.json` | strict モード、パスエイリアス                           |
-| Lefthook   | `lefthook.yml`      | Git フック（コミット前チェック）                        |
+| Prettier   | `.prettierrc`       | シングルクォート、100 文字幅、セミコロンあり                                      |
+| TypeScript | `tsconfig.app.json` | strict モード、パスエイリアス                                                     |
+| Lefthook   | `lefthook.yml`      | Git フック（コミット前チェック）                                                  |
 
 ### 15.4 パスエイリアス
 

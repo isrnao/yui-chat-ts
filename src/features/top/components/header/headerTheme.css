@@ -183,10 +183,26 @@
   gap: 4px;
   color: var(--ochat-h-guide-link);
   text-decoration: none;
+  /* button 互換のリセット (現状は <button type="button" disabled> でも描画される) */
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
 }
 
-.ochat-header__guide-link:hover,
-.ochat-header__guide-link:focus {
+.ochat-header__guide-link:disabled {
+  cursor: default;
+  /* disabled でも視覚はリンク同様に保つ */
+  opacity: 1;
+  color: var(--ochat-h-guide-link);
+}
+
+/* disabled プレースホルダーには hover を当てない (操作不能なのに反応するように見えるのを防ぐ) */
+.ochat-header__guide-link:not(:disabled):hover,
+.ochat-header__guide-link:not(:disabled):focus {
   color: var(--ochat-h-guide-link-hover);
   text-decoration: underline;
 }
@@ -234,6 +250,13 @@
   font-weight: 500;
   color: var(--ochat-h-primary-tab-fg);
   text-decoration: none;
+  /* button 互換のリセット (現状は <button type="button" disabled> でも描画される) */
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
   /* タブ上辺の丸み: レガシーデザインを踏襲 */
   border-radius: 5px 5px 0 0;
   background: linear-gradient(
@@ -248,9 +271,20 @@
     inset 0 -1px 0 var(--ochat-h-primary-tab-divider);
 }
 
+.ochat-header__primary-tab:disabled {
+  cursor: default;
+  opacity: 1;
+  color: var(--ochat-h-primary-tab-fg);
+}
+
+/*
+ * --active は明示的な「現在地」状態 (現状は付与する callsite なし)。
+ * hover/focus は disabled プレースホルダーには適用せず、
+ * 遷移可能なタブにのみアクティブ風の青グラデーションを当てる。
+ */
 .ochat-header__primary-tab--active,
-.ochat-header__primary-tab:hover,
-.ochat-header__primary-tab:focus {
+.ochat-header__primary-tab:not(:disabled):hover,
+.ochat-header__primary-tab:not(:disabled):focus {
   background: linear-gradient(
     to bottom,
     var(--ochat-h-primary-tab-active-bg-top) 0%,

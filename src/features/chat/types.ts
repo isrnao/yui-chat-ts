@@ -100,6 +100,12 @@ export type ChatMetadata = {
   kind?: 'normal' | 'fortune' | 'admin';
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
+  /**
+   * 楽観的更新の重複表示防止用 nonce。
+   * `createOptimisticChat` が生成し、保存時にサーバーへ送られ、realtime INSERT で
+   * echo されて返るため、temp UUID と savedChat の同一性判定の強い鍵として使える。
+   */
+  optimisticNonce?: string;
 };
 
 // --- チャットメッセージ ---

@@ -23,7 +23,6 @@ export const CHAT_ROOM_IDS = [
   'anime',
   'reborn',
   'monhan',
-  'kintama',
   'rozen',
   // ゲームチャット
   'game',
@@ -137,7 +136,6 @@ const ROOM_TITLES: Record<RoomId, string> = {
   anime: 'アニメチャット',
   reborn: 'リボーンチャット',
   monhan: 'モンスターハンターチャット',
-  kintama: '銀魂チャット',
   rozen: 'ローゼンメイデンチャット',
 
   game: 'ゲームチャット',
@@ -193,7 +191,10 @@ const ROOM_TITLES: Record<RoomId, string> = {
   durarara: 'デュラララ チャット',
   vocaloid: 'ボカロチャット',
   hetaria: 'ヘタリア チャット',
-  gintama: '銀魂なりきりチャット',
+  // `gintama` は /chat/gintama (通常: 銀魂チャット) と
+  // /chanari/gintama (なりきり用) で同一 ID を共有する。
+  // 表示ラベルは data.ts 側で section ごとに使い分ける。
+  gintama: '銀魂チャット',
   inazuma11: 'イナズマイレブンチャット',
   tenipri: 'テニプリチャット',
   touhou: '東方チャット',

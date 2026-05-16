@@ -11,14 +11,30 @@ const CACHE_DURATION = 5 * 60 * 1000;
 
 interface CacheEntry {
   data: Chat[];
+  /**
+   * canonical snapshot がテーブルの全件を含んでいない (= さらに続きが存在する) かどうか。
+   * フェッチ時に `MAX_CHAT_LOG + 1` 件取得して判定し、ここに同梱する。
+   * オフラインフォールバック中などで判定できなかった場合は undefined。
+   */
+  hasMore: boolean | undefined;
   timestamp: number;
 }
 
+/** canonical snapshot 1 回分の戻り値 shape。 */
+export type SnapshotResult = { data: Chat[]; hasMore: boolean | undefined };
+
 const cache = new Map<RoomId, CacheEntry>();
-const snapshotInflight = new Map<RoomId, Promise<Chat[]>>();
+const snapshotInflight = new Map<RoomId, Promise<SnapshotResult>>();
 const pagingInflight = new Map<string, Promise<Chat[]>>();
 const pagingHasMore = new Map<string, boolean>();
 const cacheGeneration = new Map<RoomId, number>();
+/**
+ * canonical snapshot がテーブルの全件を含んでいない (= さらに続きが存在する) かどうか。
+ * `loadChatLogsSnapshot` の戻り値と同期して更新される観測用 Map。
+ * 競合に強い呼び出しは戻り値の `hasMore` を優先し、こちらは外部の単発参照に使う。
+ * 未取得 / オフラインフォールバック中は undefined を返すよう delete される。
+ */
+const snapshotHasMore = new Map<RoomId, boolean>();
 
 function startPerf(): number {
   return performance.now();
@@ -63,9 +79,10 @@ function isFreshCache(entry: CacheEntry): boolean {
   return Date.now() - entry.timestamp < CACHE_DURATION;
 }
 
-function setCachedChatLogs(roomId: RoomId, data: Chat[]): void {
+function setCachedChatLogs(roomId: RoomId, data: Chat[], hasMore: boolean | undefined): void {
   cache.set(roomId, {
     data: data.slice(0, MAX_CHAT_LOG),
+    hasMore,
     timestamp: Date.now(),
   });
 }
@@ -86,36 +103,52 @@ async function fetchSnapshot(
   roomId: RoomId,
   generation: number,
   startTime: number
-): Promise<Chat[]> {
+): Promise<SnapshotResult> {
   return retryApiCall(async () => {
     if (!isOnline()) {
       endPerf('loadChatLogs-offline', startTime);
-      return getOfflineChatData(roomId);
+      // オフラインフォールバック中は「続きがあるか」を確定できない。
+      // 戻り値で undefined を返しつつ、観測 Map も最新 generation なら "未取得" 状態にする。
+      if (getCacheGeneration(roomId) === generation) {
+        snapshotHasMore.delete(roomId);
+      }
+      return { data: getOfflineChatData(roomId), hasMore: undefined };
     }
 
+    // hasMore を正確に返すため MAX_CHAT_LOG + 1 件取得し、超過分の有無で判定する。
+    // 超過分は表示・キャッシュには含めない。
     const { data, error } = await supabase
       .from(TABLE)
       .select(SELECT_COLUMNS)
       .eq('room_id', roomId)
       .eq('deleted', false)
       .order('uuid', { ascending: false })
-      .limit(MAX_CHAT_LOG);
+      .limit(MAX_CHAT_LOG + 1);
 
     if (error) {
       if (error.code === '401' || error.message.includes('JWT')) {
-        return getOfflineChatData(roomId);
+        // 認証 fallback も同様に「未取得」扱いにする (復旧後に再判定したいため)。
+        if (getCacheGeneration(roomId) === generation) {
+          snapshotHasMore.delete(roomId);
+        }
+        return { data: getOfflineChatData(roomId), hasMore: undefined };
       }
 
       throw new Error(`Supabase error: ${error.message} (${error.code})`);
     }
 
-    const chatData = (data ?? []).map(normalizeChat);
+    const rows = (data ?? []).map(normalizeChat);
+    const hasMore = rows.length > MAX_CHAT_LOG;
+    const chatData = hasMore ? rows.slice(0, MAX_CHAT_LOG) : rows;
+    // generation が古いと判明した場合でも戻り値の hasMore は呼び出し元に渡す
+    // (caller が取得結果と一緒に判定できるよう、stale 応答であっても情報を失わない)。
     if (getCacheGeneration(roomId) === generation) {
-      setCachedChatLogs(roomId, chatData);
+      setCachedChatLogs(roomId, chatData, hasMore);
+      snapshotHasMore.set(roomId, hasMore);
     }
     endPerf('loadChatLogs-network', startTime);
 
-    return chatData;
+    return { data: chatData, hasMore };
   });
 }
 
@@ -161,16 +194,22 @@ async function fetchPage(
   });
 }
 
-export async function loadChatLogs(
+/**
+ * canonical snapshot を `{ data, hasMore }` shape で返す。
+ * 取得タイミングで決まった hasMore を取得結果と必ずペアで返すため、
+ * 取得中に `invalidateCache` が走って generation が変わっても
+ * 呼び出し元はそのリクエスト固有の hasMore を信頼できる。
+ */
+export async function loadChatLogsSnapshot(
   roomId: RoomId = DEFAULT_ROOM_ID,
   useCache = true
-): Promise<Chat[]> {
+): Promise<SnapshotResult> {
   const startTime = startPerf();
 
   const cached = getCachedChatLogs(roomId);
   if (useCache && cached && isFreshCache(cached)) {
     endPerf('loadChatLogs-cache', startTime);
-    return cached.data;
+    return { data: cached.data, hasMore: cached.hasMore };
   }
 
   const inflight = snapshotInflight.get(roomId);
@@ -179,7 +218,7 @@ export async function loadChatLogs(
   }
 
   const generation = getCacheGeneration(roomId);
-  let request: Promise<Chat[]>;
+  let request: Promise<SnapshotResult>;
   request = fetchSnapshot(roomId, generation, startTime).finally(() => {
     if (snapshotInflight.get(roomId) === request) {
       snapshotInflight.delete(roomId);
@@ -187,6 +226,18 @@ export async function loadChatLogs(
   });
   snapshotInflight.set(roomId, request);
   return request;
+}
+
+/**
+ * canonical snapshot を Chat[] のみで返す後方互換 API。
+ * hasMore も必要な呼び出し元は `loadChatLogsSnapshot` を直接使うこと。
+ */
+export async function loadChatLogs(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  useCache = true
+): Promise<Chat[]> {
+  const { data } = await loadChatLogsSnapshot(roomId, useCache);
+  return data;
 }
 
 export async function loadChatLogsWithPaging(
@@ -201,8 +252,8 @@ export async function loadChatLogsWithPaging(
         `loadChatLogsWithPaging requested ${limit} rows; canonical snapshot is capped at ${MAX_CHAT_LOG}`
       );
     }
-    const snapshot = await loadChatLogs(roomId, useCache);
-    return snapshot.slice(0, limit);
+    const { data } = await loadChatLogsSnapshot(roomId, useCache);
+    return data.slice(0, limit);
   }
 
   const key = getPagingKey(roomId, offset, limit);
@@ -232,7 +283,7 @@ export async function loadInitialChatLogs(
 
 export async function prefetchChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
   try {
-    await loadChatLogs(roomId);
+    await loadChatLogsSnapshot(roomId);
   } catch {
     // Best-effort prefetch only.
   }
@@ -242,6 +293,7 @@ export function invalidateCache(roomId?: RoomId): void {
   if (roomId) {
     cache.delete(roomId);
     snapshotInflight.delete(roomId);
+    snapshotHasMore.delete(roomId);
     bumpCacheGeneration(roomId);
     for (const key of pagingInflight.keys()) {
       if (key.startsWith(`${roomId}|`)) {
@@ -259,6 +311,7 @@ export function invalidateCache(roomId?: RoomId): void {
   const roomsToInvalidate = new Set<RoomId>([
     ...cache.keys(),
     ...snapshotInflight.keys(),
+    ...snapshotHasMore.keys(),
     ...cacheGeneration.keys(),
   ]);
   for (const key of pagingInflight.keys()) {
@@ -270,6 +323,7 @@ export function invalidateCache(roomId?: RoomId): void {
 
   cache.clear();
   snapshotInflight.clear();
+  snapshotHasMore.clear();
   pagingInflight.clear();
   pagingHasMore.clear();
   for (const room of roomsToInvalidate) {
@@ -281,7 +335,7 @@ export function applyOptimisticToCache(roomId: RoomId, chat: Chat): void {
   const roomCache = getCachedChatLogs(roomId);
   if (!roomCache) return;
 
-  setCachedChatLogs(roomId, [chat, ...roomCache.data]);
+  setCachedChatLogs(roomId, [chat, ...roomCache.data], roomCache.hasMore);
 }
 
 export function replaceOptimisticInCache(optimisticUuid: string, serverChat: Chat): void {
@@ -294,7 +348,7 @@ export function replaceOptimisticInCache(optimisticUuid: string, serverChat: Cha
 
   const next = [...roomCache.data];
   next[index] = serverChat;
-  setCachedChatLogs(roomId, next);
+  setCachedChatLogs(roomId, next, roomCache.hasMore);
 }
 
 export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
@@ -317,8 +371,17 @@ export function getPagingHasMore(
   return pagingHasMore.get(getPagingKey(roomId, offset, limit));
 }
 
+/**
+ * canonical snapshot (offset=0) に追加で続きが存在するかどうか。
+ * 未取得 / オフラインフォールバック中は undefined を返す。
+ */
+export function getSnapshotHasMore(roomId: RoomId): boolean | undefined {
+  return snapshotHasMore.get(roomId);
+}
+
 export const chatLogResource = {
   loadChatLogs,
+  loadChatLogsSnapshot,
   loadChatLogsWithPaging,
   loadInitialChatLogs,
   prefetchChatLogs,
@@ -326,4 +389,5 @@ export const chatLogResource = {
   applyOptimisticToCache,
   getCacheInfo,
   getPagingHasMore,
+  getSnapshotHasMore,
 };

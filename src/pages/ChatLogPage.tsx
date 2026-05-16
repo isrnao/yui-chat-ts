@@ -1,6 +1,6 @@
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
-import { loadInitialChatLogs, loadChatLogsWithPaging } from '@features/chat/api/chatApi';
+import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
 import Button from '@shared/components/Button';
 import type { Chat } from '@features/chat/types';
@@ -19,17 +19,16 @@ export default function ChatLogPage() {
   const loadInitialData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // プリロードされたデータがあれば使用
-      let initialData: Chat[];
+      // プリロード（usePreloadChatLogs 内で `loadInitialChatLogs` が走り、
+      // chatLogResource のキャッシュに canonical snapshot が積まれている）。
+      // 結果は破棄して、hasMore を正確に返す `loadChatLogsWithPaging` 経由で再取得する。
       if (preloadPromise) {
-        initialData = await preloadPromise;
-      } else {
-        // 初回は少量のデータを素早く読み込み
-        initialData = await loadInitialChatLogs(DEFAULT_ROOM_ID, Math.min(windowRows, 100));
+        await preloadPromise;
       }
-
-      setChatLog(initialData);
-      setHasMore(initialData.length >= Math.min(windowRows, 100));
+      const limit = Math.min(windowRows, 100);
+      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, limit, 0, true);
+      setChatLog(result.data);
+      setHasMore(result.hasMore);
     } catch (error) {
       console.error('Failed to load chat logs:', error);
     } finally {

@@ -125,4 +125,98 @@ describe('useChatLog', () => {
     expect(second).toHaveLength(1);
     expect(second[0]).toEqual(savedChat);
   });
+
+  describe('optimisticNonce による dedup (主キー)', () => {
+    it('nonce 一致なら他フィールドが違っても重複扱いで temp をスキップする', () => {
+      // legacy fallback キー (client_time / name / message) はすべて異なるが、
+      // nonce が一致するので saved 側と同一とみなして temp は prepend されない。
+      const savedChat: Chat = {
+        uuid: '018f-saved',
+        room_id: 'superbeginner',
+        name: 'Taro',
+        color: '#f00',
+        message: 'Hello',
+        time: 1_700_000_000_100,
+        client_time: 1_700_000_000_000,
+        optimistic: false,
+        ip: 'test-ip',
+        ua: 'test-ua',
+        metadata: { version: 1, optimisticNonce: 'nonce-abc' },
+      };
+      const tempChat: Chat = {
+        uuid: 'temp-xyz',
+        room_id: 'hajime', // different
+        name: 'Different', // different
+        color: '#000', // different
+        message: 'Different', // different
+        time: 999,
+        client_time: 555, // different (legacy fallback ならアンマッチになる)
+        optimistic: true,
+        ip: 'test-ip',
+        ua: 'test-ua',
+        metadata: { version: 1, optimisticNonce: 'nonce-abc' },
+      };
+
+      expect(reduceOptimisticChat([savedChat], tempChat)).toEqual([savedChat]);
+    });
+
+    it('nonce が異なれば同文面でも別チャットとして残す', () => {
+      const savedChat: Chat = {
+        uuid: '018f-saved',
+        room_id: 'superbeginner',
+        name: 'Taro',
+        color: '#f00',
+        message: 'Hello',
+        time: 1_700_000_000_100,
+        client_time: 1_700_000_000_000,
+        optimistic: false,
+        ip: 'test-ip',
+        ua: 'test-ua',
+        metadata: { version: 1, optimisticNonce: 'nonce-saved' },
+      };
+      const tempChat: Chat = {
+        ...savedChat,
+        uuid: 'temp-other',
+        time: 999,
+        optimistic: true,
+        metadata: { version: 1, optimisticNonce: 'nonce-temp' },
+      };
+
+      const next = reduceOptimisticChat([savedChat], tempChat);
+      expect(next).toEqual([tempChat, savedChat]);
+    });
+
+    it('fallback は両側で client_time が数値のときのみ成立する', () => {
+      // 旧データ (nonce なし) で client_time が両側 undefined だと、
+      // undefined === undefined で別メッセージ同士が誤一致してしまうのを防ぐ回帰テスト。
+      const savedChatNoClientTime: Chat = {
+        uuid: '018f-saved',
+        room_id: 'superbeginner',
+        name: 'Taro',
+        color: '#f00',
+        message: 'A',
+        time: 1_700_000_000_100,
+        optimistic: false,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      };
+      const tempChatNoClientTime: Chat = {
+        uuid: 'temp-1',
+        room_id: 'superbeginner',
+        name: 'Taro',
+        color: '#f00',
+        message: 'B', // 全然違うメッセージ
+        time: 999,
+        optimistic: true,
+        ip: 'test-ip',
+        ua: 'test-ua',
+      };
+
+      // 両側 client_time が無いので fallback は不成立 → 別エントリとして prepend される
+      expect(reduceOptimisticChat([savedChatNoClientTime], tempChatNoClientTime)).toEqual([
+        tempChatNoClientTime,
+        savedChatNoClientTime,
+      ]);
+    });
+  });
 });

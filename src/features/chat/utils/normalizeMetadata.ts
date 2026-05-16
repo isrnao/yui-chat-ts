@@ -83,6 +83,10 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.userColor = input.userColor;
     }
 
+    if (typeof input.optimisticNonce === 'string') {
+      result.optimisticNonce = input.optimisticNonce;
+    }
+
     return result;
   } catch {
     return undefined;
