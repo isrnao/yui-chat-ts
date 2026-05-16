@@ -88,13 +88,23 @@ src/
 │   │   ├── utils/                   # countChars / colorCode / draftStore / 各種 options
 │   │   └── styles/                  # Chanari 専用 scoped CSS
 │   └── top/                         # 旧トップページ機能
-│       ├── TopPage.tsx
-│       ├── data.ts                  # 表示用ルーム定義（左カラム）
+│       ├── TopPage.tsx              # オーケストレーションのみ（SEO + useRoomCounts + 各列 mount）
+│       ├── data.ts                  # 表示用ルーム / pickup / ガイドメニュー / news 定義
 │       ├── api/
 │       │   └── roomCountsApi.ts     # 部屋別参加人数集計（Supabase）
 │       ├── hooks/
 │       │   └── useRoomCounts.ts
-│       └── components/header/       # テキストベースの旧ヘッダー部品群
+│       └── components/
+│           ├── header/              # テキストベースの旧ヘッダー部品群（Logo / GuideMenu / PrimaryTabs / SecondaryTabs）
+│           ├── SectionTitle.tsx     # h2 見出し（旧トップ共通）
+│           ├── RoomAnchor.tsx       # ルームリンク（外部/内部判定を内包）
+│           ├── CountBadge.tsx       # 参加人数バッジ + resolveCount ヘルパー
+│           ├── tones.ts             # tone → tailwind カラー対応表
+│           ├── LeftColumn.tsx       # チャット一覧（RoomList を内包）
+│           ├── MainColumn.tsx       # ピックアップ + 紹介タグ / X share（PickupList を内包）
+│           ├── RightColumn.tsx      # サイドバー（タイムライン + ルール / 使い方）
+│           ├── TwitterTimeline.tsx  # 公式 widgets.js による X タイムライン埋め込み
+│           └── Footer.tsx           # フッター
 ├── shared/                          # 機能横断の共通モジュール
 │   ├── components/                  # Button / Input / Loader / Modal / TermsModal
 │   ├── hooks/                       # useSEO / useBroadcastChannel
@@ -522,12 +532,17 @@ type Chat = {
 | `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                          |
 | `ChatRanking`                   | 発言数ランキング表示                                                                                                          |
 | `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                            |
-| `TopPage` + `components/header` | 旧ヘッダー（テキスト + CSS）、左カラムのルームリンク群                                                                        |
+| `TopPage` + `components/*`      | 旧ヘッダー / 左中央右の 3 カラム / フッターを `components/` 配下にファイル単位で分割。`TopPage.tsx` はオーケストレーションのみ |
 | `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                |
 
 ### 9.3 トップページ
 
-`src/features/top/data.ts` で旧トップに表示するルーム / 外部リンク群を定義し、`TopPage` がカラム描画と `useRoomCounts` の結果反映を担当します。各ルーム名のリンクは `/chat/:roomId` または `/chanari/:roomId` の内部ルートへ統一されています。
+`src/features/top/data.ts` で旧トップに表示するルーム / pickup / ガイドメニュー / news 等を定義し、`TopPage` は `useSEO` / `usePageView` / `useRoomCounts` のセットアップと 3 カラム + ヘッダー / フッターの mount のみを担当します。各セクションは `components/{LeftColumn,MainColumn,RightColumn,Footer,...}.tsx` に分割されており、`TopPage.tsx` 自体は 50 行未満です。各ルーム名のリンクは `/chat/:roomId` または `/chanari/:roomId` の内部ルートへ統一されています。
+
+- ヘッダー上部の **ガイドメニュー** (`data.ts: guideMenu`) は label / iconKind / href を一元管理。FAQ / プロフィール作成は遷移先未整備のため当面コメントアウトで非表示。
+- ヘッダー下部の **セカンダリタブ** (`data.ts: tabNav`) は各タブが実ルートへ直接遷移し、「なりきりチャット」のみ `#pickup-narikiri` で `MainColumn` 内の h3 へジャンプ。
+- `MainColumn` 末尾の `#linkguide` セクションに、紹介リンクタグ用 textarea と X (Twitter) Web Intent ボタン (`https://x.com/intent/tweet?...`) を配置。
+- `RightColumn` の `@chat_a のつぶやき` には `TwitterTimeline` を埋め込み。`widgets.js` は `id="twitter-wjs"` で重複ロードを避け、`twttr.widgets.load()` で SPA 再マウント時にも再スキャン。
 
 ### 9.4 Chanari なりきりチャット
 
