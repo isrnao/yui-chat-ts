@@ -257,7 +257,7 @@ mergeChat(newChat)
     └─ 新規 → 先頭に追加（最大 2000 件保持）
 ```
 
-`chatApi.ts` 内で `broadcastChannels` / `lookCallbacks` を room 単位の Map で持ち、複数の購読者が同一 channel を共有します。
+`chatApi.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) と `broadcastEntries` (`chats-broadcast-${roomId}`) の refcount registry を持ち、Postgres Changes と Broadcast はそれぞれ room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄され、send-only 利用（listener 0 での `broadcastLookEvent` / `broadcastUnlookEvent`）も送信完了後に同様に破棄されます。
 
 ### 5.3 初期読み込みフロー
 
@@ -372,18 +372,20 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ### 7.1 chatLogResource.ts（取得・キャッシュ・dedupe の集約）
 
-| エクスポート                                               | 用途                                                       |
-| ---------------------------------------------------------- | ---------------------------------------------------------- |
-| `loadChatLogs(roomId, useCache?)`                          | canonical snapshot（最大 100 件）                          |
-| `loadChatLogsWithPaging(roomId, offset, limit, useCache?)` | `offset===0` は snapshot を slice。`offset>0` は独立クエリ |
-| `loadInitialChatLogs(roomId, limit?)`                      | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス         |
-| `prefetchChatLogs(roomId)`                                 | 結果を捨てつつキャッシュ充填する best-effort               |
-| `invalidateCache(roomId?)`                                 | room 指定 or 全体クリア、in-flight も解除                  |
-| `applyOptimisticToCache(roomId, chat)`                     | 楽観的 chat をキャッシュ先頭に挿入                         |
-| `replaceOptimisticInCache(tempUuid, serverChat)`           | temp 行を server chat で置換                               |
-| `getCacheInfo(roomId?)`                                    | キャッシュ有無 / age を返す                                |
-| `getPagingHasMore(roomId, offset, limit)`                  | 直近の paging クエリの `count` 由来判定                    |
-| `chatLogResource`                                          | 上記をまとめたオブジェクト                                 |
+| エクスポート                                               | 用途                                                                                |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `loadChatLogsSnapshot(roomId, useCache?)`                  | canonical snapshot を `{ data, hasMore }` shape で取得（取得結果に hasMore を同梱） |
+| `loadChatLogs(roomId, useCache?)`                          | `loadChatLogsSnapshot` の `data` のみを返す後方互換 API                             |
+| `loadChatLogsWithPaging(roomId, offset, limit, useCache?)` | `offset===0` は snapshot を slice。`offset>0` は独立クエリ                          |
+| `loadInitialChatLogs(roomId, limit?)`                      | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス                                  |
+| `prefetchChatLogs(roomId)`                                 | 結果を捨てつつキャッシュ充填する best-effort                                        |
+| `invalidateCache(roomId?)`                                 | room 指定 or 全体クリア、in-flight も解除                                           |
+| `applyOptimisticToCache(roomId, chat)`                     | 楽観的 chat をキャッシュ先頭に挿入                                                  |
+| `replaceOptimisticInCache(tempUuid, serverChat)`           | temp 行を server chat で置換                                                        |
+| `getCacheInfo(roomId?)`                                    | キャッシュ有無 / age を返す                                                         |
+| `getPagingHasMore(roomId, offset, limit)`                  | 直近の paging クエリの `count` 由来判定                                             |
+| `getSnapshotHasMore(roomId)`                               | 観測用: 直近 snapshot 取得時の hasMore（未取得 / オフライン中は undefined）         |
+| `chatLogResource`                                          | 上記をまとめたオブジェクト                                                          |
 
 主要な内部状態:
 
@@ -406,7 +408,7 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ### 7.2 chatApi.ts（書き込み / Realtime / 互換ラッパー）
 
-`loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。
+`loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` / `getSnapshotHasMore` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。`loadChatLogsWithPaging(offset===0)` は `loadChatLogsSnapshot` を直接呼び、`hasMore` を **取得結果と同じ往復で確定した値** から組み立てるため、取得中に `invalidateCache` が走って generation が更新されても hasMore がロストしません。
 
 | 関数                         | 用途                   | 特徴                                                                              |
 | ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
@@ -568,7 +570,7 @@ type Chat = {
 | API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                         |
 | キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止         |
 | Supabase 帯域削減     | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ |
-| Realtime チャネル共有 | room ごとに 1 channel を再利用、look broadcast も同 channel に相乗り               |
+| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
 | パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                             |
 
 ---
