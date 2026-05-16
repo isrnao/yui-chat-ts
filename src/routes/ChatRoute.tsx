@@ -1,9 +1,8 @@
-import { useState, useRef, lazy, Suspense, useId, useEffect } from 'react';
+import { useState, useRef, lazy, Suspense, useId } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
-import { earlyDataFetch } from '@features/chat/hooks/usePreloadChatLogs';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
@@ -17,10 +16,6 @@ const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
-
-  useEffect(() => {
-    earlyDataFetch(roomId);
-  }, [roomId]);
 
   useSEO({
     title: `${room.title} | ゆいちゃっとTS`,
