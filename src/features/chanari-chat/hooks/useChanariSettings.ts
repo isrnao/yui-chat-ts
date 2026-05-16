@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 import { loadDraft, saveDraft, type ChanariDraft } from '../utils/draftStore';
 
@@ -9,6 +9,16 @@ export function useChanariSettings(roomId: string) {
     const draft = loadDraft(roomId);
     return draft ?? {};
   });
+
+  // roomId が切り替わったときに別 room の draft を引きずらないよう再 hydrate する。
+  // 初回マウント時は useState の initializer で読み込み済みなのでスキップする。
+  const previousRoomIdRef = useRef(roomId);
+  useEffect(() => {
+    if (previousRoomIdRef.current === roomId) return;
+    previousRoomIdRef.current = roomId;
+    const draft = loadDraft(roomId);
+    setSettings(draft ?? {});
+  }, [roomId]);
 
   const updateSettings = useCallback(
     (partial: SettingsPartial) => {
