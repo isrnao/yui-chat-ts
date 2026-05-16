@@ -454,24 +454,31 @@ export function subscribeChatLogs(
 
 // --- Broadcast: look/unlook イベント ---
 
-export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
-  // 送信は listener が居ない部屋でも channel を起こす必要があるが、
-  // listener 0 のままだと cleanup タイミングが無いので listener 解除時に揃えて落とす。
+// send-only 利用 (listener 0) で起こした channel は send 後に明示破棄する。
+// onLookBroadcast 経路で listener が既に存在する場合は通常の refCount cleanup に任せる。
+function sendBroadcastLookPayload(roomId: RoomId, payload: LookEvent): void {
+  const hadListeners = (broadcastEntries.get(roomId)?.listeners.size ?? 0) > 0;
   const entry = getOrCreateBroadcastEntry(roomId);
-  entry.channel.send({
-    type: 'broadcast',
-    event: 'look',
-    payload: { type: 'look', messageId } satisfies LookEvent,
+  // channel.send は Promise を返す。listener が居なかった場合は送信完了後に
+  // (= 他に listener が追加されていないことを確認したうえで) channel を破棄する。
+  void Promise.resolve(
+    entry.channel.send({ type: 'broadcast', event: 'look', payload })
+  ).finally(() => {
+    if (hadListeners) return;
+    const current = broadcastEntries.get(roomId);
+    if (!current) return;
+    if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
+    supabase.removeChannel(current.channel);
+    broadcastEntries.delete(roomId);
   });
 }
 
+export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
+  sendBroadcastLookPayload(roomId, { type: 'look', messageId });
+}
+
 export function broadcastUnlookEvent(roomId: RoomId): void {
-  const entry = getOrCreateBroadcastEntry(roomId);
-  entry.channel.send({
-    type: 'broadcast',
-    event: 'look',
-    payload: { type: 'unlook' } satisfies LookEvent,
-  });
+  sendBroadcastLookPayload(roomId, { type: 'unlook' });
 }
 
 export function onLookBroadcast(roomId: RoomId, callback: LookListener): () => void {
