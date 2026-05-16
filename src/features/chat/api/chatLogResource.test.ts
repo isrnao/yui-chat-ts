@@ -187,6 +187,31 @@ describe('chatLogResource', () => {
     expect(from).not.toHaveBeenCalled();
   });
 
+  it('keeps optimistic cache updates capped at the canonical snapshot size', async () => {
+    const { resource, from } = await importResource();
+    const query = createQueryMock({
+      limitResult: Promise.resolve({ data: makeChats(100), error: null }),
+    });
+    from.mockReturnValue(query);
+
+    await expect(resource.loadChatLogs(ROOM_ID)).resolves.toHaveLength(100);
+
+    const optimisticChat: Chat = {
+      ...makeChat(999),
+      uuid: 'temp-999',
+      optimistic: true,
+    };
+    resource.applyOptimisticToCache(ROOM_ID, optimisticChat);
+
+    from.mockClear();
+    const cached = await resource.loadChatLogs(ROOM_ID);
+
+    expect(from).not.toHaveBeenCalled();
+    expect(cached).toHaveLength(100);
+    expect(cached[0]).toBe(optimisticChat);
+    expect(cached[cached.length - 1]?.uuid).toBe('chat-98');
+  });
+
   it('refetches after the cache TTL expires', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));

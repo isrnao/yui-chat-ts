@@ -20,14 +20,12 @@ const pagingInflight = new Map<string, Promise<Chat[]>>();
 const pagingHasMore = new Map<string, boolean>();
 const cacheGeneration = new Map<RoomId, number>();
 
-let perfStartTime = 0;
-
-function startPerf(): void {
-  perfStartTime = performance.now();
+function startPerf(): number {
+  return performance.now();
 }
 
-function endPerf(operation: string): void {
-  const duration = performance.now() - perfStartTime;
+function endPerf(operation: string, startTime: number): void {
+  const duration = performance.now() - startTime;
   if (duration > 3000) {
     console.warn(`Performance issue in ${operation}: ${duration.toFixed(0)}ms`);
   }
@@ -67,7 +65,7 @@ function isFreshCache(entry: CacheEntry): boolean {
 
 function setCachedChatLogs(roomId: RoomId, data: Chat[]): void {
   cache.set(roomId, {
-    data,
+    data: data.slice(0, MAX_CHAT_LOG),
     timestamp: Date.now(),
   });
 }
@@ -84,10 +82,14 @@ function getOfflineChatData(roomId: RoomId): Chat[] {
   return mockChatData.map((chat) => ({ ...chat, room_id: roomId }));
 }
 
-async function fetchSnapshot(roomId: RoomId, generation: number): Promise<Chat[]> {
+async function fetchSnapshot(
+  roomId: RoomId,
+  generation: number,
+  startTime: number
+): Promise<Chat[]> {
   return retryApiCall(async () => {
     if (!isOnline()) {
-      endPerf('loadChatLogs-offline');
+      endPerf('loadChatLogs-offline', startTime);
       return getOfflineChatData(roomId);
     }
 
@@ -111,7 +113,7 @@ async function fetchSnapshot(roomId: RoomId, generation: number): Promise<Chat[]
     if (getCacheGeneration(roomId) === generation) {
       setCachedChatLogs(roomId, chatData);
     }
-    endPerf('loadChatLogs-network');
+    endPerf('loadChatLogs-network', startTime);
 
     return chatData;
   });
@@ -163,11 +165,11 @@ export async function loadChatLogs(
   roomId: RoomId = DEFAULT_ROOM_ID,
   useCache = true
 ): Promise<Chat[]> {
-  startPerf();
+  const startTime = startPerf();
 
   const cached = getCachedChatLogs(roomId);
   if (useCache && cached && isFreshCache(cached)) {
-    endPerf('loadChatLogs-cache');
+    endPerf('loadChatLogs-cache', startTime);
     return cached.data;
   }
 
@@ -178,7 +180,7 @@ export async function loadChatLogs(
 
   const generation = getCacheGeneration(roomId);
   let request: Promise<Chat[]>;
-  request = fetchSnapshot(roomId, generation).finally(() => {
+  request = fetchSnapshot(roomId, generation, startTime).finally(() => {
     if (snapshotInflight.get(roomId) === request) {
       snapshotInflight.delete(roomId);
     }
