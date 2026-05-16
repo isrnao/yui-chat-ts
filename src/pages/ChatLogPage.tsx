@@ -62,7 +62,6 @@ export default function ChatLogPage() {
     loadInitialData();
   }, [loadInitialData]);
 
-  // 参加者表示用（空リストでOK）
   return (
     <main className="flex flex-col items-center min-h-dvh bg-yui-green/10">
       <header className="text-2xl font-bold text-yui-pink my-6 font-yui">チャットログ閲覧</header>
@@ -89,12 +88,7 @@ export default function ChatLogPage() {
         )}
       </div>
       <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList
-          chatLog={chatLog}
-          isLoading={isLoading}
-          windowRows={windowRows}
-          participants={[]}
-        />
+        <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
       </Suspense>
     </main>
   );

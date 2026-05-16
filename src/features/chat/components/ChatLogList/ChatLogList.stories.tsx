@@ -1,10 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import ChatLogList from './index';
-import {
-  optimisticChat,
-  sampleChatLog,
-  sampleParticipants,
-} from '../../../../storybook/mocks/chatSamples';
+import { optimisticChat, sampleChatLog } from '../../../../storybook/mocks/chatSamples';
 
 const meta = {
   component: ChatLogList,
@@ -14,10 +10,8 @@ const meta = {
   tags: ['autodocs'],
   args: {
     chatLog: [...sampleChatLog],
-    participants: sampleParticipants,
     windowRows: 50,
     isLoading: false,
-    currentTime: Date.parse('2024-01-01T12:00:00Z'),
   },
   argTypes: {
     isLoading: {

@@ -1,13 +1,14 @@
 import { formatTime } from '@shared/utils/format';
+import { useNowMinute } from '@features/chat/hooks/useNowMinute';
 import type { Participant } from '@features/chat/types';
 
 type Props = {
   participants: Participant[];
-  currentTime: number;
 };
 
-export default function ParticipantsList({ participants, currentTime }: Props) {
-  const formattedTime = formatTime(currentTime).slice(0, 5);
+export default function ParticipantsList({ participants }: Props) {
+  const now = useNowMinute();
+  const formattedTime = formatTime(now).slice(0, 5);
 
   return (
     <div className="text-xs mb-2 flex flex-wrap gap-x-2 items-center">
