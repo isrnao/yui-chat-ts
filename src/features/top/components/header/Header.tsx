@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { guideLinks, guideIcons, primaryNav, tabNav } from '../../data';
+import { guideMenu, primaryNav, tabNav } from '../../data';
 import type { GuideIconKind } from '../../data';
 import { GuideIcon, WingIcon } from './icons';
 import './headerTheme.css';
@@ -49,9 +49,6 @@ type GuideMenuItem = {
 /**
  * ガイドメニュー。各項目は `<GuideIcon>` + テキストで構成され、
  * アイコンは装飾扱い（`aria-hidden="true"`）。
- *
- * 現状は遷移先未定のため `<button type="button">` でプレースホルダー描画する。
- * 遷移先が確定したら `<a href={item.href}>` に戻す。
  */
 function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
   return (
@@ -59,10 +56,10 @@ function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
       <ul className="ochat-header__guide-list">
         {items.map((item) => (
           <li key={item.label} className="ochat-header__guide-item">
-            <button type="button" className="ochat-header__guide-link" disabled>
+            <a className="ochat-header__guide-link" href={item.href}>
               <GuideIcon kind={item.iconKind} className="ochat-header__guide-icon" />
               <span>{item.label}</span>
-            </button>
+            </a>
           </li>
         ))}
       </ul>
@@ -150,17 +147,11 @@ function SecondaryTabs({
  * 配色は `headerTheme.css` の CSS カスタムプロパティで一元管理される。
  */
 export function Header(): ReactNode {
-  const guideItems: readonly GuideMenuItem[] = guideLinks.map((label, i) => ({
-    label,
-    iconKind: guideIcons[i],
-    href: '#',
-  }));
-
   return (
     <header className="ochat-header">
       <div className="ochat-header__top">
         <LogoBlock />
-        <GuideMenu items={guideItems} />
+        <GuideMenu items={guideMenu} />
       </div>
       {/* PrimaryTabs は遷移先未定。activeIndex は渡さず、視覚的にも非アクティブで描画する */}
       <PrimaryTabs items={primaryNav} />

@@ -1,5 +1,5 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   chatDirectoryGroups,
   news,
@@ -153,59 +153,114 @@ function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
           <PickupList key={group.title} group={group} liveCounts={liveCounts} />
         ))}
       </div>
-      <SectionTitle>チャットのプロフィールを作成しよう！</SectionTitle>
-      <section className="px-2 py-3">
+      <SectionTitle>応援してくれる方／ご協力者の方へ</SectionTitle>
+      <section id="linkguide" className="px-2 py-3">
         <p className="text-[12px] leading-relaxed">
-          <span className="mr-2 inline-block border-2 border-red-500 px-2 py-1 text-[22px] font-black text-red-600">
-            Vururu
-          </span>
-          <a className="font-bold text-blue-600 hover:underline" href="#">
-            プロフィール作成ならVururu
-          </a>
-          と連携しました。チャット入室時 Vururu
-          のプロフィールIDを入力すると、プロフィールが表示されます。
+          当サイトを応援してくれる方は、ブログやホームページに以下のタグを設置したり、Twitterでつぶやいてお気楽チャットのご紹介をお願いいたします。
+          <br />
+          皆様からの暖かいご支援を心からお待ちしております。
         </p>
-        <div className="mt-3 grid max-w-[430px] grid-cols-4 gap-x-6 gap-y-3">
-          {profiles.map(([name, avatar], index) => (
-            <a
-              key={`${name}-${index}`}
-              className="text-center text-[11px] font-bold text-blue-600 hover:underline"
-              href="#"
-            >
-              <img
-                className="mx-auto h-[72px] w-[72px] border border-gray-200 object-contain"
-                src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
-                alt=""
-                loading="lazy"
-              />
-              <span>{name}</span>
-            </a>
-          ))}
-        </div>
+        <textarea
+          readOnly
+          rows={3}
+          wrap="soft"
+          defaultValue={
+            '<a href="https://www.okiraku.chat/" target="_blank" rel="noopener noreferrer">お気楽チャット - チャットで友達探し＆仲間作り</a>'
+          }
+          onClick={(e) => e.currentTarget.select()}
+          onFocus={(e) => e.currentTarget.select()}
+          aria-label="お気楽チャット紹介リンクのHTMLタグ (クリックで全選択)"
+          className="mt-3 w-full resize-y rounded border border-gray-300 bg-gray-50 p-2 font-mono text-[11px] leading-relaxed text-gray-800"
+        />
+        <p className="mt-3 text-[12px] leading-relaxed">
+          Xでつぶやいてお気楽チャットを紹介する場合は、こちらのボタンからどうぞ。
+        </p>
+        <a
+          href={`https://x.com/intent/tweet?text=${encodeURIComponent('お気楽チャットで友達探し＆仲間作り')}&url=${encodeURIComponent('https://www.okiraku.chat/')}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-2 inline-flex items-center gap-1 rounded border border-black bg-black px-3 py-1 text-[12px] font-bold text-white hover:bg-gray-800"
+        >
+          <span aria-hidden="true" className="font-black">
+            𝕏
+          </span>
+          でツイート
+        </a>
       </section>
     </section>
+  );
+}
+
+const TWITTER_WIDGETS_SRC = 'https://platform.twitter.com/widgets.js';
+
+declare global {
+  interface Window {
+    twttr?: {
+      widgets: { load: (element?: HTMLElement | null) => void };
+    };
+  }
+}
+
+/**
+ * 公式 widgets.js による Twitter / X タイムライン埋め込み。
+ *
+ * widgets.js は `.twitter-timeline` 要素を iframe に置換する。
+ * SPA 内で複数回マウントされても script を重複ロードしないよう、
+ * `id="twitter-wjs"` (X 公式 snippet 互換) で既存タグを検出し、
+ * 既にあれば `twttr.widgets.load()` で再スキャンする。
+ *
+ * 親要素の高さ不足で iframe が 0px のまま見えなくなる事故を防ぐため、
+ * `data-height` を指定する。
+ */
+function TwitterTimeline({ screenName }: { screenName: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const loadWidgets = () => {
+      window.twttr?.widgets.load(containerRef.current);
+    };
+
+    const existingScript = document.getElementById('twitter-wjs');
+    if (existingScript) {
+      loadWidgets();
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = 'twitter-wjs';
+    script.src = TWITTER_WIDGETS_SRC;
+    script.async = true;
+    script.charset = 'utf-8';
+    script.onload = loadWidgets;
+    document.body.appendChild(script);
+  }, [screenName]);
+
+  // screenName は呼び出し元でハードコードする想定 (XSS 経路を断つため英数字 + _ のみ許可)
+  const safeScreenName = screenName.replace(/[^a-zA-Z0-9_]/g, '');
+
+  return (
+    <div ref={containerRef} className="p-2">
+      <a
+        className="twitter-timeline"
+        data-height="500"
+        data-lang="ja"
+        href={`https://twitter.com/${safeScreenName}?ref_src=twsrc%5Etfw`}
+      >
+        Tweets by {safeScreenName}
+      </a>
+    </div>
   );
 }
 
 function RightColumn() {
   return (
     <aside className="border-l border-gray-300 bg-white px-2 py-2 max-lg:col-span-2 max-lg:border-l-0 max-md:order-3">
-      <div className="grid grid-cols-2 gap-2">
-        <section className="min-h-[122px]">
-          <SectionTitle>
-            <span className="text-blue-600">@chat_a</span>のつぶやき
-          </SectionTitle>
-        </section>
-        <section>
-          <SectionTitle>つぶやき／ブックマーク</SectionTitle>
-          <div className="p-2 text-center text-[12px]">
-            <div className="mb-2 font-bold text-gray-500">つぶやいてね</div>
-            <button className="rounded border border-sky-600 bg-sky-500 px-3 py-1 text-white">
-              ツイート
-            </button>
-          </div>
-        </section>
-      </div>
+      <section className="min-h-[122px]">
+        <SectionTitle>
+          <span className="text-blue-600">@chat_a</span>のつぶやき
+        </SectionTitle>
+        <TwitterTimeline screenName="chat_a" />
+      </section>
       <div className="mt-3 space-y-3">
         <section>
           <SectionTitle>詩集／待ち合わせ／壁紙</SectionTitle>
@@ -243,7 +298,7 @@ function RightColumn() {
             の「ねこ」さんが、ユーザーの皆さんのステキな似顔絵を書いてくれました。
           </div>
         </section>
-        <section>
+        <section id="chat-rules">
           <SectionTitle>チャットのルール・マナー</SectionTitle>
           <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
             <li>お初さんを歓迎しましょう。</li>
@@ -253,7 +308,7 @@ function RightColumn() {
             <li>チャットのルール・マナーについて詳しく見る</li>
           </ul>
         </section>
-        <section>
+        <section id="chat-howto">
           <SectionTitle>チャットの使い方</SectionTitle>
           <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
             <li>チャットに関する設定は全てココから！</li>

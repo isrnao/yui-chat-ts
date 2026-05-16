@@ -28,31 +28,49 @@ export type PickupGroup = {
   anchorId?: string;
 };
 
-export const guideLinks = [
-  'チャットのFAQ・よくある質問',
-  'チャットの使い方',
-  'チャットのルール・マナー',
-  'プロフィール作成',
-  'コンタクト',
-];
-
 /**
- * ガイドメニュー項目のアイコン種別。`guideLinks` とインデックス対応する。
+ * ガイドメニュー項目のアイコン種別。
  * 判別ユニオンにより、`GuideIcon` コンポーネントの switch 分岐で網羅性チェックを効かせる。
  */
 export type GuideIconKind = 'faq' | 'tutorial' | 'heart' | 'profile' | 'mail';
 
+export type GuideMenuEntry = {
+  label: string;
+  iconKind: GuideIconKind;
+  href: string;
+};
+
 /**
- * `guideLinks` と同じ順序・同じ長さのアイコン種別配列。
- * 両者を zip して `GuideMenu` に渡す。
+ * ヘッダー右上のガイドメニュー。FAQ / プロフィール作成は遷移先未整備のため
+ * 当面コメントアウトで非表示にする (整備でき次第戻す)。
  */
-export const guideIcons: readonly GuideIconKind[] = [
-  'faq', // チャットのFAQ・よくある質問
-  'tutorial', // チャットの使い方
-  'heart', // チャットのルール・マナー
-  'profile', // プロフィール作成
-  'mail', // コンタクト
-] as const;
+export const guideMenu: readonly GuideMenuEntry[] = [
+  // {
+  //   label: 'チャットのFAQ・よくある質問',
+  //   iconKind: 'faq',
+  //   href: '#',
+  // },
+  {
+    label: 'チャットの使い方',
+    iconKind: 'tutorial',
+    href: '#chat-howto',
+  },
+  {
+    label: 'チャットのルール・マナー',
+    iconKind: 'heart',
+    href: '#chat-rules',
+  },
+  // {
+  //   label: 'プロフィール作成',
+  //   iconKind: 'profile',
+  //   href: '#',
+  // },
+  {
+    label: 'コンタクト',
+    iconKind: 'mail',
+    href: buildChatRoomPath('com_sb'),
+  },
+];
 
 export const primaryNav = [
   /* 準備中
