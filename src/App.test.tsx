@@ -119,4 +119,47 @@ describe('<App />', () => {
       '#ffffff'
     );
   });
+
+  it('redirects /chat to the default chat room and updates history', async () => {
+    window.history.replaceState(null, '', '/chat');
+
+    render(<App />);
+
+    // 初回 render 時点で確定 route (chat-room / 超初心者チャット) が描画される
+    const visibleTitle = screen
+      .getAllByText('超初心者チャット')
+      .find((el) => !el.closest('.sr-only'));
+    expect(visibleTitle).toBeDefined();
+    expect(visibleTitle?.tagName).toBe('HEADER');
+
+    // chat 用 chrome 色が適用される
+    expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
+
+    // commit 後 effect で URL が /chat/superbeginner に書き換わる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/chat/superbeginner');
+    });
+
+    // 確定 roomId で chatApi が呼ばれる
+    await waitFor(() => {
+      expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
+    });
+  });
+
+  it('redirects /chanari to the default chanari room and updates history', async () => {
+    window.history.replaceState(null, '', '/chanari');
+
+    render(<App />);
+
+    // 初回 render 時点で確定 route (chanari-room) が描画される (default room ID は chat と共通)
+    expect(screen.getByRole('heading', { level: 1, name: '超初心者チャット' })).toBeInTheDocument();
+
+    // chanari 用 chrome 色が適用される
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
+
+    // commit 後 effect で URL が /chanari/superbeginner に書き換わる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/chanari/superbeginner');
+    });
+  });
 });

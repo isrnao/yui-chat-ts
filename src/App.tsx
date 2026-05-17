@@ -62,25 +62,42 @@ function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
 
 type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
 
-// 'redirect' route は再帰的に解決して history を書き換え、確定形のみを返す。
-// redirect を React state に載せないことで「effect 内で setState して再 effect」というカスケードを避ける。
-function resolveRouteFollowingRedirects(pathname: string): ResolvedRoute {
+type RouteResolution = {
+  route: ResolvedRoute;
+  // 入力 pathname から redirect chain を辿った後の最終 pathname。
+  // 元の pathname と異なる場合のみ history.replaceState を commit 後 effect で実行する。
+  finalPathname: string;
+};
+
+// PURE: redirect chain を解決して確定 route と最終 pathname を返す。
+// 副作用 (history.replaceState) は呼ばず、呼び出し側で commit 後 effect で実行する。
+function resolveRouteFollowingRedirects(pathname: string): RouteResolution {
   let current = resolveRoute(pathname);
+  let finalPathname = pathname;
   while (current.type === 'redirect') {
-    window.history.replaceState(null, '', current.to);
+    finalPathname = current.to;
     current = resolveRoute(current.to);
   }
-  return current;
+  return { route: current, finalPathname };
 }
 
 export default function App() {
-  const [route, setRoute] = useState<ResolvedRoute>(() =>
+  const [resolution, setResolution] = useState<RouteResolution>(() =>
     resolveRouteFollowingRedirects(window.location.pathname)
   );
+  const { route, finalPathname } = resolution;
+
+  // commit 後に URL を redirect 後の最終形に合わせる (resolveRouteFollowingRedirects は pure)。
+  // 初回 mount 時に URL が /chat や /chanari (= redirect 元) のままなら、ここで replaceState する。
+  useEffect(() => {
+    if (window.location.pathname !== finalPathname) {
+      window.history.replaceState(null, '', finalPathname);
+    }
+  }, [finalPathname]);
 
   useEffect(() => {
     const handlePopState = () => {
-      setRoute(resolveRouteFollowingRedirects(window.location.pathname));
+      setResolution(resolveRouteFollowingRedirects(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);

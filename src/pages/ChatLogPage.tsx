@@ -31,12 +31,10 @@ export default function ChatLogPage() {
     let ignore = false;
     void (async () => {
       try {
-        // プリロード（usePreloadChatLogs 内で `loadInitialChatLogs` が走り、
-        // chatLogResource のキャッシュに canonical snapshot が積まれている）。
-        // 結果は破棄して、hasMore を正確に返す `loadChatLogsWithPaging` 経由で再取得する。
-        if (preloadPromise) {
-          await preloadPromise;
-        }
+        // プリロード (usePreloadChatLogs 内で loadInitialChatLogs が走り、
+        // chatLogResource のキャッシュに canonical snapshot が積まれている) を待機。
+        // 結果は破棄して、hasMore を正確に返す loadChatLogsWithPaging 経由で再取得する。
+        await preloadPromise;
         const limit = Math.min(windowRows, 100);
         const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, limit, 0, true);
         if (ignore) return;
