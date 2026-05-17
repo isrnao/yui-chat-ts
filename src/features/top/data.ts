@@ -97,7 +97,7 @@ export const tabNav = [
 ];
 
 /**
- * 内部ルーム (`/yui-chat-ts/chat/<roomId>`) へのリンクを生成する。
+ * 内部ルーム (`/chat/<roomId>`) へのリンクを生成する。
  * 参加者数はランタイムに `useRoomCounts` 経由で Supabase から取得され、
  * 取得できない場合は表示側で 0 にフォールバックされる。
  */
@@ -106,7 +106,7 @@ function room(label: string, roomId: RoomId): RoomLink {
 }
 
 /**
- * chanari UI (`/yui-chat-ts/chanari/<roomId>`) へのリンクを生成する。
+ * chanari UI (`/chanari/<roomId>`) へのリンクを生成する。
  * なりきりチャット系のルームで使用する。
  */
 function chanariRoom(label: string, roomId: RoomId): RoomLink {

@@ -1,4 +1,5 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
+import { buildAbsoluteUrl } from '@shared/utils/seo';
 
 const LEGACY_NOT_FOUND_MESSAGE =
   'The file you just requested wasn’t found in the location (or with the name) specified. You may have an incorrect URL, or the file may have been moved or renamed. Try navigating to the content you’re seeking by using the links on this page, or by searching the site with the form on this page. Most recent entries are listed below.';
@@ -8,7 +9,7 @@ export default function NotFoundPage() {
     title: '４０４ＥＲＲＯＲ | ゆいちゃっとTS',
     description: '指定されたページは見つかりませんでした。',
     keywords: ['404', 'お気楽チャット', 'ゆいちゃっとTS'],
-    canonical: 'https://isrnao.github.io/yui-chat-ts/404',
+    canonical: buildAbsoluteUrl('/404'),
   });
   usePageView('404 - ゆいちゃっとTS');
 

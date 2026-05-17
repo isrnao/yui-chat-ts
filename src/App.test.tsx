@@ -40,7 +40,7 @@ vi.mock('@shared/utils/clientInfo', () => ({
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
-  window.history.replaceState(null, '', '/yui-chat-ts/');
+  window.history.replaceState(null, '', '/');
 });
 
 describe('<App />', () => {
@@ -56,7 +56,7 @@ describe('<App />', () => {
   });
 
   it('shows the current room title in the entry form immediately', async () => {
-    window.history.replaceState(null, '', '/yui-chat-ts/chat/superbeginner');
+    window.history.replaceState(null, '', '/chat/superbeginner');
 
     render(<App />);
 
@@ -72,7 +72,7 @@ describe('<App />', () => {
   });
 
   it('shows the chanari entry form immediately without route loading fallback', async () => {
-    window.history.replaceState(null, '', '/yui-chat-ts/chanari/durarara');
+    window.history.replaceState(null, '', '/chanari/durarara');
 
     render(<App />);
 
@@ -90,7 +90,7 @@ describe('<App />', () => {
   });
 
   it('shows the not found page immediately without route loading fallback', () => {
-    window.history.replaceState(null, '', '/yui-chat-ts/not-found');
+    window.history.replaceState(null, '', '/not-found');
 
     render(<App />);
 

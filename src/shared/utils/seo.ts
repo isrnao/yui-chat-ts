@@ -10,6 +10,12 @@ export interface SEOMetadata {
   canonical?: string;
 }
 
+export const SITE_ORIGIN = 'https://www.okiraku.chat';
+
+export function buildAbsoluteUrl(pathname = '/'): string {
+  return new URL(pathname, `${SITE_ORIGIN}/`).toString();
+}
+
 export const defaultSEOMetadata: SEOMetadata = {
   title: 'ゆいちゃっと - 無料お気楽チャット',
   description:
@@ -24,8 +30,8 @@ export const defaultSEOMetadata: SEOMetadata = {
     '学生チャット',
     'オンラインチャット',
   ],
-  ogImage: '/og-image.png',
-  canonical: 'https://isrnao.github.io/yui-chat-ts/',
+  ogImage: buildAbsoluteUrl('/ogp.png'),
+  canonical: buildAbsoluteUrl('/'),
 };
 
 /**

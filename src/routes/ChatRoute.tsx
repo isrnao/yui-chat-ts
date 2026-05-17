@@ -11,6 +11,7 @@ import type { AvatarId } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { buildChatRoomPath } from '@features/chat/routing';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+import { buildAbsoluteUrl } from '@shared/utils/seo';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -21,7 +22,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     title: `${room.title} | ゆいちゃっとTS`,
     description: `${room.title}をブラウザですぐに使えるお気楽チャットとして公開しています。`,
     keywords: ['ゆいちゃっとTS', 'お気楽チャット', '無料チャット', room.title],
-    canonical: `https://isrnao.github.io${buildChatRoomPath(roomId)}`,
+    canonical: buildAbsoluteUrl(buildChatRoomPath(roomId)),
   });
 
   usePageView(`${room.title} - ゆいちゃっとTS`);

@@ -1,4 +1,5 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
+import { buildAbsoluteUrl } from '@shared/utils/seo';
 import { Footer } from './components/Footer';
 import { Header } from './components/header/Header';
 import { LeftColumn } from './components/LeftColumn';
@@ -23,8 +24,8 @@ export default function TopPage() {
       'アニメチャット',
       'ゲームチャット',
     ],
-    canonical: 'https://isrnao.github.io/yui-chat-ts/',
-    ogImage: 'https://isrnao.github.io/yui-chat-ts/ogp.png',
+    canonical: buildAbsoluteUrl('/'),
+    ogImage: buildAbsoluteUrl('/ogp.png'),
   });
   usePageView('お気楽チャット トップ');
 

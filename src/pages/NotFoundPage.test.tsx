@@ -10,7 +10,7 @@ describe('<NotFoundPage />', () => {
     expect(screen.getByRole('heading', { level: 2, name: '⌒⊂´∀｀)つ' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'お気楽チャットにもどる' })).toHaveAttribute(
       'href',
-      '/yui-chat-ts/'
+      '/'
     );
     expect(screen.getByText(/The file you just requested wasn’t found/)).toBeInTheDocument();
   });

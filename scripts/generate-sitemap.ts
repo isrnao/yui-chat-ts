@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { CHAT_ROOMS, CHAT_ROOM_IDS } from '../src/features/chat/rooms.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const ORIGIN = 'https://isrnao.github.io/yui-chat-ts';
+const ORIGIN = 'https://www.okiraku.chat';
 const today = new Date().toISOString().slice(0, 10);
 
 type Entry = { loc: string; changefreq: string; priority: string };

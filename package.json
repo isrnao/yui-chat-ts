@@ -19,7 +19,7 @@
     "chat",
     "realtime"
   ],
-  "homepage": "https://isrnao.github.io/yui-chat-ts/",
+  "homepage": "https://www.okiraku.chat/",
   "repository": {
     "type": "git",
     "url": "https://github.com/isrnao/yui-chat-ts.git"
@@ -41,11 +41,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "lighthouse": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output html --output-path ./lighthouse-report.html",
-    "lighthouse:mobile": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output html --output-path ./lighthouse-mobile.html --emulated-form-factor=mobile",
-    "lighthouse:desktop": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output html --output-path ./lighthouse-desktop.html --emulated-form-factor=desktop",
-    "lighthouse:json": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output json --output-path ./lighthouse-data.json",
-    "lighthouse:ci": "lighthouse https://isrnao.github.io/yui-chat-ts/ --output json --quiet --chrome-flags='--headless'",
+    "lighthouse": "lighthouse https://www.okiraku.chat/ --output html --output-path ./lighthouse-report.html",
+    "lighthouse:mobile": "lighthouse https://www.okiraku.chat/ --output html --output-path ./lighthouse-mobile.html --emulated-form-factor=mobile",
+    "lighthouse:desktop": "lighthouse https://www.okiraku.chat/ --output html --output-path ./lighthouse-desktop.html --emulated-form-factor=desktop",
+    "lighthouse:json": "lighthouse https://www.okiraku.chat/ --output json --output-path ./lighthouse-data.json",
+    "lighthouse:ci": "lighthouse https://www.okiraku.chat/ --output json --quiet --chrome-flags='--headless'",
     "analyze:bundle": "npx vite-bundle-analyzer dist",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build --stats-json",
