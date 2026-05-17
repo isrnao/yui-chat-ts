@@ -1,4 +1,4 @@
-import type { RoomLink } from '../data';
+import type { RoomLink } from '../../data';
 
 function isExternalLink(item: RoomLink): boolean {
   if (item.external === false) return false;

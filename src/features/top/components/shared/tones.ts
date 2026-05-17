@@ -1,4 +1,4 @@
-import type { ChatDirectoryGroup, PickupGroup } from '../data';
+import type { ChatDirectoryGroup, PickupGroup } from '../../data';
 
 export const toneClass: Record<ChatDirectoryGroup['tone'] | PickupGroup['tone'], string> = {
   pink: 'text-pink-500',
