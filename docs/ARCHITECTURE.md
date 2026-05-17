@@ -23,13 +23,13 @@
 
 | カテゴリ               | 技術                     | バージョン |
 | ---------------------- | ------------------------ | ---------- |
-| フレームワーク         | React                    | 19.1.0     |
-| 言語                   | TypeScript               | 5.8.3      |
-| ビルドツール           | Vite                     | 6.3.5      |
+| フレームワーク         | React                    | 19.2.6     |
+| 言語                   | TypeScript               | 6.0.3      |
+| ビルドツール           | Vite                     | 8.0.13     |
 | CSS                    | Tailwind CSS             | 4.1.8      |
-| バックエンド           | Supabase (PostgreSQL)    | 2.39.6     |
-| テスト                 | Vitest + Testing Library | 3.2.3      |
-| コンポーネントカタログ | Storybook                | 9.1.8      |
+| バックエンド           | Supabase (PostgreSQL)    | 2.105.4    |
+| テスト                 | Vitest + Testing Library | 3.2.4      |
+| コンポーネントカタログ | Storybook                | 10.4.0     |
 | パッケージマネージャ   | pnpm 10                  | -          |
 | 実行環境（CI / 推奨）  | Node.js 24               | -          |
 | デプロイ               | GitHub Pages (gh-pages)  | -          |
@@ -80,11 +80,11 @@ src/
 │   │   ├── ChanariChatPage.tsx
 │   │   ├── routing.ts               # `/chanari/:roomId` のルートマッチ
 │   │   ├── components/
-│   │   │   ├── ChanariChatRoom/
-│   │   │   ├── ChanariEntryForm/
-│   │   │   ├── ChanariColorPicker/
-│   │   │   ├── ChanariCharCounter/
-│   │   │   └── ChanariTopHeader/
+│   │   │   ├── ChanariChatRoom/     # index.tsx + Storybook story
+│   │   │   ├── ChanariEntryForm/    # index.tsx + Storybook story
+│   │   │   ├── ChanariColorPicker/  # index.tsx + Storybook story
+│   │   │   ├── ChanariCharCounter/  # index.tsx + Storybook story
+│   │   │   └── ChanariTopHeader/    # index.tsx + Storybook story
 │   │   ├── hooks/                   # useChanariSettings / useReloadInterval
 │   │   ├── utils/                   # countChars / colorCode / draftStore / 各種 options
 │   │   └── styles/                  # Chanari 専用 scoped CSS
@@ -96,16 +96,17 @@ src/
 │       ├── hooks/
 │       │   └── useRoomCounts.ts
 │       └── components/
-│           ├── header/              # テキストベースの旧ヘッダー部品群（Logo / GuideMenu / PrimaryTabs / SecondaryTabs）
-│           ├── SectionTitle.tsx     # h2 見出し（旧トップ共通）
-│           ├── RoomAnchor.tsx       # ルームリンク（外部/内部判定を内包）
-│           ├── CountBadge.tsx       # 参加人数バッジ + resolveCount ヘルパー
-│           ├── tones.ts             # tone → tailwind カラー対応表
-│           ├── LeftColumn.tsx       # チャット一覧（RoomList を内包）
-│           ├── MainColumn.tsx       # ピックアップ + 紹介タグ / X share（PickupList を内包）
-│           ├── RightColumn.tsx      # サイドバー（タイムライン + ルール / 使い方）
-│           ├── TwitterTimeline.tsx  # 公式 widgets.js による X タイムライン埋め込み
-│           └── Footer.tsx           # フッター
+│           ├── index.ts             # TopPage 用 barrel export
+│           ├── Header/              # 旧ヘッダー部品群 + icons + scoped CSS + stories
+│           ├── SectionTitle/        # h2 見出し（旧トップ共通）+ story
+│           ├── RoomAnchor/          # ルームリンク（外部/内部判定を内包）+ story
+│           ├── CountBadge/          # 参加人数バッジ + story
+│           ├── LeftColumn/          # チャット一覧（RoomList を内包）+ story
+│           ├── MainColumn/          # ピックアップ + 紹介タグ / X share + story
+│           ├── RightColumn/         # サイドバー（タイムライン + ルール / 使い方）+ story
+│           ├── TwitterTimeline/     # 公式 widgets.js による X タイムライン埋め込み + story
+│           ├── Footer/              # フッター + story
+│           └── shared/              # resolveCount / tones など top 内部共通ロジック
 ├── shared/                          # 機能横断の共通モジュール
 │   ├── components/                  # Button / Input / Loader / Modal / TermsModal
 │   ├── hooks/                       # useSEO / useBroadcastChannel
@@ -531,26 +532,27 @@ type Chat = {
 
 ### 9.2 主要コンポーネント
 
-| コンポーネント               | 責務                                                                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                       |
-| `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                               |
-| `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                               |
-| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ  |
-| `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                           |
-| `ChatRanking`                | 発言数ランキング表示                                                                                                           |
-| `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                             |
-| `TopPage` + `components/*`   | 旧ヘッダー / 左中央右の 3 カラム / フッターを `components/` 配下にファイル単位で分割。`TopPage.tsx` はオーケストレーションのみ |
-| `ChanariChatPage` + 関連部品 | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                 |
+| コンポーネント               | 責務                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                                   |
+| `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                                           |
+| `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                                           |
+| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ              |
+| `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                                       |
+| `ChatRanking`                | 発言数ランキング表示                                                                                                                       |
+| `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                                         |
+| `TopPage` + `components/*`   | 旧ヘッダー / 左中央右の 3 カラム / フッターを `components/` 配下のコンポーネント別フォルダに分割。`TopPage.tsx` はオーケストレーションのみ |
+| `ChanariChatPage` + 関連部品 | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                             |
 
 ### 9.3 トップページ
 
-`src/features/top/data.ts` で旧トップに表示するルーム / pickup / ガイドメニュー / news 等を定義し、`TopPage` は `useSEO` / `usePageView` / `useRoomCounts` のセットアップと 3 カラム + ヘッダー / フッターの mount のみを担当します。各セクションは `components/{LeftColumn,MainColumn,RightColumn,Footer,...}.tsx` に分割されており、`TopPage.tsx` 自体は 50 行未満です。各ルーム名のリンクは `/chat/:roomId` または `/chanari/:roomId` の内部ルートへ統一されています。
+`src/features/top/data.ts` で旧トップに表示するルーム / pickup / ガイドメニュー / news 等を定義し、`TopPage` は `useSEO` / `usePageView` / `useRoomCounts` のセットアップと 3 カラム + ヘッダー / フッターの mount のみを担当します。各セクションは `components/{LeftColumn,MainColumn,RightColumn,Footer,...}/index.tsx` に分割され、`components/index.ts` から barrel export します。`TopPage.tsx` 自体は 50 行未満です。各ルーム名のリンクは `/chat/:roomId` または `/chanari/:roomId` の内部ルートへ統一されています。
 
 - ヘッダー上部の **ガイドメニュー** (`data.ts: guideMenu`) は label / iconKind / href を一元管理。FAQ / プロフィール作成は遷移先未整備のため当面コメントアウトで非表示。
 - ヘッダー下部の **セカンダリタブ** (`data.ts: tabNav`) は各タブが実ルートへ直接遷移し、「なりきりチャット」のみ `#pickup-narikiri` で `MainColumn` 内の h3 へジャンプ。
 - `MainColumn` 末尾の `#linkguide` セクションに、紹介リンクタグ用 textarea と X (Twitter) Web Intent ボタン (`https://x.com/intent/tweet?...`) を配置。
 - `RightColumn` の `@chat_a のつぶやき` には `TwitterTimeline` を埋め込み。`widgets.js` は `id="twitter-wjs"` で重複ロードを避け、`twttr.widgets.load()` で SPA 再マウント時にも再スキャン。
+- 表示コンポーネントは原則 `ComponentName/index.tsx` と `ComponentName.stories.tsx` を同じフォルダに置き、表示確認は Storybook / Chromatic で行います。`resolveCount` / `tones` のような非 UI 共通ロジックは `components/shared/` に分離します。
 
 ### 9.4 Chanari なりきりチャット
 
@@ -559,6 +561,7 @@ type Chat = {
 - `ChanariCharCounter` でメッセージ長を可視化
 - `useReloadInterval` で N 秒ごとに `loadChatLogs` を再取得
 - `colorCode.ts` でユーザー入力色の正規化、`countChars.ts` で文字数算出
+- `ChanariChatRoom` / `ChanariEntryForm` / `ChanariColorPicker` / `ChanariCharCounter` / `ChanariTopHeader` は各フォルダ内に Storybook story を持ち、`chanari-scope` decorator で専用 CSS を適用して表示確認します。
 
 ### 9.5 レスポンシブ対応
 
@@ -575,7 +578,7 @@ type Chat = {
 | 最適化       | 設定                                                                                        |
 | ------------ | ------------------------------------------------------------------------------------------- |
 | コード分割   | Vite の `manualChunks` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
-| Tree Shaking | Rollup `treeshake: 'recommended'`                                                           |
+| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示         |
 | 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                    |
 | CSS 圧縮     | Lightning CSS                                                                               |
 | ターゲット   | ES2022                                                                                      |
@@ -671,6 +674,7 @@ chatLogResource.test.ts   ← 同一ディレクトリ
 - `src/features/chat/api/chatLogResource.test.ts`: snapshot / paging dedupe / cache TTL
 - `src/features/chat/components/ChatLogList/ChatLogList.test.tsx`: memo による不要再計算抑制
 - `src/features/chat/hooks/useChatLog.test.ts`: 楽観的更新 + temp/saved dedup
+- `src/features/chat/hooks/usePreloadChatLogs.test.ts`: preload / 初回 paging の失敗時に cache entry を削除し、次回 retry できること
 - `src/features/chanari-chat/utils/*.test.ts`: 文字数 / 色コード / localStorage draft / リロード間隔
 
 ---
@@ -688,7 +692,7 @@ on:
 jobs:
   test:
     - actions/checkout@v4
-    - actions/setup-node@v3  (node 18)
+    - actions/setup-node@v6  (node 24)
     - npm install -g pnpm
     - pnpm install
     - pnpm test # continue-on-error: true
