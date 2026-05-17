@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type ComponentProps, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import EntryForm from './index';
