@@ -1,27 +1,23 @@
-import { Fragment } from 'react';
-import type { Chat, Participant } from '@features/chat/types';
+import { Fragment, memo, useMemo } from 'react';
+import type { Chat } from '@features/chat/types';
+import { useParticipants } from '@features/chat/hooks/useParticipants';
+import { sortChatsByTime } from '@shared/utils/uuid';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import Divider from '../shared/Divider';
-import { sortChatsByTime } from '@shared/utils/uuid';
 
 type Props = {
   chatLog: Chat[];
   isLoading?: boolean;
   windowRows: number;
-  participants: Participant[];
-  currentTime?: number;
 };
 
-export default function ChatLogList({
-  chatLog,
-  isLoading = false,
-  windowRows,
-  participants,
-  currentTime,
-}: Props) {
-  const chats = sortChatsByTime([...chatLog]).slice(0, windowRows);
-  const displayTime = currentTime ?? Date.now();
+function ChatLogList({ chatLog, isLoading = false, windowRows }: Props) {
+  // 表示境界で uuid v7 降順を保証する。useChatLog の reducer / mergeChat は
+  // 常に prepend するため通常時系列だが、out-of-order な realtime INSERT や
+  // 楽観的更新と保存済みログの合流順序に対する防御として明示的に sort する。
+  const chats = useMemo(() => sortChatsByTime(chatLog).slice(0, windowRows), [chatLog, windowRows]);
+  const participants = useParticipants(chatLog);
 
   // 読み込み中の場合は専用のローディング表示を返す
   if (isLoading) {
@@ -33,7 +29,7 @@ export default function ChatLogList({
       className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
-      <ParticipantsList participants={participants} currentTime={displayTime} />
+      <ParticipantsList participants={participants} />
       {/* IE風区切り線（上下二重線） */}
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
@@ -46,3 +42,5 @@ export default function ChatLogList({
     </div>
   );
 }
+
+export default memo(ChatLogList);

@@ -1,0 +1,132 @@
+/* chanari-retro-chat-ui: top 領域のみのスコープ付きスタイル */
+/* bottom slot (ChatLogList) には絶対に波及させない */
+
+/* ページ全体の背景色（body の緑を上書き） */
+.chanari-page-bg {
+  background: #ffd;
+}
+
+.chanari-scope {
+  background: #ffd;
+  min-width: 640px;
+  padding: 4px 8px;
+  font-family: 'MS PGothic', 'ＭＳ Ｐゴシック', Osaka, sans-serif;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #333;
+}
+
+/* --- Top Header (なりきりチャットにもどる / ヘルプ) --- */
+.chanari-scope #chat-topheader {
+  overflow: hidden; /* clearfix */
+  margin-bottom: 2px;
+  padding: 2px 4px;
+  background: #fff;
+  border-bottom: 1px solid #ccc;
+}
+
+.chanari-scope #chat-topheader-left {
+  float: left;
+}
+
+.chanari-scope #chat-topheader-left a {
+  color: #00c;
+  text-decoration: underline;
+  margin-right: 4px;
+}
+
+.chanari-scope #chat-topheader-left span {
+  font-size: 12px;
+}
+
+.chanari-scope #chat-topheader-right {
+  float: right;
+}
+
+.chanari-scope #chat-topheader-right a {
+  color: #00c;
+  text-decoration: underline;
+}
+
+/* --- Header (title + description) --- */
+.chanari-scope #header {
+  overflow: hidden; /* clearfix */
+  margin-bottom: 4px;
+}
+
+.chanari-scope #ctitle {
+  font-size: 18px;
+  font-weight: bold;
+  color: hotpink;
+  margin: 0 0 4px 0;
+}
+
+.chanari-scope #desc {
+  float: right;
+  font-size: 12px;
+  color: #333;
+  margin: 0;
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+/* --- Forms --- */
+.chanari-scope form {
+  margin: 0;
+}
+
+.chanari-scope .chanari-form-row {
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.chanari-scope input[type='text'],
+.chanari-scope select {
+  font-size: 12px;
+  font-family: inherit;
+  margin: 2px 2px 2px 0;
+  padding: 1px 2px;
+  border: 1px solid #999;
+  background: #fff;
+}
+
+.chanari-scope input[type='submit'],
+.chanari-scope button {
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  margin: 2px 4px 2px 0;
+  padding: 2px 8px;
+  border: 1px solid #999;
+  background: #eee;
+}
+
+.chanari-scope input[type='submit']:hover,
+.chanari-scope button:hover {
+  background: #ddd;
+}
+
+.chanari-scope input[type='submit']:disabled,
+.chanari-scope button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* --- Character counter --- */
+.chanari-scope #wdcnt {
+  color: #060;
+  font-weight: bold;
+}
+
+.chanari-scope #wderr {
+  color: #c00;
+  font-weight: bold;
+  margin-left: 4px;
+}
+
+/* --- Error message --- */
+.chanari-scope .chanari-error {
+  color: #c00;
+  font-weight: bold;
+  margin-top: 4px;
+}

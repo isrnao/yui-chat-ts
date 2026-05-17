@@ -4,10 +4,21 @@ import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
 import { generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
 import { normalizeChat } from '../utils/normalizeMetadata';
+import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
+import {
+  loadChatLogs as resourceLoadChatLogs,
+  loadChatLogsSnapshot as resourceLoadChatLogsSnapshot,
+  loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
+  loadInitialChatLogs as resourceLoadInitialChatLogs,
+  invalidateCache as resourceInvalidateCache,
+  applyOptimisticToCache,
+  replaceOptimisticInCache,
+  getCacheInfo as resourceGetCacheInfo,
+  getPagingHasMore,
+} from './chatLogResource';
+export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
 
 const TABLE = 'chats';
-const MAX_CHAT_LOG = 100;
-const CACHE_DURATION = 5 * 60 * 1000; // 5分
 
 // UUID v7最適化設定
 // Supabase側でUUID v7を主キーとして自動生成し、時系列順序性を活用
@@ -25,14 +36,6 @@ function endPerf(operation: string) {
     console.warn(`Performance issue in ${operation}: ${duration.toFixed(0)}ms`);
   }
 }
-
-// 簡易インメモリキャッシュ
-interface CacheItem {
-  data: Chat[];
-  timestamp: number;
-}
-
-let chatLogsCache: CacheItem | null = null;
 
 // パフォーマンス測定用のヘルパー関数（開発環境のみ）
 async function measureApiCall<T>(apiCall: () => Promise<T>): Promise<T> {
@@ -61,120 +64,70 @@ async function retryApiCall<T>(
   throw new Error('Max retries exceeded');
 }
 
-export async function loadChatLogs(useCache = true): Promise<Chat[]> {
-  startPerf();
+function getOfflineChatData(roomId: RoomId): Chat[] {
+  return mockChatData.map((chat) => ({ ...chat, room_id: roomId }));
+}
 
-  return retryApiCall(async () => {
-    // オフライン時はモックデータを返す
-    if (!isOnline()) {
-      endPerf('loadChatLogs-offline');
-      return mockChatData;
-    }
-
-    // キャッシュチェック
-    if (useCache && chatLogsCache) {
-      const now = Date.now();
-      if (now - chatLogsCache.timestamp < CACHE_DURATION) {
-        endPerf('loadChatLogs-cache');
-        return chatLogsCache.data;
-      }
-    }
-
-    // 必要な列のみ選択して、サーバー側でのデータ転送量を削減
-    // UUID v7の主キーを活用して高速ソート
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
-      .eq('deleted', false)
-      .order('uuid', { ascending: false }) // UUID v7の時系列順序性を活用
-      .limit(MAX_CHAT_LOG);
-
-    if (error) {
-      // 401 Unauthorized の場合はモックデータで代替
-      if (error.code === '401' || error.message.includes('JWT')) {
-        return mockChatData;
-      }
-
-      throw new Error(`Supabase error: ${error.message} (${error.code})`);
-    }
-
-    if (!data) {
-      return [];
-    }
-
-    const chatData = (data ?? []).map(normalizeChat);
-
-    // キャッシュに保存
-    chatLogsCache = {
-      data: chatData,
-      timestamp: Date.now(),
-    };
-
-    endPerf('loadChatLogs-network');
-
-    return chatData;
-  });
+export async function loadChatLogs(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  useCache = true
+): Promise<Chat[]> {
+  return resourceLoadChatLogs(roomId, useCache);
 }
 
 // 増分読み込み用関数を追加
 export async function loadChatLogsWithPaging(
+  roomId: RoomId = DEFAULT_ROOM_ID,
   limit = 50,
   offset = 0,
   useCache = true
 ): Promise<{ data: Chat[]; hasMore: boolean }> {
-  return retryApiCall(async () => {
-    // 初回読み込み時はキャッシュから返す
-    if (offset === 0 && useCache && chatLogsCache) {
-      const now = Date.now();
-      if (now - chatLogsCache.timestamp < CACHE_DURATION) {
-        return {
-          data: chatLogsCache.data.slice(0, limit),
-          hasMore: chatLogsCache.data.length > limit,
-        };
-      }
-    }
-
-    const { data, count, error } = await supabase
-      .from(TABLE)
-      .select('uuid,name,color,message,time,system,email,ip,ua,metadata', { count: 'exact' })
-      .eq('deleted', false)
-      .order('uuid', { ascending: false }) // UUID v7の時系列順序性を活用
-      .range(offset, offset + limit - 1);
-
-    if (error) {
-      throw new Error(`Supabase pagination error: ${error.message} (${error.code})`);
-    }
-
-    const chatData = (data ?? []).map(normalizeChat);
-
-    // 初回読み込み時はキャッシュに保存
-    if (offset === 0) {
-      chatLogsCache = {
-        data: chatData,
-        timestamp: Date.now(),
-      };
-    }
-
+  if (offset === 0) {
+    // hasMore は snapshot 取得と同じ往復で確定した値を使う。
+    // resourceLoadChatLogsSnapshot は { data, hasMore } を返すため、
+    // 取得中に invalidateCache が走って世代が変わっても、この呼び出し固有の
+    // hasMore がロストすることはない (#15 対策)。
+    const { data: snapshot, hasMore: snapshotHasMore } = await resourceLoadChatLogsSnapshot(
+      roomId,
+      useCache
+    );
+    // hasMore は次の 2 条件のいずれかで真:
+    //   (1) 要求 limit より snapshot が長い → snapshot 内に未表示分がある
+    //   (2) snapshot 自体が canonical cap (MAX_CHAT_LOG) に張り付いており、
+    //       テーブルにさらに続きが存在することが分かっている
     return {
-      data: chatData,
-      hasMore: (count || 0) > offset + limit,
+      data: snapshot.slice(0, limit),
+      hasMore: snapshot.length > limit || snapshotHasMore === true,
     };
-  });
+  }
+
+  const data = await resourceLoadChatLogsWithPaging(roomId, offset, limit, useCache);
+  const exactHasMore = getPagingHasMore(roomId, offset, limit);
+  return {
+    data,
+    hasMore: exactHasMore ?? data.length >= limit,
+  };
 }
 
 // 初回読み込み時の最適化された関数
-export async function loadInitialChatLogs(limit = 100): Promise<Chat[]> {
-  const result = await loadChatLogsWithPaging(limit, 0, true);
-  return result.data;
+export async function loadInitialChatLogs(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  limit = 100
+): Promise<Chat[]> {
+  return resourceLoadInitialChatLogs(roomId, limit, true);
 }
 
 // 楽観的更新用の高速バージョン
-export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
+export async function saveChatLogOptimistic(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  chat: Chat
+): Promise<Chat> {
   startPerf();
 
   return retryApiCall(async () => {
     const sanitized = {
       // idは除外 - Supabaseでサーバー側のUUID v7を生成
+      room_id: roomId,
       name: chat.name,
       color: chat.color,
       message: chat.message,
@@ -190,7 +143,7 @@ export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
     const { data, error } = await supabase
       .from(TABLE)
       .insert(sanitized)
-      .select('uuid,time')
+      .select('uuid,room_id,time')
       .single();
 
     if (error) {
@@ -198,7 +151,7 @@ export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
     }
 
     // キャッシュ無効化を非同期で実行（ブロッキングしない）
-    Promise.resolve().then(() => invalidateCache());
+    Promise.resolve().then(() => invalidateCache(roomId));
 
     endPerf('saveChatLogOptimistic');
 
@@ -206,6 +159,7 @@ export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
     return {
       ...chat,
       uuid: (data as any).uuid, // サーバー生成のUUID v7
+      room_id: (data as any).room_id ?? roomId,
       time: (data as any).time,
       optimistic: false,
     };
@@ -213,12 +167,13 @@ export async function saveChatLogOptimistic(chat: Chat): Promise<Chat> {
 }
 
 // 従来の互換性維持版
-export async function saveChatLog(chat: Chat): Promise<Chat> {
+export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat): Promise<Chat> {
   startPerf();
 
   return retryApiCall(async () => {
     const sanitized = {
       // idは除外 - Supabaseでサーバー側のUUID v7を生成
+      room_id: roomId,
       name: chat.name,
       color: chat.color,
       message: chat.message,
@@ -234,7 +189,7 @@ export async function saveChatLog(chat: Chat): Promise<Chat> {
     const { data, error } = await supabase
       .from(TABLE)
       .insert(sanitized)
-      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
+      .select('uuid,room_id,name,color,message,time,system,email,ip,ua,metadata')
       .single();
 
     if (error) {
@@ -242,7 +197,7 @@ export async function saveChatLog(chat: Chat): Promise<Chat> {
     }
 
     // 新しいチャットが追加されたらキャッシュを無効化
-    invalidateCache();
+    invalidateCache(roomId);
 
     endPerf('saveChatLog');
 
@@ -255,6 +210,7 @@ export async function saveChatLog(chat: Chat): Promise<Chat> {
 export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
   const sanitized = {
     // idは除外 - Supabaseでサーバー側のUUID v7を生成
+    room_id: chat.room_id ?? DEFAULT_ROOM_ID,
     name: chat.name,
     color: chat.color,
     message: chat.message,
@@ -271,7 +227,7 @@ export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
       await supabase.from(TABLE).insert(sanitized);
 
       // 成功時のみキャッシュを無効化
-      invalidateCache();
+      invalidateCache(chat.room_id ?? DEFAULT_ROOM_ID);
     } catch (error) {
       console.error('Background chat save failed:', error);
     }
@@ -281,25 +237,39 @@ export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
   return Promise.resolve();
 }
 
-export async function clearChatLogs(): Promise<void> {
-  await supabase.from(TABLE).delete().neq('uuid', '');
-
-  // チャットログがクリアされたらキャッシュを無効化
-  invalidateCache();
-}
-
-// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
-export async function clearChatLogsByName(name: string): Promise<void> {
-  const { error } = await supabase.from(TABLE).update({ deleted: true }).eq('name', name);
+export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
+  // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
+  // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ deleted: true })
+    .eq('room_id', roomId)
+    .eq('deleted', false);
   if (error) {
     throw new Error(`Failed to clear chat logs: ${error.message}`);
   }
-  invalidateCache();
+  invalidateCache(roomId);
+}
+
+// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
+export async function clearChatLogsByName(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  name: string
+): Promise<void> {
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ deleted: true })
+    .eq('room_id', roomId)
+    .eq('name', name);
+  if (error) {
+    throw new Error(`Failed to clear chat logs: ${error.message}`);
+  }
+  invalidateCache(roomId);
 }
 
 // キャッシュ無効化関数（非同期版も追加）
-export function invalidateCache(): void {
-  chatLogsCache = null;
+export function invalidateCache(roomId?: RoomId): void {
+  resourceInvalidateCache(roomId);
 }
 
 export async function invalidateCacheAsync(): Promise<void> {
@@ -312,49 +282,51 @@ export async function invalidateCacheAsync(): Promise<void> {
 }
 
 // 楽観的更新用のヘルパー関数
+// 楽観的更新中の time は「サーバー時刻より十分先」に置き、ChatLogList の
+// time-desc フォールバック sort で常に先頭に来ることを保証する。
+// savedChat にマージされた時点でサーバー側の正しい time に置換される。
+const OPTIMISTIC_TIME_OFFSET_MS = 365 * 24 * 60 * 60 * 1000;
+
 export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'optimistic'>): Chat {
+  // optimisticNonce: 楽観的更新の重複表示防止用のランダム識別子。
+  // saveChatLogOptimistic がそのまま metadata に詰めて保存し、
+  // realtime INSERT で同じ nonce が echo されるため、temp UUID と savedChat の
+  // 同一性判定 (reduceOptimisticChat) を (client_time + name + message) より厳密に行える。
+  const nonce =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  const now = Date.now();
+  const baseMetadata = chatData.metadata ?? { version: 1 as const };
   return {
     ...chatData,
-    uuid: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
-    time: Date.now(), // クライアント側の一時的なタイムスタンプ
-    client_time: Date.now(),
+    uuid: `temp-${now}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
+    time: now + OPTIMISTIC_TIME_OFFSET_MS, // 先頭表示保証用の未来時刻
+    client_time: now,
     optimistic: true,
+    metadata: { ...baseMetadata, optimisticNonce: nonce },
   };
 }
 
 // キャッシュに楽観的チャットを追加
 export function addOptimisticChatToCache(chat: Chat): void {
-  if (chatLogsCache) {
-    chatLogsCache.data = [chat, ...chatLogsCache.data];
-  }
+  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
+  applyOptimisticToCache(roomId, chat);
 }
 
 // 楽観的チャットをサーバーからの結果で置換
 export function replaceOptimisticChatInCache(optimisticUuid: string, serverChat: Chat): void {
-  if (chatLogsCache) {
-    const index = chatLogsCache.data.findIndex(
-      (chat) => chat.uuid === optimisticUuid && chat.optimistic
-    );
-    if (index !== -1) {
-      chatLogsCache.data[index] = serverChat;
-    }
-  }
+  replaceOptimisticInCache(optimisticUuid, serverChat);
 }
 
 // キャッシュ状態確認関数
-export function getCacheInfo(): { cached: boolean; age?: number } {
-  if (!chatLogsCache) {
-    return { cached: false };
-  }
-
-  return {
-    cached: true,
-    age: Date.now() - chatLogsCache.timestamp,
-  };
+export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
+  return resourceGetCacheInfo(roomId);
 }
 
 // 時間範囲でのUUID v7最適化検索
 export async function loadChatLogsByTimeRange(
+  roomId: RoomId = DEFAULT_ROOM_ID,
   startTime: number,
   endTime?: number,
   limit = 100
@@ -363,7 +335,7 @@ export async function loadChatLogsByTimeRange(
     // オフライン時はモックデータをフィルタリング
     if (!isOnline()) {
       const end = endTime || Date.now();
-      return mockChatData
+      return getOfflineChatData(roomId)
         .filter((chat) => chat.time >= startTime && chat.time <= end)
         .slice(0, limit);
     }
@@ -374,7 +346,8 @@ export async function loadChatLogsByTimeRange(
 
     let query = supabase
       .from(TABLE)
-      .select('uuid,name,color,message,time,system,email,ip,ua,metadata')
+      .select('uuid,room_id,name,color,message,time,system,email,ip,ua,metadata')
+      .eq('room_id', roomId)
       .eq('deleted', false)
       .gte('uuid', startUUID) // UUID v7による効率的な範囲検索
       .order('uuid', { ascending: false })
@@ -395,82 +368,135 @@ export async function loadChatLogsByTimeRange(
 }
 
 // --- Realtime チャネル管理 ---
+//
+// room 単位で 1 channel を共有し、refCount で生死を管理する設計。
+// 同 room に対する複数 subscribe (StrictMode の二重 mount 含む) を
+// 同一 channel 上の listener Set に集約することで、
+// `chats-postgres-${roomId}` 等の channel 名衝突と leak を回避する。
 
-// Broadcast 用の共有チャネル
-let broadcastChannel: RealtimeChannel | null = null;
-let broadcastSubscribed = false;
+export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
 
-// look イベントのコールバック集合（StrictMode の二重登録に強い設計）
-const lookCallbacks = new Set<(event: LookEvent) => void>();
-let lookListenerAttached = false;
+type PostgresListener = (chat: Chat) => void;
+type LookListener = (event: LookEvent) => void;
 
-function getOrCreateBroadcastChannel(): RealtimeChannel {
-  if (!broadcastChannel) {
-    broadcastChannel = supabase.channel('chats-broadcast');
-    broadcastSubscribed = false;
-  }
-  return broadcastChannel;
-}
+// Postgres Changes (INSERT) の購読 registry
+type PostgresEntry = {
+  channel: RealtimeChannel;
+  listeners: Set<PostgresListener>;
+};
+const postgresEntries = new Map<RoomId, PostgresEntry>();
 
-function ensureBroadcastSubscribed(): void {
-  if (!broadcastSubscribed) {
-    broadcastChannel!.subscribe();
-    broadcastSubscribed = true;
-  }
-}
+// Broadcast (look/unlook) の購読 registry
+type BroadcastEntry = {
+  channel: RealtimeChannel;
+  listeners: Set<LookListener>;
+};
+const broadcastEntries = new Map<RoomId, BroadcastEntry>();
 
-function ensureLookListenerAttached(): void {
-  if (lookListenerAttached) return;
-  const channel = getOrCreateBroadcastChannel();
-  channel.on('broadcast', { event: 'look' }, (payload) => {
-    const event = payload.payload as LookEvent;
-    // 登録されているすべてのコールバックに dispatch
-    for (const cb of lookCallbacks) cb(event);
-  });
-  lookListenerAttached = true;
-}
-
-// Postgres Changes 用（subscribeChatLogs 専用チャネル）
-export function subscribeChatLogs(callback: (chat: Chat) => void) {
+function createPostgresEntry(roomId: RoomId): PostgresEntry {
+  const listeners = new Set<PostgresListener>();
   const channel = supabase
-    .channel('chats-postgres')
-    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) =>
-      callback(normalizeChat(payload.new))
+    .channel(`chats-postgres-${roomId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: TABLE, filter: `room_id=eq.${roomId}` },
+      (payload) => {
+        const chat = normalizeChat(payload.new);
+        for (const listener of listeners) listener(chat);
+      }
     )
     .subscribe();
-  return channel;
+  return { channel, listeners };
+}
+
+function createBroadcastEntry(roomId: RoomId): BroadcastEntry {
+  const listeners = new Set<LookListener>();
+  const channel = supabase
+    .channel(`chats-broadcast-${roomId}`)
+    .on('broadcast', { event: 'look' }, (payload) => {
+      const event = payload.payload as LookEvent;
+      for (const listener of listeners) listener(event);
+    })
+    .subscribe();
+  return { channel, listeners };
+}
+
+function getOrCreateBroadcastEntry(roomId: RoomId): BroadcastEntry {
+  let entry = broadcastEntries.get(roomId);
+  if (!entry) {
+    entry = createBroadcastEntry(roomId);
+    broadcastEntries.set(roomId, entry);
+  }
+  return entry;
+}
+
+/**
+ * Postgres Changes 用の購読を登録する。
+ * 同 room の複数購読者は同一 channel を共有し、最後の解除で channel が破棄される。
+ */
+export function subscribeChatLogs(
+  roomId: RoomId,
+  callback: PostgresListener
+): { unsubscribe: () => void } {
+  let entry = postgresEntries.get(roomId);
+  if (!entry) {
+    entry = createPostgresEntry(roomId);
+    postgresEntries.set(roomId, entry);
+  }
+  entry.listeners.add(callback);
+
+  return {
+    unsubscribe() {
+      const current = postgresEntries.get(roomId);
+      if (!current) return;
+      current.listeners.delete(callback);
+      if (current.listeners.size === 0) {
+        supabase.removeChannel(current.channel);
+        postgresEntries.delete(roomId);
+      }
+    },
+  };
 }
 
 // --- Broadcast: look/unlook イベント ---
 
-export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
-
-export function broadcastLookEvent(messageId: string): void {
-  const channel = getOrCreateBroadcastChannel();
-  ensureBroadcastSubscribed();
-  channel.send({
-    type: 'broadcast',
-    event: 'look',
-    payload: { type: 'look', messageId } satisfies LookEvent,
-  });
+// send-only 利用 (listener 0) で起こした channel は send 後に明示破棄する。
+// onLookBroadcast 経路で listener が既に存在する場合は通常の refCount cleanup に任せる。
+function sendBroadcastLookPayload(roomId: RoomId, payload: LookEvent): void {
+  const hadListeners = (broadcastEntries.get(roomId)?.listeners.size ?? 0) > 0;
+  const entry = getOrCreateBroadcastEntry(roomId);
+  // channel.send は Promise を返す。listener が居なかった場合は送信完了後に
+  // (= 他に listener が追加されていないことを確認したうえで) channel を破棄する。
+  void Promise.resolve(entry.channel.send({ type: 'broadcast', event: 'look', payload })).finally(
+    () => {
+      if (hadListeners) return;
+      const current = broadcastEntries.get(roomId);
+      if (!current) return;
+      if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
+      supabase.removeChannel(current.channel);
+      broadcastEntries.delete(roomId);
+    }
+  );
 }
 
-export function broadcastUnlookEvent(): void {
-  const channel = getOrCreateBroadcastChannel();
-  ensureBroadcastSubscribed();
-  channel.send({
-    type: 'broadcast',
-    event: 'look',
-    payload: { type: 'unlook' } satisfies LookEvent,
-  });
+export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
+  sendBroadcastLookPayload(roomId, { type: 'look', messageId });
 }
 
-export function onLookBroadcast(callback: (event: LookEvent) => void): () => void {
-  ensureLookListenerAttached();
-  ensureBroadcastSubscribed();
-  lookCallbacks.add(callback);
-  // コールバック集合からの削除で解除できる（StrictMode の二重登録にも耐える）
+export function broadcastUnlookEvent(roomId: RoomId): void {
+  sendBroadcastLookPayload(roomId, { type: 'unlook' });
+}
+
+export function onLookBroadcast(roomId: RoomId, callback: LookListener): () => void {
+  const entry = getOrCreateBroadcastEntry(roomId);
+  entry.listeners.add(callback);
   return () => {
-    lookCallbacks.delete(callback);
+    const current = broadcastEntries.get(roomId);
+    if (!current) return;
+    current.listeners.delete(callback);
+    if (current.listeners.size === 0) {
+      supabase.removeChannel(current.channel);
+      broadcastEntries.delete(roomId);
+    }
   };
 }

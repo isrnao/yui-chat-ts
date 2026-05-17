@@ -7,6 +7,7 @@ import type {
   AvatarId,
 } from '../types';
 import { FONT_COLOR_NAMES, AVATAR_IDS } from '../types';
+import { DEFAULT_ROOM_ID, isRoomId } from '../rooms';
 
 // --- 型ガード関数 ---
 
@@ -82,6 +83,10 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.userColor = input.userColor;
     }
 
+    if (typeof input.optimisticNonce === 'string') {
+      result.optimisticNonce = input.optimisticNonce;
+    }
+
     return result;
   } catch {
     return undefined;
@@ -110,6 +115,8 @@ export function normalizeChat(row: unknown): Chat {
 
   return {
     uuid: typeof chat.uuid === 'string' ? chat.uuid : '',
+    room_id:
+      typeof chat.room_id === 'string' && isRoomId(chat.room_id) ? chat.room_id : DEFAULT_ROOM_ID,
     name: typeof chat.name === 'string' ? chat.name : '',
     color: typeof chat.color === 'string' ? chat.color : '',
     message: typeof chat.message === 'string' ? chat.message : '',

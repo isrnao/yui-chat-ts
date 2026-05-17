@@ -253,8 +253,8 @@ describe('SEO Utils', () => {
       expect(defaultSEOMetadata.description).toContain('ゆいちゃっとは放課後学生タウンの雰囲気');
       expect(Array.isArray(defaultSEOMetadata.keywords)).toBe(true);
       expect(defaultSEOMetadata.keywords.length).toBeGreaterThan(0);
-      expect(defaultSEOMetadata.ogImage).toBe('/og-image.png');
-      expect(defaultSEOMetadata.canonical).toBe('https://isrnao.github.io/yui-chat-ts/');
+      expect(defaultSEOMetadata.ogImage).toBe('https://www.okiraku.chat/ogp.png');
+      expect(defaultSEOMetadata.canonical).toBe('https://www.okiraku.chat/');
     });
   });
 });

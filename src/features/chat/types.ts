@@ -1,3 +1,5 @@
+import type { RoomId } from './rooms';
+
 // --- フォントスタイル ---
 
 export type FontSize = 1 | 2 | 3 | 4 | 5;
@@ -98,12 +100,19 @@ export type ChatMetadata = {
   kind?: 'normal' | 'fortune' | 'admin';
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
+  /**
+   * 楽観的更新の重複表示防止用 nonce。
+   * `createOptimisticChat` が生成し、保存時にサーバーへ送られ、realtime INSERT で
+   * echo されて返るため、temp UUID と savedChat の同一性判定の強い鍵として使える。
+   */
+  optimisticNonce?: string;
 };
 
 // --- チャットメッセージ ---
 
 export type Chat = {
   uuid: string; // UUID v7 (サーバー側で生成される主キー)
+  room_id?: RoomId; // 部屋ごとのログ分離。旧データとの互換のため optional
   name: string;
   color: string;
   message: string;

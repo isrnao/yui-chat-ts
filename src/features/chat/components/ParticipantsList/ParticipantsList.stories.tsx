@@ -10,15 +10,10 @@ const meta = {
   tags: ['autodocs'],
   args: {
     participants: sampleParticipants,
-    currentTime: Date.parse('2024-01-01T12:00:00Z'),
   },
   argTypes: {
     participants: {
       description: '参加者の一覧',
-    },
-    currentTime: {
-      control: { type: 'number' },
-      description: '表示する現在時刻（ミリ秒）',
     },
   },
 } satisfies Meta<typeof ParticipantsList>;

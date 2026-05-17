@@ -5,6 +5,7 @@ import {
   clearChatLogsByName,
   broadcastLookEvent,
   broadcastUnlookEvent,
+  createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
@@ -12,25 +13,10 @@ import { playNotificationSound, stopNotificationSound } from '@features/chat/uti
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
-
-// 楽観的更新用のタイムスタンプを生成
-// 確実に先頭に表示されるよう、十分未来の時刻を使用
-function getOptimisticTimestamp(): number {
-  // 現在時刻 + 1年（確実に先頭に表示される）
-  return Date.now() + 365 * 24 * 60 * 60 * 1000;
-}
-
-// 楽観的更新用のチャットを作成（サーバー側でUUID v7とtimeを生成）
-function createOptimisticChat(baseChat: Omit<Chat, 'uuid' | 'time' | 'optimistic'>): Chat {
-  return {
-    ...baseChat,
-    uuid: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // 一時UUID
-    time: getOptimisticTimestamp(),
-    optimistic: true, // 楽観的更新フラグを追加
-  };
-}
+import type { RoomId } from '@features/chat/rooms';
 
 export function useChatHandlers({
+  roomId,
   name,
   color,
   email,
@@ -44,6 +30,7 @@ export function useChatHandlers({
   addOptimistic,
   mergeChat,
 }: {
+  roomId: RoomId;
   name: string;
   color: string;
   email: string;
@@ -79,6 +66,7 @@ export function useChatHandlers({
       if (silent) return;
 
       const optimistic = createOptimisticChat({
+        room_id: roomId,
         name: '管理人',
         color: '#ffffff',
         message: `${entryName} さん、Welcome to お気楽チャット☆`,
@@ -103,16 +91,17 @@ export function useChatHandlers({
       ]);
       const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
 
-      const savedChat = await saveChatLogOptimistic(chatToSave);
+      const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
 
       startTransition(() => mergeChat(savedChat));
     },
-    [setEntered, addOptimistic, mergeChat]
+    [roomId, setEntered, addOptimistic, mergeChat]
   );
 
   // 退室
   const handleExit = useCallback(async () => {
     const optimistic = createOptimisticChat({
+      room_id: roomId,
       name: '管理人',
       color: '#ffffff',
       message: `${name}さん、またきておくれやすぅ。`,
@@ -143,10 +132,20 @@ export function useChatHandlers({
 
     const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
 
-    const savedChat = await saveChatLogOptimistic(chatToSave);
+    const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
 
     startTransition(() => mergeChat(savedChat));
-  }, [name, color, setEntered, setShowRanking, setName, setMessage, addOptimistic, mergeChat]);
+  }, [
+    roomId,
+    name,
+    color,
+    setEntered,
+    setShowRanking,
+    setName,
+    setMessage,
+    addOptimistic,
+    mergeChat,
+  ]);
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）
   const handleSend = useCallback(
@@ -159,7 +158,7 @@ export function useChatHandlers({
         return;
       }
       if (msg.trim() === 'clear') {
-        await clearChatLogsByName(name);
+        await clearChatLogsByName(roomId, name);
         setChatLog((prev) => prev.filter((c) => c.name !== name));
         setMessage('');
         setShowRanking(false);
@@ -167,6 +166,7 @@ export function useChatHandlers({
       }
 
       const optimistic = createOptimisticChat({
+        room_id: roomId,
         name,
         color,
         message: msg,
@@ -193,17 +193,17 @@ export function useChatHandlers({
       };
 
       // ユーザー発言を保存
-      const savedChat = await saveChatLogOptimistic(chatToSave);
+      const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
       startTransition(() => mergeChat(savedChat));
 
       // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信
       const trimmed = msg.trim();
       if (trimmed === 'look') {
         playNotificationSound();
-        broadcastLookEvent(savedChat.uuid);
+        broadcastLookEvent(roomId, savedChat.uuid);
       } else if (trimmed === 'unlook') {
         stopNotificationSound();
-        broadcastUnlookEvent();
+        broadcastUnlookEvent(roomId);
       }
 
       // おみくじロジック: ユーザー発言保存成功後に巫女メッセージを生成・保存
@@ -211,6 +211,7 @@ export function useChatHandlers({
         try {
           const fortune = generateFortune(name);
           const fortuneOptimistic = createOptimisticChat({
+            room_id: roomId,
             name: fortune.senderName,
             color: fortune.color,
             message: fortune.message,
@@ -234,20 +235,20 @@ export function useChatHandlers({
             ua: userAgent,
           };
 
-          const savedFortune = await saveChatLogOptimistic(fortuneToSave);
+          const savedFortune = await saveChatLogOptimistic(roomId, fortuneToSave);
           startTransition(() => mergeChat(savedFortune));
         } catch {
           // 巫女メッセージの保存失敗時はサイレントに失敗
         }
       }
     },
-    [name, color, email, setMessage, setShowRanking, setChatLog, addOptimistic, mergeChat]
+    [roomId, name, color, email, setMessage, setShowRanking, setChatLog, addOptimistic, mergeChat]
   );
 
   // チャット履歴再読み込み
   const handleReload = useCallback(() => {
-    loadChatLogs().then((loaded) => setChatLog(() => loaded));
-  }, [setChatLog]);
+    loadChatLogs(roomId).then((loaded) => setChatLog(() => loaded));
+  }, [roomId, setChatLog]);
 
   return {
     handleEnter,

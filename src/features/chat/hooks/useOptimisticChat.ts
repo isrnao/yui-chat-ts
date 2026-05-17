@@ -7,14 +7,17 @@ import {
   addOptimisticChatToCache,
   replaceOptimisticChatInCache,
 } from '@features/chat/api/chatApi';
+import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
 interface UseOptimisticChatOptions {
+  roomId?: RoomId;
   onSuccess?: (chat: Chat) => void;
   onError?: (error: Error, optimisticChat: Chat) => void;
   strategy?: 'optimistic' | 'fire-and-forget';
 }
 
 export function useOptimisticChat({
+  roomId = DEFAULT_ROOM_ID,
   onSuccess,
   onError,
   strategy = 'optimistic',
@@ -23,7 +26,7 @@ export function useOptimisticChat({
 
   const sendChatOptimistic = useCallback(
     async (chatData: Omit<Chat, 'uuid' | 'time' | 'optimistic'>) => {
-      const optimisticChat = createOptimisticChat(chatData);
+      const optimisticChat = createOptimisticChat({ ...chatData, room_id: roomId });
       const optimisticUuid = optimisticChat.uuid;
 
       try {
@@ -48,7 +51,7 @@ export function useOptimisticChat({
           replaceOptimisticChatInCache(optimisticUuid, serverChat);
         } else {
           // Optimistic: 最小限のサーバーレスポンスを待つ
-          const serverChat = await saveChatLogOptimistic(optimisticChat);
+          const serverChat = await saveChatLogOptimistic(roomId, optimisticChat);
 
           // キャッシュ内の楽観的チャットをサーバーの結果で置換
           replaceOptimisticChatInCache(optimisticUuid, serverChat);
@@ -74,7 +77,7 @@ export function useOptimisticChat({
         // この部分は具体的な要件に応じて実装してください
       }
     },
-    [onSuccess, onError, strategy]
+    [roomId, onSuccess, onError, strategy]
   );
 
   return {

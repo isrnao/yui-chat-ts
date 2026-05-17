@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import mdx from '@mdx-js/rollup';
 
 export default defineConfig({
-  base: '/yui-chat-ts/',
+  base: '/',
   plugins: [react(), mdx()],
   build: {
     target: 'es2022',

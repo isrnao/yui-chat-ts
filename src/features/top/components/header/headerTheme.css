@@ -1,0 +1,382 @@
+/*
+ * text-based-header の配色・レイアウト CSS。
+ *
+ * - 画像参照 (url(...)) を一切含まない。すべて単色 or linear-gradient(...) で描画する。
+ * - 色はユーザー提供のスポイトサンプリング値に完全一致させる（design.md 視覚トークン参照）。
+ * - クラス接頭辞 `ochat-header__` で名前空間を作り、既存 `.okiraku-*` と干渉しない。
+ */
+
+/* ===== 視覚トークン: .ochat-header スコープで一元管理 ===== */
+.ochat-header {
+  /* 背景 */
+  --ochat-h-bg: #ffffff;
+
+  /* ロゴ - URL マルチカラー */
+  --ochat-h-logo-url-www: #ec168c;
+  --ochat-h-logo-url-dot: #343434;
+  --ochat-h-logo-url-okiraku: #1189ee;
+  --ochat-h-logo-url-com: #31c34a;
+
+  /* ロゴ - タイトル（濃青 + 白縁 + 影 + 青グロー） */
+  --ochat-h-logo-text: #096fe5;
+  --ochat-h-logo-text-halo: rgba(255, 255, 255, 0.85);
+  --ochat-h-logo-text-shadow: rgba(80, 80, 80, 0.3);
+  --ochat-h-logo-text-glow: rgba(18, 126, 238, 0.35);
+
+  /* ロゴ - 翼（ピンクアウトライン） */
+  --ochat-h-logo-wing: #f08ab0;
+  --ochat-h-logo-wing-fill: #fff6fb;
+
+  /* ガイドメニュー */
+  --ochat-h-guide-link: #1a6dbc;
+  --ochat-h-guide-link-hover: #d9463d;
+  --ochat-h-guide-icon-pink: #ff5f8a;
+  --ochat-h-guide-icon-orange: #ff9a3c;
+  --ochat-h-guide-icon-green: #3fbf8f;
+  --ochat-h-guide-icon-blue: #2e8fd1;
+
+  /* 1段目（プライマリタブ）: 白〜薄グレー背景、アクティブのみ青グラデ */
+  --ochat-h-primary-tab-bg-top: #fefefe;
+  --ochat-h-primary-tab-bg-btm: #e8e8e8;
+  --ochat-h-primary-tab-fg: #333333;
+  --ochat-h-primary-tab-active-bg-top: #0099ff;
+  --ochat-h-primary-tab-active-bg-btm: #016fff;
+  --ochat-h-primary-tab-active-fg: #ffffff;
+  --ochat-h-primary-tab-divider: rgba(0, 0, 0, 0.12);
+
+  /* 1段目と2段目の間の濃青の細帯 */
+  --ochat-h-seam: #006cff;
+
+  /* 2段目（セカンダリタブ）: 水色グラデ背景、アクティブのみ白塗り */
+  --ochat-h-secondary-bar-top: #0bbbfe;
+  --ochat-h-secondary-bar-btm: #068ae3;
+  --ochat-h-secondary-tab-fg: #ffffff;
+  --ochat-h-secondary-tab-active-bg: #ffffff;
+  --ochat-h-secondary-tab-active-fg: #333333;
+  --ochat-h-secondary-tab-divider: rgba(255, 255, 255, 0.35);
+
+  background: var(--ochat-h-bg);
+}
+
+/* ===== 上段: ロゴ + ガイドメニュー ===== */
+.ochat-header__top {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 990px;
+  margin: 0 auto;
+  padding: 14px 12px 10px;
+}
+
+/* ===== ロゴ ===== */
+.ochat-header__logo-h1 {
+  margin: 0;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1;
+  width: 250px;
+  height: 48px;
+}
+
+.ochat-header__logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  color: inherit;
+  width: 250px;
+  height: 48px;
+  overflow: hidden;
+}
+
+.ochat-header__logo-wing {
+  flex-shrink: 0;
+  width: 38px;
+  height: 30px;
+}
+
+.ochat-header__logo-texts {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  line-height: 1;
+  min-width: 0;
+}
+
+.ochat-header__logo-url {
+  display: inline-flex;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  line-height: 1;
+  margin-bottom: 2px;
+  font-family: 'Arial', 'Helvetica', 'Trebuchet MS', sans-serif;
+}
+
+.ochat-header__logo-url-www {
+  color: var(--ochat-h-logo-url-www);
+}
+
+.ochat-header__logo-url-dot {
+  color: var(--ochat-h-logo-url-dot);
+  letter-spacing: 0;
+  padding: 0 0.5px;
+}
+
+.ochat-header__logo-url-mid {
+  color: var(--ochat-h-logo-url-okiraku);
+}
+
+.ochat-header__logo-url-com {
+  color: var(--ochat-h-logo-url-com);
+}
+
+.ochat-header__logo-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  /* TsBadge は title の text-shadow を継承しないよう独立行を切る */
+}
+
+.ochat-header__logo-ts {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.ochat-header__logo-title {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  line-height: 1;
+  color: var(--ochat-h-logo-text);
+  white-space: nowrap;
+  font-family:
+    'Arial Rounded MT Bold', 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN',
+    'Hiragino Maru Gothic Pro', 'HGMaruGothicMPRO', 'Yu Gothic', 'Meiryo', sans-serif;
+  text-shadow:
+    -1px -1px 0 var(--ochat-h-logo-text-halo),
+    1px -1px 0 var(--ochat-h-logo-text-halo),
+    -1px 1px 0 var(--ochat-h-logo-text-halo),
+    1px 1px 0 var(--ochat-h-logo-text-halo),
+    0 2px 2px var(--ochat-h-logo-text-shadow);
+}
+
+/* ===== ガイドメニュー ===== */
+.ochat-header__guide {
+  padding-top: 18px;
+}
+
+.ochat-header__guide-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ochat-header__guide-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ochat-header__guide-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ochat-h-guide-link);
+  text-decoration: none;
+  /* button 互換のリセット (現状は <button type="button" disabled> でも描画される) */
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ochat-header__guide-link:disabled {
+  cursor: default;
+  /* disabled でも視覚はリンク同様に保つ */
+  opacity: 1;
+  color: var(--ochat-h-guide-link);
+}
+
+/* disabled プレースホルダーには hover を当てない (操作不能なのに反応するように見えるのを防ぐ) */
+.ochat-header__guide-link:not(:disabled):hover,
+.ochat-header__guide-link:not(:disabled):focus {
+  color: var(--ochat-h-guide-link-hover);
+  text-decoration: underline;
+}
+
+.ochat-header__guide-icon {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* ===== 1段目: プライマリタブ（白〜薄グレー背景） ===== */
+.ochat-header__primary {
+  background: linear-gradient(
+    to bottom,
+    var(--ochat-h-primary-tab-bg-top) 0%,
+    var(--ochat-h-primary-tab-bg-btm) 100%
+  );
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ochat-header__primary-list {
+  display: flex;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  max-width: 990px;
+  margin: 0 auto;
+  padding: 4px 0 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.ochat-header__primary-item {
+  flex-shrink: 0;
+  padding: 0 1px;
+}
+
+.ochat-header__primary-tab {
+  display: block;
+  min-width: 108px;
+  height: 34px;
+  line-height: 34px;
+  padding: 0 12px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ochat-h-primary-tab-fg);
+  text-decoration: none;
+  /* button 互換のリセット (現状は <button type="button" disabled> でも描画される) */
+  appearance: none;
+  border: 0;
+  margin: 0;
+  font-family: inherit;
+  width: 100%;
+  cursor: pointer;
+  /* タブ上辺の丸み: レガシーデザインを踏襲 */
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(
+    to bottom,
+    var(--ochat-h-primary-tab-bg-top) 0%,
+    var(--ochat-h-primary-tab-bg-btm) 100%
+  );
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 1px 0 0 var(--ochat-h-primary-tab-divider),
+    inset -1px 0 0 var(--ochat-h-primary-tab-divider),
+    inset 0 -1px 0 var(--ochat-h-primary-tab-divider);
+}
+
+.ochat-header__primary-tab:disabled {
+  cursor: default;
+  opacity: 1;
+  color: var(--ochat-h-primary-tab-fg);
+}
+
+/*
+ * --active は明示的な「現在地」状態 (現状は付与する callsite なし)。
+ * hover/focus は disabled プレースホルダーには適用せず、
+ * 遷移可能なタブにのみアクティブ風の青グラデーションを当てる。
+ */
+.ochat-header__primary-tab--active,
+.ochat-header__primary-tab:not(:disabled):hover,
+.ochat-header__primary-tab:not(:disabled):focus {
+  background: linear-gradient(
+    to bottom,
+    var(--ochat-h-primary-tab-active-bg-top) 0%,
+    var(--ochat-h-primary-tab-active-bg-btm) 100%
+  );
+  color: var(--ochat-h-primary-tab-active-fg);
+  font-weight: 700;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* 1段目と2段目の間の濃青の細帯 */
+.ochat-header__seam {
+  height: 4px;
+  background: var(--ochat-h-seam);
+}
+
+/* ===== 2段目: セカンダリタブ（水色グラデ背景） ===== */
+.ochat-header__secondary {
+  background: linear-gradient(
+    to bottom,
+    var(--ochat-h-secondary-bar-top) 0%,
+    var(--ochat-h-secondary-bar-btm) 100%
+  );
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.ochat-header__secondary-list {
+  display: flex;
+  flex-wrap: nowrap;
+  max-width: 990px;
+  margin: 0 auto;
+  /* 上部に水色バーが見える隙間をつくる */
+  padding: 6px 0 0;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.ochat-header__secondary-item {
+  flex-shrink: 0;
+}
+
+.ochat-header__secondary-item + .ochat-header__secondary-item {
+  border-left: 1px solid var(--ochat-h-secondary-tab-divider);
+}
+
+.ochat-header__secondary-tab {
+  display: inline-block;
+  min-width: 120px;
+  height: 34px;
+  line-height: 34px;
+  padding: 0 14px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ochat-h-secondary-tab-fg);
+  text-decoration: none;
+  box-sizing: border-box;
+  background: transparent;
+}
+
+.ochat-header__secondary-tab--active {
+  /* アクティブタブは上辺に丸みを持つ白塗り */
+  background: var(--ochat-h-secondary-tab-active-bg);
+  color: var(--ochat-h-secondary-tab-active-fg);
+  border-radius: 5px 5px 0 0;
+}
+
+.ochat-header__secondary-tab:hover,
+.ochat-header__secondary-tab:focus {
+  background: var(--ochat-h-secondary-tab-active-bg);
+  color: var(--ochat-h-secondary-tab-active-fg);
+  border-radius: 5px 5px 0 0;
+}
+
+/* ===== レスポンシブ: モバイル時はロゴとガイドを縦積み ===== */
+@media (max-width: 767px) {
+  .ochat-header__top {
+    flex-direction: column;
+  }
+}
