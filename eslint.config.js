@@ -11,6 +11,7 @@ export default [
       'dist',
       'coverage',
       'docs',
+      'storybook-static',
       '**/*.mdx',
       '**/*.md',
       'README.md',
