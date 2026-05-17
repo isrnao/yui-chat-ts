@@ -2,6 +2,7 @@ import { Suspense, useState, useEffect, useCallback } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import Button from '@shared/components/Button';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID } from '@features/chat/rooms';
@@ -17,15 +18,12 @@ export default function ChatLogPage() {
   // プリロードフック使用
   const preloadPromise = usePreloadChatLogs(DEFAULT_ROOM_ID);
 
-  // windowRows 変更時はリロード扱い: render 中に「前回値からの変化検知」で state を巻き戻す
-  // （effect 内 setState を避けるための React 公式推奨パターン）
-  const [prevWindowRows, setPrevWindowRows] = useState(windowRows);
-  if (windowRows !== prevWindowRows) {
-    setPrevWindowRows(windowRows);
+  // windowRows 変更時はリロード扱い (useResetOnChange = 公式推奨「前回値検知」パターン)
+  useResetOnChange(windowRows, () => {
     setChatLog([]);
     setHasMore(true);
     setIsLoading(true);
-  }
+  });
 
   useEffect(() => {
     let ignore = false;

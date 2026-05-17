@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react';
 import { useState, type ComponentProps, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import EntryForm from './index';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 type EntryFormProps = ComponentProps<typeof EntryForm>;
 
@@ -22,18 +23,10 @@ function EntryFormContainer({
   const [email, setEmail] = useState(initialEmail);
 
   // Storybook controls で initial 値が変わったら state を巻き戻す
-  // （effect 内 setState を避けるため render 中に「前回値からの変化検知」を行う React 公式推奨パターン）
-  const [prevInitial, setPrevInitial] = useState({ initialName, initialColor, initialEmail });
-  if (
-    prevInitial.initialName !== initialName ||
-    prevInitial.initialColor !== initialColor ||
-    prevInitial.initialEmail !== initialEmail
-  ) {
-    setPrevInitial({ initialName, initialColor, initialEmail });
-    setName(initialName);
-    setColor(initialColor);
-    setEmail(initialEmail);
-  }
+  // (useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン)
+  useResetOnChange(initialName, setName);
+  useResetOnChange(initialColor, setColor);
+  useResetOnChange(initialEmail, setEmail);
 
   return (
     <EntryForm

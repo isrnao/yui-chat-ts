@@ -3,6 +3,7 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import ChatRoom, { type ChatRoomProps } from './index';
 import { sampleChatLog } from '../../../../storybook/mocks/chatSamples';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 function ChatRoomContainer({
   chatLog: initialChatLog = sampleChatLog,
@@ -17,17 +18,9 @@ function ChatRoomContainer({
   const [windowRows, setWindowRows] = useState(initialWindowRows);
 
   // Storybook controls で initial 値が変わったら state を巻き戻す
-  // （effect 内 setState を避ける React 公式推奨パターン）
-  const [prevInitialChatLog, setPrevInitialChatLog] = useState(initialChatLog);
-  if (prevInitialChatLog !== initialChatLog) {
-    setPrevInitialChatLog(initialChatLog);
-    setChatLog(initialChatLog);
-  }
-  const [prevInitialWindowRows, setPrevInitialWindowRows] = useState(initialWindowRows);
-  if (prevInitialWindowRows !== initialWindowRows) {
-    setPrevInitialWindowRows(initialWindowRows);
-    setWindowRows(initialWindowRows);
-  }
+  // (useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン)
+  useResetOnChange(initialChatLog, setChatLog);
+  useResetOnChange(initialWindowRows, setWindowRows);
 
   return (
     <div className="max-w-3xl mx-auto p-4">

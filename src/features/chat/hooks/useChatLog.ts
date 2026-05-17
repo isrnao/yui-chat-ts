@@ -5,6 +5,7 @@ import {
   clearChatLogs,
   subscribeChatLogs,
 } from '@features/chat/api/chatApi';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
@@ -56,14 +57,11 @@ export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // roomId 変更時は render 中に「前回値からの変化検知」で reload 開始状態へ巻き戻す
-  // （effect 内 setState を避けるための React 公式推奨パターン）
-  const [prevRoomId, setPrevRoomId] = useState(roomId);
-  if (roomId !== prevRoomId) {
-    setPrevRoomId(roomId);
+  // roomId 変更時は reload 開始状態へ巻き戻す (useResetOnChange = 公式推奨「前回値検知」パターン)
+  useResetOnChange(roomId, () => {
     setChatLog([]);
     setIsLoading(true);
-  }
+  });
 
   const mergeChat = useCallback(
     (chat: Chat) => {

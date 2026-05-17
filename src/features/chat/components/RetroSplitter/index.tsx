@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, isValidElement } from 'react';
 import type { ReactNode, KeyboardEvent } from 'react';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 function getTopTypeName(top: ReactNode, bottom: ReactNode): string | null {
   if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
@@ -131,16 +132,13 @@ export default function RetroSplitter({
   );
 
   // top コンポーネントの種類が変わったら高さを初期化（ChatRoom と EntryForm で違うデフォルト）
-  // effect 内 setState を避けるため、render 中に「前回値からの変化検知」で再初期化する
-  // （React 公式推奨パターン: https://react.dev/reference/eslint-plugin-react-hooks/lints/set-state-in-effect）
+  // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
   const topTypeName = getTopTypeName(top, bottom);
-  const [prevTopTypeName, setPrevTopTypeName] = useState(topTypeName);
-  if (topTypeName !== prevTopTypeName) {
-    setPrevTopTypeName(topTypeName);
-    if (topTypeName != null) {
-      setTopHeight(topTypeName === 'ChatRoom' ? 18 : 26);
+  useResetOnChange(topTypeName, (next) => {
+    if (next != null) {
+      setTopHeight(next === 'ChatRoom' ? 18 : 26);
     }
-  }
+  });
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {
