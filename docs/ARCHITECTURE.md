@@ -521,7 +521,9 @@ type Chat = {
 --color-ie-blue: #4a90e2; /* IE 風ブルー */
 --color-ie-bg: #f3f3f3; /* IE 風背景 */
 
---font-yui: 'Zen Maru Gothic', 'MS UI Gothic', Arial, sans-serif;
+--font-yui:
+  'MS PGothic', 'ＭＳ Ｐゴシック', 'MS UI Gothic', Osaka, 'Hiragino Kaku Gothic ProN',
+  'Hiragino Sans', Meiryo, sans-serif;
 ```
 
 通常チャット / Chanari のテーマ別ヘッダースタイルは `src/styles/okiraku-header.css` / `chanari-header.css` に scoped で配置しています。

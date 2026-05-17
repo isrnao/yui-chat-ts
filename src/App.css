@@ -10,7 +10,9 @@
   --ie-gray: #b1b1b1;
   --ie-blue: #4a90e2;
   --ie-bg: #f3f3f3;
-  --font-yui: 'MS UI Gothic', Arial, sans-serif;
+  --font-yui:
+    'MS PGothic', 'ＭＳ Ｐゴシック', 'MS UI Gothic', Osaka, 'Hiragino Kaku Gothic ProN',
+    'Hiragino Sans', Meiryo, sans-serif;
   --page-gap: clamp(12px, 3vw, 28px);
   color-scheme: light;
   scrollbar-gutter: stable both-edges;

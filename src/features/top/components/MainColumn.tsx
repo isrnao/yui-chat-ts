@@ -3,7 +3,7 @@ import { news, pickupGroups, type PickupGroup } from '../data';
 import { CountBadge, resolveCount } from './CountBadge';
 import { RoomAnchor } from './RoomAnchor';
 import { SectionTitle } from './SectionTitle';
-import { toneClass } from './tones';
+import { toneClass, toneMarkerClass } from './tones';
 
 function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: RoomCountMap }) {
   return (
@@ -12,12 +12,9 @@ function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: Roo
         {group.title}
       </h3>
       <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
-      <ul className="mt-1 text-[12px] leading-[1.42]">
+      <ul className="mt-1 list-outside list-[circle] pl-[14px] text-[12px] leading-[1.3]">
         {group.items.map((item) => (
-          <li
-            key={item.label}
-            className="whitespace-nowrap before:mr-1 before:text-orange-300 before:content-['○']"
-          >
+          <li key={item.label} className={`whitespace-nowrap ${toneMarkerClass[group.tone]}`}>
             <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
             <CountBadge count={resolveCount(item, liveCounts)} />
           </li>
@@ -38,10 +35,9 @@ export function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
       <SectionTitle>注目のチャット ピックアップ</SectionTitle>
       <section className="px-2 py-3">
         <h3 className="text-[13px] font-bold">チャットの最新情報</h3>
-        <ul className="mt-2 text-[12px] leading-[1.55]">
+        <ul className="mt-2 list-outside list-[circle] pl-[14px] text-[12px] leading-[1.3] marker:text-pink-500">
           {news.map((item, newsIndex) => (
             <li key={newsIndex} className="text-gray-700">
-              ○{' '}
               {item.parts.map((part, partIndex) =>
                 typeof part === 'string' ? (
                   <span key={partIndex}>{part}</span>

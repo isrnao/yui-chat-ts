@@ -3,16 +3,16 @@ import { chatDirectoryGroups, type ChatDirectoryGroup } from '../data';
 import { CountBadge, resolveCount } from './CountBadge';
 import { RoomAnchor } from './RoomAnchor';
 import { SectionTitle } from './SectionTitle';
-import { toneClass } from './tones';
+import { toneClass, toneMarkerClass } from './tones';
 
 function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts: RoomCountMap }) {
   return (
     <section className="mb-3">
       <h3 className="text-[13px] font-bold leading-tight text-gray-800">{group.title}</h3>
       <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
-      <ul className="mt-1 text-[12px] leading-[1.38]">
+      <ul className="mt-1 list-outside list-[circle] pl-[14px] text-[12px] leading-[1.3]">
         {group.items.map((item) => (
-          <li key={item.label} className="before:mr-1 before:text-orange-300 before:content-['○']">
+          <li key={item.label} className={toneMarkerClass[group.tone]}>
             <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
             <CountBadge count={resolveCount(item, liveCounts)} />
           </li>

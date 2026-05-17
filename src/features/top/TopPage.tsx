@@ -34,7 +34,7 @@ export default function TopPage() {
     <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
       <Header />
       <main className="mx-auto max-w-[990px] border-x border-gray-300 bg-white">
-        <section className="border-b border-gray-300 px-2 py-3">
+        <section className="px-2 py-3">
           <h2 className="text-[13px] font-bold text-blue-700">
             お気楽チャット - チャットで友達探し＆仲間作り
           </h2>
