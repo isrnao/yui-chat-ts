@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { fn } from 'storybook/test'; // 推奨の actions スパイ
 import Button from './Button';
 
