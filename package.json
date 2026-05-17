@@ -28,8 +28,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:prod": "tsc -b && vite build && pnpm run optimize:seo",
-    "optimize:seo": "echo 'SEO最適化完了' && echo 'サイトマップとrobots.txtをチェックしてください'",
+    "build:prod": "pnpm run generate:sitemap && tsc -b && vite build && pnpm run optimize:seo",
+    "generate:sitemap": "node --experimental-strip-types scripts/generate-sitemap.ts",
+    "optimize:seo": "echo 'SEO最適化完了 (sitemap.xml は generate:sitemap で生成済み)'",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.mdx",
     "preview": "vite preview",
     "predeploy": "pnpm run build:prod",

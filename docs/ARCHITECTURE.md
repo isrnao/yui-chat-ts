@@ -131,8 +131,13 @@ public/
 ├── chanari/                         # Chanari 用画像
 ├── okiraku/                         # お気楽チャット用画像
 ├── sounds/
-├── sitemap.xml / sitemap.xsl / robots.txt / favicon.ico
+├── sitemap.xml                     # `scripts/generate-sitemap.ts` で自動生成（公開時は build:prod から呼ばれる）
+├── sitemap.xsl / robots.txt / favicon.ico
+├── ogp.png                          # OGP / Twitter Card 用画像
 └── googlea88df218b8bbf9d2.html
+
+scripts/
+└── generate-sitemap.ts              # CHAT_ROOM_IDS から `/chat/<id>` 全列挙で sitemap.xml を生成
 
 docs/
 ├── ARCHITECTURE.md
@@ -321,17 +326,17 @@ fetchRoomParticipantCounts()
 
 外部状態管理ライブラリ（Redux, Zustand 等）は使用せず、React 組み込みの Hooks で完結しています。
 
-| フック                | 用途                                | React API                                                           |
-| --------------------- | ----------------------------------- | ------------------------------------------------------------------- |
-| `useChatLog`          | チャットログ全体の管理 + 楽観的更新 | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
-| `useChatHandlers`     | 入室・退室・送信・リロード          | `useCallback`, `useTransition`                                      |
-| `useParticipants`     | 参加者リスト導出                    | `useDeferredValue` → `useMemo`                                      |
-| `useNowMinute`        | 1 分境界で再評価する現在時刻        | `useState`, `useEffect` (`setTimeout` + `setInterval`)              |
-| `useRoomCounts`       | トップ用ルーム別参加人数            | `useState`, `useEffect`                                             |
-| `useChanariSettings`  | Chanari の設定永続化                | `useState`, `useEffect` (`localStorage`)                            |
-| `useReloadInterval`   | Chanari のリロード間隔タイマー      | `useEffect`                                                         |
-| `useSEO`              | メタデータ管理                      | `useEffect`                                                         |
-| `useBroadcastChannel` | クロスタブ通信                      | `useRef`, `useEffect`                                               |
+| フック                | 用途                                                                                                                                              | React API                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `useChatLog`          | チャットログ全体の管理 + 楽観的更新                                                                                                               | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
+| `useChatHandlers`     | 入室・退室・送信・リロード                                                                                                                        | `useCallback`, `useTransition`                                      |
+| `useParticipants`     | 参加者リスト導出                                                                                                                                  | `useDeferredValue` → `useMemo`                                      |
+| `useNowMinute`        | 1 分境界で再評価する現在時刻                                                                                                                      | `useState`, `useEffect` (`setTimeout` + `setInterval`)              |
+| `useRoomCounts`       | トップ用ルーム別参加人数                                                                                                                          | `useState`, `useEffect`                                             |
+| `useChanariSettings`  | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                            |
+| `useReloadInterval`   | Chanari のリロード間隔タイマー                                                                                                                    | `useEffect`                                                         |
+| `useSEO`              | メタ・OGP・Twitter Card・canonical の動的更新 (title / description / og:image を変更すると og:_ / twitter:_ / canonical / structured data も追従) | `useEffect`                                                         |
+| `useBroadcastChannel` | クロスタブ通信                                                                                                                                    | `useRef`, `useEffect`                                               |
 
 ### 6.2 useChatLog の内部構造
 
@@ -523,17 +528,17 @@ type Chat = {
 
 ### 9.2 主要コンポーネント
 
-| コンポーネント                  | 責務                                                                                                                          |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `RetroSplitter`                 | 上下ペインのリサイズ可能な分割レイアウト                                                                                      |
-| `ChatRoom`                      | メッセージ入力・送信・退室ボタン                                                                                              |
-| `EntryForm`                     | 名前・色・メール入力、入室ボタン                                                                                              |
-| `ChatLogList` (memo + lazy)     | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ |
-| `ChatMessage` (memo)            | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                          |
-| `ChatRanking`                   | 発言数ランキング表示                                                                                                          |
-| `ParticipantsList`              | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                            |
-| `TopPage` + `components/*`      | 旧ヘッダー / 左中央右の 3 カラム / フッターを `components/` 配下にファイル単位で分割。`TopPage.tsx` はオーケストレーションのみ |
-| `ChanariChatPage` + 関連部品    | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                |
+| コンポーネント               | 責務                                                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                       |
+| `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                               |
+| `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                               |
+| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ  |
+| `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                           |
+| `ChatRanking`                | 発言数ランキング表示                                                                                                           |
+| `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                             |
+| `TopPage` + `components/*`   | 旧ヘッダー / 左中央右の 3 カラム / フッターを `components/` 配下にファイル単位で分割。`TopPage.tsx` はオーケストレーションのみ |
+| `ChanariChatPage` + 関連部品 | Chanari 用 UI、名前色 / 発言色 / 文字数カウンタ / リロード間隔                                                                 |
 
 ### 9.3 トップページ
 
@@ -574,19 +579,19 @@ type Chat = {
 
 ### 10.2 ランタイム最適化
 
-| 最適化                | 実装                                                                               |
-| --------------------- | ---------------------------------------------------------------------------------- |
-| 遅延読み込み          | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）               |
-| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                 |
-| トランジション        | `useTransition` / `startTransition` で低優先度更新                                 |
-| 派生値のメモ化        | `ChatLogList` / `ChatMessage` を `React.memo`、`chats = useMemo(...)`              |
-| `useParticipants`     | `useDeferredValue(chatLog)` の出力を `useMemo` に通し、再計算を抑制                |
-| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`               |
-| API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                         |
-| キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止         |
-| Supabase 帯域削減     | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ |
+| 最適化                | 実装                                                                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 遅延読み込み          | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）                                                            |
+| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
+| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
+| 派生値のメモ化        | `ChatLogList` / `ChatMessage` を `React.memo`、`chats = useMemo(...)`                                                           |
+| `useParticipants`     | `useDeferredValue(chatLog)` の出力を `useMemo` に通し、再計算を抑制                                                             |
+| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
+| API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                                                                      |
+| キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止                                                      |
+| Supabase 帯域削減     | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ                                              |
 | Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
-| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                             |
+| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                          |
 
 ---
 
@@ -734,21 +739,22 @@ VITE_SUPABASE_ANON_KEY=public-anon-key
 
 ### 15.2 主要コマンド
 
-| コマンド          | 用途                          |
-| ----------------- | ----------------------------- |
-| `pnpm dev`        | 開発サーバー起動              |
-| `pnpm build`      | プロダクションビルド          |
-| `pnpm build:prod` | ビルド + SEO 最適化           |
-| `pnpm preview`    | ビルド成果物のローカル確認    |
-| `pnpm test`       | テスト実行（1 回）            |
-| `pnpm watch:test` | テスト監視モード              |
-| `pnpm test:ui`    | Vitest UI                     |
-| `pnpm lint`       | ESLint チェック               |
-| `pnpm format`     | Prettier フォーマット         |
-| `pnpm typecheck`  | TypeScript 型チェック         |
-| `pnpm storybook`  | Storybook 起動（port 6006）   |
-| `pnpm lighthouse` | Lighthouse パフォーマンス監査 |
-| `pnpm deploy`     | GitHub Pages デプロイ         |
+| コマンド                | 用途                                                 |
+| ----------------------- | ---------------------------------------------------- |
+| `pnpm dev`              | 開発サーバー起動                                     |
+| `pnpm build`            | プロダクションビルド                                 |
+| `pnpm generate:sitemap` | `CHAT_ROOM_IDS` から `public/sitemap.xml` を生成     |
+| `pnpm build:prod`       | sitemap 生成 → tsc → vite build → SEO 確認の一気通貫 |
+| `pnpm preview`          | ビルド成果物のローカル確認                           |
+| `pnpm test`             | テスト実行（1 回）                                   |
+| `pnpm watch:test`       | テスト監視モード                                     |
+| `pnpm test:ui`          | Vitest UI                                            |
+| `pnpm lint`             | ESLint チェック                                      |
+| `pnpm format`           | Prettier フォーマット                                |
+| `pnpm typecheck`        | TypeScript 型チェック                                |
+| `pnpm storybook`        | Storybook 起動（port 6006）                          |
+| `pnpm lighthouse`       | Lighthouse パフォーマンス監査                        |
+| `pnpm deploy`           | GitHub Pages デプロイ                                |
 
 ### 15.3 コード品質ツール
 

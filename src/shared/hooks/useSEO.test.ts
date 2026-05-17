@@ -108,8 +108,13 @@ describe('useSEO', () => {
       ogImageMeta.setAttribute('property', 'og:image');
       document.head.appendChild(ogImageMeta);
 
+      const ogImageTypeMeta = document.createElement('meta');
+      ogImageTypeMeta.setAttribute('property', 'og:image:type');
+      document.head.appendChild(ogImageTypeMeta);
+
+      // Twitter Card 仕様は `name` 属性を使う (`property` は OGP/RDFa 用)
       const twitterImageMeta = document.createElement('meta');
-      twitterImageMeta.setAttribute('property', 'twitter:image');
+      twitterImageMeta.setAttribute('name', 'twitter:image');
       document.head.appendChild(twitterImageMeta);
 
       const testOgImage = '/test-og-image.png';
@@ -117,15 +122,30 @@ describe('useSEO', () => {
       renderHook(() => useSEO({ ogImage: testOgImage }));
 
       expect(ogImageMeta.getAttribute('content')).toBe(testOgImage);
+      expect(ogImageTypeMeta.getAttribute('content')).toBe('image/png');
       expect(twitterImageMeta.getAttribute('content')).toBe(testOgImage);
+    });
+
+    it('should allow explicit og:image:type override', () => {
+      renderHook(() =>
+        useSEO({
+          ogImage: 'https://example.com/ogp.png?cache=1',
+          ogImageType: 'image/custom-png',
+        })
+      );
+
+      const ogImageTypeMeta = document.querySelector('meta[property="og:image:type"]');
+      expect(ogImageTypeMeta?.getAttribute('content')).toBe('image/custom-png');
     });
 
     it('should not set og:image when ogImage option is not provided', () => {
       renderHook(() => useSEO({}));
 
       const ogImageMeta = document.querySelector('meta[property="og:image"]');
-      const twitterImageMeta = document.querySelector('meta[property="twitter:image"]');
+      const ogImageTypeMeta = document.querySelector('meta[property="og:image:type"]');
+      const twitterImageMeta = document.querySelector('meta[name="twitter:image"]');
       expect(ogImageMeta).toBeNull();
+      expect(ogImageTypeMeta).toBeNull();
       expect(twitterImageMeta).toBeNull();
     });
   });

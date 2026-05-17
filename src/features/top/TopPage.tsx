@@ -8,10 +8,23 @@ import { useRoomCounts } from './hooks/useRoomCounts';
 
 export default function TopPage() {
   useSEO({
-    title: 'お気楽チャット - チャットで友達探し＆仲間作り | ゆいちゃっとTS',
-    description: 'お気楽チャットは気軽に楽しめる無料チャットです。友達探しと仲間作りを楽しもう。',
-    keywords: ['お気楽チャット', 'チャット', '無料チャット', '友達探し', '仲間作り'],
+    title: 'お気楽チャットTS - 無料で気軽に参加できる目的別チャット',
+    description:
+      'お気楽チャットは、無料で気軽に参加できるチャットサービスです。初心者、学生、年代別、趣味、ゲーム、アニメ、なりきりなど目的別の部屋で友達探しや仲間作りを楽しめます。',
+    keywords: [
+      'お気楽チャット',
+      'お気楽チャットTS',
+      '無料チャット',
+      'ブラウザチャット',
+      '友達探し',
+      '仲間作り',
+      '学生チャット',
+      'なりきりチャット',
+      'アニメチャット',
+      'ゲームチャット',
+    ],
     canonical: 'https://isrnao.github.io/yui-chat-ts/',
+    ogImage: 'https://isrnao.github.io/yui-chat-ts/ogp.png',
   });
   usePageView('お気楽チャット トップ');
 
