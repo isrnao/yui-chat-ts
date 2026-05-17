@@ -352,7 +352,7 @@ describe('usePageView', () => {
 
     renderHook(() => usePageView(testPageName));
 
-    expect(window.gtag).toHaveBeenCalledWith('config', 'GA_MEASUREMENT_ID', {
+    expect(window.gtag).toHaveBeenCalledWith('config', 'G-S3LCSTZBES', {
       page_title: testPageName,
       page_location: 'https://example.com/test',
     });
@@ -361,7 +361,7 @@ describe('usePageView', () => {
   it('should use document title when page name is not provided', () => {
     renderHook(() => usePageView());
 
-    expect(window.gtag).toHaveBeenCalledWith('config', 'GA_MEASUREMENT_ID', {
+    expect(window.gtag).toHaveBeenCalledWith('config', 'G-S3LCSTZBES', {
       page_title: 'Default Title',
       page_location: 'https://example.com/test',
     });
@@ -386,7 +386,7 @@ describe('usePageView', () => {
       { initialProps: { pageName: 'Initial Page' } }
     );
 
-    expect(window.gtag).toHaveBeenCalledWith('config', 'GA_MEASUREMENT_ID', {
+    expect(window.gtag).toHaveBeenCalledWith('config', 'G-S3LCSTZBES', {
       page_title: 'Initial Page',
       page_location: 'https://example.com/test',
     });
@@ -395,7 +395,7 @@ describe('usePageView', () => {
 
     rerender({ pageName: 'Updated Page' });
 
-    expect(window.gtag).toHaveBeenCalledWith('config', 'GA_MEASUREMENT_ID', {
+    expect(window.gtag).toHaveBeenCalledWith('config', 'G-S3LCSTZBES', {
       page_title: 'Updated Page',
       page_location: 'https://example.com/test',
     });
@@ -406,7 +406,7 @@ describe('usePageView', () => {
 
     renderHook(() => usePageView(undefined));
 
-    expect(window.gtag).toHaveBeenCalledWith('config', 'GA_MEASUREMENT_ID', {
+    expect(window.gtag).toHaveBeenCalledWith('config', 'G-S3LCSTZBES', {
       page_title: 'Fallback Title',
       page_location: 'https://example.com/test',
     });

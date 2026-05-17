@@ -9,11 +9,22 @@ import {
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
+import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
-import type { RoomId } from '@features/chat/rooms';
+import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+
+type TrackedCommand = 'look' | 'unlook' | 'fortune' | 'clear' | 'cut';
+
+function getTrackedCommand(message: string): TrackedCommand | undefined {
+  if (message === 'look' || message === 'unlook' || message === 'clear' || message === 'cut') {
+    return message;
+  }
+  if (isFortuneCommand(message)) return 'fortune';
+  return undefined;
+}
 
 export function useChatHandlers({
   roomId,
@@ -45,6 +56,7 @@ export function useChatHandlers({
   mergeChat: (chat: Chat) => void;
 }) {
   const [, startTransition] = useTransition();
+  const roomTitle = getRoomMeta(roomId).title;
 
   // 入室（silent: こっそり入室対応）
   const handleEnter = useCallback(
@@ -63,7 +75,10 @@ export function useChatHandlers({
       setEntered(true);
 
       // こっそり入室の場合、入室システムメッセージをスキップ
-      if (silent) return;
+      if (silent) {
+        trackEvent('chat_enter', { room_id: roomId, room_title: roomTitle });
+        return;
+      }
 
       const optimistic = createOptimisticChat({
         room_id: roomId,
@@ -94,12 +109,15 @@ export function useChatHandlers({
       const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
 
       startTransition(() => mergeChat(savedChat));
+      trackEvent('chat_enter', { room_id: roomId, room_title: roomTitle });
     },
-    [roomId, setEntered, addOptimistic, mergeChat]
+    [roomId, roomTitle, setEntered, addOptimistic, mergeChat]
   );
 
   // 退室
   const handleExit = useCallback(async () => {
+    trackEvent('chat_exit', { room_id: roomId, room_title: roomTitle });
+
     const optimistic = createOptimisticChat({
       room_id: roomId,
       name: '管理人',
@@ -145,6 +163,7 @@ export function useChatHandlers({
     setMessage,
     addOptimistic,
     mergeChat,
+    roomTitle,
   ]);
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）
@@ -152,13 +171,18 @@ export function useChatHandlers({
     async (msg: string, metadata?: ChatMetadata) => {
       if (!msg.trim()) return;
 
-      if (msg.trim() === 'cut') {
+      const trimmed = msg.trim();
+      const trackedCommand = getTrackedCommand(trimmed);
+
+      if (trimmed === 'cut') {
+        trackEvent('command_used', { room_id: roomId, command: 'cut' });
         setMessage('');
         setShowRanking(false);
         return;
       }
-      if (msg.trim() === 'clear') {
+      if (trimmed === 'clear') {
         await clearChatLogsByName(roomId, name);
+        trackEvent('command_used', { room_id: roomId, command: 'clear' });
         setChatLog((prev) => prev.filter((c) => c.name !== name));
         setMessage('');
         setShowRanking(false);
@@ -195,9 +219,13 @@ export function useChatHandlers({
       // ユーザー発言を保存
       const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
       startTransition(() => mergeChat(savedChat));
+      if (trackedCommand) {
+        trackEvent('command_used', { room_id: roomId, command: trackedCommand });
+      } else {
+        trackEvent('message_sent', { room_id: roomId, message_length: msg.length });
+      }
 
       // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信
-      const trimmed = msg.trim();
       if (trimmed === 'look') {
         playNotificationSound();
         broadcastLookEvent(roomId, savedChat.uuid);

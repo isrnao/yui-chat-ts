@@ -5,6 +5,7 @@ import { getRoomMeta } from '@features/chat/rooms';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
+import { usePageView } from '@shared/hooks/useSEO';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChanariTopHeader from './components/ChanariTopHeader';
 import ChanariEntryForm from './components/ChanariEntryForm';
@@ -18,6 +19,8 @@ const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
+  usePageView(`${room.title} - なりきり - ゆいちゃっとTS`);
+
   const myId = useId();
 
   const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);

@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { GA_MEASUREMENT_ID } from '@shared/utils/analytics';
 
 /**
  * SEO用のメタデータを動的に設定するためのカスタムフック
@@ -210,7 +211,7 @@ export const usePageView = (pageName?: string) => {
   useEffect(() => {
     // gtag関数が利用可能な場合のみ実行
     if (typeof window !== 'undefined' && window.gtag) {
-      window.gtag('config', 'GA_MEASUREMENT_ID', {
+      window.gtag('config', GA_MEASUREMENT_ID, {
         page_title: pageName || document.title,
         page_location: window.location.href,
       });

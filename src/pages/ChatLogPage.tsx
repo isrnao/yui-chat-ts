@@ -3,10 +3,13 @@ import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { fetchInitialChatLogPage } from '@features/chat/hooks/usePreloadChatLogs';
 import Button from '@shared/components/Button';
+import { usePageView } from '@shared/hooks/useSEO';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID } from '@features/chat/rooms';
 
 export default function ChatLogPage() {
+  usePageView('チャットログ閲覧 - ゆいちゃっとTS');
+
   const [windowRows, setWindowRows] = useState(50);
   const [reloadKey, setReloadKey] = useState(0);
 
