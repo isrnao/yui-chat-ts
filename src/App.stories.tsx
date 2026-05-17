@@ -8,7 +8,7 @@ function AppWithMocks() {
   const cleanupRef = useRef<(() => void) | null>(null);
   const fetchRestoreRef = useRef<(() => void) | null>(null);
 
-  if (!cleanupRef.current) {
+  if (cleanupRef.current == null) {
     cleanupRef.current = setupSupabaseStoryMocks(sampleChatLog);
   }
 

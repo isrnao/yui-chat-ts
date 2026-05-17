@@ -60,12 +60,27 @@ function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
   return matchRoute(pathname);
 }
 
+type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
+
+// 'redirect' route は再帰的に解決して history を書き換え、確定形のみを返す。
+// redirect を React state に載せないことで「effect 内で setState して再 effect」というカスケードを避ける。
+function resolveRouteFollowingRedirects(pathname: string): ResolvedRoute {
+  let current = resolveRoute(pathname);
+  while (current.type === 'redirect') {
+    window.history.replaceState(null, '', current.to);
+    current = resolveRoute(current.to);
+  }
+  return current;
+}
+
 export default function App() {
-  const [route, setRoute] = useState(() => resolveRoute(window.location.pathname));
+  const [route, setRoute] = useState<ResolvedRoute>(() =>
+    resolveRouteFollowingRedirects(window.location.pathname)
+  );
 
   useEffect(() => {
     const handlePopState = () => {
-      setRoute(resolveRoute(window.location.pathname));
+      setRoute(resolveRouteFollowingRedirects(window.location.pathname));
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -73,13 +88,6 @@ export default function App() {
       window.removeEventListener('popstate', handlePopState);
     };
   }, []);
-
-  useEffect(() => {
-    if (route.type !== 'redirect') return;
-
-    window.history.replaceState(null, '', route.to);
-    setRoute(resolveRoute(window.location.pathname));
-  }, [route]);
 
   useEffect(() => {
     const shellChrome = resolveShellChrome(route);

@@ -1,4 +1,4 @@
-import { useId, useState, useEffect, useRef } from 'react';
+import { useId, useState, useRef } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
@@ -45,6 +45,8 @@ export default function EntryForm({
   const silentId = useId();
   const avatarGroupName = useId();
 
+  // name/color/email の localStorage 由来の初期値は親 (ChatRoute) で useState の lazy init として読み込み済み。
+  // 本コンポーネントでは avatar 初期値 (内部 state のため) と updateSettings のみ参照する。
   const { settings, updateSettings } = useSettings();
   const [silent, setSilent] = useState(false);
   const [avatar, setAvatar] = useState<AvatarId>(settings.avatar);
@@ -56,18 +58,6 @@ export default function EntryForm({
     prefetchedRef.current = true;
     prefetchClientIP();
   }
-
-  // localStorage から設定値を復元して親の state を初期化（マウント時1回のみ）
-  const [initialized, setInitialized] = useState(false);
-  useEffect(() => {
-    if (!initialized) {
-      if (settings.name) setName(settings.name);
-      if (settings.color) setColor(settings.color);
-      if (settings.email) setEmail(settings.email);
-      setAvatar(settings.avatar);
-      setInitialized(true);
-    }
-  }, [initialized, settings, setName, setColor, setEmail]);
 
   return (
     <div className="flex flex-col">

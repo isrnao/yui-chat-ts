@@ -12,29 +12,46 @@ export default function ChatLogPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // プリロードフック使用
   const preloadPromise = usePreloadChatLogs(DEFAULT_ROOM_ID);
 
-  const loadInitialData = useCallback(async () => {
+  // windowRows 変更時はリロード扱い: render 中に「前回値からの変化検知」で state を巻き戻す
+  // （effect 内 setState を避けるための React 公式推奨パターン）
+  const [prevWindowRows, setPrevWindowRows] = useState(windowRows);
+  if (windowRows !== prevWindowRows) {
+    setPrevWindowRows(windowRows);
+    setChatLog([]);
+    setHasMore(true);
     setIsLoading(true);
-    try {
-      // プリロード（usePreloadChatLogs 内で `loadInitialChatLogs` が走り、
-      // chatLogResource のキャッシュに canonical snapshot が積まれている）。
-      // 結果は破棄して、hasMore を正確に返す `loadChatLogsWithPaging` 経由で再取得する。
-      if (preloadPromise) {
-        await preloadPromise;
+  }
+
+  useEffect(() => {
+    let ignore = false;
+    void (async () => {
+      try {
+        // プリロード（usePreloadChatLogs 内で `loadInitialChatLogs` が走り、
+        // chatLogResource のキャッシュに canonical snapshot が積まれている）。
+        // 結果は破棄して、hasMore を正確に返す `loadChatLogsWithPaging` 経由で再取得する。
+        if (preloadPromise) {
+          await preloadPromise;
+        }
+        const limit = Math.min(windowRows, 100);
+        const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, limit, 0, true);
+        if (ignore) return;
+        setChatLog(result.data);
+        setHasMore(result.hasMore);
+      } catch (error) {
+        console.error('Failed to load chat logs:', error);
+      } finally {
+        if (!ignore) setIsLoading(false);
       }
-      const limit = Math.min(windowRows, 100);
-      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, limit, 0, true);
-      setChatLog(result.data);
-      setHasMore(result.hasMore);
-    } catch (error) {
-      console.error('Failed to load chat logs:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [windowRows, preloadPromise]);
+    })();
+    return () => {
+      ignore = true;
+    };
+  }, [windowRows, preloadPromise, reloadKey]);
 
   const loadMoreData = useCallback(async () => {
     if (isLoadingMore || !hasMore) return;
@@ -51,15 +68,12 @@ export default function ChatLogPage() {
     }
   }, [chatLog.length, isLoadingMore, hasMore]);
 
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
-
   const handleRefresh = useCallback(() => {
     setChatLog([]);
     setHasMore(true);
-    loadInitialData();
-  }, [loadInitialData]);
+    setIsLoading(true);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   return (
     <main className="flex flex-col items-center min-h-dvh bg-yui-green/10">

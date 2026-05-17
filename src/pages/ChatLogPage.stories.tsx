@@ -7,7 +7,7 @@ import { setupSupabaseStoryMocks } from '../storybook/mocks/supabaseMock';
 function WithSupabaseMocks() {
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  if (!cleanupRef.current) {
+  if (cleanupRef.current == null) {
     cleanupRef.current = setupSupabaseStoryMocks(sampleChatLog);
   }
 

@@ -55,6 +55,16 @@ export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
 export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // roomId 変更時は render 中に「前回値からの変化検知」で reload 開始状態へ巻き戻す
+  // （effect 内 setState を避けるための React 公式推奨パターン）
+  const [prevRoomId, setPrevRoomId] = useState(roomId);
+  if (roomId !== prevRoomId) {
+    setPrevRoomId(roomId);
+    setChatLog([]);
+    setIsLoading(true);
+  }
+
   const mergeChat = useCallback(
     (chat: Chat) => {
       setChatLog((prev) => {
@@ -72,14 +82,19 @@ export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
   useEffect(() => {
-    setIsLoading(true);
+    let ignore = false;
     loadChatLogs(roomId)
-      .then(setChatLog)
-      .finally(() => setIsLoading(false));
+      .then((logs) => {
+        if (!ignore) setChatLog(logs);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
     const channel = subscribeChatLogs(roomId, (chat) => {
       mergeChat(chat);
     });
     return () => {
+      ignore = true;
       channel.unsubscribe();
     };
   }, [mergeChat, roomId]);

@@ -2,6 +2,7 @@ import { useState, useRef, lazy, Suspense, useId } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
+import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
@@ -28,14 +29,17 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   usePageView(`${room.title} - ゆいちゃっとTS`);
 
   const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
+  // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す
+  // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
+  const { settings } = useSettings();
   const [entered, setEntered] = useState(false);
-  const [name, setName] = useState('');
-  const [color, setColor] = useState('#ff69b4');
+  const [name, setName] = useState(() => settings.name ?? '');
+  const [color, setColor] = useState(() => settings.color || '#ff69b4');
   const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
-  const [email, setEmail] = useState('');
-  const [avatar, setAvatar] = useState<AvatarId>('none');
+  const [email, setEmail] = useState(() => settings.email ?? '');
+  const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
   const myId = useId();
 
   const channelRef = useRef<RealtimeChannel | null>(null);
