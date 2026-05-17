@@ -23,12 +23,14 @@ export function RightColumn() {
               height="82"
               loading="lazy"
             />
+            {/* --- これらのコンテンツは現在非公開 ---
             <a className="block font-bold text-blue-600 hover:underline" href="#">
               お気楽チャット詩集掲示板
             </a>
             <a className="block font-bold text-blue-600 hover:underline" href="#">
               チャット待ち合わせ掲示板
             </a>
+            */}
           </div>
         </section>
         <section>
@@ -58,9 +60,10 @@ export function RightColumn() {
             <li>必ずあいさつをしましょう。</li>
             <li>簡単な自己紹介をしましょう。</li>
             <li>相手の気持ちを考えて会話をしましょう。</li>
-            <li>チャットのルール・マナーについて詳しく見る</li>
+            {/* <li>チャットのルール・マナーについて詳しく見る</li> */}
           </ul>
         </section>
+        {/* --- 現在チャットの使い方は非公開 ---
         <section id="chat-howto">
           <SectionTitle>チャットの使い方</SectionTitle>
           <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
@@ -71,6 +74,7 @@ export function RightColumn() {
             <li>チャットの使い方について詳しく見る</li>
           </ul>
         </section>
+        */}
       </div>
     </aside>
   );

@@ -35,8 +35,6 @@ describe('<TopPage />', () => {
       ['夢と希望のチャット', '/yui-chat-ts/chat/yume'],
       ['小学生チャット', '/yui-chat-ts/chat/elementary'],
       ['関東チャット', '/yui-chat-ts/chat/area_kantoh'],
-      ['カラオケ', '/yui-chat-ts/chat/karaoke'],
-      ['メルヘンチャット１', '/yui-chat-ts/chat/meruhen1'],
       ['バトルチャット', '/yui-chat-ts/chat/battle'],
       ['初めてチャット', '/yui-chat-ts/chat/hajime-old'],
     ];

@@ -216,6 +216,7 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
       room('卓球チャット', 'tabletennis'),
     ],
   },
+  /* 準備中
   {
     title: 'メルヘンチャット[モニタ]',
     note: 'メルヘン＆特殊チャット',
@@ -244,6 +245,7 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
       room('牡蠣フライ', 'kakifry'),
     ],
   },
+  */
   {
     title: '歴史的チャット',
     note: 'チャット開拓の歴史的場所',
