@@ -18,7 +18,10 @@ const preloadCache = new Map<RoomId, Promise<Chat[]>>();
 function getPreloadPromise(roomId: RoomId): Promise<Chat[]> {
   let promise = preloadCache.get(roomId);
   if (promise == null) {
-    promise = loadInitialChatLogs(roomId, 100).catch(() => [] as Chat[]);
+    promise = loadInitialChatLogs(roomId, 100).catch(() => {
+      preloadCache.delete(roomId);
+      return [] as Chat[];
+    });
     preloadCache.set(roomId, promise);
   }
   return promise;
@@ -50,7 +53,10 @@ export function fetchInitialChatLogPage(
     }
     promise = getPreloadPromise(roomId)
       .then(() => loadChatLogsWithPaging(roomId, limit, 0, true))
-      .catch(() => ({ data: [] as Chat[], hasMore: false }));
+      .catch(() => {
+        pagingCache.delete(key);
+        return { data: [] as Chat[], hasMore: false };
+      });
     pagingCache.set(key, promise);
   }
   return promise;
