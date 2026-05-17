@@ -209,7 +209,7 @@ export default function EntryForm({
         {/* エラー表示 */}
         {error && <div className="text-xs text-red-500 text-left mb-1">{error}</div>}
         <div className="text-xs text-gray-500 text-right mt-1">
-          <a href="http://www.cup.com/yui/" target="_blank" rel="noreferrer">
+          <a href="https://www.cup.com/yui/" target="_blank" rel="noreferrer">
             ゆいちゃっと Pro(Free)
           </a>
         </div>
