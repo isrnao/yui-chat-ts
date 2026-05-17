@@ -4,7 +4,7 @@ import { TwitterTimeline } from './TwitterTimeline';
 
 export function RightColumn() {
   return (
-    <aside className="border-l border-gray-300 bg-white px-2 py-2 max-lg:col-span-2 max-lg:border-l-0 max-md:order-3">
+    <aside className="border-l border-gray-300 bg-white px-2 py-2 md:col-span-2 md:border-l-0 lg:col-span-1 lg:border-l max-md:order-3">
       <section className="min-h-[122px]">
         <SectionTitle>
           <span className="text-blue-600">@chat_a</span>のつぶやき
