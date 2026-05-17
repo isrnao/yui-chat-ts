@@ -28,6 +28,8 @@ const CHANARI_SHELL_CHROME: ShellChrome = {
   themeColor: '#ffffdd',
 };
 
+type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
+
 function upsertMetaColor(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
 
@@ -40,7 +42,7 @@ function upsertMetaColor(name: string, content: string) {
   meta.setAttribute('content', content);
 }
 
-function resolveShellChrome(route: RouteMatch | ChanariRouteMatch): ShellChrome {
+function resolveShellChrome(route: ResolvedRoute): ShellChrome {
   switch (route.type) {
     case 'top':
     case 'not-found':
@@ -49,8 +51,6 @@ function resolveShellChrome(route: RouteMatch | ChanariRouteMatch): ShellChrome 
       return CHAT_SHELL_CHROME;
     case 'chanari-room':
       return CHANARI_SHELL_CHROME;
-    case 'redirect':
-      return route.to.includes('/chanari/') ? CHANARI_SHELL_CHROME : CHAT_SHELL_CHROME;
   }
 }
 
@@ -59,8 +59,6 @@ function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
   if (chanari !== null) return chanari;
   return matchRoute(pathname);
 }
-
-type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
 
 type RouteResolution = {
   route: ResolvedRoute;
