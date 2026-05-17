@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import ChatRanking from './index';
 import { sampleChatLog } from '../../../../storybook/mocks/chatSamples';
 

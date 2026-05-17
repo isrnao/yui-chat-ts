@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import RetroSplitter from './index';
 import ChatLogList from '../ChatLogList';
 import { sampleChatLog } from '../../../../storybook/mocks/chatSamples';

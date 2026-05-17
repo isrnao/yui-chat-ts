@@ -10,3 +10,8 @@ onlyBuiltDependencies:
   - '@tailwindcss/oxide'
   - esbuild
   - lefthook
+# Vitest 3.2.x が peer として Vite ^5||^6||^7 を要求し、Vite 8 と二重インストールに
+# なって vite.config.ts の Plugin 型が衝突するため、vite を 8.x に強制統一する。
+# Vitest 4 への昇格時にこの override は不要になる予定。
+overrides:
+  vite: ^8.0.0
