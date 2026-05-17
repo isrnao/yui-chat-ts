@@ -5,6 +5,7 @@ import {
   clearChatLogs,
   subscribeChatLogs,
 } from '@features/chat/api/chatApi';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
@@ -55,6 +56,13 @@ export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
 export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // roomId 変更時は reload 開始状態へ巻き戻す (useResetOnChange = 公式推奨「前回値検知」パターン)
+  useResetOnChange(roomId, () => {
+    setChatLog([]);
+    setIsLoading(true);
+  });
+
   const mergeChat = useCallback(
     (chat: Chat) => {
       setChatLog((prev) => {
@@ -72,14 +80,19 @@ export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
   useEffect(() => {
-    setIsLoading(true);
+    let ignore = false;
     loadChatLogs(roomId)
-      .then(setChatLog)
-      .finally(() => setIsLoading(false));
+      .then((logs) => {
+        if (!ignore) setChatLog(logs);
+      })
+      .finally(() => {
+        if (!ignore) setIsLoading(false);
+      });
     const channel = subscribeChatLogs(roomId, (chat) => {
       mergeChat(chat);
     });
     return () => {
+      ignore = true;
       channel.unsubscribe();
     };
   }, [mergeChat, roomId]);

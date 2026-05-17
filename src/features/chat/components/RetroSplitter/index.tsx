@@ -1,5 +1,19 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect, isValidElement } from 'react';
 import type { ReactNode, KeyboardEvent } from 'react';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
+
+function getTopTypeName(top: ReactNode, bottom: ReactNode): string | null {
+  if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
+    return top.type.name;
+  }
+  return null;
+}
+
+function resolveInitialTopHeight(top: ReactNode, bottom: ReactNode): number {
+  const name = getTopTypeName(top, bottom);
+  if (name == null) return 30;
+  return name === 'ChatRoom' ? 18 : 26;
+}
 
 export default function RetroSplitter({
   top,
@@ -13,7 +27,8 @@ export default function RetroSplitter({
   minBottom?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [topHeight, setTopHeight] = useState(30); // percent
+  // top コンポーネントの種類に応じて初期高さを決定（マウント時のみ参照）
+  const [topHeight, setTopHeight] = useState(() => resolveInitialTopHeight(top, bottom)); // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -116,12 +131,14 @@ export default function RetroSplitter({
     []
   );
 
-  // top, bottomの切り替えで高さ初期化
-  useEffect(() => {
-    if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
-      setTopHeight(top.type.name === 'ChatRoom' ? 18 : 26);
+  // top コンポーネントの種類が変わったら高さを初期化（ChatRoom と EntryForm で違うデフォルト）
+  // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
+  const topTypeName = getTopTypeName(top, bottom);
+  useResetOnChange(topTypeName, (next) => {
+    if (next != null) {
+      setTopHeight(next === 'ChatRoom' ? 18 : 26);
     }
-  }, [top, bottom]);
+  });
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {

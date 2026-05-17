@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import TopPage from './TopPage';
+import { RightColumn } from './components/RightColumn';
 
 // Supabase 未設定のときは useRoomCounts が即座に空オブジェクトで解決するが、
 // 念のため fetch 呼び出しをモックして確実に空を返すようにする。
@@ -63,5 +64,15 @@ describe('<TopPage />', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
     });
+  });
+
+  it('keeps the right column single-width on mobile and full-width only on md layout', () => {
+    const { container } = render(<RightColumn />);
+
+    const rightColumn = container.querySelector('aside');
+    expect(rightColumn).toBeTruthy();
+    expect(rightColumn?.className).toContain('md:col-span-2');
+    expect(rightColumn?.className).toContain('lg:col-span-1');
+    expect(rightColumn?.className).not.toContain('max-lg:col-span-2');
   });
 });

@@ -12,7 +12,20 @@ export default defineConfig({
     },
     // SEO最適化のためのビルド設定
     rollupOptions: {
-      treeshake: 'recommended',
+      // Vite 8 (rolldown) は文字列プリセット ('recommended' 等) を型で受け付けないため、
+      // Rollup 'recommended' プリセット相当をオブジェクト形式で明示する:
+      //   - moduleSideEffects: true                (Rollup default)
+      //   - propertyReadSideEffects: 'always'      (Rollup 'recommended' の true 相当、rolldown 表記)
+      //   - unknownGlobalSideEffects: false        (Rollup 'recommended' の重要オプション、
+      //                                             これがないと未知 global を副作用扱いし tree-shake が控えめになる)
+      //   - annotations: true                      (/*@__PURE__*/ 等の hint を尊重)
+      // tryCatchDeoptimization は rolldown 1.0.1 で未サポートのため省略。
+      treeshake: {
+        moduleSideEffects: true,
+        propertyReadSideEffects: 'always',
+        unknownGlobalSideEffects: false,
+        annotations: true,
+      },
       output: {
         // ファイル名にハッシュを含める（キャッシュ対策）
         entryFileNames: 'assets/[name]-[hash].js',

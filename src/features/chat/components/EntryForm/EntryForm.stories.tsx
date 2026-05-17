@@ -1,13 +1,8 @@
-import type { Meta, StoryObj } from '@storybook/react';
-import {
-  useEffect,
-  useState,
-  type ComponentProps,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
+import { useState, type ComponentProps, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import EntryForm from './index';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 type EntryFormProps = ComponentProps<typeof EntryForm>;
 
@@ -27,9 +22,11 @@ function EntryFormContainer({
   const [color, setColor] = useState(initialColor);
   const [email, setEmail] = useState(initialEmail);
 
-  useEffect(() => setName(initialName), [initialName]);
-  useEffect(() => setColor(initialColor), [initialColor]);
-  useEffect(() => setEmail(initialEmail), [initialEmail]);
+  // Storybook controls で initial 値が変わったら state を巻き戻す
+  // (useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン)
+  useResetOnChange(initialName, setName);
+  useResetOnChange(initialColor, setColor);
+  useResetOnChange(initialEmail, setEmail);
 
   return (
     <EntryForm

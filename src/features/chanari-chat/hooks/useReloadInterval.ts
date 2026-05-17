@@ -8,7 +8,10 @@ import { useEffect, useRef } from 'react';
  */
 export function useReloadInterval(seconds: number, onTick: () => void, enabled: boolean): void {
   const onTickRef = useRef(onTick);
-  onTickRef.current = onTick;
+
+  useEffect(() => {
+    onTickRef.current = onTick;
+  }, [onTick]);
 
   useEffect(() => {
     if (!enabled) return;

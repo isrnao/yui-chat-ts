@@ -41,6 +41,11 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   window.history.replaceState(null, '', '/');
+  document.documentElement.style.backgroundColor = '';
+  document.body.style.backgroundColor = '';
+  document
+    .querySelectorAll('meta[name="theme-color"], meta[name="msapplication-TileColor"]')
+    .forEach((element) => element.remove());
 });
 
 describe('<App />', () => {
@@ -49,6 +54,11 @@ describe('<App />', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffff'
+    );
 
     await waitFor(() => {
       expect(fetchRoomParticipantCounts).toHaveBeenCalled();
@@ -65,6 +75,10 @@ describe('<App />', () => {
       .find((el) => !el.closest('.sr-only'));
     expect(visibleTitle).toBeDefined();
     expect(visibleTitle?.tagName).toBe('HEADER');
+    expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#c1fc92'
+    );
 
     await waitFor(() => {
       expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
@@ -80,6 +94,10 @@ describe('<App />', () => {
       screen.getByRole('heading', { level: 1, name: 'デュラララ チャット' })
     ).toBeInTheDocument();
     expect(screen.queryByText('読み込み中…')).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffdd'
+    );
 
     await waitFor(() => {
       expect(loadChatLogs).toHaveBeenCalledWith('durarara');
@@ -96,5 +114,52 @@ describe('<App />', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: '４０４ＥＲＲＯＲ' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffff'
+    );
+  });
+
+  it('redirects /chat to the default chat room and updates history', async () => {
+    window.history.replaceState(null, '', '/chat');
+
+    render(<App />);
+
+    // 初回 render 時点で確定 route (chat-room / 超初心者チャット) が描画される
+    const visibleTitle = screen
+      .getAllByText('超初心者チャット')
+      .find((el) => !el.closest('.sr-only'));
+    expect(visibleTitle).toBeDefined();
+    expect(visibleTitle?.tagName).toBe('HEADER');
+
+    // chat 用 chrome 色が適用される
+    expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
+
+    // commit 後 effect で URL が /chat/superbeginner に書き換わる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/chat/superbeginner');
+    });
+
+    // 確定 roomId で chatApi が呼ばれる
+    await waitFor(() => {
+      expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
+    });
+  });
+
+  it('redirects /chanari to the default chanari room and updates history', async () => {
+    window.history.replaceState(null, '', '/chanari');
+
+    render(<App />);
+
+    // 初回 render 時点で確定 route (chanari-room) が描画される (default room ID は chat と共通)
+    expect(screen.getByRole('heading', { level: 1, name: '超初心者チャット' })).toBeInTheDocument();
+
+    // chanari 用 chrome 色が適用される
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
+
+    // commit 後 effect で URL が /chanari/superbeginner に書き換わる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/chanari/superbeginner');
+    });
   });
 });

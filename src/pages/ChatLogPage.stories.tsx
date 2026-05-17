@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef } from 'react';
 import ChatLogPage from './ChatLogPage';
 import { sampleChatLog } from '../storybook/mocks/chatSamples';
@@ -7,7 +7,7 @@ import { setupSupabaseStoryMocks } from '../storybook/mocks/supabaseMock';
 function WithSupabaseMocks() {
   const cleanupRef = useRef<(() => void) | null>(null);
 
-  if (!cleanupRef.current) {
+  if (cleanupRef.current == null) {
     cleanupRef.current = setupSupabaseStoryMocks(sampleChatLog);
   }
 

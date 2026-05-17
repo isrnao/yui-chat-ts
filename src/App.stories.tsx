@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useEffect, useRef } from 'react';
 import App from './App';
 import { sampleChatLog } from './storybook/mocks/chatSamples';
@@ -8,7 +8,7 @@ function AppWithMocks() {
   const cleanupRef = useRef<(() => void) | null>(null);
   const fetchRestoreRef = useRef<(() => void) | null>(null);
 
-  if (!cleanupRef.current) {
+  if (cleanupRef.current == null) {
     cleanupRef.current = setupSupabaseStoryMocks(sampleChatLog);
   }
 

@@ -1,65 +1,18 @@
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, use, useCallback, useMemo, useState } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
-import { usePreloadChatLogs } from '@features/chat/hooks/usePreloadChatLogs';
+import { fetchInitialChatLogPage } from '@features/chat/hooks/usePreloadChatLogs';
 import Button from '@shared/components/Button';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID } from '@features/chat/rooms';
 
 export default function ChatLogPage() {
-  const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [windowRows, setWindowRows] = useState(50);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-
-  // プリロードフック使用
-  const preloadPromise = usePreloadChatLogs(DEFAULT_ROOM_ID);
-
-  const loadInitialData = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // プリロード（usePreloadChatLogs 内で `loadInitialChatLogs` が走り、
-      // chatLogResource のキャッシュに canonical snapshot が積まれている）。
-      // 結果は破棄して、hasMore を正確に返す `loadChatLogsWithPaging` 経由で再取得する。
-      if (preloadPromise) {
-        await preloadPromise;
-      }
-      const limit = Math.min(windowRows, 100);
-      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, limit, 0, true);
-      setChatLog(result.data);
-      setHasMore(result.hasMore);
-    } catch (error) {
-      console.error('Failed to load chat logs:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [windowRows, preloadPromise]);
-
-  const loadMoreData = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
-
-    setIsLoadingMore(true);
-    try {
-      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, 50, chatLog.length, false);
-      setChatLog((prev) => [...prev, ...result.data]);
-      setHasMore(result.hasMore);
-    } catch (error) {
-      console.error('Failed to load more chat logs:', error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [chatLog.length, isLoadingMore, hasMore]);
-
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const handleRefresh = useCallback(() => {
-    setChatLog([]);
-    setHasMore(true);
-    loadInitialData();
-  }, [loadInitialData]);
+    setReloadKey((k) => k + 1);
+  }, []);
 
   return (
     <main className="flex flex-col items-center min-h-dvh bg-yui-green/10">
@@ -80,15 +33,57 @@ export default function ChatLogPage() {
         <Button type="button" onClick={handleRefresh}>
           再読込
         </Button>
-        {hasMore && !isLoading && (
-          <Button type="button" onClick={loadMoreData} disabled={isLoadingMore}>
-            {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
-          </Button>
-        )}
       </div>
       <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
+        {/* key で remount → 内側 use() が新 promise を待つ = 自然な再 fetch + fallback 再表示 */}
+        <ChatLogContent
+          key={`${windowRows}-${reloadKey}`}
+          windowRows={windowRows}
+          reloadKey={reloadKey}
+        />
       </Suspense>
     </main>
+  );
+}
+
+function ChatLogContent({ windowRows, reloadKey }: { windowRows: number; reloadKey: number }) {
+  // Suspense 境界で待機: preload + 初回 paging が完了するまで fallback 表示。
+  // 旧 useEffect + setIsLoading(true/false) 手動管理を Suspense + use() に置き換え。
+  const initial = use(
+    fetchInitialChatLogPage(DEFAULT_ROOM_ID, Math.min(windowRows, 100), reloadKey)
+  );
+
+  // 「もっと読み込む」は append 操作なので Suspense ではなくイベント駆動の state で管理。
+  const [appended, setAppended] = useState<Chat[]>([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [moreHasMore, setMoreHasMore] = useState(initial.hasMore);
+
+  const chatLog = useMemo(() => [...initial.data, ...appended], [initial.data, appended]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !moreHasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const result = await loadChatLogsWithPaging(DEFAULT_ROOM_ID, 50, chatLog.length, false);
+      setAppended((prev) => [...prev, ...result.data]);
+      setMoreHasMore(result.hasMore);
+    } catch (error) {
+      console.error('Failed to load more chat logs:', error);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [chatLog.length, isLoadingMore, moreHasMore]);
+
+  return (
+    <>
+      {moreHasMore && (
+        <div className="mb-4">
+          <Button type="button" onClick={loadMore} disabled={isLoadingMore}>
+            {isLoadingMore ? '読み込み中...' : 'もっと読み込む'}
+          </Button>
+        </div>
+      )}
+      <ChatLogList chatLog={chatLog} isLoading={false} windowRows={windowRows} />
+    </>
   );
 }
