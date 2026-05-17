@@ -8,6 +8,52 @@ import TopRoute from './routes/TopRoute';
 import ChanariRoute from './routes/ChanariRoute';
 import NotFoundRoute from './routes/NotFoundRoute';
 
+type ShellChrome = {
+  backgroundColor: string;
+  themeColor: string;
+};
+
+const TOP_SHELL_CHROME: ShellChrome = {
+  backgroundColor: '#ffffff',
+  themeColor: '#ffffff',
+};
+
+const CHAT_SHELL_CHROME: ShellChrome = {
+  backgroundColor: '#c1fc92',
+  themeColor: '#c1fc92',
+};
+
+const CHANARI_SHELL_CHROME: ShellChrome = {
+  backgroundColor: '#ffffdd',
+  themeColor: '#ffffdd',
+};
+
+function upsertMetaColor(name: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute('name', name);
+    document.head.appendChild(meta);
+  }
+
+  meta.setAttribute('content', content);
+}
+
+function resolveShellChrome(route: RouteMatch | ChanariRouteMatch): ShellChrome {
+  switch (route.type) {
+    case 'top':
+    case 'not-found':
+      return TOP_SHELL_CHROME;
+    case 'chat-room':
+      return CHAT_SHELL_CHROME;
+    case 'chanari-room':
+      return CHANARI_SHELL_CHROME;
+    case 'redirect':
+      return route.to.includes('/chanari/') ? CHANARI_SHELL_CHROME : CHAT_SHELL_CHROME;
+  }
+}
+
 function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
   const chanari = matchChanariRoute(pathname);
   if (chanari !== null) return chanari;
@@ -33,6 +79,15 @@ export default function App() {
 
     window.history.replaceState(null, '', route.to);
     setRoute(resolveRoute(window.location.pathname));
+  }, [route]);
+
+  useEffect(() => {
+    const shellChrome = resolveShellChrome(route);
+
+    document.documentElement.style.backgroundColor = shellChrome.backgroundColor;
+    document.body.style.backgroundColor = shellChrome.backgroundColor;
+    upsertMetaColor('theme-color', shellChrome.themeColor);
+    upsertMetaColor('msapplication-TileColor', shellChrome.themeColor);
   }, [route]);
 
   return (

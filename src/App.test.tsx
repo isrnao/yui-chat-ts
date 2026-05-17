@@ -41,6 +41,11 @@ beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();
   window.history.replaceState(null, '', '/');
+  document.documentElement.style.backgroundColor = '';
+  document.body.style.backgroundColor = '';
+  document
+    .querySelectorAll('meta[name="theme-color"], meta[name="msapplication-TileColor"]')
+    .forEach((element) => element.remove());
 });
 
 describe('<App />', () => {
@@ -49,6 +54,11 @@ describe('<App />', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffff'
+    );
 
     await waitFor(() => {
       expect(fetchRoomParticipantCounts).toHaveBeenCalled();
@@ -65,6 +75,10 @@ describe('<App />', () => {
       .find((el) => !el.closest('.sr-only'));
     expect(visibleTitle).toBeDefined();
     expect(visibleTitle?.tagName).toBe('HEADER');
+    expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#c1fc92'
+    );
 
     await waitFor(() => {
       expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
@@ -80,6 +94,10 @@ describe('<App />', () => {
       screen.getByRole('heading', { level: 1, name: 'デュラララ チャット' })
     ).toBeInTheDocument();
     expect(screen.queryByText('読み込み中…')).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffdd'
+    );
 
     await waitFor(() => {
       expect(loadChatLogs).toHaveBeenCalledWith('durarara');
@@ -96,5 +114,9 @@ describe('<App />', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: '４０４ＥＲＲＯＲ' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffff'
+    );
   });
 });
