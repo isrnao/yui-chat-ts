@@ -1,10 +1,6 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import { buildAbsoluteUrl } from '@shared/utils/seo';
-import { Footer } from './components/Footer';
-import { Header } from './components/header/Header';
-import { LeftColumn } from './components/LeftColumn';
-import { MainColumn } from './components/MainColumn';
-import { RightColumn } from './components/RightColumn';
+import { Footer, Header, LeftColumn, MainColumn, RightColumn } from './components';
 import { useRoomCounts } from './hooks/useRoomCounts';
 
 export default function TopPage() {

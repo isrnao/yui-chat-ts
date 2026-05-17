@@ -1,6 +1,6 @@
 import { buildChatRoomPath } from '@features/chat/routing';
-import { SectionTitle } from './SectionTitle';
-import { TwitterTimeline } from './TwitterTimeline';
+import { SectionTitle } from '../SectionTitle';
+import { TwitterTimeline } from '../TwitterTimeline';
 
 export function RightColumn() {
   return (
