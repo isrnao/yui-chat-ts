@@ -12,7 +12,13 @@ export default defineConfig({
     },
     // SEO最適化のためのビルド設定
     rollupOptions: {
-      treeshake: 'recommended',
+      // Vite 8 (rolldown) は文字列プリセット ('recommended' 等) を型で受け付けない。
+      // rolldown TreeshakingOptions は moduleSideEffects / propertyReadSideEffects のみ
+      // サポート (tryCatchDeoptimization は未実装)。'recommended' プリセットに近い保守的設定。
+      treeshake: {
+        moduleSideEffects: true,
+        propertyReadSideEffects: 'always',
+      },
       output: {
         // ファイル名にハッシュを含める（キャッシュ対策）
         entryFileNames: 'assets/[name]-[hash].js',
