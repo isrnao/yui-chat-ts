@@ -2,7 +2,7 @@ User-agent: *
 Allow: /
 
 # Sitemap
-Sitemap: https://isrnao.github.io/yui-chat-ts/sitemap.xml
+Sitemap: https://www.okiraku.chat/sitemap.xml
 
 # Optimizations
 Crawl-delay: 1
