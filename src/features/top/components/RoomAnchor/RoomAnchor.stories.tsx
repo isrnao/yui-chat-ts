@@ -11,6 +11,8 @@ const meta = {
     item: {
       label: '超初心者チャット',
       href: '/chat/superbeginner',
+      roomId: 'superbeginner',
+      roomType: 'chat',
       external: false,
     },
     className: 'font-bold text-blue-600 hover:underline',

@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+import { trackEvent } from '@shared/utils/analytics';
 import { guideMenu, primaryNav, tabNav } from '../../data';
 import type { GuideIconKind } from '../../data';
 import { GuideIcon, TsBadge, WingIcon } from './icons';
@@ -47,7 +49,19 @@ type GuideMenuItem = {
   label: string;
   iconKind: GuideIconKind;
   href: string;
+  roomId?: RoomId;
+  roomType?: 'chat' | 'chanari';
 };
+
+function trackRoomSelected(roomId?: RoomId, roomType: 'chat' | 'chanari' = 'chat') {
+  if (!roomId) return;
+  const room = getRoomMeta(roomId);
+  trackEvent('room_selected', {
+    room_id: roomId,
+    room_title: room.title,
+    room_type: roomType,
+  });
+}
 
 /**
  * ガイドメニュー。各項目は `<GuideIcon>` + テキストで構成され、
@@ -59,7 +73,11 @@ function GuideMenu({ items }: { items: readonly GuideMenuItem[] }) {
       <ul className="ochat-header__guide-list">
         {items.map((item) => (
           <li key={item.label} className="ochat-header__guide-item">
-            <a className="ochat-header__guide-link" href={item.href}>
+            <a
+              className="ochat-header__guide-link"
+              href={item.href}
+              onClick={() => trackRoomSelected(item.roomId, item.roomType)}
+            >
               <GuideIcon kind={item.iconKind} className="ochat-header__guide-icon" />
               <span>{item.label}</span>
             </a>
@@ -101,6 +119,8 @@ function PrimaryTabs({ items, activeIndex }: { items: readonly string[]; activeI
 type SecondaryTabItem = {
   label: string;
   href: string;
+  roomId?: RoomId;
+  roomType?: 'chat' | 'chanari';
 };
 
 /**
@@ -126,6 +146,7 @@ function SecondaryTabs({
               <a
                 className={className}
                 href={item.href}
+                onClick={() => trackRoomSelected(item.roomId, item.roomType)}
                 aria-current={isActive ? 'page' : undefined}
               >
                 {item.label}
