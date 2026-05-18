@@ -1,0 +1,23 @@
+/*
+ * PixelMplus12 セルフホストフォント。
+ * - レトロ 2000 年代風のドットフォント。Regular / Bold の両方を提供する。
+ * - 配信は woff2 のみ。フルセット (JIS 第 1・第 2 水準 + Latin-1) で約 260KB/weight。
+ * - font-display: swap でフォント読み込み中はフォールバック表示し、ちらつきを許容する。
+ * - ライセンス: M+ FONT LICENSE (`/fonts/LICENSE.txt`)
+ */
+
+@font-face {
+  font-family: 'PixelMplus12';
+  src: url('/fonts/PixelMplus12-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'PixelMplus12';
+  src: url('/fonts/PixelMplus12-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

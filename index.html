@@ -8,12 +8,20 @@
     <link rel="dns-prefetch" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" />
     <link rel="preconnect" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" crossorigin />
 
-    <!-- Retro pixel font (2000s vibe) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。 -->
     <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap"
+      rel="preload"
+      href="/fonts/PixelMplus12-Regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="/fonts/PixelMplus12-Bold.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
     />
 
     <!-- Primary Meta Tags -->
