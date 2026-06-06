@@ -13,7 +13,8 @@
 // デプロイ: supabase functions deploy save-chat
 // 設定: config.toml で verify_jwt = false（匿名チャットのため）
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+// バージョンは deno.json の import map に集約する（直 URL 重複を避ける）
+import { createClient } from '@supabase/supabase-js';
 
 // プリフライトが要求したヘッダ（Access-Control-Request-Headers）をそのまま許可に
 // 反映する。クライアント（supabaseClient.ts）が apikey / authorization に加えて

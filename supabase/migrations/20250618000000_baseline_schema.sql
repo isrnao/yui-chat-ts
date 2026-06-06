@@ -75,7 +75,10 @@ DROP POLICY IF EXISTS "public-select" ON "public"."chats";
 CREATE POLICY "public-select" ON "public"."chats" FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "public-update" ON "public"."chats";
-CREATE POLICY "public-update" ON "public"."chats" FOR UPDATE USING (true) WITH CHECK (true);
+-- 論理削除（deleted=false → true）の遷移のみ許可する（docs/migrations/001 の設計に準拠）。
+-- USING で未削除行のみ対象とし、WITH CHECK で deleted=true への更新だけを通す。
+CREATE POLICY "public-update" ON "public"."chats"
+    FOR UPDATE USING ("deleted" = false) WITH CHECK ("deleted" = true);
 
 -- Realtime: chats を publication に追加（既に追加済みなら無視）
 DO $$
@@ -100,6 +103,12 @@ GRANT ALL ON FUNCTION "public"."uuidv7_sub_ms"() TO "service_role";
 GRANT ALL ON TABLE "public"."chats" TO "anon";
 GRANT ALL ON TABLE "public"."chats" TO "authenticated";
 GRANT ALL ON TABLE "public"."chats" TO "service_role";
+
+-- UPDATE はテーブル全体ではなく deleted 列のみに限定する（docs/migrations/001 準拠）。
+-- RLS の public-update ポリシーだけでなく列レベル権限でも絞ることで、deleted=true を
+-- 同時指定して他カラムを書き換える経路を塞ぐ。service_role は全カラム更新可のまま。
+REVOKE UPDATE ON TABLE "public"."chats" FROM "anon", "authenticated";
+GRANT UPDATE ("deleted") ON TABLE "public"."chats" TO "anon", "authenticated";
 
 -- デフォルト権限（postgres ロールが作る将来オブジェクトの既定 GRANT）
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
