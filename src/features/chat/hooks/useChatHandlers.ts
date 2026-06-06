@@ -8,7 +8,6 @@ import {
   createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
-import { getClientIP, getUserAgent } from '@shared/utils/clientInfo';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
@@ -100,13 +99,8 @@ export function useChatHandlers({
 
       startTransition(() => addOptimistic(optimistic));
 
-      const [clientIP, userAgent] = await Promise.all([
-        getClientIP(),
-        Promise.resolve(getUserAgent()),
-      ]);
-      const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
-
-      const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
+      // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
+      const savedChat = await saveChatLogOptimistic(roomId, optimistic);
 
       startTransition(() => mergeChat(savedChat));
       trackEvent('chat_enter', { room_id: roomId, room_title: roomTitle });
@@ -143,14 +137,8 @@ export function useChatHandlers({
     setName('');
     setMessage('');
 
-    const [clientIP, userAgent] = await Promise.all([
-      getClientIP(),
-      Promise.resolve(getUserAgent()),
-    ]);
-
-    const chatToSave = { ...optimistic, ip: clientIP, ua: userAgent };
-
-    const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
+    // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
+    const savedChat = await saveChatLogOptimistic(roomId, optimistic);
 
     startTransition(() => mergeChat(savedChat));
   }, [
@@ -205,19 +193,8 @@ export function useChatHandlers({
       setMessage('');
       setShowRanking(false);
 
-      const [clientIP, userAgent] = await Promise.all([
-        getClientIP(),
-        Promise.resolve(getUserAgent()),
-      ]);
-
-      const chatToSave = {
-        ...optimistic,
-        ip: clientIP,
-        ua: userAgent,
-      };
-
-      // ユーザー発言を保存
-      const savedChat = await saveChatLogOptimistic(roomId, chatToSave);
+      // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
+      const savedChat = await saveChatLogOptimistic(roomId, optimistic);
       startTransition(() => mergeChat(savedChat));
       if (trackedCommand) {
         trackEvent('command_used', { room_id: roomId, command: trackedCommand });
@@ -257,13 +234,7 @@ export function useChatHandlers({
 
           startTransition(() => addOptimistic(fortuneOptimistic));
 
-          const fortuneToSave = {
-            ...fortuneOptimistic,
-            ip: clientIP,
-            ua: userAgent,
-          };
-
-          const savedFortune = await saveChatLogOptimistic(roomId, fortuneToSave);
+          const savedFortune = await saveChatLogOptimistic(roomId, fortuneOptimistic);
           startTransition(() => mergeChat(savedFortune));
         } catch {
           // 巫女メッセージの保存失敗時はサイレントに失敗

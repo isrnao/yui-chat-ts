@@ -1,0 +1,22 @@
+-- anon / authenticated からの direct INSERT を封鎖する。
+--
+-- 目的:
+--   ip / ua を「サーバー観測値」として詐称不可能な証跡にするため、
+--   全 INSERT を save-chat Edge Function 経由に強制する。
+--
+-- なぜ DROP だけで済むか:
+--   service_role は BYPASSRLS 属性を持つため、RLS ポリシーの有無に関係なく INSERT
+--   できる。つまり「service_role に INSERT を許可する」ポリシーは不要。
+--   anon / authenticated は INSERT ポリシーが存在しなければ INSERT 不可になるので、
+--   public-insert を DROP するだけで目的が達成される。
+--
+-- 適用順序（重要）:
+--   本番では先に `supabase functions deploy save-chat` を完了してから本マイグレーション
+--   を適用すること。Edge 未デプロイのまま適用すると、クライアントの直 INSERT が全て
+--   失敗し発言できなくなる。
+--
+-- 影響範囲:
+--   - SELECT（public-select）/ UPDATE（public-update, 論理削除）は従来どおり anon 可。
+--   - 将来の Bot 機能も service_role で INSERT するため本設計と両立する。
+
+DROP POLICY IF EXISTS "public-insert" ON "public"."chats";

@@ -1,11 +1,10 @@
-import { useId, useState, useRef } from 'react';
+import { useId, useState } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { AVATAR_IDS } from '@features/chat/types';
 import type { AvatarId } from '@features/chat/types';
-import { prefetchClientIP } from '@shared/utils/clientInfo';
 
 type EntryFormProps = {
   roomTitle?: string;
@@ -50,14 +49,6 @@ export default function EntryForm({
   const { settings, updateSettings } = useSettings();
   const [silent, setSilent] = useState(false);
   const [avatar, setAvatar] = useState<AvatarId>(settings.avatar);
-  const prefetchedRef = useRef(false);
-
-  // 入室フォームへの最初のユーザーインタラクションでクライアントIPを先行取得
-  function triggerPrefetch() {
-    if (prefetchedRef.current) return;
-    prefetchedRef.current = true;
-    prefetchClientIP();
-  }
 
   return (
     <div className="flex flex-col">
@@ -84,10 +75,8 @@ export default function EntryForm({
             maxLength={24}
             size={20}
             onChange={(e: ChangeEvent<HTMLInputElement>) => {
-              triggerPrefetch();
               setName(e.target.value);
             }}
-            onFocus={triggerPrefetch}
             required
             autoFocus
             aria-label="おなまえ"
