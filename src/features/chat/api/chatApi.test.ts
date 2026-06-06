@@ -84,6 +84,57 @@ describe('chatApi', () => {
     expect(result.hasMore).toBe(false);
   });
 
+  describe('saveChatLogOptimistic', () => {
+    it('save-chat Edge Function を呼び、ip / ua をペイロードに含めない', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 12345 },
+        error: null,
+      });
+
+      const chatApi = await import('./chatApi');
+      const chat: Chat = {
+        ...makeChat(1),
+        ip: '203.0.113.9', // クライアント由来の ip/ua は送信されないことを検証する
+        ua: 'evil-agent',
+        metadata: { version: 1, optimisticNonce: 'nonce-1' },
+      };
+
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, chat);
+
+      // Edge Function 経由で保存される
+      expect(invoke).toHaveBeenCalledTimes(1);
+      const [fnName, options] = invoke.mock.calls[0];
+      expect(fnName).toBe('save-chat');
+
+      // ip / ua / uuid / time はペイロードに含めない（サーバーが確定する）
+      const body = options.body;
+      expect(body).not.toHaveProperty('ip');
+      expect(body).not.toHaveProperty('ua');
+      expect(body).not.toHaveProperty('uuid');
+      expect(body).not.toHaveProperty('time');
+      // metadata（optimisticNonce 含む）はそのまま渡し Realtime echo の突合を維持する
+      expect(body.metadata).toEqual({ version: 1, optimisticNonce: 'nonce-1' });
+
+      // サーバー生成の uuid / time が反映される
+      expect(saved.uuid).toBe('server-uuid');
+      expect(saved.time).toBe(12345);
+      expect(saved.optimistic).toBe(false);
+    });
+
+    it('Edge Function がエラーを返したら例外を投げる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({ data: null, error: { message: 'boom' } });
+
+      const chatApi = await import('./chatApi');
+      await expect(chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1))).rejects.toThrow('boom');
+    });
+  });
+
   describe('clearChatLogs', () => {
     it('issues a logical delete (update deleted=true) scoped to the room', async () => {
       // Supabase クエリビルダのチェイン: .update().eq().eq() を辿って await されることを再現する。

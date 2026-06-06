@@ -59,6 +59,23 @@ export default tseslint.config({
 
 This project saves chat logs to Supabase. Create a `.env` file based on `.env.example` and provide your `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` values.
 
+### `save-chat` Edge Function
+
+Chat messages are **not** inserted directly from the client. All inserts go through the
+`save-chat` Edge Function (`supabase/functions/save-chat`), which derives `ip` / `ua` from request
+headers server-side so they are tamper-proof. The client (and `pnpm dev`) will fail with
+`Failed to send a request to the Edge Function` until this function is deployed to the project that
+`VITE_SUPABASE_URL` points to:
+
+```bash
+supabase functions deploy save-chat
+```
+
+Deploying the function alone is safe and has no effect on existing clients. Locking down direct
+INSERT via RLS is a separate, later step — see
+[docs/save-chat-edge-function.md](docs/save-chat-edge-function.md) for the full staged rollout
+(function deploy → client deploy → RLS migration) and the rationale.
+
 ## Styling Notes
 
 - The root `main` element owns the viewport height via `min-h-dvh`; descendant panes should rely on flex sizing plus `overflow-y-auto` instead of duplicating `min-height` styles.
