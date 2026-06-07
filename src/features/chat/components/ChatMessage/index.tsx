@@ -18,7 +18,7 @@ function getTimeDisplay(chat: Chat): string {
 
 function resolveRoomTitle(chat: Chat): string {
   const roomId = chat.room_id;
-  if (!roomId) return String(roomId);
+  if (!roomId) return '不明な部屋';
   try {
     if (!isRoomId(roomId)) return roomId;
     return getRoomMeta(roomId).title;
@@ -36,11 +36,16 @@ function RoomNameLabel({
 }) {
   const title = resolveRoomTitle(chat);
   const roomId = chat.room_id;
+
+  if (!onRoomClick || !roomId) {
+    return <span className="ml-1 text-xs text-gray-500">{title}</span>;
+  }
+
   return (
     <button
       type="button"
       className="ml-1 text-xs text-blue-600 underline cursor-pointer"
-      onClick={() => roomId && onRoomClick?.(roomId)}
+      onClick={() => onRoomClick(roomId)}
       aria-label={`${title}に返信`}
     >
       {title}

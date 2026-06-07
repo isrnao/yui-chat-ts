@@ -77,12 +77,13 @@ export async function fetchRoomParticipantCounts(
  * 管理人メッセージ (metadata.kind === 'admin') および system フラグ付き行はスキップする。
  */
 export function aggregateCountsFromRows(rows: readonly ChatRow[]): RoomCountMap {
+  const listableRoomIdSet = new Set<string>(getListableRoomIds());
   const participantsByRoom = new Map<RoomId, Set<string>>();
 
   for (const row of rows) {
     const roomId = row.room_id as RoomId | null;
     if (!roomId) continue;
-    if (!(getListableRoomIds() as readonly string[]).includes(roomId)) continue;
+    if (!listableRoomIdSet.has(roomId)) continue;
     if (row.system) continue;
     if (row.metadata?.kind === 'admin') continue;
     if (!row.name) continue;

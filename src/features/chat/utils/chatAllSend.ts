@@ -35,9 +35,15 @@ export function buildAllRoomsSendPayload({
     base.avatar = identity.avatar as Exclude<AvatarId, 'none'>;
   }
 
-  const resolvedMetadata: ChatMetadata = metadata
-    ? { ...base, ...metadata, kind: undefined }
-    : base;
+  let resolvedMetadata: ChatMetadata;
+  if (metadata) {
+    const rest: Omit<ChatMetadata, 'kind'> = Object.fromEntries(
+      Object.entries(metadata).filter(([k]) => k !== 'kind')
+    ) as Omit<ChatMetadata, 'kind'>;
+    resolvedMetadata = { ...base, ...rest };
+  } else {
+    resolvedMetadata = base;
+  }
 
   return {
     roomId: replyTarget,

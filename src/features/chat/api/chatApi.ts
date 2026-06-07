@@ -20,6 +20,22 @@ export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
 
 const TABLE = 'chats';
 
+// Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
+async function invokeSaveChat(payload: {
+  room_id: RoomId;
+  name: string;
+  color: string;
+  message: string;
+  system?: boolean;
+  email?: string | null;
+  metadata?: Chat['metadata'];
+}): Promise<{ uuid: string; room_id: RoomId; time: number }> {
+  const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
+  if (error) throw new Error(`Failed to save chat: ${error.message}`);
+  if ((data as any)?.error) throw new Error(`Failed to save chat: ${(data as any).error}`);
+  return data as { uuid: string; room_id: RoomId; time: number };
+}
+
 // UUID v7最適化設定
 // Supabase側でUUID v7を主キーとして自動生成し、時系列順序性を活用
 
@@ -126,7 +142,7 @@ export async function saveChatLogOptimistic(
   startPerf();
 
   return retryApiCall(async () => {
-    const body = {
+    const result = await invokeSaveChat({
       room_id: roomId,
       name: chat.name,
       color: chat.color,
@@ -134,96 +150,59 @@ export async function saveChatLogOptimistic(
       system: chat.system,
       email: chat.email,
       metadata: chat.metadata ?? null,
-      // ip / ua は Edge Function がリクエストヘッダから取得するため送信しない
-    };
-
-    const { data, error } = await supabase.functions.invoke('save-chat', { body });
-
-    if (error) {
-      throw new Error(`Failed to save chat: ${error.message}`);
-    }
+    });
 
     Promise.resolve().then(() => invalidateCache(roomId));
     endPerf('saveChatLogOptimistic');
 
     return {
       ...chat,
-      uuid: (data as any).uuid,
-      room_id: (data as any).room_id ?? roomId,
-      time: (data as any).time,
+      uuid: result.uuid,
+      room_id: result.room_id ?? roomId,
+      time: result.time,
       optimistic: false,
     };
   });
 }
 
-// 従来の互換性維持版
+// 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
 export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat): Promise<Chat> {
   startPerf();
 
   return retryApiCall(async () => {
-    const sanitized = {
-      // idは除外 - Supabaseでサーバー側のUUID v7を生成
+    const result = await invokeSaveChat({
       room_id: roomId,
       name: chat.name,
       color: chat.color,
       message: chat.message,
-      // timeは除外 - Supabaseでサーバー側のタイムスタンプを使用
       system: chat.system,
       email: chat.email,
-      ip: chat.ip,
-      ua: chat.ua,
       metadata: chat.metadata ?? null,
-    };
+    });
 
-    // insertして、必要な列のみを取得（パフォーマンス向上）
-    const { data, error } = await supabase
-      .from(TABLE)
-      .insert(sanitized)
-      .select('uuid,room_id,name,color,message,time,system,email,ip,ua,metadata')
-      .single();
-
-    if (error) {
-      throw new Error(`Failed to save chat: ${error.message}`);
-    }
-
-    // 新しいチャットが追加されたらキャッシュを無効化
     invalidateCache(roomId);
-
     endPerf('saveChatLog');
 
-    // サーバー側のタイムスタンプを含むデータを返す
-    return data as Chat;
+    return { ...chat, uuid: result.uuid, room_id: result.room_id ?? roomId, time: result.time };
   });
 }
 
-// Fire-and-forget版（レスポンスを待たない最高速版）
+// Fire-and-forget版（Edge Function 経由・レスポンスを待たない）
 export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
-  const sanitized = {
-    // idは除外 - Supabaseでサーバー側のUUID v7を生成
-    room_id: chat.room_id ?? DEFAULT_ROOM_ID,
+  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
+
+  void invokeSaveChat({
+    room_id: roomId,
     name: chat.name,
     color: chat.color,
     message: chat.message,
     system: chat.system,
     email: chat.email,
-    ip: chat.ip,
-    ua: chat.ua,
     metadata: chat.metadata ?? null,
-  };
+  })
+    .then(() => invalidateCache(roomId))
+    .catch((err: unknown) => console.error('Background chat save failed:', err));
 
-  // バックグラウンドでの非同期実行
-  (async () => {
-    try {
-      await supabase.from(TABLE).insert(sanitized);
-
-      // 成功時のみキャッシュを無効化
-      invalidateCache(chat.room_id ?? DEFAULT_ROOM_ID);
-    } catch (error) {
-      console.error('Background chat save failed:', error);
-    }
-  })();
-
-  // 即座に解決
   return Promise.resolve();
 }
 

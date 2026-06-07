@@ -14,12 +14,16 @@ export function useAllRoomsChatLog(): {
   setChatLog: Dispatch<SetStateAction<Chat[]>>;
   addOptimistic: (chat: Chat) => void;
   mergeChat: (chat: Chat) => void;
+  reload: () => void;
 } {
   const [baseLog, setBaseLog] = useState<Chat[]>([]);
   // 初期値 true: マウント直後は読み込み中
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [subscribeError, setSubscribeError] = useState(false);
+  // reload ごとにインクリメントして effect を再実行させる
+  const [reloadKey, setReloadKey] = useState(0);
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
   // effect が再実行されたとき同期 setState を避けるため ref で管理する
   const effectRunRef = useRef(0);
 
@@ -50,7 +54,8 @@ export function useAllRoomsChatLog(): {
 
     loadAllRoomsChatLogs(200)
       .then((logs) => {
-        if (!ignore) setBaseLog(logs);
+        // realtime で先着した新着を丸ごと上書きしないよう merge する
+        if (!ignore) setBaseLog((prev) => mergeAggregatedLog(logs, prev));
       })
       .catch(() => {
         if (!ignore) setLoadError(true);
@@ -61,11 +66,18 @@ export function useAllRoomsChatLog(): {
 
     let sub: ReturnType<typeof subscribeAllRoomsChatLogs> | null = null;
     try {
-      sub = subscribeAllRoomsChatLogs((chat) => {
-        if (!ignore) mergeChat(chat);
-      });
+      sub = subscribeAllRoomsChatLogs(
+        (chat) => {
+          if (!ignore) mergeChat(chat);
+        },
+        () => {
+          // CHANNEL_ERROR / TIMED_OUT / CLOSED: 同期 setState を避けるため非同期で更新
+          void Promise.resolve().then(() => {
+            if (!ignore) setSubscribeError(true);
+          });
+        }
+      );
     } catch {
-      // 同期 setState を避けるため非同期で更新
       void Promise.resolve().then(() => {
         if (!ignore) setSubscribeError(true);
       });
@@ -75,7 +87,7 @@ export function useAllRoomsChatLog(): {
       ignore = true;
       sub?.unsubscribe();
     };
-  }, [mergeChat]);
+  }, [mergeChat, reloadKey]);
 
   return {
     chatLog,
@@ -86,5 +98,6 @@ export function useAllRoomsChatLog(): {
     setChatLog: setBaseLog,
     addOptimistic,
     mergeChat,
+    reload,
   };
 }

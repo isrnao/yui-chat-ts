@@ -36,6 +36,7 @@ export default function AllRoomsRoute() {
     setChatLog,
     addOptimistic,
     mergeChat,
+    reload,
   } = useAllRoomsChatLog();
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
@@ -115,7 +116,7 @@ export default function AllRoomsRoute() {
                 setWindowRows={setWindowRows}
                 onExit={handleExit}
                 onSend={wrappedHandleSend}
-                onReload={() => {}}
+                onReload={reload}
                 avatar={avatar}
                 userName={name}
                 replyTargetTitle={replyTargetTitle}

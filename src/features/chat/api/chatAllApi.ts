@@ -3,7 +3,8 @@ import { supabase } from '@shared/supabaseClient';
 import { normalizeChat } from '../utils/normalizeMetadata';
 
 const TABLE = 'chats';
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,metadata';
+// email は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,metadata';
 
 /**
  * 横断読み込み: room_id フィルタなし・deleted 無視・uuid 降順・limit 件。
@@ -26,8 +27,12 @@ export async function loadAllRoomsChatLogs(limit = 200): Promise<Chat[]> {
 /**
  * 横断購読: room_id フィルタなしの単一 channel で全 INSERT を受ける。
  * 既存の subscribeChatLogs は一切変更しない。
+ * onError は CHANNEL_ERROR / TIMED_OUT / CLOSED 時に呼ばれる。
  */
-export function subscribeAllRoomsChatLogs(callback: (chat: Chat) => void): {
+export function subscribeAllRoomsChatLogs(
+  callback: (chat: Chat) => void,
+  onError?: () => void
+): {
   unsubscribe: () => void;
 } {
   const channel = supabase
@@ -35,7 +40,11 @@ export function subscribeAllRoomsChatLogs(callback: (chat: Chat) => void): {
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) => {
       callback(normalizeChat(payload.new));
     })
-    .subscribe();
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        onError?.();
+      }
+    });
 
   return {
     unsubscribe() {
