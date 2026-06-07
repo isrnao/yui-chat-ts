@@ -120,6 +120,7 @@ export default function AllRoomsRoute() {
                 avatar={avatar}
                 userName={name}
                 replyTargetTitle={replyTargetTitle}
+                onResetReplyTarget={() => setReplyTarget('all')}
               />
             ) : (
               <EntryForm

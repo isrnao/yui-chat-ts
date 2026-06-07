@@ -30,6 +30,8 @@ export type ChatRoomProps = {
   userName?: string;
   /** Chat-All での返信先部屋名（指定時に「〇〇に返信中」として入力欄付近に表示） */
   replyTargetTitle?: string;
+  /** 「〇〇に返信中」をクリックしたときに呼ばれるコールバック（全部屋まとめにリセット用） */
+  onResetReplyTarget?: () => void;
 };
 
 export default function ChatRoom({
@@ -45,6 +47,7 @@ export default function ChatRoom({
   avatar,
   userName,
   replyTargetTitle,
+  onResetReplyTarget,
 }: ChatRoomProps) {
   const messageId = useId();
   const rowsId = useId();
@@ -157,9 +160,14 @@ export default function ChatRoom({
             </span>
           )}
           {replyTargetTitle && (
-            <span className="text-sm ml-2 text-blue-700">
+            <button
+              type="button"
+              className="text-sm ml-2 text-blue-700 underline cursor-pointer"
+              onClick={onResetReplyTarget}
+              title="クリックで全部屋まとめに戻す"
+            >
               →<span className="font-bold ml-1">{replyTargetTitle}</span>に返信中
-            </span>
+            </button>
           )}
         </div>
         {/* 3行目: 発言入力欄（独立行） */}
