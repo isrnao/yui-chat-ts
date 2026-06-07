@@ -29,9 +29,7 @@ supabase migration list                                    # local/remote 整合
 ```bash
 # 必須
 supabase secrets set OPENAI_API_KEY=sk-...
-
-# 任意(Webhook 軽量認証を使う場合)
-supabase secrets set BOT_WEBHOOK_SECRET=<ランダムな文字列>
+supabase secrets set BOT_WEBHOOK_SECRET=<ランダムな文字列>  # secret 未設定だと関数が全リクエストを拒否する
 
 # 必要に応じてカスタマイズ
 supabase secrets set BOT_MODEL=gpt-4o-mini
@@ -70,7 +68,7 @@ Supabase ダッシュボード → **Database → Webhooks → Create a new hook
 | Type | Supabase Edge Functions |
 | Edge Function | `bot-respond` |
 | HTTP Headers | `Authorization: Bearer <anon key>` (必須) |
-| HTTP Headers | `x-bot-webhook-secret: <BOT_WEBHOOK_SECRET>` (任意・設定した場合) |
+| HTTP Headers | `x-bot-webhook-secret: <BOT_WEBHOOK_SECRET>` (必須) |
 
 > **重要**: Webhook は**全ルームの全 INSERT** で発火する。`bot-respond` は `record.room_id !== 'superbeginner'` を DB アクセス前に弾くため、他ルームのコスト影響は最小限。
 

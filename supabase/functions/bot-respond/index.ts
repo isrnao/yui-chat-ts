@@ -14,7 +14,7 @@ import { loadBotConfig, type BotConfig } from '../_shared/botConfig.ts';
 import type { OpenAIMessage } from '../_shared/buildHistory.ts';
 
 function verifyWebhookSecret(req: Request, secret: string | null): boolean {
-  if (!secret) return true;
+  if (!secret) return false; // secret 未設定は安全側に倒す
   return req.headers.get('x-bot-webhook-secret') === secret;
 }
 
@@ -27,6 +27,8 @@ async function callOpenAI(
     ...history,
   ];
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 25_000);
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -38,7 +40,8 @@ async function callOpenAI(
       messages,
       temperature: config.temperature,
     }),
-  });
+    signal: controller.signal,
+  }).finally(() => clearTimeout(timeoutId));
 
   if (!res.ok) {
     throw new Error(`OpenAI error: ${res.status} ${res.statusText}`);
@@ -85,12 +88,20 @@ Deno.serve(async (req: Request) => {
   const config = loadBotConfig();
 
   if (!verifyWebhookSecret(req, config.webhookSecret)) {
-    // 認証失敗でもリトライ嵐を防ぐため 200 を返す
+    console.error('bot-respond: webhook secret missing or mismatch');
+    return new Response('ok', { status: 200 });
+  }
+
+  if (!config.openaiApiKey) {
+    console.error('bot-respond: OPENAI_API_KEY is not set');
     return new Response('ok', { status: 200 });
   }
 
   try {
     const payload = await req.json();
+    if (payload?.type !== 'INSERT' || payload?.table !== 'chats') {
+      return new Response('ok', { status: 200 });
+    }
     const record: TriggerRecord | undefined = payload?.record;
     if (!record) return new Response('ok', { status: 200 });
 
