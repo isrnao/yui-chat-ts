@@ -94,6 +94,7 @@ export const tabNav = [
   { label: '大学生チャット', href: buildChatRoomPath('daigaku') },
   { label: '超初心者チャット', href: buildChatRoomPath('superbeginner') },
   { label: 'なりきりチャット', href: '#pickup-narikiri' },
+  { label: '全部屋チャット', href: buildChatRoomPath('all') },
 ];
 
 /**
