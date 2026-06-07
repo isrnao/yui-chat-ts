@@ -25,7 +25,7 @@ function ChatLogList({
   hideParticipants,
 }: Props) {
   const chats = useMemo(() => sortChatsByTime(chatLog).slice(0, windowRows), [chatLog, windowRows]);
-  const participants = useParticipants(chatLog);
+  const participants = useParticipants(hideParticipants ? [] : chatLog);
 
   if (isLoading) {
     return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;

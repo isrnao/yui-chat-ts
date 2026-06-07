@@ -70,10 +70,10 @@ export default function AllRoomsRoute() {
     setReplyTarget(roomId);
   };
 
-  const wrappedHandleSend = async (msg: string, ...args: Parameters<typeof handleSend>[1][]) => {
+  const wrappedHandleSend = async (msg: string, metadata?: Parameters<typeof handleSend>[1]) => {
     setSendError('');
     try {
-      await handleSend(msg, args[0]);
+      await handleSend(msg, metadata);
     } catch (err) {
       setSendError((err as Error)?.message ?? '送信エラー');
     }

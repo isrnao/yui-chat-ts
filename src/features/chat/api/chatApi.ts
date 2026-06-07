@@ -194,7 +194,13 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
     invalidateCache(roomId);
     endPerf('saveChatLog');
 
-    return { ...chat, uuid: result.uuid, room_id: result.room_id ?? roomId, time: result.time, optimistic: false };
+    return {
+      ...chat,
+      uuid: result.uuid,
+      room_id: result.room_id ?? roomId,
+      time: result.time,
+      optimistic: false,
+    };
   });
 }
 
