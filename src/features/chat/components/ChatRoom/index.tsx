@@ -23,11 +23,15 @@ export type ChatRoomProps = {
   onExit: () => void;
   onSend: (msg: string, metadata?: ChatMetadata) => Promise<void>;
   onReload: () => void;
-  onShowRanking: () => void;
+  onShowRanking?: () => void;
   /** アバター識別子（App.tsx から渡される） */
   avatar?: AvatarId;
   /** 表示用のユーザー名（レガシーの「おなまえ:」表示用） */
   userName?: string;
+  /** Chat-All での返信先部屋名（指定時に「〇〇に返信中」として入力欄付近に表示） */
+  replyTargetTitle?: string;
+  /** 「〇〇に返信中」をクリックしたときに呼ばれるコールバック（全部屋まとめにリセット用） */
+  onResetReplyTarget?: () => void;
 };
 
 export default function ChatRoom({
@@ -42,6 +46,8 @@ export default function ChatRoom({
   onShowRanking,
   avatar,
   userName,
+  replyTargetTitle,
+  onResetReplyTarget,
 }: ChatRoomProps) {
   const messageId = useId();
   const rowsId = useId();
@@ -101,16 +107,18 @@ export default function ChatRoom({
     <div className="flex flex-col font-yui">
       {/* 1行目: [発言ランキング] [退室] などのリンク群 */}
       <div className="mb-1 flex gap-2 text-green-700 text-sm">
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault();
-            onShowRanking();
-          }}
-          className="underline"
-        >
-          [発言ランキング]
-        </a>
+        {onShowRanking && (
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onShowRanking();
+            }}
+            className="underline"
+          >
+            [発言ランキング]
+          </a>
+        )}
         <a
           href="#"
           onClick={(e) => {
@@ -150,6 +158,16 @@ export default function ChatRoom({
             <span className="text-sm ml-2">
               おなまえ:<span className="font-bold text-green-700 ml-1">{userName}</span>
             </span>
+          )}
+          {replyTargetTitle && (
+            <button
+              type="button"
+              className="text-sm ml-2 text-blue-700 underline cursor-pointer"
+              onClick={onResetReplyTarget}
+              title="クリックで全部屋まとめに戻す"
+            >
+              →<span className="font-bold ml-1">{replyTargetTitle}</span>に返信中
+            </button>
           )}
         </div>
         {/* 3行目: 発言入力欄（独立行） */}

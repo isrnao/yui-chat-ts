@@ -20,6 +20,33 @@ export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
 
 const TABLE = 'chats';
 
+// Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
+async function invokeSaveChat(payload: {
+  room_id: RoomId;
+  name: string;
+  color: string;
+  message: string;
+  system?: boolean;
+  email?: string | null;
+  metadata?: Chat['metadata'] | null;
+}): Promise<{ uuid: string; room_id: RoomId; time: number }> {
+  const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
+  if (error) throw new Error(`Failed to save chat: ${error.message}`);
+  const result: unknown = data;
+  if (typeof result === 'object' && result !== null && 'error' in result) {
+    throw new Error(`Failed to save chat: ${String((result as { error: unknown }).error)}`);
+  }
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    typeof (result as { uuid?: unknown }).uuid !== 'string' ||
+    typeof (result as { time?: unknown }).time !== 'number'
+  ) {
+    throw new Error('Failed to save chat: unexpected response from Edge Function');
+  }
+  return result as { uuid: string; room_id: RoomId; time: number };
+}
+
 // UUID v7最適化設定
 // Supabase側でUUID v7を主キーとして自動生成し、時系列順序性を活用
 
@@ -66,46 +93,6 @@ async function retryApiCall<T>(
 
 function getOfflineChatData(roomId: RoomId): Chat[] {
   return mockChatData.map((chat) => ({ ...chat, room_id: roomId }));
-}
-
-// INSERT は save-chat Edge Function に集約する。
-// ip / ua はクライアントから送らず、Edge がリクエストヘッダ（x-forwarded-for /
-// user-agent）から確定する。uuid / time / deleted は DB 既定値に委ねる。
-// metadata はそのまま渡し、optimisticNonce の Realtime echo を維持する。
-type SaveChatPayload = {
-  room_id: RoomId;
-  name: string;
-  color: string;
-  message: string;
-  system?: boolean;
-  email?: string;
-  metadata: Chat['metadata'] | null;
-};
-
-function buildSaveChatPayload(roomId: RoomId, chat: Chat): SaveChatPayload {
-  return {
-    room_id: roomId,
-    name: chat.name,
-    color: chat.color,
-    message: chat.message,
-    system: chat.system,
-    email: chat.email,
-    metadata: chat.metadata ?? null,
-  };
-}
-
-// save-chat を呼び出し、サーバー生成の { uuid, room_id, time } を返す。
-async function invokeSaveChat(
-  payload: SaveChatPayload
-): Promise<{ uuid: string; room_id: RoomId; time: number }> {
-  const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
-  if (error) {
-    throw new Error(`Failed to save chat: ${error.message}`);
-  }
-  if (data?.error) {
-    throw new Error(`Failed to save chat: ${data.error}`);
-  }
-  return data as { uuid: string; room_id: RoomId; time: number };
 }
 
 export async function loadChatLogs(
@@ -158,6 +145,7 @@ export async function loadInitialChatLogs(
 }
 
 // 楽観的更新用の高速バージョン
+// INSERT は save-chat Edge Function 経由（ip/ua をサーバー側で設定し、RLS を通過）
 export async function saveChatLogOptimistic(
   roomId: RoomId = DEFAULT_ROOM_ID,
   chat: Chat
@@ -165,66 +153,67 @@ export async function saveChatLogOptimistic(
   startPerf();
 
   return retryApiCall(async () => {
-    // ip / ua はクライアントから送らず Edge がヘッダから確定する
-    const data = await invokeSaveChat(buildSaveChatPayload(roomId, chat));
+    const result = await invokeSaveChat({
+      room_id: roomId,
+      name: chat.name,
+      color: chat.color,
+      message: chat.message,
+      system: chat.system,
+      email: chat.email,
+      metadata: chat.metadata ?? null,
+    });
 
-    // キャッシュ無効化を非同期で実行（ブロッキングしない）
     Promise.resolve().then(() => invalidateCache(roomId));
-
     endPerf('saveChatLogOptimistic');
 
-    // サーバー側のUUID v7とタイムスタンプを使用して完全なChatオブジェクトを返す
     return {
       ...chat,
-      uuid: data.uuid, // サーバー生成のUUID v7
-      room_id: data.room_id ?? roomId,
-      time: data.time,
+      uuid: result.uuid,
+      room_id: result.room_id ?? roomId,
+      time: result.time,
       optimistic: false,
     };
   });
 }
 
-// 従来の互換性維持版
+// 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
 export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat): Promise<Chat> {
   startPerf();
 
   return retryApiCall(async () => {
-    // ip / ua はクライアントから送らず Edge がヘッダから確定する
-    const data = await invokeSaveChat(buildSaveChatPayload(roomId, chat));
+    const result = await invokeSaveChat({
+      room_id: roomId,
+      name: chat.name,
+      color: chat.color,
+      message: chat.message,
+      system: chat.system,
+      email: chat.email,
+      metadata: chat.metadata ?? null,
+    });
 
-    // 新しいチャットが追加されたらキャッシュを無効化
     invalidateCache(roomId);
-
     endPerf('saveChatLog');
 
-    // サーバー側の uuid / time を反映した Chat を返す
-    return {
-      ...chat,
-      uuid: data.uuid,
-      room_id: data.room_id ?? roomId,
-      time: data.time,
-      optimistic: false,
-    };
+    return { ...chat, uuid: result.uuid, room_id: result.room_id ?? roomId, time: result.time, optimistic: false };
   });
 }
 
-// Fire-and-forget版（レスポンスを待たない最高速版）
+// Fire-and-forget版（Edge Function 経由・レスポンスを待たない）
 export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
   const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
 
-  // バックグラウンドでの非同期実行。ip / ua は Edge がヘッダから確定する。
-  (async () => {
-    try {
-      await invokeSaveChat(buildSaveChatPayload(roomId, chat));
+  void invokeSaveChat({
+    room_id: roomId,
+    name: chat.name,
+    color: chat.color,
+    message: chat.message,
+    system: chat.system,
+    email: chat.email,
+    metadata: chat.metadata ?? null,
+  })
+    .then(() => invalidateCache(roomId))
+    .catch((err: unknown) => console.error('Background chat save failed:', err));
 
-      // 成功時のみキャッシュを無効化
-      invalidateCache(roomId);
-    } catch (error) {
-      console.error('Background chat save failed:', error);
-    }
-  })();
-
-  // 即座に解決
   return Promise.resolve();
 }
 

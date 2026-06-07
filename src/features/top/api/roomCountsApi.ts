@@ -1,5 +1,5 @@
 import { supabase } from '@shared/supabaseClient';
-import { CHAT_ROOM_IDS, type RoomId } from '@features/chat/rooms';
+import { getListableRoomIds, type RoomId } from '@features/chat/rooms';
 import type { ChatMetadata } from '@features/chat/types';
 
 /** 直近の参加者カウントを返す辞書型 (未取得のルームはキーに存在しない) */
@@ -49,7 +49,7 @@ export async function fetchRoomParticipantCounts(
       .from('chats')
       .select('room_id, name, message, system, metadata, time')
       .gte('time', since)
-      .in('room_id', CHAT_ROOM_IDS as unknown as string[])
+      .in('room_id', getListableRoomIds() as unknown as string[])
       .eq('deleted', false)
       .order('time', { ascending: true })
       .limit(5000);
@@ -77,12 +77,13 @@ export async function fetchRoomParticipantCounts(
  * 管理人メッセージ (metadata.kind === 'admin') および system フラグ付き行はスキップする。
  */
 export function aggregateCountsFromRows(rows: readonly ChatRow[]): RoomCountMap {
+  const listableRoomIdSet = new Set<string>(getListableRoomIds());
   const participantsByRoom = new Map<RoomId, Set<string>>();
 
   for (const row of rows) {
     const roomId = row.room_id as RoomId | null;
     if (!roomId) continue;
-    if (!CHAT_ROOM_IDS.includes(roomId)) continue;
+    if (!listableRoomIdSet.has(roomId)) continue;
     if (row.system) continue;
     if (row.metadata?.kind === 'admin') continue;
     if (!row.name) continue;
