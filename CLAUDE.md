@@ -32,31 +32,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a React + TypeScript chat application with feature-based architecture:
 
-- **Features**: Located in `src/features/chat/` containing components, hooks, API calls, and types
+- **Features**: Located in `src/features/`. Three features:
+  - `chat/` - main chat feature (components, hooks, API, types)
+  - `chanari-chat/` - alternate "ちゃなり" chat UI variant
+  - `top/` - top/landing page with room listing
 - **Shared**: Common utilities in `src/shared/` including components, hooks, and utilities
-- **Pages**: Top-level page components in `src/pages/`
+- **Pages**: Top-level page components in `src/pages/` (e.g., `ChatLogPage`, `NotFoundPage`)
+- **Routes**: Route wrappers in `src/routes/` (`ChatRoute`, `ChanariRoute`, `TopRoute`, `NotFoundRoute`)
+
+**Multiple Rooms**: The chat supports many rooms (organized by category) defined in
+`src/features/chat/rooms.ts`. Messages are scoped by `room_id`; `DEFAULT_ROOM_ID` is the default,
+and `getRoomMeta(roomId)` resolves room metadata (e.g., title).
 
 ### Key Architecture Patterns
 
 **Feature-Based Organization**: The chat feature is self-contained with its own:
 
-- Components (ChatRoom, ChatMessage, ChatLogList, etc.)
-- Custom hooks (useChatLog, useParticipants, useChatHandlers)
-- API layer (chatApi.ts for Supabase integration)
-- Type definitions (Chat, Participant, BroadcastMsg)
+- Components (ChatRoom, ChatMessage, ChatLogList, ParticipantsList, ChatRanking, etc.)
+- Custom hooks (useChatLog, useParticipants, useChatHandlers, useChatRanking, useLookSound, etc.)
+- API layer (`api/chatApi.ts` public surface + `api/chatLogResource.ts` for caching/paging)
+- Type definitions (Chat, Participant, ChatMetadata, etc.)
 
 **State Management**: Uses React hooks with:
 
 - Local state for UI components
 - Custom hooks for feature-specific logic
-- BroadcastChannel API for cross-tab communication
-- Supabase for persistent chat log storage
+- `useOptimistic` for optimistic message updates (see `useChatLog`)
+- Supabase for persistent storage AND real-time delivery
+
+**Real-time delivery (source of truth)**: Cross-user real-time sync is handled by **Supabase
+Realtime**, not BroadcastChannel:
+
+- Message delivery: `subscribeChatLogs` in `chatApi.ts` subscribes to Postgres `postgres_changes`
+  (INSERT on the `chats` table, filtered by `room_id`). New messages from any user/device are
+  pushed to all clients. `useChatLog` wires this up.
+- look/unlook notifications: Supabase Realtime **broadcast** channel (`broadcastLookEvent` /
+  `onLookBroadcast`).
+- Note: `src/shared/hooks/useBroadcastChannel.ts` (Web BroadcastChannel API) still exists but is
+  currently **unused** — do not treat it as the sync mechanism.
+
+**Participants**: There is no presence table. The participant list is **derived from the message
+log** by `getRecentParticipants` (`useParticipants.ts`): it scans the last 5 minutes of messages,
+adding speakers and admin "Welcome" join messages, and removing admin "またきておくれやすぅ" exit
+messages. Because the log is Realtime-synced, this reflects cross-user presence.
 
 **Data Flow**:
 
-- Chat messages flow through `useChatHandlers` → `chatApi` → Supabase
-- Real-time updates via `useBroadcastChannel` for multi-tab synchronization
-- Chat logs loaded from Supabase on app start
+- Chat messages flow through `useChatHandlers` → `chatApi` → the `save-chat` Edge Function
+  (optimistic insert into `chats`). Clients do **not** insert directly anymore; all inserts go
+  through `supabase/functions/save-chat`, which sets `ip`/`ua` from request headers server-side.
+- New rows propagate to all clients via the `subscribeChatLogs` Realtime subscription
+- Chat logs are loaded from Supabase on app start (cached/paged via `chatLogResource.ts`)
 
 ### Import Aliases
 
@@ -65,12 +91,26 @@ This is a React + TypeScript chat application with feature-based architecture:
 
 ## Supabase Integration
 
-The app uses Supabase for chat log persistence. Configuration requires:
+The app uses Supabase for both chat persistence and real-time delivery. Configuration requires:
 
 - `VITE_SUPABASE_URL` environment variable
 - `VITE_SUPABASE_ANON_KEY` environment variable
 
-Chat operations are handled in `src/features/chat/api/chatApi.ts` with functions for saving, loading, and clearing chat logs.
+Chat operations are handled in `src/features/chat/api/chatApi.ts` (with `chatLogResource.ts` for
+caching/paging). Key details:
+
+- **Table**: `chats`. Primary key is a server-generated UUID v7; `time` (ms) is server-set.
+  Columns include `room_id`, `name`, `color`, `message`, `system`, `email`, `ip`, `ua`, and a JSON
+  `metadata` column (`ChatMetadata`: font style, avatar, `kind` of `normal | fortune | admin`,
+  etc.).
+- **Inserts go through the `save-chat` Edge Function** (`supabase/functions/save-chat`), executed
+  with `service_role`. It derives `ip` (`x-forwarded-for` → `x-real-ip`) and `ua` (`user-agent`)
+  from request headers, so those columns are tamper-proof server observations rather than
+  client-reported values. RLS restricts INSERT on `chats` to `service_role`
+  (migration `20250619000000_lock_insert_to_service_role.sql`); SELECT/UPDATE stay open.
+- **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`.
+- **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages; a broadcast channel
+  for look/unlook events. See the "Real-time delivery" section above.
 
 ## Testing Strategy
 

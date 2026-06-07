@@ -15,6 +15,7 @@ export default [
       'coverage',
       'docs',
       'storybook-static',
+      'supabase/functions',
       '**/*.mdx',
       '**/*.md',
       'README.md',

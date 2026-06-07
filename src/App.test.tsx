@@ -30,13 +30,6 @@ vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@shared/utils/clientInfo', () => ({
-  getClientIP: vi.fn().mockResolvedValue('127.0.0.1'),
-  getUserAgent: vi.fn().mockReturnValue('test-agent'),
-  prefetchClientIP: vi.fn(),
-  resetClientIPCache: vi.fn(),
-}));
-
 beforeEach(() => {
   localStorage.clear();
   vi.clearAllMocks();

@@ -37,5 +37,12 @@ vi.mock('@shared/supabaseClient', () => ({
       subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),
       send: vi.fn().mockResolvedValue('ok'),
     }),
+    functions: {
+      // save-chat Edge Function の既定モック。サーバー生成値を返す。
+      invoke: vi.fn().mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: 'superbeginner', time: 1 },
+        error: null,
+      }),
+    },
   },
 }));

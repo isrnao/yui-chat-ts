@@ -1,5 +1,6 @@
 import { Fragment, memo, useMemo } from 'react';
 import type { Chat } from '@features/chat/types';
+import type { RoomId } from '@features/chat/rooms';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { sortChatsByTime } from '@shared/utils/uuid';
 import ParticipantsList from '../ParticipantsList';
@@ -10,16 +11,22 @@ type Props = {
   chatLog: Chat[];
   isLoading?: boolean;
   windowRows: number;
+  showRoomName?: boolean;
+  onRoomClick?: (roomId: RoomId) => void;
+  hideParticipants?: boolean;
 };
 
-function ChatLogList({ chatLog, isLoading = false, windowRows }: Props) {
-  // 表示境界で uuid v7 降順を保証する。useChatLog の reducer / mergeChat は
-  // 常に prepend するため通常時系列だが、out-of-order な realtime INSERT や
-  // 楽観的更新と保存済みログの合流順序に対する防御として明示的に sort する。
+function ChatLogList({
+  chatLog,
+  isLoading = false,
+  windowRows,
+  showRoomName,
+  onRoomClick,
+  hideParticipants,
+}: Props) {
   const chats = useMemo(() => sortChatsByTime(chatLog).slice(0, windowRows), [chatLog, windowRows]);
-  const participants = useParticipants(chatLog);
+  const participants = useParticipants(hideParticipants ? [] : chatLog);
 
-  // 読み込み中の場合は専用のローディング表示を返す
   if (isLoading) {
     return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;
   }
@@ -29,13 +36,12 @@ function ChatLogList({ chatLog, isLoading = false, windowRows }: Props) {
       className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
-      <ParticipantsList participants={participants} />
-      {/* IE風区切り線（上下二重線） */}
+      {!hideParticipants && <ParticipantsList participants={participants} />}
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
       {chats.map((c) => (
         <Fragment key={c.uuid}>
-          <ChatMessage chat={c} />
+          <ChatMessage chat={c} showRoomName={showRoomName} onRoomClick={onRoomClick} />
           <Divider />
         </Fragment>
       ))}

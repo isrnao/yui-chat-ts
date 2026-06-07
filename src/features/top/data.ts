@@ -132,6 +132,7 @@ export const tabNav: readonly TabNavEntry[] = [
     roomType: 'chat',
   },
   { label: 'なりきりチャット', href: '#pickup-narikiri' },
+  { label: '全部屋チャット', href: buildChatRoomPath('all') },
 ];
 
 /**

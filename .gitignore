@@ -35,6 +35,11 @@ coverage/
 .env.*
 !*.example
 
+# Supabase (CLI のローカル状態。リンク先キャッシュ等は各自ローカルで生成・共有しない)
+supabase/.temp/
+supabase/.branches/
+# config.toml / migrations / functions は追跡対象（共有する）
+
 # その他
 logs/
 settings.local.json

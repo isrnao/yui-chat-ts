@@ -1,0 +1,19 @@
+# Supabase ローカル開発 / CLI 設定。
+# project_id はローカルでのプロジェクト識別子（任意の文字列）。
+# 本番プロジェクトへのリンクは `supabase link --project-ref <ref>` で行う。
+project_id = "okiraku-chat"
+
+[db]
+# ローカル Postgres のメジャーバージョン（本番に合わせる）。
+major_version = 17
+
+[db.migrations]
+# マイグレーション配置（既定のまま）。
+
+[functions]
+# Edge Functions はここに配置（例: supabase/functions/bot-respond）。
+
+[functions.save-chat]
+# 匿名チャットのため JWT 検証は無効（anon key での invoke を許可）。
+# ip / ua はリクエストヘッダから取得し service_role で INSERT する。
+verify_jwt = false

@@ -94,6 +94,8 @@ export const CHAT_ROOM_IDS = [
   'dgrayman',
   'haruhi',
   'railgun',
+  // Chat-All 専用
+  'all',
 ] as const;
 
 export type RoomId = (typeof CHAT_ROOM_IDS)[number];
@@ -210,6 +212,7 @@ const ROOM_TITLES: Record<RoomId, string> = {
   dgrayman: 'Dグレチャット',
   haruhi: '涼宮ハルヒの憂鬱チャット',
   railgun: 'とある科学のレールガンチャット',
+  all: '全部屋まとめ',
 };
 
 function buildRoomMeta(): Record<RoomId, RoomMeta> {
@@ -235,6 +238,14 @@ export function isEnabledRoomId(value: string): value is RoomId {
   return isRoomId(value) && CHAT_ROOMS[value].enabled;
 }
 
+export function getListableRoomIds(): ReadonlyArray<RoomId> {
+  return CHAT_ROOM_IDS.filter((id) => id !== 'all') as ReadonlyArray<RoomId>;
+}
+
 export function getRoomMeta(roomId: RoomId): RoomMeta {
-  return CHAT_ROOMS[roomId];
+  const meta = CHAT_ROOMS[roomId];
+  if (!meta) {
+    throw new Error(`Unknown room_id: ${roomId}`);
+  }
+  return meta;
 }

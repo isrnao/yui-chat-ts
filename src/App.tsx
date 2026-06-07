@@ -4,6 +4,7 @@ import type { RouteMatch } from '@features/chat/routing';
 import { matchChanariRoute } from '@features/chanari-chat/routing';
 import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
 import ChatRoute from './routes/ChatRoute';
+import AllRoomsRoute from './routes/AllRoomsRoute';
 import TopRoute from './routes/TopRoute';
 import ChanariRoute from './routes/ChanariRoute';
 import NotFoundRoute from './routes/NotFoundRoute';
@@ -116,7 +117,8 @@ export default function App() {
   return (
     <>
       {route.type === 'top' && <TopRoute />}
-      {route.type === 'chat-room' && <ChatRoute roomId={route.roomId} />}
+      {route.type === 'chat-room' &&
+        (route.roomId === 'all' ? <AllRoomsRoute /> : <ChatRoute roomId={route.roomId} />)}
       {/*
         key={roomId}: ChanariChatPage は useState(settings.X) で入力 state を初期化するため
         roomId 変化時に remount しないと別 room の入力 / 下書きが残ってしまう。

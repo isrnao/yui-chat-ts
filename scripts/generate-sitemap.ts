@@ -12,7 +12,7 @@
 import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CHAT_ROOMS, CHAT_ROOM_IDS } from '../src/features/chat/rooms.ts';
+import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ORIGIN = 'https://www.okiraku.chat';
@@ -23,11 +23,13 @@ type Entry = { loc: string; changefreq: string; priority: string };
 const entries: Entry[] = [
   { loc: `${ORIGIN}/`, changefreq: 'daily', priority: '1.0' },
   { loc: `${ORIGIN}/chat-log`, changefreq: 'weekly', priority: '0.3' },
-  ...CHAT_ROOM_IDS.filter((id) => CHAT_ROOMS[id].enabled).map((id) => ({
-    loc: `${ORIGIN}/chat/${id}`,
-    changefreq: 'daily',
-    priority: '0.7',
-  })),
+  ...getListableRoomIds()
+    .filter((id) => CHAT_ROOMS[id].enabled)
+    .map((id) => ({
+      loc: `${ORIGIN}/chat/${id}`,
+      changefreq: 'daily',
+      priority: '0.7',
+    })),
 ];
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -3,17 +3,54 @@ import { formatTime } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
+import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 
 type Props = {
   chat: Chat;
+  showRoomName?: boolean;
+  onRoomClick?: (roomId: RoomId) => void;
 };
 
-// 楽観的更新時の時刻表示を生成
 function getTimeDisplay(chat: Chat): string {
-  if (chat.optimistic) {
-    return '送信中...';
-  }
+  if (chat.optimistic) return '送信中...';
   return formatTime(chat.time);
+}
+
+function resolveRoomTitle(chat: Chat): string {
+  const roomId = chat.room_id;
+  if (!roomId) return '不明な部屋';
+  try {
+    if (!isRoomId(roomId)) return roomId;
+    return getRoomMeta(roomId).title;
+  } catch {
+    return roomId;
+  }
+}
+
+function RoomNameLabel({
+  chat,
+  onRoomClick,
+}: {
+  chat: Chat;
+  onRoomClick?: (roomId: RoomId) => void;
+}) {
+  const title = resolveRoomTitle(chat);
+  const roomId = chat.room_id;
+
+  if (!onRoomClick || !roomId) {
+    return <span className="ml-1 text-xs text-gray-500">{title}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      className="ml-1 text-xs text-blue-600 underline cursor-pointer"
+      onClick={() => onRoomClick(roomId)}
+      aria-label={`${title}に返信`}
+    >
+      {title}
+    </button>
+  );
 }
 
 /** メッセージ本文をセグメント分割してレンダリング（URL自動リンク化） */
@@ -63,7 +100,15 @@ function splitAdminMessage(message: string): { userName: string; rest: string } 
 }
 
 /** 管理人メッセージ専用のレンダリング（レガシー風） */
-function AdminMessage({ chat }: { chat: Chat }) {
+function AdminMessage({
+  chat,
+  showRoomName,
+  onRoomClick,
+}: {
+  chat: Chat;
+  showRoomName?: boolean;
+  onRoomClick?: (roomId: RoomId) => void;
+}) {
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
@@ -97,23 +142,28 @@ function AdminMessage({ chat }: { chat: Chat }) {
         </span>
       )}
       <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)})
+        ({getTimeDisplay(chat)}
+        {showRoomName && (
+          <>
+            {' / '}
+            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
+          </>
+        )}
+        )
       </span>
     </div>
   );
 }
 
-function ChatMessage({ chat }: Props) {
-  // 管理人メッセージは専用レンダリング
+function ChatMessage({ chat, showRoomName, onRoomClick }: Props) {
   if (chat.metadata?.kind === 'admin') {
-    return <AdminMessage chat={chat} />;
+    return <AdminMessage chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />;
   }
 
   const avatar = chat.metadata?.avatar;
 
   return (
     <div className="mb-1">
-      {/* アバター画像（metadata.avatar が存在する場合のみ表示） */}
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
@@ -144,7 +194,14 @@ function ChatMessage({ chat }: Props) {
       )}
       <MessageBody message={chat.message} chat={chat} />
       <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)})
+        ({getTimeDisplay(chat)}
+        {showRoomName && (
+          <>
+            {' / '}
+            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
+          </>
+        )}
+        )
       </span>
     </div>
   );
