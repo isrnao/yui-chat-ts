@@ -71,32 +71,32 @@ useChatHandlers
 
 ### バックエンド（新規）
 
-| ファイル | 内容 |
-|---|---|
-| `supabase/functions/save-chat/index.ts` | Edge Function 本体（Deno）。CORS・最小バリデーション・`ip`/`ua` 確定・`service_role` INSERT |
-| `supabase/functions/save-chat/deno.json` | Deno 用 import map（`@supabase/supabase-js`） |
-| `supabase/config.toml` | `[functions.save-chat] verify_jwt = false`（匿名チャットのため） |
-| `supabase/migrations/20250619000000_lock_insert_to_service_role.sql` | `chats` の INSERT を `service_role` のみに封鎖 |
+| ファイル                                                             | 内容                                                                                        |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `supabase/functions/save-chat/index.ts`                              | Edge Function 本体（Deno）。CORS・最小バリデーション・`ip`/`ua` 確定・`service_role` INSERT |
+| `supabase/functions/save-chat/deno.json`                             | Deno 用 import map（`@supabase/supabase-js`）                                               |
+| `supabase/config.toml`                                               | `[functions.save-chat] verify_jwt = false`（匿名チャットのため）                            |
+| `supabase/migrations/20250619000000_lock_insert_to_service_role.sql` | `chats` の INSERT を `service_role` のみに封鎖                                              |
 
 ### クライアント
 
-| ファイル | 変更 |
-|---|---|
-| `src/features/chat/api/chatApi.ts` | `saveChatLogOptimistic` / `saveChatLog` / `saveChatLogFireAndForget` を `functions.invoke('save-chat')` 経由に。`ip`/`ua` を送らない |
-| `src/features/chat/hooks/useChatHandlers.ts` | `getClientIP` / `getUserAgent` 取得（入室・退室・送信の 3 箇所）を撤去 |
-| `src/features/chat/components/EntryForm/index.tsx` | `prefetchClientIP` のプリフェッチ配線を撤去 |
-| `src/shared/utils/clientInfo.ts` | **削除**（外部 IP サービス依存もろとも消滅） |
-| `src/shared/utils/index.ts` | `clientInfo` の barrel export を削除 |
+| ファイル                                           | 変更                                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/features/chat/api/chatApi.ts`                 | `saveChatLogOptimistic` / `saveChatLog` / `saveChatLogFireAndForget` を `functions.invoke('save-chat')` 経由に。`ip`/`ua` を送らない |
+| `src/features/chat/hooks/useChatHandlers.ts`       | `getClientIP` / `getUserAgent` 取得（入室・退室・送信の 3 箇所）を撤去                                                               |
+| `src/features/chat/components/EntryForm/index.tsx` | `prefetchClientIP` のプリフェッチ配線を撤去                                                                                          |
+| `src/shared/utils/clientInfo.ts`                   | **削除**（外部 IP サービス依存もろとも消滅）                                                                                         |
+| `src/shared/utils/index.ts`                        | `clientInfo` の barrel export を削除                                                                                                 |
 
 ### テスト / 設定
 
-| ファイル | 変更 |
-|---|---|
-| `src/test/setup.ts` | `supabase.functions.invoke` の既定モックを追加 |
+| ファイル                                | 変更                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `src/test/setup.ts`                     | `supabase.functions.invoke` の既定モックを追加               |
 | `src/features/chat/api/chatApi.test.ts` | 「`ip`/`ua` を送らない」「Edge エラーの伝播」の 2 ケース追加 |
-| `src/App.test.tsx` | 不要になった `clientInfo` モックを削除 |
-| `eslint.config.js` | `supabase/functions`（Deno）を lint 対象から除外 |
-| `CLAUDE.md` | データフロー・Supabase Integration の記述を更新 |
+| `src/App.test.tsx`                      | 不要になった `clientInfo` モックを削除                       |
+| `eslint.config.js`                      | `supabase/functions`（Deno）を lint 対象から除外             |
+| `CLAUDE.md`                             | データフロー・Supabase Integration の記述を更新              |
 
 ---
 
