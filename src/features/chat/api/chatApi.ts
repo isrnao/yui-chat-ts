@@ -28,12 +28,23 @@ async function invokeSaveChat(payload: {
   message: string;
   system?: boolean;
   email?: string | null;
-  metadata?: Chat['metadata'];
+  metadata?: Chat['metadata'] | null;
 }): Promise<{ uuid: string; room_id: RoomId; time: number }> {
   const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
   if (error) throw new Error(`Failed to save chat: ${error.message}`);
-  if ((data as any)?.error) throw new Error(`Failed to save chat: ${(data as any).error}`);
-  return data as { uuid: string; room_id: RoomId; time: number };
+  const result: unknown = data;
+  if (typeof result === 'object' && result !== null && 'error' in result) {
+    throw new Error(`Failed to save chat: ${String((result as { error: unknown }).error)}`);
+  }
+  if (
+    typeof result !== 'object' ||
+    result === null ||
+    typeof (result as { uuid?: unknown }).uuid !== 'string' ||
+    typeof (result as { time?: unknown }).time !== 'number'
+  ) {
+    throw new Error('Failed to save chat: unexpected response from Edge Function');
+  }
+  return result as { uuid: string; room_id: RoomId; time: number };
 }
 
 // UUID v7最適化設定
@@ -183,7 +194,7 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
     invalidateCache(roomId);
     endPerf('saveChatLog');
 
-    return { ...chat, uuid: result.uuid, room_id: result.room_id ?? roomId, time: result.time };
+    return { ...chat, uuid: result.uuid, room_id: result.room_id ?? roomId, time: result.time, optimistic: false };
   });
 }
 
