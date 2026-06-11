@@ -60,6 +60,7 @@ function trackRoomSelected(roomId?: RoomId, roomType: 'chat' | 'chanari' = 'chat
     room_id: roomId,
     room_title: room.title,
     room_type: roomType,
+    transport_type: 'beacon',
   });
 }
 
