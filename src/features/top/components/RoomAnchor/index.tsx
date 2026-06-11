@@ -19,6 +19,7 @@ export function RoomAnchor({ item, className }: { item: RoomLink; className: str
       room_id: item.roomId,
       room_title: room.title,
       room_type: item.roomType ?? 'chat',
+      transport_type: 'beacon',
     });
   };
 
