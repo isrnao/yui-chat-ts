@@ -7,6 +7,8 @@ export type RoomLink = {
   href: string;
   /** 内部ルームの場合のみ設定される。外部リンクや未対応部屋では undefined */
   roomId?: RoomId;
+  /** 内部ルームリンクの遷移先種別。計測で通常チャットとなりきりチャットを分ける。 */
+  roomType?: 'chat' | 'chanari';
   /** true (または未指定の外部URL) のとき target="_blank" rel="noopener noreferrer" を付与する */
   external?: boolean;
 };
@@ -38,6 +40,15 @@ export type GuideMenuEntry = {
   label: string;
   iconKind: GuideIconKind;
   href: string;
+  roomId?: RoomId;
+  roomType?: 'chat' | 'chanari';
+};
+
+export type TabNavEntry = {
+  label: string;
+  href: string;
+  roomId?: RoomId;
+  roomType?: 'chat' | 'chanari';
 };
 
 /**
@@ -69,6 +80,8 @@ export const guideMenu: readonly GuideMenuEntry[] = [
     label: 'コンタクト',
     iconKind: 'mail',
     href: buildChatRoomPath('com_sb'),
+    roomId: 'com_sb',
+    roomType: 'chat',
   },
 ];
 
@@ -86,13 +99,38 @@ export const primaryNav = [
   */
 ];
 
-export const tabNav = [
+export const tabNav: readonly TabNavEntry[] = [
   { label: 'チャット', href: import.meta.env.BASE_URL },
-  { label: '中学生チャット', href: buildChatRoomPath('juniorhighschool') },
-  { label: '小学生チャット', href: buildChatRoomPath('elementary') },
-  { label: '高校生チャット', href: buildChatRoomPath('highschool') },
-  { label: '大学生チャット', href: buildChatRoomPath('daigaku') },
-  { label: '超初心者チャット', href: buildChatRoomPath('superbeginner') },
+  {
+    label: '中学生チャット',
+    href: buildChatRoomPath('juniorhighschool'),
+    roomId: 'juniorhighschool',
+    roomType: 'chat',
+  },
+  {
+    label: '小学生チャット',
+    href: buildChatRoomPath('elementary'),
+    roomId: 'elementary',
+    roomType: 'chat',
+  },
+  {
+    label: '高校生チャット',
+    href: buildChatRoomPath('highschool'),
+    roomId: 'highschool',
+    roomType: 'chat',
+  },
+  {
+    label: '大学生チャット',
+    href: buildChatRoomPath('daigaku'),
+    roomId: 'daigaku',
+    roomType: 'chat',
+  },
+  {
+    label: '超初心者チャット',
+    href: buildChatRoomPath('superbeginner'),
+    roomId: 'superbeginner',
+    roomType: 'chat',
+  },
   { label: 'なりきりチャット', href: '#pickup-narikiri' },
   { label: '全部屋チャット', href: buildChatRoomPath('all') },
 ];
@@ -103,7 +141,7 @@ export const tabNav = [
  * 取得できない場合は表示側で 0 にフォールバックされる。
  */
 function room(label: string, roomId: RoomId): RoomLink {
-  return { label, href: buildChatRoomPath(roomId), roomId, external: false };
+  return { label, href: buildChatRoomPath(roomId), roomId, roomType: 'chat', external: false };
 }
 
 /**
@@ -111,7 +149,13 @@ function room(label: string, roomId: RoomId): RoomLink {
  * なりきりチャット系のルームで使用する。
  */
 function chanariRoom(label: string, roomId: RoomId): RoomLink {
-  return { label, href: buildChanariRoomPath(roomId), roomId, external: false };
+  return {
+    label,
+    href: buildChanariRoomPath(roomId),
+    roomId,
+    roomType: 'chanari',
+    external: false,
+  };
 }
 
 export const chatDirectoryGroups: ChatDirectoryGroup[] = [
@@ -266,7 +310,14 @@ export const chatDirectoryGroups: ChatDirectoryGroup[] = [
   },
 ];
 
-export type NewsPart = string | { linkLabel: string; linkHref: string };
+export type NewsPart =
+  | string
+  | {
+      linkLabel: string;
+      linkHref: string;
+      roomId?: RoomId;
+      roomType?: 'chat' | 'chanari';
+    };
 
 export type NewsItem = {
   parts: NewsPart[];
@@ -281,7 +332,12 @@ export const news: NewsItem[] = [
   {
     parts: [
       '問い合わせは',
-      { linkLabel: '管理者チャット', linkHref: buildChatRoomPath('com_sb') },
+      {
+        linkLabel: '管理者チャット',
+        linkHref: buildChatRoomPath('com_sb'),
+        roomId: 'com_sb',
+        roomType: 'chat',
+      },
       'に連絡してください。',
     ],
   },

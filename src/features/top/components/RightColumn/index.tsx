@@ -1,4 +1,5 @@
 import { buildChatRoomPath } from '@features/chat/routing';
+import { RoomAnchor } from '../RoomAnchor';
 import { SectionTitle } from '../SectionTitle';
 import { TwitterTimeline } from '../TwitterTimeline';
 
@@ -44,12 +45,16 @@ export function RightColumn() {
               height="88"
               loading="lazy"
             />
-            <a
+            <RoomAnchor
               className="font-bold text-blue-600 hover:underline"
-              href={buildChatRoomPath('rozen')}
-            >
-              ローゼンメイデンチャット
-            </a>
+              item={{
+                label: 'ローゼンメイデンチャット',
+                href: buildChatRoomPath('rozen'),
+                roomId: 'rozen',
+                roomType: 'chat',
+                external: false,
+              }}
+            />
             の「ねこ」さんが、ユーザーの皆さんのステキな似顔絵を書いてくれました。
           </div>
         </section>

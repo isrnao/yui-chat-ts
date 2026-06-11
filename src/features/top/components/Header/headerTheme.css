@@ -151,14 +151,15 @@
 }
 
 .ochat-header__logo-title {
-  font-size: 22px;
-  font-weight: 900;
+  font-size: 24px;
+  font-weight: 700;
   letter-spacing: 0.5px;
   line-height: 1;
   color: var(--ochat-h-logo-text);
   white-space: nowrap;
+  /* PixelMplus12 (12px 設計) を 2x で表示するとドットがくっきり整列する */
   font-family:
-    'Arial Rounded MT Bold', 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN',
+    'PixelMplus12', 'Arial Rounded MT Bold', 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN',
     'Hiragino Maru Gothic Pro', 'HGMaruGothicMPRO', 'Yu Gothic', 'Meiryo', sans-serif;
   text-shadow:
     -1px -1px 0 var(--ochat-h-logo-text-halo),

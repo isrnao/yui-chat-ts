@@ -43,13 +43,17 @@ export function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
                 typeof part === 'string' ? (
                   <span key={partIndex}>{part}</span>
                 ) : (
-                  <a
+                  <RoomAnchor
                     key={partIndex}
-                    href={part.linkHref}
                     className="font-bold text-blue-600 hover:underline"
-                  >
-                    {part.linkLabel}
-                  </a>
+                    item={{
+                      label: part.linkLabel,
+                      href: part.linkHref,
+                      roomId: part.roomId,
+                      roomType: part.roomType,
+                      external: false,
+                    }}
+                  />
                 )
               )}
             </li>
