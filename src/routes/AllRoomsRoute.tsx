@@ -17,7 +17,7 @@ const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 const ROOM_META = getRoomMeta('all');
 
-// description は roomSeo.ts の DESCRIPTION_OVERRIDES で集約ビュー固有の文面になる
+// description は rooms.ts の ROOM_DESCRIPTIONS で集約ビュー固有の文面になる
 const ALL_ROOMS_SEO = buildRoomSeo('all');
 
 export default function AllRoomsRoute() {
