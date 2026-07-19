@@ -3,9 +3,9 @@
   "private": false,
   "version": "1.0.0",
   "type": "module",
-  "description": "ゆいちゃっとTSは放課後学生タウンの雰囲気を楽しめる無料のお気楽チャットです。",
+  "description": "お気楽チャットTSは放課後学生タウンの雰囲気を楽しめる無料のブラウザチャットです。",
   "keywords": [
-    "ゆいちゃっとTS",
+    "お気楽チャットTS",
     "放課後学生タウン",
     "お気楽チャット",
     "無料チャット",
@@ -24,7 +24,7 @@
     "type": "git",
     "url": "https://github.com/isrnao/yui-chat-ts.git"
   },
-  "author": "ゆいちゃっとTS開発チーム",
+  "author": "お気楽チャットTS開発チーム",
   "engines": {
     "node": ">=20.19.0 <21 || >=22.13.0"
   },

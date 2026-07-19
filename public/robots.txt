@@ -4,9 +4,6 @@ Allow: /
 # Sitemap
 Sitemap: https://www.okiraku.chat/sitemap.xml
 
-# Optimizations
-Crawl-delay: 1
-
 # Block common spam bots
 User-agent: AhrefsBot
 Disallow: /
