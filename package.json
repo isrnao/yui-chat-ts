@@ -31,9 +31,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:prod": "pnpm run generate:sitemap && tsc -b && vite build && pnpm run optimize:seo",
+    "build:prod": "pnpm run generate:sitemap && tsc -b && vite build && pnpm run prerender:rooms",
     "generate:sitemap": "node --experimental-strip-types scripts/generate-sitemap.ts",
-    "optimize:seo": "echo 'SEO最適化完了 (sitemap.xml は generate:sitemap で生成済み)'",
+    "prerender:rooms": "node --experimental-strip-types scripts/prerender-rooms.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.mdx",
     "preview": "vite preview",
     "predeploy": "pnpm run build:prod",

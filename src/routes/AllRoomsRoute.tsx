@@ -17,10 +17,8 @@ const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 const ROOM_META = getRoomMeta('all');
 
-// 手書き紹介文 (P.1) 整備までは集約ビュー固有の説明文を維持する
-const ALL_ROOMS_SEO = buildRoomSeo('all', {
-  description: '全部屋の発言を 1 画面で横断表示する集約チャットビューです。',
-});
+// description は roomSeo.ts の DESCRIPTION_OVERRIDES で集約ビュー固有の文面になる
+const ALL_ROOMS_SEO = buildRoomSeo('all');
 
 export default function AllRoomsRoute() {
   useSEO(ALL_ROOMS_SEO);

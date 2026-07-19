@@ -23,8 +23,16 @@ export type RoomSeo = {
 };
 
 export type RoomSeoOverrides = {
-  /** P.1 (手書き紹介文) 整備前に部屋固有の文面を使いたいページ用 (例: /chat/all) */
+  /** 呼び出し側でページ固有の文面を使いたい場合の上書き */
   description?: string;
+};
+
+/**
+ * rooms.ts のテンプレ紹介文より優先する部屋別の固有文。
+ * P.1 (全部屋の手書き紹介文整備) が完了したら rooms.ts 側に統合して削除する。
+ */
+const DESCRIPTION_OVERRIDES: Partial<Record<RoomId, string>> = {
+  all: '全部屋の発言を 1 画面で横断表示する集約チャットビューです。',
 };
 
 export function buildRoomPath(roomId: RoomId): string {
@@ -35,7 +43,7 @@ export function buildRoomSeo(roomId: RoomId, overrides: RoomSeoOverrides = {}): 
   const room = getRoomMeta(roomId);
   const canonical = buildAbsoluteUrl(buildRoomPath(roomId));
   const title = `${room.title} | ${SITE_NAME}`;
-  const description = overrides.description ?? room.description;
+  const description = overrides.description ?? DESCRIPTION_OVERRIDES[roomId] ?? room.description;
 
   return {
     title,

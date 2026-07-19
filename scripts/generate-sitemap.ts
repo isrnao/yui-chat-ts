@@ -4,8 +4,10 @@
  * 実行: `node --experimental-strip-types scripts/generate-sitemap.ts`
  * (Node 22.6+ で TS をそのまま実行できる。Node 23.6+ ではフラグなしで動作)
  *
- * - トップ (`/`) と `/chat-log` を固定エントリとして含める
- * - `CHAT_ROOM_IDS` のうち enabled な全ルームを `/chat/<id>` で列挙
+ * - トップ (`/`) を固定エントリとして含める
+ * - `/chat-log` は matchRoute に該当ルートが無く 404 になるため除外
+ *   (service-improvement Req 2 でルート復活が確定したら戻す)
+ * - `CHAT_ROOM_IDS` のうち enabled な全ルームを `/chat/<id>` で列挙 (`all` 含む)
  * - `/chanari/<id>` は `/chat/<id>` と内容が重複するため除外 (canonical 化方針)
  * - `lastmod` は実行日 (YYYY-MM-DD)
  */
@@ -22,7 +24,6 @@ type Entry = { loc: string; changefreq: string; priority: string };
 
 const entries: Entry[] = [
   { loc: `${ORIGIN}/`, changefreq: 'daily', priority: '1.0' },
-  { loc: `${ORIGIN}/chat-log`, changefreq: 'weekly', priority: '0.3' },
   ...getListableRoomIds()
     .filter((id) => CHAT_ROOMS[id].enabled)
     .map((id) => ({
@@ -30,6 +31,8 @@ const entries: Entry[] = [
       changefreq: 'daily',
       priority: '0.7',
     })),
+  // 全部屋まとめビュー (prerender 対象・固有メタあり)
+  { loc: `${ORIGIN}/chat/all`, changefreq: 'daily', priority: '0.5' },
 ];
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
