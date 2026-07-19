@@ -11,6 +11,12 @@ export interface UseSEOOptions {
   canonical?: string;
   ogImage?: string;
   ogImageType?: string;
+  /**
+   * ページ固有の構造化データ (WebPage + BreadcrumbList 等)。
+   * <script type="application/ld+json" data-page-jsonld> 専用ノードとして upsert する。
+   * index.html のベース @graph (WebSite / Organization / SoftwareApplication) には触れない。
+   */
+  jsonLd?: object | object[];
 }
 
 function inferImageMimeType(imageUrl: string): string | null {
@@ -39,6 +45,9 @@ function upsertMeta(selector: string, create: () => HTMLElement, attr: string, v
 }
 
 export const useSEO = (options: UseSEOOptions = {}) => {
+  // オブジェクト identity ではなく内容で effect の再実行を判定する
+  const jsonLdJson = options.jsonLd ? JSON.stringify(options.jsonLd) : undefined;
+
   useEffect(() => {
     // タイトルの設定
     if (options.title) {
@@ -179,20 +188,18 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       );
     }
 
-    // 構造化データの更新
-    const structuredDataScript = document.querySelector('script[type="application/ld+json"]');
-    if (structuredDataScript && (options.title || options.description)) {
-      try {
-        const data = JSON.parse(structuredDataScript.textContent || '{}');
-        if (options.title) data.name = options.title;
-        if (options.description) data.description = options.description;
-        if (options.keywords) data.keywords = options.keywords.join(',');
-        structuredDataScript.textContent = JSON.stringify(data, null, 2);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Failed to update structured data:', error);
-        }
+    // ページ固有の構造化データ (data-page-jsonld ノードのみを管理し、ベース @graph には触れない)
+    if (jsonLdJson) {
+      let script = document.querySelector<HTMLScriptElement>(
+        'script[type="application/ld+json"][data-page-jsonld]'
+      );
+      if (!script) {
+        script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-page-jsonld', '');
+        document.head.appendChild(script);
       }
+      script.textContent = jsonLdJson;
     }
   }, [
     options.title,
@@ -201,6 +208,7 @@ export const useSEO = (options: UseSEOOptions = {}) => {
     options.canonical,
     options.ogImage,
     options.ogImageType,
+    jsonLdJson,
   ]);
 };
 

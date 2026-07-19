@@ -11,21 +11,20 @@ import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
-import { buildAbsoluteUrl } from '@shared/utils/seo';
-import { buildChatRoomPath } from '@features/chat/routing';
+import { buildRoomSeo } from '@shared/utils/roomSeo';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 const ROOM_META = getRoomMeta('all');
 
+// 手書き紹介文 (P.1) 整備までは集約ビュー固有の説明文を維持する
+const ALL_ROOMS_SEO = buildRoomSeo('all', {
+  description: '全部屋の発言を 1 画面で横断表示する集約チャットビューです。',
+});
+
 export default function AllRoomsRoute() {
-  useSEO({
-    title: `${ROOM_META.title} | ゆいちゃっとTS`,
-    description: '全部屋の発言を 1 画面で横断表示する集約チャットビューです。',
-    keywords: ['ゆいちゃっとTS', 'お気楽チャット', '全部屋まとめ'],
-    canonical: buildAbsoluteUrl(buildChatRoomPath('all')),
-  });
-  usePageView(`${ROOM_META.title} - ゆいちゃっとTS`);
+  useSEO(ALL_ROOMS_SEO);
+  usePageView(ALL_ROOMS_SEO.title);
 
   const {
     chatLog,
