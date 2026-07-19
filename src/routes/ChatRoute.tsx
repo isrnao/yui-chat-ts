@@ -6,6 +6,7 @@ import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
+import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
 import type { AvatarId } from '@features/chat/types';
@@ -82,19 +83,22 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               userName={name}
             />
           ) : (
-            <EntryForm
-              roomTitle={room.title}
-              name={name}
-              setName={setName}
-              color={color}
-              setColor={setColor}
-              email={email}
-              setEmail={setEmail}
-              onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
-                setAvatar(a);
-                return handleEnter({ name: n, color: c, email: e, silent });
-              }}
-            />
+            <>
+              <EntryForm
+                roomTitle={room.title}
+                name={name}
+                setName={setName}
+                color={color}
+                setColor={setColor}
+                email={email}
+                setEmail={setEmail}
+                onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
+                  setAvatar(a);
+                  return handleEnter({ name: n, color: c, email: e, silent });
+                }}
+              />
+              <RoomInfo roomId={roomId} />
+            </>
           )
         }
         bottom={
