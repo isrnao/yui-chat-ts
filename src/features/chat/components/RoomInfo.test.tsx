@@ -10,9 +10,10 @@ describe('<RoomInfo />', () => {
     expect(screen.getByText(getRoomMeta('anime').description)).toBeInTheDocument();
   });
 
-  it('同カテゴリの関連部屋への <a href> リンクを表示する', () => {
+  it('カテゴリ名と同カテゴリの関連部屋への <a href> リンクを表示する', () => {
     render(<RoomInfo roomId="anime" />);
 
+    expect(screen.getByText('アニメチャット')).toBeInTheDocument();
     // anime カテゴリ: reborn / monhan / rozen が関連部屋
     const link = screen.getByRole('link', { name: 'リボーンチャット' });
     expect(link).toHaveAttribute('href', '/chat/reborn');
@@ -29,10 +30,12 @@ describe('<RoomInfo />', () => {
     );
   });
 
-  it('同カテゴリの部屋が無い場合は関連部屋リンクの段落を出さない', () => {
+  it('同カテゴリの部屋が無い場合もカテゴリ名は表示し、関連部屋リンクだけ出さない', () => {
     render(<RoomInfo roomId="com_sb" />);
 
     expect(screen.getByText(getRoomMeta('com_sb').description)).toBeInTheDocument();
-    expect(screen.queryByText(/の他の部屋/)).toBeNull();
+    expect(screen.getByText('管理者チャット')).toBeInTheDocument();
+    expect(screen.queryByText(/他の部屋/)).toBeNull();
+    expect(screen.queryAllByRole('link', { name: /チャット/ })).toHaveLength(0);
   });
 });

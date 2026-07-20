@@ -18,20 +18,23 @@ export default function RoomInfo({ roomId }: { roomId: RoomId }) {
   return (
     <section className="mx-auto max-w-[560px] px-4 pb-4 text-center text-[12px] leading-relaxed text-gray-700">
       <p>{room.description}</p>
-      {related.length > 0 && (
-        <p className="mt-2">
-          <span className="font-bold">{ROOM_CATEGORY_LABELS[room.category]}</span>
-          の他の部屋:{' '}
-          {related.map((r, i) => (
-            <span key={r.id}>
-              {i > 0 && '／'}
-              <a href={buildChatRoomPath(r.id)} className="text-blue-700 underline">
-                {r.title}
-              </a>
-            </span>
-          ))}
-        </p>
-      )}
+      {/* カテゴリ名は関連部屋の有無に関わらず常に表示する (関連リンクだけ条件付き) */}
+      <p className="mt-2">
+        カテゴリ: <span className="font-bold">{ROOM_CATEGORY_LABELS[room.category]}</span>
+        {related.length > 0 && (
+          <>
+            {' ／ 他の部屋: '}
+            {related.map((r, i) => (
+              <span key={r.id}>
+                {i > 0 && '／'}
+                <a href={buildChatRoomPath(r.id)} className="text-blue-700 underline">
+                  {r.title}
+                </a>
+              </span>
+            ))}
+          </>
+        )}
+      </p>
       <p className="mt-2">
         <a href="/" className="text-blue-700 underline">
           部屋一覧（トップページ）へ

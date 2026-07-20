@@ -59,13 +59,20 @@ describe('renderRoomHtml', () => {
     expect(html).toContain('<script type="module" src="/assets/index-abc.js"></script>');
   });
 
-  it('フォールバック本文に同カテゴリの関連部屋リンクを含める (内部リンクグラフ)', () => {
+  it('フォールバック本文にカテゴリ名と同カテゴリの関連部屋リンクを含める (内部リンクグラフ)', () => {
     const html = renderRoomHtml(TEMPLATE, 'anime');
 
     expect(html).toContain('<a href="/chat/reborn">リボーンチャット</a>');
-    expect(html).toContain('アニメチャットの他の部屋');
+    expect(html).toContain('カテゴリ: アニメチャット ／ 他の部屋: ');
     // 自分自身へのリンクは含めない
     expect(html).not.toContain('<a href="/chat/anime">');
+  });
+
+  it('関連部屋が無い部屋でもカテゴリ名はフォールバック本文に含める', () => {
+    const html = renderRoomHtml(TEMPLATE, 'com_sb');
+
+    expect(html).toContain('カテゴリ: 管理者チャット');
+    expect(html).not.toContain('他の部屋:');
   });
 
   it('マーカーが無いテンプレートでは throw してビルドを失敗させる', () => {

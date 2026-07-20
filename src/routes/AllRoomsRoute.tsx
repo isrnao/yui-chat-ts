@@ -9,6 +9,7 @@ import type { RoomId } from '@features/chat/rooms';
 import type { AvatarId } from '@features/chat/types';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
+import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
@@ -120,19 +121,24 @@ export default function AllRoomsRoute() {
                 onResetReplyTarget={() => setReplyTarget('all')}
               />
             ) : (
-              <EntryForm
-                roomTitle={ROOM_META.title}
-                name={name}
-                setName={setName}
-                color={color}
-                setColor={setColor}
-                email={email}
-                setEmail={setEmail}
-                onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
-                  setAvatar(a);
-                  return handleEnter({ name: n, color: c, email: e, silent });
-                }}
-              />
+              <>
+                <EntryForm
+                  roomTitle={ROOM_META.title}
+                  name={name}
+                  setName={setName}
+                  color={color}
+                  setColor={setColor}
+                  email={email}
+                  setEmail={setEmail}
+                  onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
+                    setAvatar(a);
+                    return handleEnter({ name: n, color: c, email: e, silent });
+                  }}
+                />
+                {/* /chat/all は ChatRoute でなくここに振り分けられるため、
+                    プリレンダのフォールバックと同内容を CSR 側でも描画する */}
+                <RoomInfo roomId="all" />
+              </>
             )
           }
           bottom={

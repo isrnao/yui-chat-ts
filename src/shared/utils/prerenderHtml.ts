@@ -77,18 +77,20 @@ function buildStaticFallback(roomId: RoomId): string {
     .map((r) => `<a href="${buildRoomPath(r.id)}">${escapeHtml(r.title)}</a>`)
     .join('／');
 
+  // カテゴリ名は RoomInfo と同様、関連部屋の有無に関わらず常に出す
+  const categoryLine =
+    `<p>カテゴリ: ${escapeHtml(ROOM_CATEGORY_LABELS[room.category])}` +
+    (related.length > 0 ? ` ／ 他の部屋: ${relatedLinks}` : '') +
+    '</p>';
+
   return [
     '<main>',
     `<h1>${escapeHtml(room.title)}</h1>`,
     `<p>${escapeHtml(buildRoomSeo(roomId).description)}</p>`,
-    related.length > 0
-      ? `<p>${escapeHtml(ROOM_CATEGORY_LABELS[room.category])}の他の部屋: ${relatedLinks}</p>`
-      : '',
+    categoryLine,
     `<p><a href="/">${escapeHtml(SITE_NAME)} トップページへ</a></p>`,
     '</main>',
-  ]
-    .filter(Boolean)
-    .join('');
+  ].join('');
 }
 
 /**
