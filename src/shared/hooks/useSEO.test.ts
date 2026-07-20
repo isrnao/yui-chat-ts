@@ -143,16 +143,18 @@ describe('useSEO', () => {
       expect(robots?.getAttribute('content')).toBe('index, follow');
     });
 
-    it('canonical: null で canonical link が削除される (残留しない)', () => {
+    it('canonical: null で canonical link と og:url が削除される (残留しない)', () => {
       const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
         initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
       });
 
       expect(document.querySelector('link[rel="canonical"]')).not.toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).not.toBeNull();
 
       rerender({ options: { canonical: null } });
 
       expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).toBeNull();
     });
 
     it('canonical: undefined では既存の canonical を変更しない', () => {
@@ -265,7 +267,7 @@ describe('useSEO', () => {
       existingScript.textContent = JSON.stringify({ '@context': 'https://schema.org' });
       document.head.appendChild(existingScript);
 
-      renderHook(() => useSEO({ keywords: ['test'] }));
+      renderHook(() => useSEO({ noindex: false }));
 
       const script = document.querySelector('script[type="application/ld+json"]');
       const data = JSON.parse(script?.textContent || '{}');
@@ -304,7 +306,6 @@ describe('useSEO', () => {
             options: {
               title: 'Initial',
               description: 'Initial Desc',
-              keywords: ['initial'],
               canonical: 'https://initial.com',
               ogImage: '/initial.png',
             },
@@ -319,7 +320,6 @@ describe('useSEO', () => {
         options: {
           title: 'Updated',
           description: 'Updated Desc',
-          keywords: ['updated'],
           canonical: 'https://updated.com',
           ogImage: '/updated.png',
         },

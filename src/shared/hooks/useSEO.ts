@@ -131,9 +131,12 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       options.noindex ? 'noindex' : 'index, follow'
     );
 
-    // カノニカルURLの設定 (null は明示的な削除)
+    // カノニカルURLの設定 (null は明示的な削除)。
+    // canonical 設定時に同期している og:url も一緒に消し、
+    // NotFound 等で前ページの URL を OGP が宣言し続けないようにする
     if (options.canonical === null) {
       document.querySelector('link[rel="canonical"]')?.remove();
+      document.querySelector('meta[property="og:url"]')?.remove();
     }
     if (options.canonical) {
       upsertMeta(
