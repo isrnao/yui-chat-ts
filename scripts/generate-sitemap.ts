@@ -7,7 +7,8 @@
  * - トップ (`/`) を固定エントリとして含める
  * - `/chat-log` は matchRoute に該当ルートが無く 404 になるため除外
  *   (service-improvement Req 2 でルート復活が確定したら戻す)
- * - `CHAT_ROOM_IDS` のうち enabled な全ルームを `/chat/<id>` で列挙 (`all` 含む)
+ * - enabled な全ルーム (`getListableRoomIds()`、`all` は含まない) を `/chat/<id>` で列挙し、
+ *   全部屋まとめビュー `/chat/all` は固定エントリとして別途追加する
  * - `/chanari/<id>` は `/chat/<id>` と内容が重複するため除外 (canonical 化方針)
  * - `lastmod` は実行日 (YYYY-MM-DD)
  */

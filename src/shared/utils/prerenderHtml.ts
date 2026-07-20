@@ -51,8 +51,11 @@ function buildHeadBlock(seo: RoomSeo): string {
     `<meta name="twitter:image" content="${ogImage}" />`,
     `<meta name="twitter:image:alt" content="${title}" />`,
     // ページ固有の構造化データ (WebPage + BreadcrumbList)。
-    // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする
-    `<script type="application/ld+json" data-page-jsonld>${JSON.stringify(seo.jsonLd)}</script>`,
+    // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする。
+    // "<" は Unicode エスケープ (バックスラッシュ + u003c) に置換し、値に "</script>" が
+    // 紛れても HTML が壊れないようにする
+    // (JSON としては等価なので JSON.parse の結果は変わらない)
+    `<script type="application/ld+json" data-page-jsonld>${JSON.stringify(seo.jsonLd).replace(/</g, '\\u003c')}</script>`,
   ].join('\n    ');
 }
 

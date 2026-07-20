@@ -181,6 +181,22 @@ describe('useSEO', () => {
       expect(JSON.parse(script?.textContent || '[]')).toEqual(jsonLd);
     });
 
+    it('jsonLd を渡さない再レンダーで data-page-jsonld ノードが削除される (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] } as object },
+      });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).not.toBeNull();
+
+      rerender({ options: { title: 'トップページ' } });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).toBeNull();
+    });
+
     it('jsonLd の変更で data-page-jsonld ノードを増殖させず内容を置き換える', () => {
       const { rerender } = renderHook(({ jsonLd }: { jsonLd: object[] }) => useSEO({ jsonLd }), {
         initialProps: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] },

@@ -200,6 +200,10 @@ export const useSEO = (options: UseSEOOptions = {}) => {
         document.head.appendChild(script);
       }
       script.textContent = jsonLdJson;
+    } else {
+      // jsonLd を渡さないページ (トップ / NotFound 等) では前ページの
+      // 構造化データが残らないよう削除する (SPA 内遷移のメタ残留対策)
+      document.querySelector('script[type="application/ld+json"][data-page-jsonld]')?.remove();
     }
   }, [
     options.title,

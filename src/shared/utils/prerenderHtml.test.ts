@@ -70,6 +70,16 @@ describe('renderRoomHtml', () => {
     expect(() => renderRoomHtml(noRoot, 'anime')).toThrow(/root/);
   });
 
+  it('埋め込み JSON-LD の "<" は Unicode エスケープされ script タグを壊せない', () => {
+    const html = renderRoomHtml(TEMPLATE, 'anime');
+    const jsonLdMatch = html.match(
+      /<script type="application\/ld\+json" data-page-jsonld>(.*?)<\/script>/
+    );
+    expect(jsonLdMatch).not.toBeNull();
+    // 生文字列としては "<" を含まない (JSON.parse すれば元の値に戻る)
+    expect(jsonLdMatch![1]).not.toContain('<');
+  });
+
   it('タイトル等の HTML 特殊文字はエスケープされる', () => {
     // WORKING!! など実在の部屋名は無害だが、将来の部屋名に備えて挙動を固定する
     const html = renderRoomHtml(TEMPLATE, 'working');
