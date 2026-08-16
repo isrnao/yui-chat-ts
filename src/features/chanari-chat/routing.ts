@@ -1,4 +1,5 @@
 import { DEFAULT_ROOM_ID, isEnabledRoomId, type RoomId } from '@features/chat/rooms';
+import { buildChatRoomPath } from '@features/chat/routing';
 
 export type ChanariRouteMatch =
   | { type: 'chanari-room'; roomId: RoomId }
@@ -41,6 +42,13 @@ export function matchChanariRoute(pathname: string): ChanariRouteMatch | null {
 
   if (segments.length === 1 && segments[0] === 'chanari') {
     return { type: 'redirect', to: buildChanariRoomPath(DEFAULT_ROOM_ID) };
+  }
+
+  // 'all' は集約ビュー (AllRoomsRoute) 専用。Chanari 側で受けると room_id='all' の
+  // 単一 room 表示になり /chat/all とは別内容のページが生えてしまうため、
+  // 通常チャット側の集約ビューへリダイレクトする
+  if (segments.length === 2 && segments[0] === 'chanari' && segments[1] === 'all') {
+    return { type: 'redirect', to: buildChatRoomPath('all') };
   }
 
   if (segments.length === 2 && segments[0] === 'chanari' && isEnabledRoomId(segments[1])) {

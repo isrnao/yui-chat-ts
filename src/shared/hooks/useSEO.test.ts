@@ -56,32 +56,6 @@ describe('useSEO', () => {
     });
   });
 
-  describe('keywords setting', () => {
-    it('should create and set meta keywords when it does not exist', () => {
-      const testKeywords = ['キーワード1', 'キーワード2'];
-
-      renderHook(() => useSEO({ keywords: testKeywords }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeTruthy();
-      expect(metaKeywords?.getAttribute('content')).toBe('キーワード1,キーワード2');
-    });
-
-    it('should not set keywords when keywords option is empty array', () => {
-      renderHook(() => useSEO({ keywords: [] }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeNull();
-    });
-
-    it('should not set keywords when keywords option is not provided', () => {
-      renderHook(() => useSEO({}));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeNull();
-    });
-  });
-
   describe('canonical URL setting', () => {
     it('should create and set canonical link when it does not exist', () => {
       const testCanonical = 'https://example.com/canonical';
@@ -150,48 +124,109 @@ describe('useSEO', () => {
     });
   });
 
+  describe('noindex / canonical 削除 (SPA 内遷移のメタ残留対策)', () => {
+    it('noindex: true で robots meta が noindex になる', () => {
+      renderHook(() => useSEO({ noindex: true }));
+
+      const robots = document.querySelector('meta[name="robots"]');
+      expect(robots?.getAttribute('content')).toBe('noindex');
+    });
+
+    it('noindex 未指定では robots meta が index, follow に戻る (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { noindex: true } },
+      });
+
+      rerender({ options: { title: '通常ページ' } });
+
+      const robots = document.querySelector('meta[name="robots"]');
+      expect(robots?.getAttribute('content')).toBe('index, follow');
+    });
+
+    it('canonical: null で canonical link と og:url が削除される (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
+      });
+
+      expect(document.querySelector('link[rel="canonical"]')).not.toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).not.toBeNull();
+
+      rerender({ options: { canonical: null } });
+
+      expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).toBeNull();
+    });
+
+    it('canonical: undefined では既存の canonical を変更しない', () => {
+      renderHook(() => useSEO({ canonical: 'https://www.okiraku.chat/chat/anime' }));
+      renderHook(() => useSEO({ title: 'タイトルのみ' }));
+
+      const canonical = document.querySelector('link[rel="canonical"]');
+      expect(canonical?.getAttribute('href')).toBe('https://www.okiraku.chat/chat/anime');
+    });
+  });
+
   describe('structured data setting', () => {
-    it('should update structured data when title and description are provided', () => {
-      // 既存の構造化データスクリプトを作成
+    it('ベースの @graph スクリプトには書き込まない (title/description を渡しても不変)', () => {
+      const baseJson = JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [{ '@type': 'WebSite', name: 'お気楽チャットTS' }],
+      });
       const existingScript = document.createElement('script');
       existingScript.type = 'application/ld+json';
-      existingScript.textContent = JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-      });
+      existingScript.textContent = baseJson;
       document.head.appendChild(existingScript);
 
       renderHook(() =>
         useSEO({
           title: 'Test Title',
           description: 'Test Description',
-          keywords: ['test', 'keyword'],
         })
       );
 
-      const updatedScript = document.querySelector('script[type="application/ld+json"]');
-      const data = JSON.parse(updatedScript?.textContent || '{}');
-
-      expect(data.name).toBe('Test Title');
-      expect(data.description).toBe('Test Description');
-      expect(data.keywords).toBe('test,keyword');
+      expect(existingScript.textContent).toBe(baseJson);
     });
 
-    it('should handle invalid JSON gracefully', () => {
-      // 無効なJSONを持つスクリプトを作成
-      const invalidScript = document.createElement('script');
-      invalidScript.type = 'application/ld+json';
-      invalidScript.textContent = 'invalid json';
-      document.head.appendChild(invalidScript);
+    it('jsonLd オプションで data-page-jsonld ノードを作成する', () => {
+      const jsonLd = [{ '@type': 'WebPage', name: 'テスト部屋' }];
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderHook(() => useSEO({ jsonLd }));
 
-      expect(() => {
-        renderHook(() => useSEO({ title: 'Test Title' }));
-      }).not.toThrow();
+      const script = document.querySelector('script[type="application/ld+json"][data-page-jsonld]');
+      expect(script).not.toBeNull();
+      expect(JSON.parse(script?.textContent || '[]')).toEqual(jsonLd);
+    });
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+    it('jsonLd を渡さない再レンダーで data-page-jsonld ノードが削除される (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] } as object },
+      });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).not.toBeNull();
+
+      rerender({ options: { title: 'トップページ' } });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).toBeNull();
+    });
+
+    it('jsonLd の変更で data-page-jsonld ノードを増殖させず内容を置き換える', () => {
+      const { rerender } = renderHook(({ jsonLd }: { jsonLd: object[] }) => useSEO({ jsonLd }), {
+        initialProps: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] },
+      });
+
+      rerender({ jsonLd: [{ '@type': 'WebPage', name: '部屋B' }] });
+
+      const scripts = document.querySelectorAll(
+        'script[type="application/ld+json"][data-page-jsonld]'
+      );
+      expect(scripts).toHaveLength(1);
+      expect(JSON.parse(scripts[0].textContent || '[]')).toEqual([
+        { '@type': 'WebPage', name: '部屋B' },
+      ]);
     });
   });
 
@@ -217,21 +252,6 @@ describe('useSEO', () => {
       expect(document.title).toBe('Second Title');
       const metaDescription = document.querySelector('meta[name="description"]');
       expect(metaDescription?.getAttribute('content')).toBe('New Description');
-    });
-
-    it('should update existing keywords meta tag', () => {
-      // 既存のキーワードメタ要素を作成
-      const existingKeywords = document.createElement('meta');
-      existingKeywords.setAttribute('name', 'keywords');
-      existingKeywords.setAttribute('content', 'old,keywords');
-      document.head.appendChild(existingKeywords);
-
-      const newKeywords = ['new', 'keywords'];
-
-      renderHook(() => useSEO({ keywords: newKeywords }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords?.getAttribute('content')).toBe('new,keywords');
     });
 
     it('should update existing canonical link', () => {
@@ -263,7 +283,7 @@ describe('useSEO', () => {
       existingScript.textContent = JSON.stringify({ '@context': 'https://schema.org' });
       document.head.appendChild(existingScript);
 
-      renderHook(() => useSEO({ keywords: ['test'] }));
+      renderHook(() => useSEO({ noindex: false }));
 
       const script = document.querySelector('script[type="application/ld+json"]');
       const data = JSON.parse(script?.textContent || '{}');
@@ -283,9 +303,9 @@ describe('useSEO', () => {
         renderHook(() => useSEO({ title: 'Test Title' }));
       }).not.toThrow();
 
+      // ベースの ld+json は data-page-jsonld ではないため書き込まれない
       const script = document.querySelector('script[type="application/ld+json"]');
-      const data = JSON.parse(script?.textContent || '{}');
-      expect(data.name).toBe('Test Title');
+      expect(script?.textContent).toBe('');
     });
 
     it('should handle missing structured data script gracefully', () => {
@@ -302,7 +322,6 @@ describe('useSEO', () => {
             options: {
               title: 'Initial',
               description: 'Initial Desc',
-              keywords: ['initial'],
               canonical: 'https://initial.com',
               ogImage: '/initial.png',
             },
@@ -317,7 +336,6 @@ describe('useSEO', () => {
         options: {
           title: 'Updated',
           description: 'Updated Desc',
-          keywords: ['updated'],
           canonical: 'https://updated.com',
           ogImage: '/updated.png',
         },

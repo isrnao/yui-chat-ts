@@ -7,10 +7,25 @@ import { GA_MEASUREMENT_ID } from '@shared/utils/analytics';
 export interface UseSEOOptions {
   title?: string;
   description?: string;
-  keywords?: string[];
-  canonical?: string;
+  /**
+   * ページの正規 URL。`null` を渡すと canonical <link> を削除する
+   * (NotFound 等、canonical を持つべきでないページの SPA 内遷移残留対策)。
+   * undefined は「変更しない」。
+   */
+  canonical?: string | null;
   ogImage?: string;
   ogImageType?: string;
+  /**
+   * true でこのページをインデックス対象外にする (robots meta を noindex にする)。
+   * false / 未指定では index, follow に戻す (SPA 内遷移での noindex 残留対策)。
+   */
+  noindex?: boolean;
+  /**
+   * ページ固有の構造化データ (WebPage + BreadcrumbList 等)。
+   * <script type="application/ld+json" data-page-jsonld> 専用ノードとして upsert する。
+   * index.html のベース @graph (WebSite / Organization / SoftwareApplication) には触れない。
+   */
+  jsonLd?: object | object[];
 }
 
 function inferImageMimeType(imageUrl: string): string | null {
@@ -39,6 +54,9 @@ function upsertMeta(selector: string, create: () => HTMLElement, attr: string, v
 }
 
 export const useSEO = (options: UseSEOOptions = {}) => {
+  // オブジェクト identity ではなく内容で effect の再実行を判定する
+  const jsonLdJson = options.jsonLd ? JSON.stringify(options.jsonLd) : undefined;
+
   useEffect(() => {
     // タイトルの設定
     if (options.title) {
@@ -101,21 +119,25 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       );
     }
 
-    // キーワードの設定
-    if (options.keywords && options.keywords.length > 0) {
-      upsertMeta(
-        'meta[name="keywords"]',
-        () => {
-          const m = document.createElement('meta');
-          m.setAttribute('name', 'keywords');
-          return m;
-        },
-        'content',
-        options.keywords.join(',')
-      );
-    }
+    // robots meta (noindex) は SPA 内遷移で前ページの値が残らないよう常に明示する
+    upsertMeta(
+      'meta[name="robots"]',
+      () => {
+        const m = document.createElement('meta');
+        m.setAttribute('name', 'robots');
+        return m;
+      },
+      'content',
+      options.noindex ? 'noindex' : 'index, follow'
+    );
 
-    // カノニカルURLの設定
+    // カノニカルURLの設定 (null は明示的な削除)。
+    // canonical 設定時に同期している og:url も一緒に消し、
+    // NotFound 等で前ページの URL を OGP が宣言し続けないようにする
+    if (options.canonical === null) {
+      document.querySelector('link[rel="canonical"]')?.remove();
+      document.querySelector('meta[property="og:url"]')?.remove();
+    }
     if (options.canonical) {
       upsertMeta(
         'link[rel="canonical"]',
@@ -179,28 +201,31 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       );
     }
 
-    // 構造化データの更新
-    const structuredDataScript = document.querySelector('script[type="application/ld+json"]');
-    if (structuredDataScript && (options.title || options.description)) {
-      try {
-        const data = JSON.parse(structuredDataScript.textContent || '{}');
-        if (options.title) data.name = options.title;
-        if (options.description) data.description = options.description;
-        if (options.keywords) data.keywords = options.keywords.join(',');
-        structuredDataScript.textContent = JSON.stringify(data, null, 2);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Failed to update structured data:', error);
-        }
+    // ページ固有の構造化データ (data-page-jsonld ノードのみを管理し、ベース @graph には触れない)
+    if (jsonLdJson) {
+      let script = document.querySelector<HTMLScriptElement>(
+        'script[type="application/ld+json"][data-page-jsonld]'
+      );
+      if (!script) {
+        script = document.createElement('script');
+        script.type = 'application/ld+json';
+        script.setAttribute('data-page-jsonld', '');
+        document.head.appendChild(script);
       }
+      script.textContent = jsonLdJson;
+    } else {
+      // jsonLd を渡さないページ (トップ / NotFound 等) では前ページの
+      // 構造化データが残らないよう削除する (SPA 内遷移のメタ残留対策)
+      document.querySelector('script[type="application/ld+json"][data-page-jsonld]')?.remove();
     }
   }, [
     options.title,
     options.description,
-    options.keywords,
     options.canonical,
     options.ogImage,
     options.ogImageType,
+    options.noindex,
+    jsonLdJson,
   ]);
 };
 

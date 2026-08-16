@@ -55,12 +55,6 @@
           a:hover {
             text-decoration: underline;
           }
-          .priority {
-            font-weight: bold;
-          }
-          .changefreq {
-            text-transform: capitalize;
-          }
         </style>
       </head>
       <body>
@@ -75,9 +69,6 @@
           <thead>
             <tr>
               <th>URL</th>
-              <th>最終更新日</th>
-              <th>更新頻度</th>
-              <th>優先度</th>
             </tr>
           </thead>
           <tbody>
@@ -87,15 +78,6 @@
                   <a href="{sm:loc}">
                     <xsl:value-of select="sm:loc"/>
                   </a>
-                </td>
-                <td>
-                  <xsl:value-of select="sm:lastmod"/>
-                </td>
-                <td class="changefreq">
-                  <xsl:value-of select="sm:changefreq"/>
-                </td>
-                <td class="priority">
-                  <xsl:value-of select="sm:priority"/>
                 </td>
               </tr>
             </xsl:for-each>

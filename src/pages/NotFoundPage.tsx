@@ -1,17 +1,19 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
-import { buildAbsoluteUrl } from '@shared/utils/seo';
+import { buildPageTitle } from '@shared/utils/seo';
 
 const LEGACY_NOT_FOUND_MESSAGE =
   'The file you just requested wasn’t found in the location (or with the name) specified. You may have an incorrect URL, or the file may have been moved or renamed. Try navigating to the content you’re seeking by using the links on this page, or by searching the site with the form on this page. Most recent entries are listed below.';
 
 export default function NotFoundPage() {
+  // 未知 URL をインデックスさせない (soft 404 対策)。
+  // 実在しない /404 への canonical 宣言は廃止し、canonical 自体を削除する
   useSEO({
-    title: '４０４ＥＲＲＯＲ | ゆいちゃっとTS',
+    title: buildPageTitle('４０４ＥＲＲＯＲ'),
     description: '指定されたページは見つかりませんでした。',
-    keywords: ['404', 'お気楽チャット', 'ゆいちゃっとTS'],
-    canonical: buildAbsoluteUrl('/404'),
+    noindex: true,
+    canonical: null,
   });
-  usePageView('404 - ゆいちゃっとTS');
+  usePageView(buildPageTitle('404'));
 
   return (
     <main className="min-h-dvh bg-white px-2 py-1 font-sans text-[#222]">

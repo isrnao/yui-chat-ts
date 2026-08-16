@@ -29,6 +29,7 @@ const meta = {
   args: {
     minTop: 120,
     minBottom: 140,
+    topKind: 'entry',
     top: <TopPlaceholder />,
     bottom: <BottomPreview />,
   },
