@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0bbbfe"/>
+      <stop offset="100%" stop-color="#068ae3"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f7f9ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="60" y="60" width="1080" height="510" rx="28" fill="url(#card)"/>
+
+  <!-- TS badge (TypeScript-like) -->
+  <g transform="translate(120 130)">
+    <rect width="120" height="120" rx="16" fill="#3178C6"/>
+    <text x="110" y="100" text-anchor="end" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-weight="800" font-size="64" letter-spacing="-2" fill="#ffffff">TS</text>
+  </g>
+
+  <!-- Title -->
+  <text x="280" y="200" font-family="'Hiragino Maru Gothic ProN', 'Yu Gothic', 'Meiryo', sans-serif" font-weight="900" font-size="86" fill="#096fe5">お気楽チャットTS</text>
+  <text x="280" y="250" font-family="'Hiragino Sans', 'Yu Gothic', sans-serif" font-weight="700" font-size="28" fill="#1a6dbc">www.okiraku.chat</text>
+
+  <!-- Subtitle / lead -->
+  <text x="120" y="350" font-family="'Hiragino Sans', 'Yu Gothic', sans-serif" font-weight="700" font-size="38" fill="#1f2937">無料・登録なしで参加できる、目的別チャット。</text>
+  <text x="120" y="410" font-family="'Hiragino Sans', 'Yu Gothic', sans-serif" font-weight="500" font-size="28" fill="#374151">初心者・学生・年代別・趣味・ゲーム・アニメ・なりきり、</text>
+  <text x="120" y="450" font-family="'Hiragino Sans', 'Yu Gothic', sans-serif" font-weight="500" font-size="28" fill="#374151">あなたに合う部屋で友達探し＆仲間作り。</text>
+
+  <!-- Tag chips -->
+  <g font-family="'Hiragino Sans', 'Yu Gothic', sans-serif" font-weight="700" font-size="22" fill="#ffffff">
+    <rect x="120" y="490" width="160" height="44" rx="22" fill="#ec168c"/>
+    <text x="200" y="520" text-anchor="middle">無料チャット</text>
+    <rect x="300" y="490" width="160" height="44" rx="22" fill="#ff9a3c"/>
+    <text x="380" y="520" text-anchor="middle">友達探し</text>
+    <rect x="480" y="490" width="160" height="44" rx="22" fill="#3fbf8f"/>
+    <text x="560" y="520" text-anchor="middle">仲間作り</text>
+    <rect x="660" y="490" width="200" height="44" rx="22" fill="#2e8fd1"/>
+    <text x="760" y="520" text-anchor="middle">ブラウザだけでOK</text>
+  </g>
+</svg>
