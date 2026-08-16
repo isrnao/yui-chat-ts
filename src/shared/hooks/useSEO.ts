@@ -7,10 +7,19 @@ import { GA_MEASUREMENT_ID } from '@shared/utils/analytics';
 export interface UseSEOOptions {
   title?: string;
   description?: string;
-  keywords?: string[];
-  canonical?: string;
+  /**
+   * ページの正規 URL。`null` を渡すと canonical <link> を削除する
+   * (NotFound 等、canonical を持つべきでないページの SPA 内遷移残留対策)。
+   * undefined は「変更しない」。
+   */
+  canonical?: string | null;
   ogImage?: string;
   ogImageType?: string;
+  /**
+   * true でこのページをインデックス対象外にする (robots meta を noindex にする)。
+   * false / 未指定では index, follow に戻す (SPA 内遷移での noindex 残留対策)。
+   */
+  noindex?: boolean;
   /**
    * ページ固有の構造化データ (WebPage + BreadcrumbList 等)。
    * <script type="application/ld+json" data-page-jsonld> 専用ノードとして upsert する。
@@ -110,21 +119,25 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       );
     }
 
-    // キーワードの設定
-    if (options.keywords && options.keywords.length > 0) {
-      upsertMeta(
-        'meta[name="keywords"]',
-        () => {
-          const m = document.createElement('meta');
-          m.setAttribute('name', 'keywords');
-          return m;
-        },
-        'content',
-        options.keywords.join(',')
-      );
-    }
+    // robots meta (noindex) は SPA 内遷移で前ページの値が残らないよう常に明示する
+    upsertMeta(
+      'meta[name="robots"]',
+      () => {
+        const m = document.createElement('meta');
+        m.setAttribute('name', 'robots');
+        return m;
+      },
+      'content',
+      options.noindex ? 'noindex' : 'index, follow'
+    );
 
-    // カノニカルURLの設定
+    // カノニカルURLの設定 (null は明示的な削除)。
+    // canonical 設定時に同期している og:url も一緒に消し、
+    // NotFound 等で前ページの URL を OGP が宣言し続けないようにする
+    if (options.canonical === null) {
+      document.querySelector('link[rel="canonical"]')?.remove();
+      document.querySelector('meta[property="og:url"]')?.remove();
+    }
     if (options.canonical) {
       upsertMeta(
         'link[rel="canonical"]',
@@ -208,10 +221,10 @@ export const useSEO = (options: UseSEOOptions = {}) => {
   }, [
     options.title,
     options.description,
-    options.keywords,
     options.canonical,
     options.ogImage,
     options.ogImageType,
+    options.noindex,
     jsonLdJson,
   ]);
 };

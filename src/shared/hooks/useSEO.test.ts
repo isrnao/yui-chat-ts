@@ -56,32 +56,6 @@ describe('useSEO', () => {
     });
   });
 
-  describe('keywords setting', () => {
-    it('should create and set meta keywords when it does not exist', () => {
-      const testKeywords = ['キーワード1', 'キーワード2'];
-
-      renderHook(() => useSEO({ keywords: testKeywords }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeTruthy();
-      expect(metaKeywords?.getAttribute('content')).toBe('キーワード1,キーワード2');
-    });
-
-    it('should not set keywords when keywords option is empty array', () => {
-      renderHook(() => useSEO({ keywords: [] }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeNull();
-    });
-
-    it('should not set keywords when keywords option is not provided', () => {
-      renderHook(() => useSEO({}));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords).toBeNull();
-    });
-  });
-
   describe('canonical URL setting', () => {
     it('should create and set canonical link when it does not exist', () => {
       const testCanonical = 'https://example.com/canonical';
@@ -147,6 +121,48 @@ describe('useSEO', () => {
       expect(ogImageMeta).toBeNull();
       expect(ogImageTypeMeta).toBeNull();
       expect(twitterImageMeta).toBeNull();
+    });
+  });
+
+  describe('noindex / canonical 削除 (SPA 内遷移のメタ残留対策)', () => {
+    it('noindex: true で robots meta が noindex になる', () => {
+      renderHook(() => useSEO({ noindex: true }));
+
+      const robots = document.querySelector('meta[name="robots"]');
+      expect(robots?.getAttribute('content')).toBe('noindex');
+    });
+
+    it('noindex 未指定では robots meta が index, follow に戻る (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { noindex: true } },
+      });
+
+      rerender({ options: { title: '通常ページ' } });
+
+      const robots = document.querySelector('meta[name="robots"]');
+      expect(robots?.getAttribute('content')).toBe('index, follow');
+    });
+
+    it('canonical: null で canonical link と og:url が削除される (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
+      });
+
+      expect(document.querySelector('link[rel="canonical"]')).not.toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).not.toBeNull();
+
+      rerender({ options: { canonical: null } });
+
+      expect(document.querySelector('link[rel="canonical"]')).toBeNull();
+      expect(document.querySelector('meta[property="og:url"]')).toBeNull();
+    });
+
+    it('canonical: undefined では既存の canonical を変更しない', () => {
+      renderHook(() => useSEO({ canonical: 'https://www.okiraku.chat/chat/anime' }));
+      renderHook(() => useSEO({ title: 'タイトルのみ' }));
+
+      const canonical = document.querySelector('link[rel="canonical"]');
+      expect(canonical?.getAttribute('href')).toBe('https://www.okiraku.chat/chat/anime');
     });
   });
 
@@ -238,21 +254,6 @@ describe('useSEO', () => {
       expect(metaDescription?.getAttribute('content')).toBe('New Description');
     });
 
-    it('should update existing keywords meta tag', () => {
-      // 既存のキーワードメタ要素を作成
-      const existingKeywords = document.createElement('meta');
-      existingKeywords.setAttribute('name', 'keywords');
-      existingKeywords.setAttribute('content', 'old,keywords');
-      document.head.appendChild(existingKeywords);
-
-      const newKeywords = ['new', 'keywords'];
-
-      renderHook(() => useSEO({ keywords: newKeywords }));
-
-      const metaKeywords = document.querySelector('meta[name="keywords"]');
-      expect(metaKeywords?.getAttribute('content')).toBe('new,keywords');
-    });
-
     it('should update existing canonical link', () => {
       // 既存のカノニカルリンクを作成
       const existingCanonical = document.createElement('link');
@@ -282,7 +283,7 @@ describe('useSEO', () => {
       existingScript.textContent = JSON.stringify({ '@context': 'https://schema.org' });
       document.head.appendChild(existingScript);
 
-      renderHook(() => useSEO({ keywords: ['test'] }));
+      renderHook(() => useSEO({ noindex: false }));
 
       const script = document.querySelector('script[type="application/ld+json"]');
       const data = JSON.parse(script?.textContent || '{}');
@@ -321,7 +322,6 @@ describe('useSEO', () => {
             options: {
               title: 'Initial',
               description: 'Initial Desc',
-              keywords: ['initial'],
               canonical: 'https://initial.com',
               ogImage: '/initial.png',
             },
@@ -336,7 +336,6 @@ describe('useSEO', () => {
         options: {
           title: 'Updated',
           description: 'Updated Desc',
-          keywords: ['updated'],
           canonical: 'https://updated.com',
           ogImage: '/updated.png',
         },
