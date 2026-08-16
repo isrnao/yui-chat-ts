@@ -151,47 +151,66 @@ describe('useSEO', () => {
   });
 
   describe('structured data setting', () => {
-    it('should update structured data when title and description are provided', () => {
-      // 既存の構造化データスクリプトを作成
+    it('ベースの @graph スクリプトには書き込まない (title/description を渡しても不変)', () => {
+      const baseJson = JSON.stringify({
+        '@context': 'https://schema.org',
+        '@graph': [{ '@type': 'WebSite', name: 'お気楽チャットTS' }],
+      });
       const existingScript = document.createElement('script');
       existingScript.type = 'application/ld+json';
-      existingScript.textContent = JSON.stringify({
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-      });
+      existingScript.textContent = baseJson;
       document.head.appendChild(existingScript);
 
       renderHook(() =>
         useSEO({
           title: 'Test Title',
           description: 'Test Description',
-          keywords: ['test', 'keyword'],
         })
       );
 
-      const updatedScript = document.querySelector('script[type="application/ld+json"]');
-      const data = JSON.parse(updatedScript?.textContent || '{}');
-
-      expect(data.name).toBe('Test Title');
-      expect(data.description).toBe('Test Description');
-      expect(data.keywords).toBe('test,keyword');
+      expect(existingScript.textContent).toBe(baseJson);
     });
 
-    it('should handle invalid JSON gracefully', () => {
-      // 無効なJSONを持つスクリプトを作成
-      const invalidScript = document.createElement('script');
-      invalidScript.type = 'application/ld+json';
-      invalidScript.textContent = 'invalid json';
-      document.head.appendChild(invalidScript);
+    it('jsonLd オプションで data-page-jsonld ノードを作成する', () => {
+      const jsonLd = [{ '@type': 'WebPage', name: 'テスト部屋' }];
 
-      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      renderHook(() => useSEO({ jsonLd }));
 
-      expect(() => {
-        renderHook(() => useSEO({ title: 'Test Title' }));
-      }).not.toThrow();
+      const script = document.querySelector('script[type="application/ld+json"][data-page-jsonld]');
+      expect(script).not.toBeNull();
+      expect(JSON.parse(script?.textContent || '[]')).toEqual(jsonLd);
+    });
 
-      expect(consoleSpy).toHaveBeenCalled();
-      consoleSpy.mockRestore();
+    it('jsonLd を渡さない再レンダーで data-page-jsonld ノードが削除される (残留しない)', () => {
+      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
+        initialProps: { options: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] } as object },
+      });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).not.toBeNull();
+
+      rerender({ options: { title: 'トップページ' } });
+
+      expect(
+        document.querySelector('script[type="application/ld+json"][data-page-jsonld]')
+      ).toBeNull();
+    });
+
+    it('jsonLd の変更で data-page-jsonld ノードを増殖させず内容を置き換える', () => {
+      const { rerender } = renderHook(({ jsonLd }: { jsonLd: object[] }) => useSEO({ jsonLd }), {
+        initialProps: { jsonLd: [{ '@type': 'WebPage', name: '部屋A' }] },
+      });
+
+      rerender({ jsonLd: [{ '@type': 'WebPage', name: '部屋B' }] });
+
+      const scripts = document.querySelectorAll(
+        'script[type="application/ld+json"][data-page-jsonld]'
+      );
+      expect(scripts).toHaveLength(1);
+      expect(JSON.parse(scripts[0].textContent || '[]')).toEqual([
+        { '@type': 'WebPage', name: '部屋B' },
+      ]);
     });
   });
 
@@ -283,9 +302,9 @@ describe('useSEO', () => {
         renderHook(() => useSEO({ title: 'Test Title' }));
       }).not.toThrow();
 
+      // ベースの ld+json は data-page-jsonld ではないため書き込まれない
       const script = document.querySelector('script[type="application/ld+json"]');
-      const data = JSON.parse(script?.textContent || '{}');
-      expect(data.name).toBe('Test Title');
+      expect(script?.textContent).toBe('');
     });
 
     it('should handle missing structured data script gracefully', () => {

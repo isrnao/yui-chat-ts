@@ -10,23 +10,19 @@ import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
 import type { AvatarId } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { buildChatRoomPath } from '@features/chat/routing';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
-import { buildAbsoluteUrl } from '@shared/utils/seo';
+import { buildRoomSeo } from '@shared/utils/roomSeo';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
 
-  useSEO({
-    title: `${room.title} | ゆいちゃっとTS`,
-    description: `${room.title}をブラウザですぐに使えるお気楽チャットとして公開しています。`,
-    keywords: ['ゆいちゃっとTS', 'お気楽チャット', '無料チャット', room.title],
-    canonical: buildAbsoluteUrl(buildChatRoomPath(roomId)),
-  });
-
-  usePageView(`${room.title} - ゆいちゃっとTS`);
+  // プリレンダ (scripts/prerender-rooms.ts) と同一ソースからメタを導出し、
+  // 静的 HTML とランタイムのメタタグ不一致を防ぐ
+  const seo = buildRoomSeo(roomId);
+  useSEO(seo);
+  usePageView(seo.title);
 
   const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
   // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す

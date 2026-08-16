@@ -100,10 +100,54 @@ export const CHAT_ROOM_IDS = [
 
 export type RoomId = (typeof CHAT_ROOM_IDS)[number];
 
+/**
+ * 部屋カテゴリ。CHAT_ROOM_IDS のコメントによる分類をデータに昇格させたもの。
+ * BreadcrumbList 構造化データと同カテゴリの関連部屋リンクの導出元になる
+ * (.kiro/specs/seo-improvement Req 6)。
+ */
+export const ROOM_CATEGORIES = [
+  'beginner',
+  'student',
+  'generation',
+  'daily',
+  'anime',
+  'game',
+  'season',
+  'area',
+  'hobby',
+  'meruhen',
+  'offkai',
+  'historic',
+  'admin',
+  'chanari',
+  'all',
+] as const;
+
+export type RoomCategory = (typeof ROOM_CATEGORIES)[number];
+
+export const ROOM_CATEGORY_LABELS: Record<RoomCategory, string> = {
+  beginner: '初心者チャット',
+  student: '学生チャット',
+  generation: '年代別チャット',
+  daily: '日常生活のチャット',
+  anime: 'アニメチャット',
+  game: 'ゲームチャット',
+  season: '季節のチャット',
+  area: '地域のチャット',
+  hobby: '趣味のチャット',
+  meruhen: 'メルヘンチャット',
+  offkai: 'オフ会ルーム',
+  historic: '歴史的チャット',
+  admin: '管理者チャット',
+  chanari: 'なりきりチャット',
+  all: '全部屋まとめ',
+};
+
 export type RoomMeta = {
   id: RoomId;
   title: string;
   description: string;
+  category: RoomCategory;
   enabled: boolean;
 };
 
@@ -215,6 +259,109 @@ const ROOM_TITLES: Record<RoomId, string> = {
   all: '全部屋まとめ',
 };
 
+/**
+ * 各ルームのカテゴリ。CHAT_ROOM_IDS の並び (コメント区分) と一致させる。
+ * Record<RoomId, RoomCategory> なので部屋の追加時は型エラーで登録漏れに気づける。
+ */
+const ROOM_CATEGORY_MAP: Record<RoomId, RoomCategory> = {
+  superbeginner: 'beginner',
+  hajime: 'beginner',
+  ofall: 'beginner',
+  yume: 'beginner',
+
+  elementary: 'student',
+  juniorhighschool: 'student',
+  juniorhighschool3: 'student',
+  highschool: 'student',
+  daigaku: 'student',
+
+  '10generations': 'generation',
+  '20generations': 'generation',
+  '30generations': 'generation',
+
+  umaimise: 'daily',
+  osare: 'daily',
+  news: 'daily',
+  jinsei: 'daily',
+
+  anime: 'anime',
+  reborn: 'anime',
+  monhan: 'anime',
+  rozen: 'anime',
+
+  game: 'game',
+  pazudora: 'game',
+  '3ds': 'game',
+
+  natsuyasumi: 'season',
+  'hanabi-taikai': 'season',
+  haruyasumi: 'season',
+
+  area_kantoh: 'area',
+  area_hok_touho: 'area',
+  area_toukai: 'area',
+  area_kansai: 'area',
+  area_chu_shi: 'area',
+  area_kyu_oki: 'area',
+
+  music: 'hobby',
+  dance: 'hobby',
+  travel: 'hobby',
+  darts: 'hobby',
+  tabletennis: 'hobby',
+
+  omikuji: 'meruhen',
+  mico: 'meruhen',
+  puchi: 'meruhen',
+  gyamikuji: 'meruhen',
+  meruhen1: 'meruhen',
+  meruhen2: 'meruhen',
+  colorful: 'meruhen',
+  hoshi: 'meruhen',
+
+  karaoke: 'offkai',
+  karaoke2: 'offkai',
+  sports: 'offkai',
+  hoshizora: 'offkai',
+  ohirune: 'offkai',
+  kakifry: 'offkai',
+
+  vip: 'historic',
+  'hajime-old': 'historic',
+  mattari: 'historic',
+  wai2: 'historic',
+  joren: 'historic',
+  shouchu: 'historic',
+  '20dai': 'historic',
+  '30dai': 'historic',
+  battle: 'historic',
+  '2shot': 'historic',
+
+  com_sb: 'admin',
+
+  durarara: 'chanari',
+  vocaloid: 'chanari',
+  hetaria: 'chanari',
+  gintama: 'chanari',
+  inazuma11: 'chanari',
+  tenipri: 'chanari',
+  touhou: 'chanari',
+  basara: 'chanari',
+  inazuma11go: 'chanari',
+  bakatesu: 'chanari',
+  working: 'chanari',
+  akb48: 'chanari',
+  majutu: 'chanari',
+  bleach: 'chanari',
+  kuroshitsuji: 'chanari',
+  keion: 'chanari',
+  dgrayman: 'chanari',
+  haruhi: 'chanari',
+  railgun: 'chanari',
+
+  all: 'all',
+};
+
 function buildRoomMeta(): Record<RoomId, RoomMeta> {
   const entries = CHAT_ROOM_IDS.map((id): [RoomId, RoomMeta] => [
     id,
@@ -222,6 +369,7 @@ function buildRoomMeta(): Record<RoomId, RoomMeta> {
       id,
       title: ROOM_TITLES[id],
       description: `${ROOM_TITLES[id]} でゆっくりおしゃべりしましょう。`,
+      category: ROOM_CATEGORY_MAP[id],
       enabled: true,
     },
   ]);
