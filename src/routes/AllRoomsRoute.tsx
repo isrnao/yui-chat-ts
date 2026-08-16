@@ -104,6 +104,7 @@ export default function AllRoomsRoute() {
         <RetroSplitter
           minTop={100}
           minBottom={100}
+          topKind={entered ? 'chat' : 'entry'}
           top={
             entered ? (
               <ChatRoom

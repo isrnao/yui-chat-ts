@@ -1,34 +1,55 @@
-import { useRef, useState, useCallback, useEffect, useLayoutEffect, isValidElement } from 'react';
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import type { ReactNode, KeyboardEvent } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
-function getTopTypeName(top: ReactNode, bottom: ReactNode): string | null {
-  if (top && bottom && isValidElement(top) && typeof top.type === 'function') {
-    return top.type.name;
-  }
-  return null;
+/**
+ * 上側に表示している画面の種類。初期高さの出し分けに使う。
+ * top 要素からコンポーネント名を推測すると Fragment やラッパー div で判定不能になり、
+ * 本番ビルドの minify でも壊れるため、呼び出し側から明示的に渡す。
+ */
+export type SplitterTopKind = 'chat' | 'entry';
+
+/** Tailwind の lg (64rem) と同じ閾値。inline style ではブレークポイントが効かないため JS で判定する */
+const DESKTOP_MEDIA_QUERY = '(min-width: 64rem)';
+
+/** topKind 未指定時の初期高さ(%) */
+const FALLBACK_TOP_HEIGHT = 30;
+
+/** 初期高さ(%)。desktop 未指定ならビューポート幅によらず base を使う */
+type TopHeightPreset = { base: number; desktop?: number };
+
+const TOP_HEIGHT_PRESETS: Record<SplitterTopKind, TopHeightPreset> = {
+  chat: { base: 18 },
+  entry: { base: 26, desktop: 24 },
+};
+
+function isDesktopViewport(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia?.(DESKTOP_MEDIA_QUERY).matches === true;
 }
 
-function resolveInitialTopHeight(top: ReactNode, bottom: ReactNode): number {
-  const name = getTopTypeName(top, bottom);
-  if (name == null) return 30;
-  return name === 'ChatRoom' ? 18 : 26;
+function resolveInitialTopHeight(topKind: SplitterTopKind | undefined): number {
+  if (topKind == null) return FALLBACK_TOP_HEIGHT;
+  const preset = TOP_HEIGHT_PRESETS[topKind];
+  return isDesktopViewport() ? (preset.desktop ?? preset.base) : preset.base;
 }
 
 export default function RetroSplitter({
   top,
   bottom,
+  topKind,
   minTop = 10,
   minBottom = 10,
 }: {
   top: ReactNode;
   bottom: ReactNode;
+  /** 上側の画面の種類。初期高さの出し分けに使う（未指定なら 30%） */
+  topKind?: SplitterTopKind;
   minTop?: number;
   minBottom?: number;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  // top コンポーネントの種類に応じて初期高さを決定（マウント時のみ参照）
-  const [topHeight, setTopHeight] = useState(() => resolveInitialTopHeight(top, bottom)); // percent
+  // 上側の画面に応じて初期高さを決定（マウント時のみ参照）
+  const [topHeight, setTopHeight] = useState(() => resolveInitialTopHeight(topKind)); // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -131,13 +152,10 @@ export default function RetroSplitter({
     []
   );
 
-  // top コンポーネントの種類が変わったら高さを初期化（ChatRoom と EntryForm で違うデフォルト）
+  // 入室前後で上側の画面が入れ替わったら初期高さに戻す
   // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
-  const topTypeName = getTopTypeName(top, bottom);
-  useResetOnChange(topTypeName, (next) => {
-    if (next != null) {
-      setTopHeight(next === 'ChatRoom' ? 18 : 26);
-    }
+  useResetOnChange(topKind, (next) => {
+    setTopHeight(resolveInitialTopHeight(next));
   });
 
   // キーボード操作でもドラッグできるように

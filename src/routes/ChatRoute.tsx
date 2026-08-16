@@ -67,6 +67,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
       <RetroSplitter
         minTop={100}
         minBottom={100}
+        topKind={entered ? 'chat' : 'entry'}
         top={
           entered ? (
             <ChatRoom
