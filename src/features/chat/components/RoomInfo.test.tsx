@@ -35,7 +35,9 @@ describe('<RoomInfo />', () => {
 
     expect(screen.getByText(getRoomMeta('com_sb').description)).toBeInTheDocument();
     expect(screen.getByText('管理者チャット')).toBeInTheDocument();
-    expect(screen.queryByText(/他の部屋/)).toBeNull();
+    // com_sb の紹介文に「他の部屋と同じく」が含まれるため、
+    // ラベルのコロンまで含めて関連部屋セクションだけを狙う
+    expect(screen.queryByText(/他の部屋:/)).toBeNull();
     expect(screen.queryAllByRole('link', { name: /チャット/ })).toHaveLength(0);
   });
 });
