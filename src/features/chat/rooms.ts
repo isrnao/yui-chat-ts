@@ -364,7 +364,7 @@ const ROOM_CATEGORY_MAP: Record<RoomId, RoomCategory> = {
 
 /**
  * 各ルームの手書き紹介文 (誰向けか・何を話す部屋か)。
- * ページの meta description・プリレンダ HTML の本文・入室フォーム付近の表示に使われる。
+ * ページの meta description・プリレンダ HTML の本文・画面読み上げ用見出し・なりきり画面のヘッダーに使われる。
  * テンプレ一括生成は SEO 上「実質同一の薄いページ群」と評価されるため禁止
  * (.kiro/specs/seo-improvement Req 6)。
  * 制約 (rooms.test.ts で機械検証): 全部屋で重複しない文面・70〜120 文字。
