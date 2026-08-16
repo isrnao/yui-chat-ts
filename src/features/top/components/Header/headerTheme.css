@@ -157,9 +157,9 @@
   line-height: 1;
   color: var(--ochat-h-logo-text);
   white-space: nowrap;
-  /* PixelMplus12 (12px 設計) を 2x で表示するとドットがくっきり整列する */
+  /* DotGothic16 (16px 設計) でレトロ感を出す */
   font-family:
-    'PixelMplus12', 'Arial Rounded MT Bold', 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN',
+    'DotGothic16', 'Arial Rounded MT Bold', 'M PLUS Rounded 1c', 'Hiragino Maru Gothic ProN',
     'Hiragino Maru Gothic Pro', 'HGMaruGothicMPRO', 'Yu Gothic', 'Meiryo', sans-serif;
   text-shadow:
     -1px -1px 0 var(--ochat-h-logo-text-halo),

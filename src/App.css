@@ -12,7 +12,7 @@
   --ie-blue: #4a90e2;
   --ie-bg: #f3f3f3;
   --font-yui:
-    'PixelMplus12', 'MS PGothic', 'ＭＳ Ｐゴシック', 'MS UI Gothic', Osaka,
+    'DotGothic16', 'MS PGothic', 'ＭＳ Ｐゴシック', 'MS UI Gothic', Osaka,
     'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
   --page-gap: clamp(12px, 3vw, 28px);
   color-scheme: light;

@@ -1,23 +1,16 @@
 /*
- * PixelMplus12 セルフホストフォント。
- * - レトロ 2000 年代風のドットフォント。Regular / Bold の両方を提供する。
- * - 配信は woff2 のみ。フルセット (JIS 第 1・第 2 水準 + Latin-1) で約 260KB/weight。
+ * DotGothic16 セルフホストフォント。
+ * - 16×16 ゴシック体ビットマップ由来のドットフォント (Fontworks)。
+ * - Regular (400) のみ。Bold は存在しないため font-weight: 700 でも同じグリフが適用される。
+ * - 配信は woff2 のみ。フルセット (JIS 第 1・第 2 水準 + Latin) で約 480KB。
  * - font-display: swap でフォント読み込み中はフォールバック表示し、ちらつきを許容する。
- * - ライセンス: M+ FONT LICENSE (`/fonts/LICENSE.txt`)
+ * - ライセンス: SIL Open Font License 1.1 (`/fonts/LICENSE.txt`)
  */
 
 @font-face {
-  font-family: 'PixelMplus12';
-  src: url('/fonts/PixelMplus12-Regular.woff2') format('woff2');
+  font-family: 'DotGothic16';
+  src: url('/fonts/DotGothic16-Regular.woff2') format('woff2');
   font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'PixelMplus12';
-  src: url('/fonts/PixelMplus12-Bold.woff2') format('woff2');
-  font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
