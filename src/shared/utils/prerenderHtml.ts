@@ -8,7 +8,12 @@
  */
 import { buildRoomSeo, buildRoomPath, type RoomSeo } from './roomSeo.ts';
 import { SITE_NAME } from './seo.ts';
-import { getRoomMeta, type RoomId } from '../../features/chat/rooms.ts';
+import {
+  getRoomMeta,
+  getRelatedRooms,
+  ROOM_CATEGORY_LABELS,
+  type RoomId,
+} from '../../features/chat/rooms.ts';
 
 export const PAGE_SEO_START = '<!-- page-seo:start -->';
 export const PAGE_SEO_END = '<!-- page-seo:end -->';
@@ -62,21 +67,30 @@ function buildHeadBlock(seo: RoomSeo): string {
 /**
  * #root に入れる静的フォールバック本文。
  * JS 非実行クローラ向け。React の CSR マウント時に同等の画面に置き換わる。
- * フル版 (RoomInfo: カテゴリ・関連部屋リンク) は tasks 2.4 で拡張する。
+ * 構成 (h1 + 紹介文 + カテゴリ + 関連部屋リンク + トップへのリンク) は
+ * RoomInfo コンポーネントと同じデータソース (rooms.ts) から導出しており一致する。
  */
 function buildStaticFallback(roomId: RoomId): string {
   const room = getRoomMeta(roomId);
+  const related = getRelatedRooms(roomId);
+  const relatedLinks = related
+    .map((r) => `<a href="${buildRoomPath(r.id)}">${escapeHtml(r.title)}</a>`)
+    .join('／');
+
+  // カテゴリ名は RoomInfo と同様、関連部屋の有無に関わらず常に出す
+  const categoryLine =
+    `<p>カテゴリ: ${escapeHtml(ROOM_CATEGORY_LABELS[room.category])}` +
+    (related.length > 0 ? ` ／ 他の部屋: ${relatedLinks}` : '') +
+    '</p>';
+
   return [
     '<main>',
     `<h1>${escapeHtml(room.title)}</h1>`,
-    `<p>${escapeHtml(getDescription(roomId))}</p>`,
+    `<p>${escapeHtml(buildRoomSeo(roomId).description)}</p>`,
+    categoryLine,
     `<p><a href="/">${escapeHtml(SITE_NAME)} トップページへ</a></p>`,
     '</main>',
   ].join('');
-}
-
-function getDescription(roomId: RoomId): string {
-  return buildRoomSeo(roomId).description;
 }
 
 /**

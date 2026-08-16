@@ -101,20 +101,25 @@ describe('RetroSplitter', () => {
     expect(getPercentHeight(bottomDiv)).toBeGreaterThanOrEqual(30);
   });
 
-  it('sets initial topHeight based on top element type', () => {
-    // 名前ChatRoomなら18%、他なら26%
-    function ChatRoom() {
-      return <div>chat</div>;
-    }
-    const { rerender } = render(<RetroSplitter top={<ChatRoom />} bottom={<div>BB</div>} />);
-    let topDiv = screen.getByText('chat').parentElement as HTMLElement;
+  it('sets initial topHeight based on topKind', () => {
+    // chat なら18%、entry なら26%（SP幅）
+    const { rerender } = render(
+      <RetroSplitter topKind="chat" top={<div>TT</div>} bottom={<div>BB</div>} />
+    );
+    const topDiv = screen.getByText('TT').parentElement as HTMLElement;
     expect(getPercentHeight(topDiv)).toBeCloseTo(18, 1);
 
-    function Dummy() {
-      return <div>dummy</div>;
-    }
-    rerender(<RetroSplitter top={<Dummy />} bottom={<div>BB</div>} />);
-    topDiv = screen.getByText('dummy').parentElement as HTMLElement;
+    // 入室前後の切り替えで初期高さに戻る
+    rerender(<RetroSplitter topKind="entry" top={<div>TT</div>} bottom={<div>BB</div>} />);
     expect(getPercentHeight(topDiv)).toBeCloseTo(26, 1);
+  });
+
+  it('uses the desktop preset for entry on lg viewports', () => {
+    vi.spyOn(window, 'matchMedia').mockImplementation(
+      (query: string) => ({ matches: query === '(min-width: 64rem)' }) as MediaQueryList
+    );
+    render(<RetroSplitter topKind="entry" top={<div>TT</div>} bottom={<div>BB</div>} />);
+    const topDiv = screen.getByText('TT').parentElement as HTMLElement;
+    expect(getPercentHeight(topDiv)).toBeCloseTo(24, 1);
   });
 });

@@ -578,3 +578,16 @@ export function getRoomMeta(roomId: RoomId): RoomMeta {
   }
   return meta;
 }
+
+/**
+ * 同カテゴリの関連部屋 (自分自身を除く enabled な部屋、CHAT_ROOM_IDS 順)。
+ * RoomInfo の関連部屋リンクとプリレンダの静的フォールバックが共用する
+ * (.kiro/specs/seo-improvement Req 7: 内部リンクグラフ)。
+ */
+export function getRelatedRooms(roomId: RoomId, limit = 6): RoomMeta[] {
+  const { category } = getRoomMeta(roomId);
+  return getListableRoomIds()
+    .filter((id) => id !== roomId && CHAT_ROOMS[id].enabled && CHAT_ROOMS[id].category === category)
+    .slice(0, limit)
+    .map((id) => CHAT_ROOMS[id]);
+}
