@@ -16,7 +16,7 @@ export default function RoomInfo({ roomId }: { roomId: RoomId }) {
   const related = getRelatedRooms(roomId);
 
   return (
-    <section className="mx-auto max-w-[560px] px-4 pb-4 text-center text-[12px] leading-relaxed text-gray-700">
+    <section className="mx-auto mt-24 max-w-[560px] px-4 pb-4 text-center text-[12px] leading-relaxed text-gray-700">
       <p>{room.description}</p>
       {/* カテゴリ名は関連部屋の有無に関わらず常に表示する (関連リンクだけ条件付き) */}
       <p className="mt-2">
