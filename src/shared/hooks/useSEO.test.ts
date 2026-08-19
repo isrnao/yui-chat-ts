@@ -133,9 +133,13 @@ describe('useSEO', () => {
     });
 
     it('noindex 未指定では robots meta が index, follow に戻る (残留しない)', () => {
-      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
-        initialProps: { options: { noindex: true } },
-      });
+      const initialProps: { options: UseSEOOptions } = { options: { noindex: true } };
+      const { rerender } = renderHook(
+        ({ options }: { options: UseSEOOptions }) => useSEO(options),
+        {
+          initialProps,
+        }
+      );
 
       rerender({ options: { title: '通常ページ' } });
 
@@ -144,9 +148,15 @@ describe('useSEO', () => {
     });
 
     it('canonical: null で canonical link と og:url が削除される (残留しない)', () => {
-      const { rerender } = renderHook(({ options }: { options: object }) => useSEO(options), {
-        initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
-      });
+      const initialProps: { options: UseSEOOptions } = {
+        options: { canonical: 'https://www.okiraku.chat/chat/anime' },
+      };
+      const { rerender } = renderHook(
+        ({ options }: { options: UseSEOOptions }) => useSEO(options),
+        {
+          initialProps,
+        }
+      );
 
       expect(document.querySelector('link[rel="canonical"]')).not.toBeNull();
       expect(document.querySelector('meta[property="og:url"]')).not.toBeNull();
