@@ -53,7 +53,10 @@ export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
   return [chat, ...state].slice(0, 2000);
 }
 
-export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
+export function useChatLog(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  onRealtimeChat?: (chat: Chat) => void
+) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -89,13 +92,14 @@ export function useChatLog(roomId: RoomId = DEFAULT_ROOM_ID) {
         if (!ignore) setIsLoading(false);
       });
     const channel = subscribeChatLogs(roomId, (chat) => {
+      onRealtimeChat?.(chat);
       mergeChat(chat);
     });
     return () => {
       ignore = true;
       channel.unsubscribe();
     };
-  }, [mergeChat, roomId]);
+  }, [mergeChat, onRealtimeChat, roomId]);
 
   const addChat = useCallback(
     async (chat: Chat) => {

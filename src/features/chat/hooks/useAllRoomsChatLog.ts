@@ -5,7 +5,7 @@ import { reduceOptimisticChat } from './useChatLog';
 import type { Chat } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 
-export function useAllRoomsChatLog(): {
+export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
   chatLog: Chat[];
   isLoading: boolean;
   loadError: boolean;
@@ -68,7 +68,10 @@ export function useAllRoomsChatLog(): {
     try {
       sub = subscribeAllRoomsChatLogs(
         (chat) => {
-          if (!ignore) mergeChat(chat);
+          if (!ignore) {
+            onRealtimeChat?.(chat);
+            mergeChat(chat);
+          }
         },
         () => {
           // CHANNEL_ERROR / TIMED_OUT / CLOSED: 同期 setState を避けるため非同期で更新
@@ -87,7 +90,7 @@ export function useAllRoomsChatLog(): {
       ignore = true;
       sub?.unsubscribe();
     };
-  }, [mergeChat, reloadKey]);
+  }, [mergeChat, onRealtimeChat, reloadKey]);
 
   return {
     chatLog,

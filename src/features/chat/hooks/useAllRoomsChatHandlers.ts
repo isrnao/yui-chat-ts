@@ -11,6 +11,7 @@ import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend'
 import type { Chat, ChatMetadata, AvatarId } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import type { RoomId } from '@features/chat/rooms';
+import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
 
 export function useAllRoomsChatHandlers({
   replyTarget,
@@ -25,6 +26,7 @@ export function useAllRoomsChatHandlers({
   setMessage,
   addOptimistic,
   mergeChat,
+  measurement,
 }: {
   replyTarget: RoomId;
   name: string;
@@ -38,6 +40,7 @@ export function useAllRoomsChatHandlers({
   setMessage: Dispatch<SetStateAction<string>>;
   addOptimistic: (chat: Chat) => void;
   mergeChat: (chat: Chat) => void;
+  measurement: ConversationMeasurement;
 }) {
   const [, startTransition] = useTransition();
 
@@ -74,30 +77,51 @@ export function useAllRoomsChatHandlers({
       email?: string;
       silent?: boolean;
     }) => {
+      measurement.onJoinStarted('all');
       const err = validateName(entryName);
-      if (err) throw new Error(err);
+      if (err) {
+        measurement.onJoinFailed('all', 'validation');
+        throw new Error(err);
+      }
       setEntered(true);
 
-      if (silent) {
-        trackEvent('chat_enter', { room_id: 'all', room_title: '全部屋まとめ' });
-        return;
+      try {
+        if (silent) {
+          const entryContext = measurement.onEntered();
+          trackEvent('chat_enter', {
+            room_id: 'all',
+            room_title: '全部屋まとめ',
+            entry_context: entryContext,
+          });
+          return;
+        }
+
+        const optimistic = buildAdminOptimistic(
+          `${entryName} さん、Welcome to お気楽チャット☆`,
+          entryColor
+        );
+        startTransition(() => addOptimistic(optimistic));
+
+        const savedChat = await saveChatLogOptimistic('all', optimistic);
+        startTransition(() => mergeChat(savedChat));
+        const entryContext = measurement.onEntered();
+        trackEvent('chat_enter', {
+          room_id: 'all',
+          room_title: '全部屋まとめ',
+          entry_context: entryContext,
+        });
+      } catch (error) {
+        setEntered(false);
+        measurement.onJoinFailed('all', 'save_error');
+        throw error;
       }
-
-      const optimistic = buildAdminOptimistic(
-        `${entryName} さん、Welcome to お気楽チャット☆`,
-        entryColor
-      );
-      startTransition(() => addOptimistic(optimistic));
-
-      const savedChat = await saveChatLogOptimistic('all', optimistic);
-      startTransition(() => mergeChat(savedChat));
-      trackEvent('chat_enter', { room_id: 'all', room_title: '全部屋まとめ' });
     },
-    [buildAdminOptimistic, setEntered, addOptimistic, mergeChat]
+    [buildAdminOptimistic, setEntered, addOptimistic, mergeChat, measurement]
   );
 
   const handleExit = useCallback(async () => {
     trackEvent('chat_exit', { room_id: 'all', room_title: '全部屋まとめ' });
+    measurement.onExited();
 
     const optimistic = buildAdminOptimistic(`${name}さん、またきておくれやすぅ。`, color);
     startTransition(() => addOptimistic(optimistic));
@@ -117,6 +141,7 @@ export function useAllRoomsChatHandlers({
     setMessage,
     addOptimistic,
     mergeChat,
+    measurement,
   ]);
 
   const handleSend = useCallback(
@@ -124,6 +149,12 @@ export function useAllRoomsChatHandlers({
       if (isBlankMessage(msg)) return;
 
       const trimmed = msg.trim();
+      const trackedCommand =
+        trimmed === 'look' || trimmed === 'unlook'
+          ? trimmed
+          : isFortuneCommand(trimmed)
+            ? 'fortune'
+            : undefined;
 
       if (trimmed === 'cut') {
         trackEvent('command_used', { room_id: replyTarget, command: 'cut' });
@@ -172,11 +203,19 @@ export function useAllRoomsChatHandlers({
         metadata: resolvedMetadata,
       });
 
+      if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
+
       startTransition(() => addOptimistic(optimistic));
       setMessage('');
 
       const savedChat = await saveChatLogOptimistic(replyTarget, optimistic);
       startTransition(() => mergeChat(savedChat));
+      if (trackedCommand) {
+        trackEvent('command_used', { room_id: replyTarget, command: trackedCommand });
+      } else {
+        trackEvent('message_sent', { room_id: replyTarget, message_length: msg.length });
+        measurement.onOwnMessageSaved(savedChat);
+      }
 
       if (isFortuneCommand(msg)) {
         try {
@@ -211,6 +250,7 @@ export function useAllRoomsChatHandlers({
       setChatLog,
       addOptimistic,
       mergeChat,
+      measurement,
     ]
   );
 
