@@ -25,6 +25,14 @@ CREATE OR REPLACE FUNCTION pg_temp.mask_ipv6(p_ip text) RETURNS text AS $$
 DECLARE
   b bytea;
 BEGIN
+  -- Edge Function の maskIpv6() が受理しない文字形式はここで倒す。
+  -- inet は IPv4 射影表記（::ffff:192.0.2.1）も受理してしまうため、この門番が無いと
+  -- 既存行は 0:0:0:*、新規投稿は * となり同じ値の表示が食い違う（どちらも情報は
+  -- 明かさないが、規則を一致させておく）。
+  IF p_ip !~ '^[0-9a-fA-F:]+$' THEN
+    RETURN '*';
+  END IF;
+
   -- inet_send: 先頭4バイトがヘッダ（family/bits/is_cidr/nb）、以降がアドレス本体
   b := substring(inet_send(p_ip::inet) FROM 5 FOR 6);
   IF b IS NULL OR length(b) < 6 THEN

@@ -58,7 +58,9 @@ function maskIpv6(ip: string): string {
       ]
     : headParts;
 
-  if (parts.length < 3 || parts.some((p) => p === '' || p.length > 4)) return '*';
+  // 展開後はちょうど8ブロックになるはず。過不足がある値は不正とみなして全伏せにする
+  // （マイグレーション側の inet キャストも同じ値を弾くため、両者の出力が常に一致する）
+  if (parts.length !== 8 || parts.some((p) => p === '' || p.length > 4)) return '*';
   // 先行ゼロを落として正規化する（マイグレーションの to_hex 出力と揃えるため）
   return `${parts.slice(0, 3).map((p) => p.replace(/^0+(?=.)/, '')).join(':')}:*`;
 }
