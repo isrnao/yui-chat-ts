@@ -80,6 +80,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onSend={(msg, metadata) => handleSend(msg, metadata)}
               onReload={handleReload}
               onShowRanking={() => setShowRanking(true)}
+              onBackToChat={() => setShowRanking(false)}
               avatar={avatar}
               userName={name}
             />

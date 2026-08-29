@@ -251,11 +251,9 @@ export function useChatHandlers({
   );
 
   // チャット履歴再読み込み
-  // 更新はログの再取得に加えてランキング表示を閉じる（発言と同じくチャットへ戻る導線）
   const handleReload = useCallback(() => {
-    setShowRanking(false);
     loadChatLogs(roomId).then((loaded) => setChatLog(() => loaded));
-  }, [roomId, setChatLog, setShowRanking]);
+  }, [roomId, setChatLog]);
 
   return {
     handleEnter,

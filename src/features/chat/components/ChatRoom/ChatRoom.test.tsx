@@ -18,6 +18,7 @@ describe('ChatRoom', () => {
       onSend: vi.fn(() => Promise.resolve()),
       onReload: vi.fn(),
       onShowRanking: vi.fn(),
+      onBackToChat: vi.fn(),
     };
   });
 
@@ -67,6 +68,15 @@ describe('ChatRoom', () => {
     render(<ChatRoom {...props} />);
     fireEvent.click(screen.getByRole('button', { name: '更新' }));
     expect(props.onReload).toHaveBeenCalled();
+    expect(props.onBackToChat).toHaveBeenCalled();
+  });
+
+  // ランキングから戻る目的で押されるため、送信されない空入力でも戻す
+  it('calls onBackToChat even when 発言 is pressed with an empty message', () => {
+    render(<ChatRoom {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+    expect(props.onBackToChat).toHaveBeenCalled();
+    expect(props.onSend).not.toHaveBeenCalled();
   });
 
   it('calls onSend when 発言 (submit) and clears message', async () => {

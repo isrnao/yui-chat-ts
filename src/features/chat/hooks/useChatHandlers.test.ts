@@ -45,19 +45,19 @@ describe('useChatHandlers', () => {
     vi.clearAllMocks();
   });
 
-  // ランキング表示中でもチャットへ戻れる導線として、更新・発言で表示を閉じる
-  it('更新でランキング表示を閉じてログを再取得する', async () => {
-    const { result, setShowRanking } = setup();
+  it('更新でログを再取得する', async () => {
+    const { result } = setup();
     const { loadChatLogs } = await import('@features/chat/api/chatApi');
 
     await act(async () => {
       result.current.handleReload();
     });
 
-    expect(setShowRanking).toHaveBeenCalledWith(false);
     expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
   });
 
+  // 表示の切り替え自体は ChatRoom の onBackToChat が担うが、コマンド経由の送信でも
+  // ランキングが残らないよう handleSend 側でも閉じている
   it('発言でランキング表示を閉じる', async () => {
     const { result, setShowRanking } = setup();
 

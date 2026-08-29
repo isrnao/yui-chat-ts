@@ -37,6 +37,8 @@ vi.mock('@shared/supabaseClient', () => ({
       subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),
       send: vi.fn().mockResolvedValue('ok'),
     }),
+    // チャンネルの後片付け（購読解除時に呼ばれる）
+    removeChannel: vi.fn(),
     functions: {
       // save-chat Edge Function の既定モック。サーバー生成値を返す。
       invoke: vi.fn().mockResolvedValue({

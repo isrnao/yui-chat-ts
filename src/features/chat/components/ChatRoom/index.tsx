@@ -24,6 +24,12 @@ export type ChatRoomProps = {
   onSend: (msg: string, metadata?: ChatMetadata) => Promise<void>;
   onReload: () => void;
   onShowRanking?: () => void;
+  /**
+   * ランキング表示などから通常のチャットログ表示へ戻すためのコールバック。
+   * 更新・発言のどちらを押しても呼ぶ。発言は入力が空だと送信自体を行わないため、
+   * onSend 側で戻すと「空のまま発言を押しても戻らない」状態になる。
+   */
+  onBackToChat?: () => void;
   /** アバター識別子（App.tsx から渡される） */
   avatar?: AvatarId;
   /** 表示用のユーザー名（レガシーの「おなまえ:」表示用） */
@@ -44,6 +50,7 @@ export default function ChatRoom({
   onSend,
   onReload,
   onShowRanking,
+  onBackToChat,
   avatar,
   userName,
   replyTargetTitle,
@@ -135,6 +142,8 @@ export default function ChatRoom({
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          // 送信可否に関わらずチャット表示へ戻す（空入力でも「戻る」操作として機能させる）
+          onBackToChat?.();
           const formData = new FormData(e.currentTarget);
           setMessage('');
           startTransition(() => {
@@ -145,7 +154,15 @@ export default function ChatRoom({
         autoComplete="off"
       >
         <div className="flex items-center gap-1 flex-wrap mb-1">
-          <Button type="button" onClick={onReload} tabIndex={-1} disabled={isPending}>
+          <Button
+            type="button"
+            onClick={() => {
+              onBackToChat?.();
+              onReload();
+            }}
+            tabIndex={-1}
+            disabled={isPending}
+          >
             更新
           </Button>
           <Button type="submit" disabled={isPending}>
