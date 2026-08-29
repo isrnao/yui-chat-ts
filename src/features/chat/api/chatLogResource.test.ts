@@ -87,7 +87,8 @@ describe('chatLogResource', () => {
     expect(secondData).toBe(firstData);
   });
 
-  it('omits ip and ua from chat log select columns', async () => {
+  // ip / ua はレガシー互換の発言末尾表示（IP はマスクして描画）に必要なため取得する
+  it('includes ip and ua in chat log select columns', async () => {
     const { resource, from } = await importResource();
     const query = createQueryMock({
       limitResult: Promise.resolve({ data: makeChats(1), error: null }),
@@ -97,9 +98,7 @@ describe('chatLogResource', () => {
     await expect(resource.loadChatLogs(ROOM_ID)).resolves.toHaveLength(1);
 
     const selectedColumns = (query.select as Mock).mock.calls[0][0] as string;
-    expect(selectedColumns).not.toContain('ip');
-    expect(selectedColumns).not.toContain('ua');
-    expect(selectedColumns).toContain('metadata');
+    expect(selectedColumns.split(',')).toEqual(expect.arrayContaining(['ip', 'ua', 'metadata']));
   });
 
   it('shares snapshot in-flight work with offset-zero paging and slices the result', async () => {

@@ -5,7 +5,8 @@ import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 
 const TABLE = 'chats';
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,metadata';
+// ip / ua はレガシー互換の発言末尾表示（"(01/02(Wed) 20:10 219.107.106.*)"）に使う
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,ip,ua,metadata';
 const MAX_CHAT_LOG = 100;
 const CACHE_DURATION = 5 * 60 * 1000;
 

@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { formatTime } from '@shared/utils/format';
+import { formatLegacyDateTime, maskIpAddress } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
@@ -11,9 +11,12 @@ type Props = {
   onRoomClick?: (roomId: RoomId) => void;
 };
 
+/** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP は末尾を伏せる） */
 function getTimeDisplay(chat: Chat): string {
   if (chat.optimistic) return '送信中...';
-  return formatTime(chat.time);
+  const stamp = formatLegacyDateTime(chat.time);
+  const ip = maskIpAddress(chat.ip);
+  return ip ? `${stamp} ${ip}` : stamp;
 }
 
 function resolveRoomTitle(chat: Chat): string {
@@ -50,6 +53,30 @@ function RoomNameLabel({
     >
       {title}
     </button>
+  );
+}
+
+/** 発言末尾の "(01/02(Wed) 20:10 219.107.106.253)" 表示 */
+function TimeStamp({
+  chat,
+  showRoomName,
+  onRoomClick,
+}: {
+  chat: Chat;
+  showRoomName?: boolean;
+  onRoomClick?: (roomId: RoomId) => void;
+}) {
+  return (
+    <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
+      ({getTimeDisplay(chat)}
+      {showRoomName && (
+        <>
+          {' / '}
+          <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
+        </>
+      )}
+      )
+    </span>
   );
 }
 
@@ -141,16 +168,7 @@ function AdminMessage({
           {chat.message}
         </span>
       )}
-      <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)}
-        {showRoomName && (
-          <>
-            {' / '}
-            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
-          </>
-        )}
-        )
-      </span>
+      <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>
   );
 }
@@ -193,16 +211,7 @@ function ChatMessage({ chat, showRoomName, onRoomClick }: Props) {
         <span className="font-bold text-gray-400 px-1">{'>'}</span>
       )}
       <MessageBody message={chat.message} chat={chat} />
-      <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)}
-        {showRoomName && (
-          <>
-            {' / '}
-            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
-          </>
-        )}
-        )
-      </span>
+      <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>
   );
 }
