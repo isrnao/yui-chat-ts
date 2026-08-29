@@ -6,7 +6,6 @@ import type { Chat } from '@features/chat/types';
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
   formatLegacyDateTime: (t: number) => `DATE(${t})`,
-  maskIpAddress: (ip: string) => `MASK(${ip})`,
 }));
 
 describe('ChatMessage', () => {
@@ -17,7 +16,7 @@ describe('ChatMessage', () => {
     message: 'Hello World',
     time: 1680000000000,
     email: 'alice@example.com',
-    ip: '192.168.1.1',
+    ip_masked: '192.168.1.*',
     ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   };
 
@@ -28,7 +27,7 @@ describe('ChatMessage', () => {
     message: 'Hi there',
     time: 1680000000000,
     email: '',
-    ip: '192.168.1.1',
+    ip_masked: '192.168.1.*',
     ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
   };
 
@@ -37,7 +36,7 @@ describe('ChatMessage', () => {
 
     expect(screen.getByText('Alice')).toHaveStyle({ color: '#ff0000' });
     expect(screen.getByText('Hello World')).toBeInTheDocument();
-    expect(screen.getByText('(DATE(1680000000000) MASK(192.168.1.1))')).toBeInTheDocument();
+    expect(screen.getByText('(DATE(1680000000000) 192.168.1.*)')).toBeInTheDocument();
 
     const emailLink = screen.getByRole('link', { name: '>' });
     expect(emailLink).toHaveAttribute('href', 'mailto:alice@example.com');
@@ -49,7 +48,7 @@ describe('ChatMessage', () => {
 
     expect(screen.getByText('Bob')).toHaveStyle({ color: '#00ff00' });
     expect(screen.getByText('Hi there')).toBeInTheDocument();
-    expect(screen.getByText('(DATE(1680000000000) MASK(192.168.1.1))')).toBeInTheDocument();
+    expect(screen.getByText('(DATE(1680000000000) 192.168.1.*)')).toBeInTheDocument();
 
     // Should have a span with '>' instead of a link
     const gtSymbol = screen.getByText('>', { selector: 'span' });
@@ -66,7 +65,7 @@ describe('ChatMessage', () => {
       time: Date.now() + 365 * 24 * 60 * 60 * 1000, // 1 year in future
       client_time: Date.now(),
       optimistic: true,
-      ip: '192.168.1.1',
+      ip_masked: '192.168.1.*',
       ua: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)',
     };
 
@@ -92,7 +91,7 @@ describe('ChatMessage', () => {
       message: 'Regular message',
       time: 1680000000000,
       optimistic: false,
-      ip: '192.168.1.1',
+      ip_masked: '192.168.1.*',
       ua: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
     };
 
@@ -102,10 +101,10 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Regular message')).toBeInTheDocument();
 
     // Should show formatted time for regular messages
-    expect(screen.getByText('(DATE(1680000000000) MASK(192.168.1.1))')).toBeInTheDocument();
+    expect(screen.getByText('(DATE(1680000000000) 192.168.1.*)')).toBeInTheDocument();
 
     // Should have gray color for regular time display
-    const timeElement = screen.getByText('(DATE(1680000000000) MASK(192.168.1.1))');
+    const timeElement = screen.getByText('(DATE(1680000000000) 192.168.1.*)');
     expect(timeElement).toHaveClass('text-gray-400');
     expect(timeElement).not.toHaveClass('animate-pulse');
   });
@@ -118,7 +117,7 @@ describe('ChatMessage', () => {
       message: '未音 さん、Welcome to お気楽チャット☆',
       time: 1680000000000,
       system: true,
-      ip: '202.170.179.85',
+      ip_masked: '202.170.179.*',
       ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
       metadata: {
         version: 1,
@@ -140,7 +139,7 @@ describe('ChatMessage', () => {
         'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP49回目:LAST LOGIN:DATE(1679990000000)'
       )
     ).toBeInTheDocument();
-    expect(screen.getByText('(DATE(1680000000000) MASK(202.170.179.85))')).toBeInTheDocument();
+    expect(screen.getByText('(DATE(1680000000000) 202.170.179.*)')).toBeInTheDocument();
   });
 
   it('renders admin exit message without browser line', () => {
@@ -151,7 +150,7 @@ describe('ChatMessage', () => {
       message: '未音さん、またきておくれやすぅ。',
       time: 1680000000000,
       system: true,
-      ip: '202.170.179.85',
+      ip_masked: '202.170.179.*',
       ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
       metadata: { version: 1, kind: 'admin', userColor: '#00ffff' },
     };

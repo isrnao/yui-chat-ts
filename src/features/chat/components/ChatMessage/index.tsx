@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { formatLegacyDateTime, maskIpAddress } from '@shared/utils/format';
+import { formatLegacyDateTime } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
@@ -11,12 +11,11 @@ type Props = {
   onRoomClick?: (roomId: RoomId) => void;
 };
 
-/** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP は末尾を伏せる） */
+/** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP はサーバー側でマスク済み） */
 function getTimeDisplay(chat: Chat): string {
   if (chat.optimistic) return '送信中...';
   const stamp = formatLegacyDateTime(chat.time);
-  const ip = maskIpAddress(chat.ip);
-  return ip ? `${stamp} ${ip}` : stamp;
+  return chat.ip_masked ? `${stamp} ${chat.ip_masked}` : stamp;
 }
 
 function resolveRoomTitle(chat: Chat): string {

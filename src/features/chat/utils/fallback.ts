@@ -12,7 +12,7 @@ export const mockChatData: Chat[] = [
     optimistic: false, // モックデータは送信済み
     system: true,
     email: '',
-    ip: '',
+    ip_masked: '',
     ua: '',
   },
   {
@@ -25,7 +25,7 @@ export const mockChatData: Chat[] = [
     optimistic: false, // モックデータは送信済み
     system: false,
     email: '',
-    ip: '',
+    ip_masked: '',
     ua: '',
   },
   {
@@ -38,7 +38,7 @@ export const mockChatData: Chat[] = [
     optimistic: false, // モックデータは送信済み
     system: false,
     email: '',
-    ip: '',
+    ip_masked: '',
     ua: '',
   },
 ];

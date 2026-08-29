@@ -5,6 +5,8 @@
 // 詐称不可能な証跡として記録すること。クライアントは ip / ua を送らない。
 //
 // - ip: x-forwarded-for（先頭ホップ）→ x-real-ip の順でリクエストヘッダから取得。
+// - ip_masked: 上記 ip を伏せた表示用の値。生 ip は anon から読めない（列レベル GRANT）
+//   ため、クライアントの発言末尾表示はこちらを参照する。
 // - ua: user-agent ヘッダから取得。
 // - 永続化は service_role で行い RLS をバイパスする（anon の直 INSERT は別途封鎖）。
 // - uuid / time / deleted は DB 既定値に委ねる。metadata はクライアント値をそのまま保存
@@ -34,6 +36,18 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
+}
+
+// 表示用に IP の末尾を伏せる。
+// クライアント側で再マスクはしない（生 ip がそもそもクライアントに渡らない）ため、
+// ここが唯一のマスク実装。マイグレーションのバックフィル式と規則を揃えること。
+function maskIp(ip: string): string {
+  if (!ip) return '';
+  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return ip.replace(/\.\d{1,3}$/, '.*');
+  // IPv6: 上位3ブロックだけ残す
+  if (ip.includes(':')) return `${ip.split(':').slice(0, 3).join(':')}:*`;
+  // 想定外の形式は全体を伏せる
+  return '*';
 }
 
 // x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
@@ -101,6 +115,7 @@ Deno.serve(async (req: Request) => {
   });
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
+  const clientIp = resolveClientIp(req);
   const row = {
     room_id: body.room_id,
     name: body.name,
@@ -109,7 +124,8 @@ Deno.serve(async (req: Request) => {
     system: typeof body.system === 'boolean' ? body.system : false,
     email: typeof body.email === 'string' ? body.email : null,
     metadata: body.metadata ?? null,
-    ip: resolveClientIp(req),
+    ip: clientIp,
+    ip_masked: maskIp(clientIp),
     ua: req.headers.get('user-agent') ?? '',
   };
 

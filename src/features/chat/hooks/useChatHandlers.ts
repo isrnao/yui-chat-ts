@@ -90,7 +90,7 @@ export function useChatHandlers({
         message: `${entryName} さん、Welcome to お気楽チャット☆`,
         client_time: Date.now(),
         system: true,
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: {
           version: 1,
@@ -125,7 +125,7 @@ export function useChatHandlers({
       message: `${name}さん、またきておくれやすぅ。`,
       client_time: Date.now(),
       system: true,
-      ip: '',
+      ip_masked: '',
       ua: '',
       metadata: {
         version: 1,
@@ -190,7 +190,7 @@ export function useChatHandlers({
         message: msg,
         client_time: Date.now(),
         email,
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: metadata ?? undefined,
       });
@@ -228,7 +228,7 @@ export function useChatHandlers({
             message: fortune.message,
             client_time: Date.now(),
             system: true,
-            ip: '',
+            ip_masked: '',
             ua: '',
             metadata: {
               version: 1,

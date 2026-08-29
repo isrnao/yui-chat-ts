@@ -3,8 +3,9 @@ import { supabase } from '@shared/supabaseClient';
 import { normalizeChat } from '../utils/normalizeMetadata';
 
 const TABLE = 'chats';
-// email は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,metadata';
+// email / ua は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する。
+// ip_masked はサーバー側でマスク済みの表示用の値なので、発言末尾の時刻表示のために取得する。
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,ip_masked,metadata';
 
 /**
  * 横断読み込み: room_id フィルタなし・deleted 無視・uuid 降順・limit 件。

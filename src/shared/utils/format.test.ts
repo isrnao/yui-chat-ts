@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { formatTime, formatCountTime, formatLegacyDateTime, maskIpAddress } from './format';
+import { formatTime, formatCountTime, formatLegacyDateTime } from './format';
 
 describe('formatTime', () => {
   test('時刻を「HH:mm:ss」形式で返す', () => {
@@ -27,23 +27,5 @@ describe('formatLegacyDateTime', () => {
   test('月日・時分をゼロ埋めする', () => {
     const ts = new Date(2024, 8, 5, 9, 4, 0).getTime();
     expect(formatLegacyDateTime(ts)).toBe('09/05(Thu) 09:04');
-  });
-});
-
-describe('maskIpAddress', () => {
-  test('IPv4 の末尾オクテットを伏せる', () => {
-    expect(maskIpAddress('219.107.106.253')).toBe('219.107.106.*');
-  });
-
-  test('IPv6 は上位3ブロックだけ残す', () => {
-    expect(maskIpAddress('2001:db8::1')).toBe('2001:db8::*');
-  });
-
-  test('空文字はそのまま返す', () => {
-    expect(maskIpAddress('')).toBe('');
-  });
-
-  test('想定外の形式は全体を伏せる', () => {
-    expect(maskIpAddress('unknown-host')).toBe('*');
   });
 });

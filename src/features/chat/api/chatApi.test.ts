@@ -15,7 +15,7 @@ function makeChat(index: number): Chat {
     color: '#000000',
     message: `message-${index}`,
     time: index,
-    ip: '',
+    ip_masked: '',
     ua: '',
   };
 }
@@ -97,7 +97,7 @@ describe('chatApi', () => {
       const chatApi = await import('./chatApi');
       const chat: Chat = {
         ...makeChat(1),
-        ip: '203.0.113.9', // クライアント由来の ip/ua は送信されないことを検証する
+        ip_masked: '203.0.113.9', // クライアント由来の ip/ua は送信されないことを検証する
         ua: 'evil-agent',
         metadata: { version: 1, optimisticNonce: 'nonce-1' },
       };
@@ -352,7 +352,7 @@ describe('chatApi', () => {
         color: '#f00',
         message: 'Hello',
         client_time: 0, // overwritten by helper
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: { version: 1, fontStyle: { bold: true } },
       });
@@ -375,7 +375,7 @@ describe('chatApi', () => {
         color: '#f00',
         message: 'Hello',
         client_time: 0,
-        ip: '',
+        ip_masked: '',
         ua: '',
       };
       const a = chatApi.createOptimisticChat(base);
@@ -394,7 +394,7 @@ describe('chatApi', () => {
         color: '#f00',
         message: 'Hello',
         client_time: 0,
-        ip: '',
+        ip_masked: '',
         ua: '',
       });
 

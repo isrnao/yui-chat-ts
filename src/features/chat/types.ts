@@ -125,7 +125,8 @@ export type Chat = {
   optimistic?: boolean; // 楽観的更新フラグ（送信中のメッセージ）
   system?: boolean; // 既存互換として維持（metadata.kind とは別）
   email?: string;
-  ip: string;
+  /** マスク済み IP（表示用）。生 IP はサーバー側のみ保持し anon からは読めない */
+  ip_masked: string;
   ua: string;
   metadata?: ChatMetadata;
 };

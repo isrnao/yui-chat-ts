@@ -332,7 +332,7 @@ export async function loadChatLogsByTimeRange(
 
     let query = supabase
       .from(TABLE)
-      .select('uuid,room_id,name,color,message,time,system,email,ip,ua,metadata')
+      .select('uuid,room_id,name,color,message,time,system,email,ip_masked,ua,metadata')
       .eq('room_id', roomId)
       .eq('deleted', false)
       .gte('uuid', startUUID) // UUID v7による効率的な範囲検索

@@ -51,7 +51,7 @@ export function useAllRoomsChatHandlers({
         message,
         client_time: Date.now(),
         system: true,
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: {
           version: 1,
@@ -172,7 +172,7 @@ export function useAllRoomsChatHandlers({
         message: msg,
         client_time: Date.now(),
         email,
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: resolvedMetadata,
       });
@@ -193,7 +193,7 @@ export function useAllRoomsChatHandlers({
             message: fortune.message,
             client_time: Date.now(),
             system: true,
-            ip: '',
+            ip_masked: '',
             ua: '',
             metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
           });
