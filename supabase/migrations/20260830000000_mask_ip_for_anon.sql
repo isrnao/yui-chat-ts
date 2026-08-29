@@ -24,7 +24,10 @@
 ALTER TABLE "public"."chats"
     ADD COLUMN IF NOT EXISTS "ip_masked" "text" DEFAULT ''::"text" NOT NULL;
 
--- 既存行のバックフィル（Edge Function / クライアントと同じマスク規則）
+-- 既存行のバックフィル
+-- 注: ここでの IPv6 の切り出しは圧縮表記（::）を展開しないため境界がずれる。
+--     20260830010000_fix_ipv6_mask_boundary.sql で再計算して修正している
+--     （本ファイルは本番適用済みのため書き換えない）。
 UPDATE "public"."chats"
 SET "ip_masked" = CASE
         WHEN "ip" ~ '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'

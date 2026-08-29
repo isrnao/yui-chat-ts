@@ -38,14 +38,38 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
   });
 }
 
+// IPv6 の上位 48bit（先頭3ブロック）だけを残す。
+// 圧縮表記を展開してから切り出す点が要。単純に split(':') で先頭3要素を取ると、
+// "2001::dead:beef" が "2001::dead:*" となり、実際には7ブロック目にあたるホスト側の
+// "dead" が露出してしまう（正しくは 2001:0:0:*）。
+function maskIpv6(ip: string): string {
+  const lower = ip.toLowerCase();
+  // 16進とコロンのみ / "::" は最大1回。IPv4 射影形式などはここで弾いて全伏せにする。
+  if (!/^[0-9a-f:]+$/.test(lower) || (lower.match(/::/g) ?? []).length > 1) return '*';
+
+  const [head, tail] = lower.split('::');
+  const headParts = head ? head.split(':') : [];
+  const tailParts = tail ? tail.split(':') : [];
+  const parts = lower.includes('::')
+    ? [
+        ...headParts,
+        ...Array(Math.max(0, 8 - headParts.length - tailParts.length)).fill('0'),
+        ...tailParts,
+      ]
+    : headParts;
+
+  if (parts.length < 3 || parts.some((p) => p === '' || p.length > 4)) return '*';
+  // 先行ゼロを落として正規化する（マイグレーションの to_hex 出力と揃えるため）
+  return `${parts.slice(0, 3).map((p) => p.replace(/^0+(?=.)/, '')).join(':')}:*`;
+}
+
 // 表示用に IP の末尾を伏せる。
 // クライアント側で再マスクはしない（生 ip がそもそもクライアントに渡らない）ため、
 // ここが唯一のマスク実装。マイグレーションのバックフィル式と規則を揃えること。
 function maskIp(ip: string): string {
   if (!ip) return '';
   if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return ip.replace(/\.\d{1,3}$/, '.*');
-  // IPv6: 上位3ブロックだけ残す
-  if (ip.includes(':')) return `${ip.split(':').slice(0, 3).join(':')}:*`;
+  if (ip.includes(':')) return maskIpv6(ip);
   // 想定外の形式は全体を伏せる
   return '*';
 }
