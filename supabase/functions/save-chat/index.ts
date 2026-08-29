@@ -132,7 +132,9 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await supabase
     .from('chats')
     .insert(row)
-    .select('uuid,room_id,time')
+    // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
+    // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
+    .select('uuid,room_id,time,ip_masked,ua')
     .single();
 
   if (error) {

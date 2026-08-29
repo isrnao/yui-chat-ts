@@ -124,6 +124,50 @@ describe('chatApi', () => {
       expect(saved.optimistic).toBe(false);
     });
 
+    it('Edge Function が返した ip_masked / ua を保存結果に反映する', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: {
+          uuid: 'server-uuid',
+          room_id: ROOM_ID,
+          time: 12345,
+          ip_masked: '203.0.113.*',
+          ua: 'server-observed-ua',
+        },
+        error: null,
+      });
+
+      const chatApi = await import('./chatApi');
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+
+      // 楽観行は ip_masked / ua が空。サーバー観測値で確定させないと、realtime INSERT が
+      // 先に届いた場合に後着の HTTP 応答が空値で上書きしてしまう。
+      expect(saved.ip_masked).toBe('203.0.113.*');
+      expect(saved.ua).toBe('server-observed-ua');
+    });
+
+    it('Edge Function が ip_masked / ua を返さない場合は元の値を保つ', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 12345 },
+        error: null,
+      });
+
+      const chatApi = await import('./chatApi');
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, {
+        ...makeChat(1),
+        ip_masked: '198.51.100.*',
+        ua: 'existing-ua',
+      });
+
+      expect(saved.ip_masked).toBe('198.51.100.*');
+      expect(saved.ua).toBe('existing-ua');
+    });
+
     it('Edge Function がエラーを返したら例外を投げる', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;

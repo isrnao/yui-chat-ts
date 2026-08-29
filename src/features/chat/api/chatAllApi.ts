@@ -39,7 +39,10 @@ export function subscribeAllRoomsChatLogs(
   const channel = supabase
     .channel('chats-postgres-all')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) => {
-      callback(normalizeChat(payload.new));
+      // 初期ロードの SELECT_COLUMNS は email / ua を含まない。realtime payload には
+      // 含まれるため、ここで落として形を揃える。揃えないと同じ発言が「到着直後は
+      // UA / メールリンクあり、再読み込み後はなし」という不整合を起こす。
+      callback({ ...normalizeChat(payload.new), email: undefined, ua: '' });
     })
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
