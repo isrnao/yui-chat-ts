@@ -26,7 +26,8 @@ ALTER TABLE "public"."chats"
 
 -- 既存行のバックフィル
 -- 注: ここでの IPv6 の切り出しは圧縮表記（::）を展開しないため境界がずれる。
---     20260830010000_fix_ipv6_mask_boundary.sql で再計算して修正している
+--     20260830020000_ip_masked_generated_column.sql で ip_masked を生成列に作り直し、
+--     全行を public.mask_ip() で再計算するため最終的に解消する
 --     （本ファイルは本番適用済みのため書き換えない）。
 UPDATE "public"."chats"
 SET "ip_masked" = CASE
