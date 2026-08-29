@@ -5,8 +5,9 @@
 // 詐称不可能な証跡として記録すること。クライアントは ip / ua を送らない。
 //
 // - ip: x-forwarded-for（先頭ホップ）→ x-real-ip の順でリクエストヘッダから取得。
-// - ip_masked: 上記 ip を伏せた表示用の値。生 ip は anon から読めない（列レベル GRANT）
-//   ため、クライアントの発言末尾表示はこちらを参照する。
+// - ip_masked: ip から Postgres が自動計算する生成列（migration 20260830020000）。
+//   ここでは書き込まない（生成列へ値を渡すとエラーになる）。生 ip は anon から
+//   読めないため、クライアントの発言末尾表示はこの列を参照する。
 // - ua: user-agent ヘッダから取得。
 // - 永続化は service_role で行い RLS をバイパスする（anon の直 INSERT は別途封鎖）。
 // - uuid / time / deleted は DB 既定値に委ねる。metadata はクライアント値をそのまま保存
@@ -36,50 +37,6 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
-}
-
-// IPv6 の上位 48bit（先頭3ブロック）だけを残す。
-// 圧縮表記を展開してから切り出す点が要。単純に split(':') で先頭3要素を取ると、
-// "2001::dead:beef" が "2001::dead:*" となり、実際には7ブロック目にあたるホスト側の
-// "dead" が露出してしまう（正しくは 2001:0:0:*）。
-function maskIpv6(ip: string): string {
-  const lower = ip.toLowerCase();
-  // 16進とコロンのみ / "::" は最大1回。IPv4 射影形式などはここで弾いて全伏せにする。
-  if (!/^[0-9a-f:]+$/.test(lower) || (lower.match(/::/g) ?? []).length > 1) return '*';
-
-  const [head, tail] = lower.split('::');
-  const headParts = head ? head.split(':') : [];
-  const tailParts = tail ? tail.split(':') : [];
-
-  const hasCompression = lower.includes('::');
-  // "::" は 1 ブロック以上のゼロを置換する表記なので、明示ブロックが 8 個ある
-  // "1:2:3:4:5:6:7:8::" のような値は不正。inet も同じ理由で拒否する。
-  if (hasCompression && headParts.length + tailParts.length >= 8) return '*';
-
-  const parts = hasCompression
-    ? [
-        ...headParts,
-        ...Array(8 - headParts.length - tailParts.length).fill('0'),
-        ...tailParts,
-      ]
-    : headParts;
-
-  // 展開後はちょうど8ブロックになるはず。過不足がある値は不正とみなして全伏せにする
-  // （マイグレーション側の inet キャストも同じ値を弾くため、両者の出力が常に一致する）
-  if (parts.length !== 8 || parts.some((p) => p === '' || p.length > 4)) return '*';
-  // 先行ゼロを落として正規化する（マイグレーションの to_hex 出力と揃えるため）
-  return `${parts.slice(0, 3).map((p) => p.replace(/^0+(?=.)/, '')).join(':')}:*`;
-}
-
-// 表示用に IP の末尾を伏せる。
-// クライアント側で再マスクはしない（生 ip がそもそもクライアントに渡らない）ため、
-// ここが唯一のマスク実装。マイグレーションのバックフィル式と規則を揃えること。
-function maskIp(ip: string): string {
-  if (!ip) return '';
-  if (/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ip)) return ip.replace(/\.\d{1,3}$/, '.*');
-  if (ip.includes(':')) return maskIpv6(ip);
-  // 想定外の形式は全体を伏せる
-  return '*';
 }
 
 // x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
@@ -147,7 +104,7 @@ Deno.serve(async (req: Request) => {
   });
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
-  const clientIp = resolveClientIp(req);
+  // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
   const row = {
     room_id: body.room_id,
     name: body.name,
@@ -156,8 +113,7 @@ Deno.serve(async (req: Request) => {
     system: typeof body.system === 'boolean' ? body.system : false,
     email: typeof body.email === 'string' ? body.email : null,
     metadata: body.metadata ?? null,
-    ip: clientIp,
-    ip_masked: maskIp(clientIp),
+    ip: resolveClientIp(req),
     ua: req.headers.get('user-agent') ?? '',
   };
 
