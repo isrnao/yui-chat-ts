@@ -50,10 +50,16 @@ function maskIpv6(ip: string): string {
   const [head, tail] = lower.split('::');
   const headParts = head ? head.split(':') : [];
   const tailParts = tail ? tail.split(':') : [];
-  const parts = lower.includes('::')
+
+  const hasCompression = lower.includes('::');
+  // "::" は 1 ブロック以上のゼロを置換する表記なので、明示ブロックが 8 個ある
+  // "1:2:3:4:5:6:7:8::" のような値は不正。inet も同じ理由で拒否する。
+  if (hasCompression && headParts.length + tailParts.length >= 8) return '*';
+
+  const parts = hasCompression
     ? [
         ...headParts,
-        ...Array(Math.max(0, 8 - headParts.length - tailParts.length)).fill('0'),
+        ...Array(8 - headParts.length - tailParts.length).fill('0'),
         ...tailParts,
       ]
     : headParts;
