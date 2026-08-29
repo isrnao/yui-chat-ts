@@ -55,7 +55,7 @@ function RoomNameLabel({
   );
 }
 
-/** 発言末尾の "(01/02(Wed) 20:10 219.107.106.253)" 表示 */
+/** 発言末尾の "(01/02(Wed) 20:10 219.107.106.*)" 表示 */
 function TimeStamp({
   chat,
   showRoomName,
