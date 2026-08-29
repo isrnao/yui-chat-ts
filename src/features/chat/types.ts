@@ -100,6 +100,10 @@ export type ChatMetadata = {
   kind?: 'normal' | 'fortune' | 'admin';
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
+  /** 入室メッセージ用: そのユーザーの訪問回数（レガシーの "49回目" 表示） */
+  visitCount?: number;
+  /** 入室メッセージ用: 前回ログイン時刻 Unix ms（レガシーの "LAST LOGIN:" 表示） */
+  lastLogin?: number;
   /**
    * 楽観的更新の重複表示防止用 nonce。
    * `createOptimisticChat` が生成し、保存時にサーバーへ送られ、realtime INSERT で

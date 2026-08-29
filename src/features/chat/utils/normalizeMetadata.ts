@@ -83,6 +83,14 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.userColor = input.userColor;
     }
 
+    if (typeof input.visitCount === 'number' && Number.isFinite(input.visitCount)) {
+      result.visitCount = input.visitCount;
+    }
+
+    if (typeof input.lastLogin === 'number' && Number.isFinite(input.lastLogin)) {
+      result.lastLogin = input.lastLogin;
+    }
+
     if (typeof input.optimisticNonce === 'string') {
       result.optimisticNonce = input.optimisticNonce;
     }

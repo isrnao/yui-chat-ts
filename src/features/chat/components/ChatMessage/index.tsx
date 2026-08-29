@@ -126,6 +126,26 @@ function splitAdminMessage(message: string): { userName: string; rest: string } 
   return { userName: match[1].trim(), rest: match[2] };
 }
 
+const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;
+const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
+
+/**
+ * レガシーの入室メッセージ2行目（ブラウザ行）を組み立てる。
+ * 例: "Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP49回目:LAST LOGIN:01/02(Wed) 16:55"
+ */
+function buildBrowserLine(chat: Chat): string {
+  // ua はサーバー観測値。保存前（楽観的更新中）のみ自分の UA で代用する。
+  const ua =
+    chat.ua || (chat.optimistic && typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  const visitCount = chat.metadata?.visitCount;
+  const lastLogin = chat.metadata?.lastLogin;
+
+  let line = ua;
+  if (visitCount) line += `${visitCount}回目`;
+  if (lastLogin) line += `${visitCount ? ':' : ''}LAST LOGIN:${formatLegacyDateTime(lastLogin)}`;
+  return line;
+}
+
 /** 管理人メッセージ専用のレンダリング（レガシー風） */
 function AdminMessage({
   chat,
@@ -139,6 +159,8 @@ function AdminMessage({
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
+  const isWelcome = WELCOME_PATTERN.test(chat.message);
+  const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (
     <div className="mb-1">
@@ -160,13 +182,19 @@ function AdminMessage({
             {split.userName}
           </b>
           <span className="font-bold" style={{ color: 'red' }}>
-            {split.rest}
+            {isWelcome ? `${split.rest}${PROFILE_SUFFIX}` : split.rest}
           </span>
         </>
       ) : (
         <span className="font-bold" style={{ color: 'red' }}>
-          {chat.message}
+          {isWelcome ? `${chat.message}${PROFILE_SUFFIX}` : chat.message}
         </span>
+      )}
+      {browserLine && (
+        <>
+          <br />
+          <span className="text-[0.7em] text-gray-500 break-all">{browserLine}</span>
+        </>
       )}
       <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>

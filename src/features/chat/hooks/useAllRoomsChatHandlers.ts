@@ -8,6 +8,7 @@ import { validateName } from '@features/chat/utils/validation';
 import { trackEvent } from '@shared/utils/analytics';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend';
+import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
 import type { Chat, ChatMetadata, AvatarId } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import type { RoomId } from '@features/chat/rooms';
@@ -42,7 +43,7 @@ export function useAllRoomsChatHandlers({
   const [, startTransition] = useTransition();
 
   const buildAdminOptimistic = useCallback(
-    (message: string, userColor: string) =>
+    (message: string, userColor: string, extraMetadata?: Partial<ChatMetadata>) =>
       createOptimisticChat({
         room_id: 'all',
         name: '管理人',
@@ -58,6 +59,7 @@ export function useAllRoomsChatHandlers({
           kind: 'admin',
           userColor,
           fontStyle: { bold: true },
+          ...extraMetadata,
         },
       }),
     []
@@ -83,9 +85,12 @@ export function useAllRoomsChatHandlers({
         return;
       }
 
+      // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
+      const { visitCount, previousLogin } = getSettingsSnapshot();
       const optimistic = buildAdminOptimistic(
         `${entryName} さん、Welcome to お気楽チャット☆`,
-        entryColor
+        entryColor,
+        { visitCount, lastLogin: previousLogin }
       );
       startTransition(() => addOptimistic(optimistic));
 

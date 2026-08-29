@@ -11,6 +11,7 @@ import { validateName } from '@features/chat/utils/validation';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
@@ -79,6 +80,9 @@ export function useChatHandlers({
         return;
       }
 
+      // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
+      const { visitCount, previousLogin } = getSettingsSnapshot();
+
       const optimistic = createOptimisticChat({
         room_id: roomId,
         name: '管理人',
@@ -94,6 +98,8 @@ export function useChatHandlers({
           kind: 'admin',
           userColor: entryColor,
           fontStyle: { bold: true },
+          visitCount,
+          lastLogin: previousLogin,
         },
       });
 

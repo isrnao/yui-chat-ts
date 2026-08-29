@@ -109,4 +109,57 @@ describe('ChatMessage', () => {
     expect(timeElement).toHaveClass('text-gray-400');
     expect(timeElement).not.toHaveClass('animate-pulse');
   });
+
+  it('renders admin welcome message with profile suffix and browser line', () => {
+    const welcomeChat: Chat = {
+      uuid: '5',
+      name: '管理人',
+      color: '#ffffff',
+      message: '未音 さん、Welcome to お気楽チャット☆',
+      time: 1680000000000,
+      system: true,
+      ip: '202.170.179.85',
+      ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
+      metadata: {
+        version: 1,
+        kind: 'admin',
+        userColor: '#00ffff',
+        visitCount: 49,
+        lastLogin: 1679990000000,
+      },
+    };
+
+    render(<ChatMessage chat={welcomeChat} />);
+
+    expect(screen.getByText('未音')).toHaveStyle({ color: '#00ffff' });
+    expect(
+      screen.getByText('さん、Welcome to お気楽チャット☆ プロフィールも作ってみてね')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP49回目:LAST LOGIN:DATE(1679990000000)'
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByText('(DATE(1680000000000) MASK(202.170.179.85))')).toBeInTheDocument();
+  });
+
+  it('renders admin exit message without browser line', () => {
+    const exitChat: Chat = {
+      uuid: '6',
+      name: '管理人',
+      color: '#ffffff',
+      message: '未音さん、またきておくれやすぅ。',
+      time: 1680000000000,
+      system: true,
+      ip: '202.170.179.85',
+      ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
+      metadata: { version: 1, kind: 'admin', userColor: '#00ffff' },
+    };
+
+    render(<ChatMessage chat={exitChat} />);
+
+    expect(screen.getByText('さん、またきておくれやすぅ。')).toBeInTheDocument();
+    expect(screen.queryByText(/LAST LOGIN/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/プロフィールも作ってみてね/)).not.toBeInTheDocument();
+  });
 });
