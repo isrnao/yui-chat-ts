@@ -19,7 +19,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: false,
     email: 'yui@example.com',
-    ip: '127.0.0.1',
+    ip_masked: '127.0.0.*',
     ua: 'Storybook',
   },
   {
@@ -32,7 +32,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: true,
     email: '',
-    ip: '127.0.0.1',
+    ip_masked: '127.0.0.*',
     ua: 'Storybook',
   },
   {
@@ -45,7 +45,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: false,
     email: '',
-    ip: '127.0.0.1',
+    ip_masked: '127.0.0.*',
     ua: 'Storybook',
   },
   {
@@ -58,7 +58,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: true,
     system: false,
     email: '',
-    ip: '127.0.0.1',
+    ip_masked: '127.0.0.*',
     ua: 'Storybook',
   },
 ];
@@ -73,8 +73,32 @@ export const optimisticChat: Chat = {
   optimistic: true,
   system: false,
   email: '',
-  ip: '127.0.0.1',
+  ip_masked: '127.0.0.*',
   ua: 'Storybook',
+};
+
+// レガシー互換の入室メッセージ（管理人 + ブラウザ行）
+export const adminWelcomeChat: Chat = {
+  uuid: 'chat-admin-welcome',
+  name: '管理人',
+  color: '#ffffff',
+  message: '未音 さん、Welcome to お気楽チャット☆',
+  time: baseTime + 60_000,
+  client_time: baseTime + 60_000,
+  optimistic: false,
+  system: true,
+  email: '',
+  ip_masked: '202.170.179.*',
+  ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
+  metadata: {
+    version: 1,
+    avatar: 'hoshi1',
+    kind: 'admin',
+    userColor: '#00ffff',
+    fontStyle: { bold: true },
+    visitCount: 49,
+    lastLogin: baseTime - 3 * 60 * 60 * 1000,
+  },
 };
 
 export const sampleWindowRows = 50;

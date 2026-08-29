@@ -5,7 +5,9 @@ import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 
 const TABLE = 'chats';
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,metadata';
+// ip_masked / ua はレガシー互換の発言末尾表示（"(01/02(Wed) 20:10 219.107.106.*)"）に使う。
+// 生 ip は列レベル GRANT で anon から遮蔽されているため取得しない（指定すると 403）。
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,ip_masked,ua,metadata';
 const MAX_CHAT_LOG = 100;
 const CACHE_DURATION = 5 * 60 * 1000;
 

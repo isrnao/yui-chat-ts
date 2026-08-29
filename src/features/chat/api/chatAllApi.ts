@@ -3,8 +3,9 @@ import { supabase } from '@shared/supabaseClient';
 import { normalizeChat } from '../utils/normalizeMetadata';
 
 const TABLE = 'chats';
-// email は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する
-const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,metadata';
+// email / ua は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する。
+// ip_masked はサーバー側でマスク済みの表示用の値なので、発言末尾の時刻表示のために取得する。
+const SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,ip_masked,metadata';
 
 /**
  * 横断読み込み: room_id フィルタなし・deleted 無視・uuid 降順・limit 件。
@@ -38,7 +39,10 @@ export function subscribeAllRoomsChatLogs(
   const channel = supabase
     .channel('chats-postgres-all')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: TABLE }, (payload) => {
-      callback(normalizeChat(payload.new));
+      // 初期ロードの SELECT_COLUMNS は email / ua を含まない。realtime payload には
+      // 含まれるため、ここで落として形を揃える。揃えないと同じ発言が「到着直後は
+      // UA / メールリンクあり、再読み込み後はなし」という不整合を起こす。
+      callback({ ...normalizeChat(payload.new), email: undefined, ua: '' });
     })
     .subscribe((status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {

@@ -5,6 +5,7 @@ import type { Participant } from '@features/chat/types';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
+  formatLegacyDateTime: (t: number) => `DATE(${t})`,
 }));
 
 describe('ParticipantsList', () => {

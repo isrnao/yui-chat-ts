@@ -7,6 +7,7 @@ import * as uuidUtils from '@shared/utils/uuid';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
+  formatLegacyDateTime: (t: number) => `DATE(${t})`,
 }));
 
 describe('ChatLogList', () => {
@@ -22,7 +23,7 @@ describe('ChatLogList', () => {
       message: 'Hello',
       time: FIXED_NOW - 2000,
       email: '',
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     },
     {
@@ -32,7 +33,7 @@ describe('ChatLogList', () => {
       message: 'World',
       time: FIXED_NOW - 1000,
       email: 'jiro@mail.com',
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     },
   ];
@@ -97,8 +98,9 @@ describe('ChatLogList', () => {
     const header = container.querySelector('span.text-xs.text-gray-500');
     expect(header?.textContent).toMatch(/^\[TIME\(/);
     // 各チャットの時刻
-    expect(screen.getByText(`(TIME(${FIXED_NOW - 1000}))`)).toBeInTheDocument();
-    expect(screen.getByText(`(TIME(${FIXED_NOW - 2000}))`)).toBeInTheDocument();
+    // 各チャットの時刻（レガシー互換: "日時 IP" 形式）
+    expect(screen.getByText(`(DATE(${FIXED_NOW - 1000}) test-ip)`)).toBeInTheDocument();
+    expect(screen.getByText(`(DATE(${FIXED_NOW - 2000}) test-ip)`)).toBeInTheDocument();
   });
 
   it('sorts out-of-order chatLog by uuid v7 desc (newer first) before slicing by windowRows', () => {
@@ -112,7 +114,7 @@ describe('ChatLogList', () => {
         message: 'OLDER_MESSAGE',
         time: FIXED_NOW - 5000,
         email: '',
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -122,7 +124,7 @@ describe('ChatLogList', () => {
         message: 'NEWER_MESSAGE',
         time: FIXED_NOW - 1000,
         email: '',
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -143,7 +145,7 @@ describe('ChatLogList', () => {
         message: 'OLDER_MESSAGE',
         time: FIXED_NOW - 5000,
         email: '',
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -153,7 +155,7 @@ describe('ChatLogList', () => {
         message: 'NEWER_MESSAGE',
         time: FIXED_NOW - 1000,
         email: '',
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];

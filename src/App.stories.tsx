@@ -21,7 +21,7 @@ function AppWithMocks() {
     globalThis.fetch = async (...args) => {
       const url = args[0]?.toString() ?? '';
       if (url.includes('ipify') || url.includes('httpbin') || url.includes('jsonip')) {
-        return new Response(JSON.stringify({ ip: '127.0.0.1' }), {
+        return new Response(JSON.stringify({ ip_masked: '127.0.0.1' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });

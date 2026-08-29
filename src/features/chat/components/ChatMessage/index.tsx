@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { formatTime } from '@shared/utils/format';
+import { formatLegacyDateTime } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
@@ -11,9 +11,11 @@ type Props = {
   onRoomClick?: (roomId: RoomId) => void;
 };
 
+/** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP はサーバー側でマスク済み） */
 function getTimeDisplay(chat: Chat): string {
   if (chat.optimistic) return '送信中...';
-  return formatTime(chat.time);
+  const stamp = formatLegacyDateTime(chat.time);
+  return chat.ip_masked ? `${stamp} ${chat.ip_masked}` : stamp;
 }
 
 function resolveRoomTitle(chat: Chat): string {
@@ -50,6 +52,30 @@ function RoomNameLabel({
     >
       {title}
     </button>
+  );
+}
+
+/** 発言末尾の "(01/02(Wed) 20:10 219.107.106.*)" 表示 */
+function TimeStamp({
+  chat,
+  showRoomName,
+  onRoomClick,
+}: {
+  chat: Chat;
+  showRoomName?: boolean;
+  onRoomClick?: (roomId: RoomId) => void;
+}) {
+  return (
+    <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
+      ({getTimeDisplay(chat)}
+      {showRoomName && (
+        <>
+          {' / '}
+          <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
+        </>
+      )}
+      )
+    </span>
   );
 }
 
@@ -99,6 +125,26 @@ function splitAdminMessage(message: string): { userName: string; rest: string } 
   return { userName: match[1].trim(), rest: match[2] };
 }
 
+const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;
+const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
+
+/**
+ * レガシーの入室メッセージ2行目（ブラウザ行）を組み立てる。
+ * 例: "Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP49回目:LAST LOGIN:01/02(Wed) 16:55"
+ */
+function buildBrowserLine(chat: Chat): string {
+  // ua はサーバー観測値。保存前（楽観的更新中）のみ自分の UA で代用する。
+  const ua =
+    chat.ua || (chat.optimistic && typeof navigator !== 'undefined' ? navigator.userAgent : '');
+  const visitCount = chat.metadata?.visitCount;
+  const lastLogin = chat.metadata?.lastLogin;
+
+  let line = ua;
+  if (visitCount) line += `${visitCount}回目`;
+  if (lastLogin) line += `${visitCount ? ':' : ''}LAST LOGIN:${formatLegacyDateTime(lastLogin)}`;
+  return line;
+}
+
 /** 管理人メッセージ専用のレンダリング（レガシー風） */
 function AdminMessage({
   chat,
@@ -112,6 +158,8 @@ function AdminMessage({
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
+  const isWelcome = WELCOME_PATTERN.test(chat.message);
+  const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (
     <div className="mb-1">
@@ -133,24 +181,21 @@ function AdminMessage({
             {split.userName}
           </b>
           <span className="font-bold" style={{ color: 'red' }}>
-            {split.rest}
+            {isWelcome ? `${split.rest}${PROFILE_SUFFIX}` : split.rest}
           </span>
         </>
       ) : (
         <span className="font-bold" style={{ color: 'red' }}>
-          {chat.message}
+          {isWelcome ? `${chat.message}${PROFILE_SUFFIX}` : chat.message}
         </span>
       )}
-      <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)}
-        {showRoomName && (
-          <>
-            {' / '}
-            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
-          </>
-        )}
-        )
-      </span>
+      {browserLine && (
+        <>
+          <br />
+          <span className="text-[0.7em] text-gray-500 break-all">{browserLine}</span>
+        </>
+      )}
+      <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>
   );
 }
@@ -193,16 +238,7 @@ function ChatMessage({ chat, showRoomName, onRoomClick }: Props) {
         <span className="font-bold text-gray-400 px-1">{'>'}</span>
       )}
       <MessageBody message={chat.message} chat={chat} />
-      <span className={`ml-2 text-xs text-gray-400 ${chat.optimistic ? 'animate-pulse' : ''}`}>
-        ({getTimeDisplay(chat)}
-        {showRoomName && (
-          <>
-            {' / '}
-            <RoomNameLabel chat={chat} onRoomClick={onRoomClick} />
-          </>
-        )}
-        )
-      </span>
+      <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>
   );
 }

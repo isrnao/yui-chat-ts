@@ -5,6 +5,9 @@
 // 詐称不可能な証跡として記録すること。クライアントは ip / ua を送らない。
 //
 // - ip: x-forwarded-for（先頭ホップ）→ x-real-ip の順でリクエストヘッダから取得。
+// - ip_masked: ip から Postgres が自動計算する生成列（migration 20260830020000）。
+//   ここでは書き込まない（生成列へ値を渡すとエラーになる）。生 ip は anon から
+//   読めないため、クライアントの発言末尾表示はこの列を参照する。
 // - ua: user-agent ヘッダから取得。
 // - 永続化は service_role で行い RLS をバイパスする（anon の直 INSERT は別途封鎖）。
 // - uuid / time / deleted は DB 既定値に委ねる。metadata はクライアント値をそのまま保存
@@ -101,6 +104,7 @@ Deno.serve(async (req: Request) => {
   });
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
+  // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
   const row = {
     room_id: body.room_id,
     name: body.name,
@@ -116,7 +120,9 @@ Deno.serve(async (req: Request) => {
   const { data, error } = await supabase
     .from('chats')
     .insert(row)
-    .select('uuid,room_id,time')
+    // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
+    // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
+    .select('uuid,room_id,time,ip_masked,ua')
     .single();
 
   if (error) {

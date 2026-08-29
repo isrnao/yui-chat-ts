@@ -23,7 +23,7 @@ describe('<ChatRanking />', () => {
         message: 'hi',
         time: 1,
         createdAt: '2024-06-01T12:00:00Z',
-        ip: '192.168.1.1',
+        ip_masked: '192.168.1.1',
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       {
@@ -33,7 +33,7 @@ describe('<ChatRanking />', () => {
         message: 'hello',
         time: 2,
         createdAt: '2024-06-01T12:01:00Z',
-        ip: '192.168.1.1',
+        ip_masked: '192.168.1.1',
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
       {
@@ -43,7 +43,7 @@ describe('<ChatRanking />', () => {
         message: 'やっほー',
         time: 3,
         createdAt: '2024-06-01T12:02:00Z',
-        ip: '192.168.1.2',
+        ip_masked: '192.168.1.2',
         ua: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
       },
     ];
@@ -68,7 +68,7 @@ describe('<ChatRanking />', () => {
         message: 'a',
         time: 10,
         createdAt: '2024-06-15T10:00:00Z',
-        ip: '192.168.1.1',
+        ip_masked: '192.168.1.1',
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     ];

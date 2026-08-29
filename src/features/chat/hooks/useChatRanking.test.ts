@@ -17,7 +17,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -27,7 +27,7 @@ describe('useChatRanking', () => {
         message: 'test',
         time: 200,
         system: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -36,7 +36,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -58,7 +58,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -67,7 +67,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -76,7 +76,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test3',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -85,7 +85,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test4',
         time: 400,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -108,7 +108,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // count: 1, lastTime: 100
       {
@@ -117,7 +117,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // count: 2, lastTime: 300
       {
@@ -126,7 +126,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test3',
         time: 400,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // count: 2, lastTime: 500
       {
@@ -135,7 +135,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test4',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -144,7 +144,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test5',
         time: 500,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -166,7 +166,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -186,7 +186,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -195,7 +195,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test3',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -214,7 +214,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -223,7 +223,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -243,7 +243,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -252,7 +252,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 50,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 古い時間
       {
@@ -261,7 +261,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test3',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 最新時間
     ];
@@ -279,7 +279,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -288,7 +288,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -297,7 +297,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test3',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -306,7 +306,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test4',
         time: 400,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -324,7 +324,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'regular',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -334,7 +334,7 @@ describe('useChatRanking', () => {
         message: 'system msg',
         time: 200,
         system: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -343,7 +343,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'another regular',
         time: 300,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -353,7 +353,7 @@ describe('useChatRanking', () => {
         message: 'regular2',
         time: 400,
         system: false,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -371,7 +371,7 @@ describe('useChatRanking', () => {
       color: '#000000',
       message: `Message ${i}`,
       time: i * 1000,
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     }));
 
@@ -391,7 +391,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test1',
         time: 100,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -400,7 +400,7 @@ describe('useChatRanking', () => {
         color: '#000',
         message: 'test2',
         time: 200,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];

@@ -1,6 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import ChatMessage from './index';
-import { optimisticChat, sampleChatLog } from '../../../../storybook/mocks/chatSamples';
+import {
+  adminWelcomeChat,
+  optimisticChat,
+  sampleChatLog,
+} from '../../../../storybook/mocks/chatSamples';
 
 const meta = {
   component: ChatMessage,
@@ -32,5 +36,11 @@ export const WithoutEmail: Story = {
 export const Optimistic: Story = {
   args: {
     chat: { ...optimisticChat },
+  },
+};
+
+export const AdminWelcome: Story = {
+  args: {
+    chat: { ...adminWelcomeChat },
   },
 };
