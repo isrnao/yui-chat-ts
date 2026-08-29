@@ -105,20 +105,8 @@ export default function ChatRoom({
 
   return (
     <div className="flex flex-col font-yui">
-      {/* 1行目: [発言ランキング] [退室] などのリンク群 */}
+      {/* 1行目: [退室] [ランキング] のリンク群 */}
       <div className="mb-1 flex gap-2 text-green-700 text-sm">
-        {onShowRanking && (
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              onShowRanking();
-            }}
-            className="underline"
-          >
-            [発言ランキング]
-          </a>
-        )}
         <a
           href="#"
           onClick={(e) => {
@@ -129,6 +117,18 @@ export default function ChatRoom({
         >
           [退室]
         </a>
+        {onShowRanking && (
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              onShowRanking();
+            }}
+            className="underline"
+          >
+            [ランキング]
+          </a>
+        )}
       </div>
 
       {/* 2行目: [更新] [発言] ボタン + [消す] + おなまえ表示 */}

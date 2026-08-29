@@ -28,7 +28,13 @@ describe('ChatRoom', () => {
     expect(screen.getByRole('button', { name: '更新' })).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'ログ行数' })).toBeInTheDocument();
     expect(screen.getByText('[退室]')).toBeInTheDocument();
-    expect(screen.getByText('[発言ランキング]')).toBeInTheDocument();
+    expect(screen.getByText('[ランキング]')).toBeInTheDocument();
+  });
+
+  it('renders [ランキング] to the right of [退室]', () => {
+    const { container } = render(<ChatRoom {...props} />);
+    const links = Array.from(container.querySelectorAll('a')).map((a) => a.textContent);
+    expect(links).toEqual(['[退室]', '[ランキング]']);
   });
 
   it('calls setMessage when input changes', () => {
@@ -51,9 +57,9 @@ describe('ChatRoom', () => {
     expect(props.onExit).toHaveBeenCalled();
   });
 
-  it('calls onShowRanking when [発言ランキング] clicked', () => {
+  it('calls onShowRanking when [ランキング] clicked', () => {
     render(<ChatRoom {...props} />);
-    fireEvent.click(screen.getByText('[発言ランキング]'));
+    fireEvent.click(screen.getByText('[ランキング]'));
     expect(props.onShowRanking).toHaveBeenCalled();
   });
 
