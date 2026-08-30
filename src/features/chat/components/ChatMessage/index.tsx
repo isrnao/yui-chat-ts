@@ -126,6 +126,8 @@ function splitAdminMessage(message: string): { userName: string; rest: string } 
 }
 
 const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;
+/** レガシーの look コマンド。発言の右にきらめきを出す */
+const LOOK_PATTERN = /^look$/i;
 const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
 
 /**
@@ -238,6 +240,17 @@ function ChatMessage({ chat, showRoomName, onRoomClick }: Props) {
         <span className="font-bold text-gray-400 px-1">{'>'}</span>
       )}
       <MessageBody message={chat.message} chat={chat} />
+      {LOOK_PATTERN.test(chat.message.trim()) && (
+        // レガシーの rin.swf（18x18・12fps）を GIF に移植したもの
+        <img
+          src={`${import.meta.env.BASE_URL}rin.gif`}
+          alt=""
+          aria-hidden="true"
+          width={18}
+          height={18}
+          className="inline-block ml-1 align-middle [image-rendering:pixelated]"
+        />
+      )}
       <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
     </div>
   );

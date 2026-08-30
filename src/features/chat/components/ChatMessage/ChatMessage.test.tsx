@@ -161,4 +161,36 @@ describe('ChatMessage', () => {
     expect(screen.queryByText(/LAST LOGIN/)).not.toBeInTheDocument();
     expect(screen.queryByText(/プロフィールも作ってみてね/)).not.toBeInTheDocument();
   });
+
+  it('look 発言の右にきらめき画像を出す', () => {
+    const lookChat: Chat = {
+      uuid: '7',
+      name: 'ゆい',
+      color: '#ff69b4',
+      message: 'look',
+      time: 1680000000000,
+      ip_masked: '192.168.1.*',
+      ua: '',
+    };
+
+    const { container } = render(<ChatMessage chat={lookChat} />);
+    const img = container.querySelector('img[src$="rin.gif"]');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('width', '18');
+  });
+
+  it('look 以外の発言にはきらめき画像を出さない', () => {
+    const chat: Chat = {
+      uuid: '8',
+      name: 'ゆい',
+      color: '#ff69b4',
+      message: 'looking good',
+      time: 1680000000000,
+      ip_masked: '192.168.1.*',
+      ua: '',
+    };
+
+    const { container } = render(<ChatMessage chat={chat} />);
+    expect(container.querySelector('img[src$="rin.gif"]')).not.toBeInTheDocument();
+  });
 });
