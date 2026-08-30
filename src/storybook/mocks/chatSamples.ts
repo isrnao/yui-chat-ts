@@ -19,7 +19,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: false,
     email: 'yui@example.com',
-    ip_masked: '127.0.0.*',
+    ip_masked: '127.*.*.1',
     ua: 'Storybook',
   },
   {
@@ -32,7 +32,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: true,
     email: '',
-    ip_masked: '127.0.0.*',
+    ip_masked: '127.*.*.1',
     ua: 'Storybook',
   },
   {
@@ -45,7 +45,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: false,
     system: false,
     email: '',
-    ip_masked: '127.0.0.*',
+    ip_masked: '127.*.*.1',
     ua: 'Storybook',
   },
   {
@@ -58,7 +58,7 @@ export const sampleChatLog: Chat[] = [
     optimistic: true,
     system: false,
     email: '',
-    ip_masked: '127.0.0.*',
+    ip_masked: '127.*.*.1',
     ua: 'Storybook',
   },
 ];
@@ -73,7 +73,7 @@ export const optimisticChat: Chat = {
   optimistic: true,
   system: false,
   email: '',
-  ip_masked: '127.0.0.*',
+  ip_masked: '127.*.*.1',
   ua: 'Storybook',
 };
 
@@ -88,7 +88,7 @@ export const adminWelcomeChat: Chat = {
   optimistic: false,
   system: true,
   email: '',
-  ip_masked: '202.170.179.*',
+  ip_masked: '202.*.*.85',
   ua: 'Mozilla/5.0 (Nintendo 3DS; U; ; ja) Version/1.7498.JP',
   metadata: {
     version: 1,
