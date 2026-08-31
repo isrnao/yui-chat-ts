@@ -34,10 +34,13 @@ describe('<RoomInfo />', () => {
     render(<RoomInfo roomId="com_sb" />);
 
     expect(screen.getByText(getRoomMeta('com_sb').description)).toBeInTheDocument();
-    expect(screen.getByText('管理者チャット')).toBeInTheDocument();
-    // com_sb の紹介文に「他の部屋と同じく」が含まれるため、
-    // ラベルのコロンまで含めて関連部屋セクションだけを狙う
-    expect(screen.queryByText(/他の部屋:/)).toBeNull();
+
+    // カテゴリ行を取り出して検証する。ページ全体から /他の部屋/ を探すと、紹介文の
+    // 「発言は他の部屋と同じく公開される」に当たってしまう
+    const categoryLine = screen.getByText(/^カテゴリ:/);
+    expect(categoryLine).toHaveTextContent('カテゴリ: 管理者チャット');
+    expect(categoryLine).not.toHaveTextContent('他の部屋');
+
     expect(screen.queryAllByRole('link', { name: /チャット/ })).toHaveLength(0);
   });
 });

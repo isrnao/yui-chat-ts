@@ -133,14 +133,7 @@ describe('useSEO', () => {
     });
 
     it('noindex 未指定では robots meta が index, follow に戻る (残留しない)', () => {
-      // Props を明示しないと initialProps から `{ noindex: boolean }` に推論され、
-      // rerender で別のキーを渡せなくなる
-      const { rerender } = renderHook<void, { options: UseSEOOptions }>(
-        ({ options }) => useSEO(options),
-        {
-          initialProps: { options: { noindex: true } },
-        }
-      // Props を明示しないと initialProps から { noindex: boolean } に狭く推論され、
+      // Props を明示しないと initialProps から `{ noindex: boolean }` に狭く推論され、
       // 別のキーで rerender できなくなる
       const { rerender } = renderHook<void, { options: UseSEOOptions }>(
         ({ options }) => useSEO(options),
@@ -156,9 +149,6 @@ describe('useSEO', () => {
     it('canonical: null で canonical link と og:url が削除される (残留しない)', () => {
       const { rerender } = renderHook<void, { options: UseSEOOptions }>(
         ({ options }) => useSEO(options),
-        {
-          initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
-        }
         { initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } } }
       );
 
