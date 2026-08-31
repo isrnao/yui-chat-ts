@@ -1,4 +1,4 @@
-import { Fragment, memo, useMemo } from 'react';
+import { Fragment, memo } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
@@ -24,7 +24,8 @@ function ChatLogList({
   onRoomClick,
   hideParticipants,
 }: Props) {
-  const chats = useMemo(() => sortChatsByTime(chatLog).slice(0, windowRows), [chatLog, windowRows]);
+  // 並べ替え結果のメモ化は React Compiler に任せる
+  const chats = sortChatsByTime(chatLog).slice(0, windowRows);
   const participants = useParticipants(hideParticipants ? [] : chatLog);
 
   if (isLoading) {

@@ -65,6 +65,8 @@ export function useChatLog(
     setReloadKey(0);
   });
 
+  // mergeChat / reload は下の useEffect の依存に入る。React Compiler も同等に
+  // メモ化するが、購読の張り直しに直結するため同一性の要件を明示して useCallback を残す。
   const mergeChat = useCallback((chat: Chat) => {
     setChatLog((prev) => mergeChatLogByUuid(prev, chat));
   }, []);

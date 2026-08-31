@@ -1,4 +1,4 @@
-import { Suspense, use, useCallback, useMemo, useState } from 'react';
+import { Suspense, use, useState } from 'react';
 import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { fetchInitialChatLogPage } from '@features/chat/hooks/usePreloadChatLogs';
@@ -13,9 +13,10 @@ export default function ChatLogPage() {
   const [windowRows, setWindowRows] = useState(50);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const handleRefresh = useCallback(() => {
+  // メモ化は React Compiler に任せる（手動の useCallback / useMemo は使わない）
+  const handleRefresh = () => {
     setReloadKey((k) => k + 1);
-  }, []);
+  };
 
   return (
     <main className="flex flex-col items-center min-h-dvh bg-yui-green/10">
@@ -61,9 +62,9 @@ function ChatLogContent({ windowRows, reloadKey }: { windowRows: number; reloadK
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [moreHasMore, setMoreHasMore] = useState(initial.hasMore);
 
-  const chatLog = useMemo(() => [...initial.data, ...appended], [initial.data, appended]);
+  const chatLog = [...initial.data, ...appended];
 
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     if (isLoadingMore || !moreHasMore) return;
     setIsLoadingMore(true);
     try {
@@ -75,7 +76,7 @@ function ChatLogContent({ windowRows, reloadKey }: { windowRows: number; reloadK
     } finally {
       setIsLoadingMore(false);
     }
-  }, [chatLog.length, isLoadingMore, moreHasMore]);
+  };
 
   return (
     <>

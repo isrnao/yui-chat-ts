@@ -23,6 +23,8 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
   const [subscribeError, setSubscribeError] = useState(false);
   // reload ごとにインクリメントして effect を再実行させる
   const [reloadKey, setReloadKey] = useState(0);
+  // mergeChat / addOptimistic / reload は下の useEffect の依存に入る。React Compiler も
+  // 同等にメモ化するが、購読の張り直しに直結するため同一性の要件を明示して useCallback を残す。
   const reload = useCallback(() => setReloadKey((k) => k + 1), []);
   // effect が再実行されたとき同期 setState を避けるため ref で管理する
   const effectRunRef = useRef(0);

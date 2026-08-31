@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo } from 'react';
+import { useDeferredValue } from 'react';
 import type { Chat, Participant } from '@features/chat/types';
 
 const WELCOME_PATTERN = /^(.+?)\sさん、Welcome to/;
@@ -48,7 +48,8 @@ export function getRecentParticipants(chatLog: Chat[]): Participant[] {
   return Array.from(map.values());
 }
 
+// メモ化は React Compiler に任せる（手動の useMemo は不要）
 export function useParticipants(chatLog: Chat[]) {
   const deferredChatLog = useDeferredValue(chatLog);
-  return useMemo(() => getRecentParticipants(deferredChatLog), [deferredChatLog]);
+  return getRecentParticipants(deferredChatLog);
 }
