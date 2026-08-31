@@ -10,10 +10,14 @@ const meta = {
   tags: ['autodocs'],
   args: {
     chatLog: sampleChatLog,
+    roomTitle: '超初心者チャット',
   },
   argTypes: {
     chatLog: {
       description: 'ランキング計算に利用するチャットログ',
+    },
+    roomTitle: {
+      description: '見出しに出す部屋名（「〇〇の発言ランキング」）',
     },
   },
 } satisfies Meta<typeof ChatRanking>;
@@ -26,5 +30,11 @@ export const Default: Story = {};
 export const Empty: Story = {
   args: {
     chatLog: [],
+  },
+};
+
+export const WithBackLink: Story = {
+  args: {
+    onBackToChat: () => {},
   },
 };

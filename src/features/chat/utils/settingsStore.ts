@@ -11,7 +11,8 @@ export type UserSettings = {
   windowRows: number;
   avatar: AvatarId;
   visitCount: number;
-  lastLogin: number; // Unix timestamp ms
+  lastLogin: number; // Unix timestamp ms（今回のログイン時刻）
+  previousLogin: number; // Unix timestamp ms（前回のログイン時刻 / レガシーの LAST LOGIN 表示用）
 };
 
 export const DEFAULT_SETTINGS: UserSettings = {
@@ -22,6 +23,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   avatar: 'none',
   visitCount: 0,
   lastLogin: 0,
+  previousLogin: 0,
 };
 
 // メモリ内キャッシュ（localStorage が使えない場合のフォールバック兼高速アクセス用）
@@ -58,6 +60,10 @@ function mergeWithDefaults(parsed: Record<string, unknown>): UserSettings {
       typeof parsed.lastLogin === 'number' && Number.isFinite(parsed.lastLogin)
         ? parsed.lastLogin
         : DEFAULT_SETTINGS.lastLogin,
+    previousLogin:
+      typeof parsed.previousLogin === 'number' && Number.isFinite(parsed.previousLogin)
+        ? parsed.previousLogin
+        : DEFAULT_SETTINGS.previousLogin,
   };
 }
 
@@ -147,6 +153,8 @@ export function recordVisitOncePerSession(now?: number): void {
   const next: UserSettings = {
     ...current,
     visitCount: current.visitCount + 1,
+    // 直前のログイン時刻を退避してから今回の時刻で更新する（LAST LOGIN 表示用）
+    previousLogin: current.lastLogin,
     lastLogin: now ?? Date.now(),
   };
   saveToStorage(next);

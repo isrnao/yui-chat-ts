@@ -44,7 +44,7 @@ describe('useChatLog', () => {
       message: 'Hello',
       time: 1_700_000_000_000,
       client_time: 1_700_000_000_000,
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     };
 
@@ -61,7 +61,7 @@ describe('useChatLog', () => {
       time: 1_700_000_000_100,
       client_time: 1_700_000_000_000,
       optimistic: false,
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     };
     const tempChat: Chat = {
@@ -93,7 +93,7 @@ describe('useChatLog', () => {
         time: 1_700_000_000_000,
         client_time: 1_700_000_000_000,
         optimistic: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       };
       const savedChat: Chat = {
@@ -115,7 +115,7 @@ describe('useChatLog', () => {
       message: 'Hello',
       time: 1_700_000_000_000,
       client_time: 1_700_000_000_000,
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     };
 
@@ -139,7 +139,7 @@ describe('useChatLog', () => {
         time: 1_700_000_000_100,
         client_time: 1_700_000_000_000,
         optimistic: false,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
         metadata: { version: 1, optimisticNonce: 'nonce-abc' },
       };
@@ -152,7 +152,7 @@ describe('useChatLog', () => {
         time: 999,
         client_time: 555, // different (legacy fallback ならアンマッチになる)
         optimistic: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
         metadata: { version: 1, optimisticNonce: 'nonce-abc' },
       };
@@ -170,7 +170,7 @@ describe('useChatLog', () => {
         time: 1_700_000_000_100,
         client_time: 1_700_000_000_000,
         optimistic: false,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
         metadata: { version: 1, optimisticNonce: 'nonce-saved' },
       };
@@ -197,7 +197,7 @@ describe('useChatLog', () => {
         message: 'A',
         time: 1_700_000_000_100,
         optimistic: false,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       };
       const tempChatNoClientTime: Chat = {
@@ -208,7 +208,7 @@ describe('useChatLog', () => {
         message: 'B', // 全然違うメッセージ
         time: 999,
         optimistic: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       };
 

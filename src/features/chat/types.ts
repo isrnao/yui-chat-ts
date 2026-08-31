@@ -100,6 +100,10 @@ export type ChatMetadata = {
   kind?: 'normal' | 'fortune' | 'admin';
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
+  /** 入室メッセージ用: そのユーザーの訪問回数（レガシーの "49回目" 表示） */
+  visitCount?: number;
+  /** 入室メッセージ用: 前回ログイン時刻 Unix ms（レガシーの "LAST LOGIN:" 表示） */
+  lastLogin?: number;
   /**
    * 楽観的更新の重複表示防止用 nonce。
    * `createOptimisticChat` が生成し、保存時にサーバーへ送られ、realtime INSERT で
@@ -121,7 +125,8 @@ export type Chat = {
   optimistic?: boolean; // 楽観的更新フラグ（送信中のメッセージ）
   system?: boolean; // 既存互換として維持（metadata.kind とは別）
   email?: string;
-  ip: string;
+  /** マスク済み IP（表示用）。生 IP はサーバー側のみ保持し anon からは読めない */
+  ip_masked: string;
   ua: string;
   metadata?: ChatMetadata;
 };

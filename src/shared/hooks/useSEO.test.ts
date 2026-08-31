@@ -140,6 +140,11 @@ describe('useSEO', () => {
         {
           initialProps: { options: { noindex: true } },
         }
+      // Props を明示しないと initialProps から { noindex: boolean } に狭く推論され、
+      // 別のキーで rerender できなくなる
+      const { rerender } = renderHook<void, { options: UseSEOOptions }>(
+        ({ options }) => useSEO(options),
+        { initialProps: { options: { noindex: true } } }
       );
 
       rerender({ options: { title: '通常ページ' } });
@@ -154,6 +159,7 @@ describe('useSEO', () => {
         {
           initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } },
         }
+        { initialProps: { options: { canonical: 'https://www.okiraku.chat/chat/anime' } } }
       );
 
       expect(document.querySelector('link[rel="canonical"]')).not.toBeNull();

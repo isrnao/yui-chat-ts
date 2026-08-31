@@ -11,7 +11,7 @@ const { mockChat, makeFulfilledPromise } = vi.hoisted(() => ({
     color: '#000000',
     message: 'hello',
     time: 1,
-    ip: '',
+    ip_masked: '',
     ua: '',
   } as Chat,
   // React 19 use() は jsdom+vitest 環境で未タグの pending promise を解決できないため、
