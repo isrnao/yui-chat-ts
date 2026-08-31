@@ -1,16 +1,15 @@
-import { useTransition } from 'react';
 import {
-  saveChatLogOptimistic,
-  clearChatLogsByName,
   broadcastLookEvent,
   broadcastUnlookEvent,
+  clearChatLogsByName,
   createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
-import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
+import { createAdminChat, useChatSender } from '@features/chat/hooks/useChatSender';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
@@ -27,6 +26,7 @@ function getTrackedCommand(message: string): TrackedCommand | undefined {
 }
 
 // ハンドラのメモ化は React Compiler に任せる（手動の useCallback は使わない）。
+// 楽観的更新つき送信・管理人メッセージ・おみくじは useChatSender に集約している。
 export function useChatHandlers({
   roomId,
   name,
@@ -54,7 +54,10 @@ export function useChatHandlers({
   mergeChat: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const [, startTransition] = useTransition();
+  const { showOptimistic, saveAndMerge, sendChat, sendFortuneIfCommand } = useChatSender({
+    addOptimistic,
+    mergeChat,
+  });
   const roomTitle = getRoomMeta(roomId).title;
 
   // 入室（silent: こっそり入室対応）
@@ -90,32 +93,16 @@ export function useChatHandlers({
       // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
       const { visitCount, previousLogin } = getSettingsSnapshot();
 
-      const optimistic = createOptimisticChat({
-        room_id: roomId,
-        name: '管理人',
-        color: '#ffffff',
-        message: `${entryName} さん、Welcome to お気楽チャット☆`,
-        client_time: Date.now(),
-        system: true,
-        ip_masked: '',
-        ua: '',
-        metadata: {
-          version: 1,
-          avatar: 'hoshi1',
-          kind: 'admin',
+      await sendChat(
+        roomId,
+        createAdminChat({
+          roomId,
+          message: `${entryName} さん、Welcome to お気楽チャット☆`,
           userColor: entryColor,
-          fontStyle: { bold: true },
-          visitCount,
-          lastLogin: previousLogin,
-        },
-      });
+          extraMetadata: { visitCount, lastLogin: previousLogin },
+        })
+      );
 
-      startTransition(() => addOptimistic(optimistic));
-
-      // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
-      const savedChat = await saveChatLogOptimistic(roomId, optimistic);
-
-      startTransition(() => mergeChat(savedChat));
       const entryContext = measurement.onEntered();
       trackEvent('chat_enter', {
         room_id: roomId,
@@ -134,35 +121,20 @@ export function useChatHandlers({
     trackEvent('chat_exit', { room_id: roomId, room_title: roomTitle });
     measurement.onExited();
 
-    const optimistic = createOptimisticChat({
-      room_id: roomId,
-      name: '管理人',
-      color: '#ffffff',
+    const optimistic = createAdminChat({
+      roomId,
       message: `${name}さん、またきておくれやすぅ。`,
-      client_time: Date.now(),
-      system: true,
-      ip_masked: '',
-      ua: '',
-      metadata: {
-        version: 1,
-        avatar: 'hoshi1',
-        kind: 'admin',
-        userColor: color,
-        fontStyle: { bold: true },
-      },
+      userColor: color,
     });
 
-    startTransition(() => addOptimistic(optimistic));
-
+    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    showOptimistic(optimistic);
     setEntered(false);
     setShowRanking(false);
     setName('');
     setMessage('');
 
-    // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
-    const savedChat = await saveChatLogOptimistic(roomId, optimistic);
-
-    startTransition(() => mergeChat(savedChat));
+    await saveAndMerge(roomId, optimistic);
   };
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）
@@ -201,13 +173,11 @@ export function useChatHandlers({
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
 
-    startTransition(() => addOptimistic(optimistic));
+    showOptimistic(optimistic);
     setMessage('');
     setShowRanking(false);
 
-    // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
-    const savedChat = await saveChatLogOptimistic(roomId, optimistic);
-    startTransition(() => mergeChat(savedChat));
+    const savedChat = await saveAndMerge(roomId, optimistic);
     if (trackedCommand) {
       trackEvent('command_used', { room_id: roomId, command: trackedCommand });
     } else {
@@ -224,35 +194,7 @@ export function useChatHandlers({
       broadcastUnlookEvent(roomId);
     }
 
-    // おみくじロジック: ユーザー発言保存成功後に巫女メッセージを生成・保存
-    if (isFortuneCommand(msg)) {
-      try {
-        const fortune = generateFortune(name);
-        const fortuneOptimistic = createOptimisticChat({
-          room_id: roomId,
-          name: fortune.senderName,
-          color: fortune.color,
-          message: fortune.message,
-          client_time: Date.now(),
-          system: true,
-          ip_masked: '',
-          ua: '',
-          metadata: {
-            version: 1,
-            kind: 'fortune',
-            avatar: 'miko1',
-            fontStyle: { bold: true },
-          },
-        });
-
-        startTransition(() => addOptimistic(fortuneOptimistic));
-
-        const savedFortune = await saveChatLogOptimistic(roomId, fortuneOptimistic);
-        startTransition(() => mergeChat(savedFortune));
-      } catch {
-        // 巫女メッセージの保存失敗時はサイレントに失敗
-      }
-    }
+    await sendFortuneIfCommand(roomId, msg, name);
   };
 
   // 再読み込みは useChatLog の reload が担う。
