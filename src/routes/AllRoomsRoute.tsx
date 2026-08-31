@@ -134,9 +134,9 @@ export default function AllRoomsRoute() {
                   setColor={setColor}
                   email={email}
                   setEmail={setEmail}
-                  onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
+                  onEnter={({ name: n, color: c, silent, avatar: a }) => {
                     setAvatar(a);
-                    return handleEnter({ name: n, color: c, email: e, silent });
+                    return handleEnter({ name: n, color: c, silent });
                   }}
                 />
                 {/* /chat/all は ChatRoute でなくここに振り分けられるため、

@@ -68,8 +68,8 @@ Realtime**, not BroadcastChannel:
   pushed to all clients. `useChatLog` wires this up.
 - look/unlook notifications: Supabase Realtime **broadcast** channel (`broadcastLookEvent` /
   `onLookBroadcast`).
-- Note: `src/shared/hooks/useBroadcastChannel.ts` (Web BroadcastChannel API) still exists but is
-  currently **unused** — do not treat it as the sync mechanism.
+- Note: the Web BroadcastChannel API is **not** used anywhere in this app; the former
+  `src/shared/hooks/useBroadcastChannel.ts` was removed as dead code.
 
 **Participants**: There is no presence table. The participant list is **derived from the message
 log** by `getRecentParticipants` (`useParticipants.ts`): it scans the last 5 minutes of messages,

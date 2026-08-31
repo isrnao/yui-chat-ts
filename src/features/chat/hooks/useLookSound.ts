@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { onLookBroadcast } from '@features/chat/api/chatApi';
 import {
   playNotificationSound,
@@ -15,12 +14,10 @@ import type { RoomId } from '@features/chat/rooms';
  * 音声再生は Supabase Realtime Broadcast 受信時のみ発火する。
  * 過去ログ・Postgres Changes・楽観更新では再生しない。
  *
- * @param _channelRef - 将来の拡張用。現在は chatApi 内部の共有チャネルを使用。
+ * チャネルは chatApi 内部で room 単位に共有される registry が管理するため、
+ * 呼び出し側が RealtimeChannel を保持する必要はない。
  */
-export function useLookSound(
-  _channelRef: React.RefObject<RealtimeChannel | null>,
-  roomId: RoomId
-): {
+export function useLookSound(roomId: RoomId): {
   isAudioEnabled: boolean;
   enableAudio: () => Promise<void>;
 } {
