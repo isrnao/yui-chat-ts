@@ -132,7 +132,58 @@ describe('createConversationMeasurement', () => {
     expect(calls.some(([name]) => name === 'conversation_activated')).toBe(false);
   });
 
-  it('does not track replies after exit', () => {
+  it('activates conversation when a reply arrives before the first-message save completes', () => {
+    const { calls, measurement } = setup();
+    const ownPending = createChat('temp-1', 'superbeginner', {
+      optimistic: true,
+      metadata: { version: 1, optimisticNonce: 'own-nonce' },
+    });
+    const ownSaved = createChat('own-1', 'superbeginner', {
+      metadata: { version: 1, optimisticNonce: 'own-nonce' },
+    });
+
+    measurement.onJoinStarted('superbeginner');
+    measurement.onEntered();
+    measurement.onOwnMessagePending(ownPending);
+
+    // Reply arrives before the Edge Function response (Realtime races the save)
+    measurement.onRealtimeChat(createChat('other-1', 'superbeginner'));
+
+    // Save completes afterward; should still detect the activation
+    measurement.onOwnMessageSaved(ownSaved);
+
+    expect(calls).toContainEqual(['chat_first_message', expect.anything()]);
+    expect(calls).toContainEqual([
+      'reciprocal_reply_received',
+      { room_id: 'superbeginner', reply_latency_seconds: 0 },
+    ]);
+    expect(calls).toContainEqual([
+      'conversation_activated',
+      { room_id: 'superbeginner', activation_rule: 'reply_after_first_message_v1' },
+    ]);
+    expect(calls.filter(([name]) => name === 'conversation_activated')).toHaveLength(1);
+  });
+
+  it('does not activate when a buffered reply is from the same user (own echo)', () => {
+    const { calls, measurement } = setup();
+    const ownPending = createChat('temp-1', 'superbeginner', {
+      optimistic: true,
+      metadata: { version: 1, optimisticNonce: 'own-nonce' },
+    });
+    const ownSaved = createChat('own-1', 'superbeginner', {
+      metadata: { version: 1, optimisticNonce: 'own-nonce' },
+    });
+
+    measurement.onJoinStarted('superbeginner');
+    measurement.onEntered();
+    measurement.onOwnMessagePending(ownPending);
+
+    // Own Realtime echo arrives before save — must not be counted as a reply
+    measurement.onRealtimeChat(ownSaved);
+    measurement.onOwnMessageSaved(ownSaved);
+
+    expect(calls.some(([name]) => name === 'conversation_activated')).toBe(false);
+  });
     const { calls, measurement, setTime } = setup();
 
     measurement.onJoinStarted('superbeginner');

@@ -11,6 +11,7 @@ import { validateName } from '@features/chat/utils/validation';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
@@ -92,6 +93,9 @@ export function useChatHandlers({
           return;
         }
 
+        // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
+        const { visitCount, previousLogin } = getSettingsSnapshot();
+
         const optimistic = createOptimisticChat({
           room_id: roomId,
           name: '管理人',
@@ -99,7 +103,7 @@ export function useChatHandlers({
           message: `${entryName} さん、Welcome to お気楽チャット☆`,
           client_time: Date.now(),
           system: true,
-          ip: '',
+          ip_masked: '',
           ua: '',
           metadata: {
             version: 1,
@@ -107,6 +111,8 @@ export function useChatHandlers({
             kind: 'admin',
             userColor: entryColor,
             fontStyle: { bold: true },
+            visitCount,
+            lastLogin: previousLogin,
           },
         });
 
@@ -143,7 +149,7 @@ export function useChatHandlers({
       message: `${name}さん、またきておくれやすぅ。`,
       client_time: Date.now(),
       system: true,
-      ip: '',
+      ip_masked: '',
       ua: '',
       metadata: {
         version: 1,
@@ -209,7 +215,7 @@ export function useChatHandlers({
         message: msg,
         client_time: Date.now(),
         email,
-        ip: '',
+        ip_masked: '',
         ua: '',
         metadata: metadata ?? undefined,
       });
@@ -250,7 +256,7 @@ export function useChatHandlers({
             message: fortune.message,
             client_time: Date.now(),
             system: true,
-            ip: '',
+            ip_masked: '',
             ua: '',
             metadata: {
               version: 1,

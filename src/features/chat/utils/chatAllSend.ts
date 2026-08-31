@@ -54,7 +54,7 @@ export function buildAllRoomsSendPayload({
       message,
       client_time: Date.now(),
       email: identity.email,
-      ip: '',
+      ip_masked: '',
       ua: '',
       metadata: resolvedMetadata,
     },

@@ -16,7 +16,7 @@ describe('getRecentParticipants', () => {
         color: '',
         message: 'test',
         time: Date.now(),
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -26,7 +26,7 @@ describe('getRecentParticipants', () => {
         message: 'test',
         time: Date.now(),
         system: true,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -35,7 +35,7 @@ describe('getRecentParticipants', () => {
         color: '',
         message: 'test',
         time: Date.now(),
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -51,7 +51,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test1',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -60,7 +60,7 @@ describe('getRecentParticipants', () => {
         color: '#00ff00',
         message: 'test2',
         time: now - 60000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -69,7 +69,7 @@ describe('getRecentParticipants', () => {
         color: '#0000ff',
         message: 'test3',
         time: now - 400000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 6分40秒前
     ];
@@ -89,7 +89,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test1',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -98,7 +98,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test2',
         time: now - 2000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -107,7 +107,7 @@ describe('getRecentParticipants', () => {
         color: '#00ff00',
         message: 'test3',
         time: now - 3000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -127,7 +127,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test',
         time: oldTime,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -147,7 +147,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test1',
         time: exactlyFiveMinutes,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -156,7 +156,7 @@ describe('getRecentParticipants', () => {
         color: '#00ff00',
         message: 'test2',
         time: justOverFiveMinutes,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -165,7 +165,7 @@ describe('getRecentParticipants', () => {
         color: '#0000ff',
         message: 'test3',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 1秒前
     ];
@@ -186,7 +186,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test1',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -195,7 +195,7 @@ describe('getRecentParticipants', () => {
         color: '#00ff00',
         message: 'test2',
         time: now - 2000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 異なる色
       {
@@ -204,7 +204,7 @@ describe('getRecentParticipants', () => {
         color: '#0000ff',
         message: 'test3',
         time: now - 3000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -227,7 +227,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test1',
         time: now,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 現在時刻
       {
@@ -236,7 +236,7 @@ describe('getRecentParticipants', () => {
         color: '#00ff00',
         message: 'test2',
         time: now + 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       }, // 未来の時刻
     ];
@@ -255,7 +255,7 @@ describe('getRecentParticipants', () => {
       color: `#${(i % 16777215).toString(16).padStart(6, '0')}`,
       message: `Message ${i}`,
       time: now - i * 1000, // 各メッセージは1秒ずつ古い
-      ip: 'test-ip',
+      ip_masked: 'test-ip',
       ua: 'test-ua',
     }));
 
@@ -282,7 +282,7 @@ describe('getRecentParticipants', () => {
         color: '#ff0000',
         message: 'test',
         time: Date.now() - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -311,7 +311,7 @@ describe('useParticipants', () => {
         color: '#ff0000',
         message: 'test',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
       {
@@ -320,7 +320,7 @@ describe('useParticipants', () => {
         color: '#00ff00',
         message: 'test',
         time: now - 2000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -341,7 +341,7 @@ describe('useParticipants', () => {
         color: '#ff0000',
         message: 'test',
         time: now - 1000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];
@@ -360,7 +360,7 @@ describe('useParticipants', () => {
         color: '#00ff00',
         message: 'test',
         time: now - 2000,
-        ip: 'test-ip',
+        ip_masked: 'test-ip',
         ua: 'test-ua',
       },
     ];

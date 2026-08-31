@@ -9,7 +9,7 @@ const { loadInitialChatLogs, loadChatLogsWithPaging, sampleChat } = vi.hoisted((
     color: '#000000',
     message: 'hello',
     time: 1,
-    ip: '',
+    ip_masked: '',
     ua: '',
   } as Chat;
 

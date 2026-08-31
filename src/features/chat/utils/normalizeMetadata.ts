@@ -83,6 +83,14 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.userColor = input.userColor;
     }
 
+    if (typeof input.visitCount === 'number' && Number.isFinite(input.visitCount)) {
+      result.visitCount = input.visitCount;
+    }
+
+    if (typeof input.lastLogin === 'number' && Number.isFinite(input.lastLogin)) {
+      result.lastLogin = input.lastLogin;
+    }
+
     if (typeof input.optimisticNonce === 'string') {
       result.optimisticNonce = input.optimisticNonce;
     }
@@ -106,7 +114,7 @@ export function normalizeChat(row: unknown): Chat {
       color: '',
       message: '',
       time: 0,
-      ip: '',
+      ip_masked: '',
       ua: '',
     };
   }
@@ -125,7 +133,7 @@ export function normalizeChat(row: unknown): Chat {
     ...(typeof chat.optimistic === 'boolean' ? { optimistic: chat.optimistic } : {}),
     ...(typeof chat.system === 'boolean' ? { system: chat.system } : {}),
     ...(typeof chat.email === 'string' ? { email: chat.email } : {}),
-    ip: typeof chat.ip === 'string' ? chat.ip : '',
+    ip_masked: typeof chat.ip_masked === 'string' ? chat.ip_masked : '',
     ua: typeof chat.ua === 'string' ? chat.ua : '',
     metadata: normalizeChatMetadata(chat.metadata),
   };

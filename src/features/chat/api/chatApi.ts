@@ -29,7 +29,13 @@ async function invokeSaveChat(payload: {
   system?: boolean;
   email?: string | null;
   metadata?: Chat['metadata'] | null;
-}): Promise<{ uuid: string; room_id: RoomId; time: number }> {
+}): Promise<{
+  uuid: string;
+  room_id: RoomId;
+  time: number;
+  ip_masked?: string;
+  ua?: string;
+}> {
   const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
   if (error) throw new Error(`Failed to save chat: ${error.message}`);
   const result: unknown = data;
@@ -44,7 +50,13 @@ async function invokeSaveChat(payload: {
   ) {
     throw new Error('Failed to save chat: unexpected response from Edge Function');
   }
-  return result as { uuid: string; room_id: RoomId; time: number };
+  return result as {
+    uuid: string;
+    room_id: RoomId;
+    time: number;
+    ip_masked?: string;
+    ua?: string;
+  };
 }
 
 // UUID v7最適化設定
@@ -171,6 +183,11 @@ export async function saveChatLogOptimistic(
       uuid: result.uuid,
       room_id: result.room_id ?? roomId,
       time: result.time,
+      // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+      // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+      // 送信者だけ IP / ブラウザ行が消える。
+      ip_masked: result.ip_masked ?? chat.ip_masked,
+      ua: result.ua ?? chat.ua,
       optimistic: false,
     };
   });
@@ -199,6 +216,11 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
       uuid: result.uuid,
       room_id: result.room_id ?? roomId,
       time: result.time,
+      // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+      // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+      // 送信者だけ IP / ブラウザ行が消える。
+      ip_masked: result.ip_masked ?? chat.ip_masked,
+      ua: result.ua ?? chat.ua,
       optimistic: false,
     };
   });
@@ -332,7 +354,7 @@ export async function loadChatLogsByTimeRange(
 
     let query = supabase
       .from(TABLE)
-      .select('uuid,room_id,name,color,message,time,system,email,ip,ua,metadata')
+      .select('uuid,room_id,name,color,message,time,system,email,ip_masked,ua,metadata')
       .eq('room_id', roomId)
       .eq('deleted', false)
       .gte('uuid', startUUID) // UUID v7による効率的な範囲検索

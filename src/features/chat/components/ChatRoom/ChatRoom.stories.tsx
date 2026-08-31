@@ -49,7 +49,7 @@ function ChatRoomContainer({
               optimistic: false,
               system: false,
               email: '',
-              ip: '127.0.0.1',
+              ip_masked: '127.0.0.1',
               ua: 'Storybook',
             },
             ...prev,
