@@ -1,20 +1,19 @@
-import { useTransition } from 'react';
-import {
-  saveChatLogOptimistic,
-  clearChatLogsByName,
-  createOptimisticChat,
-} from '@features/chat/api/chatApi';
+import { clearChatLogsByName, createOptimisticChat } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
 import { trackEvent } from '@shared/utils/analytics';
-import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
 import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
+import { createAdminChat, useChatSender } from '@features/chat/hooks/useChatSender';
 import type { Chat, ChatMetadata, AvatarId } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
-import type { RoomId } from '@features/chat/rooms';
+import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
 
+const ALL_ROOMS_TITLE = getRoomMeta('all').title;
+
 // ハンドラのメモ化は React Compiler に任せる（手動の useCallback は使わない）。
+// 楽観的更新つき送信・管理人メッセージ・おみくじは useChatSender に集約している。
 export function useAllRoomsChatHandlers({
   replyTarget,
   name,
@@ -47,31 +46,10 @@ export function useAllRoomsChatHandlers({
   mergeChat: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const [, startTransition] = useTransition();
-
-  const buildAdminOptimistic = (
-    message: string,
-    userColor: string,
-    extraMetadata?: Partial<ChatMetadata>
-  ) =>
-    createOptimisticChat({
-      room_id: 'all',
-      name: '管理人',
-      color: '#ffffff',
-      message,
-      client_time: Date.now(),
-      system: true,
-      ip_masked: '',
-      ua: '',
-      metadata: {
-        version: 1,
-        avatar: 'hoshi1',
-        kind: 'admin',
-        userColor,
-        fontStyle: { bold: true },
-        ...extraMetadata,
-      },
-    });
+  const { showOptimistic, saveAndMerge, sendChat, sendFortuneIfCommand } = useChatSender({
+    addOptimistic,
+    mergeChat,
+  });
 
   const handleEnter = async ({
     name: entryName,
@@ -95,7 +73,7 @@ export function useAllRoomsChatHandlers({
         const entryContext = measurement.onEntered();
         trackEvent('chat_enter', {
           room_id: 'all',
-          room_title: '全部屋まとめ',
+          room_title: ALL_ROOMS_TITLE,
           entry_context: entryContext,
         });
         return;
@@ -103,19 +81,21 @@ export function useAllRoomsChatHandlers({
 
       // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
       const { visitCount, previousLogin } = getSettingsSnapshot();
-      const optimistic = buildAdminOptimistic(
-        `${entryName} さん、Welcome to お気楽チャット☆`,
-        entryColor,
-        { visitCount, lastLogin: previousLogin }
-      );
-      startTransition(() => addOptimistic(optimistic));
 
-      const savedChat = await saveChatLogOptimistic('all', optimistic);
-      startTransition(() => mergeChat(savedChat));
+      await sendChat(
+        'all',
+        createAdminChat({
+          roomId: 'all',
+          message: `${entryName} さん、Welcome to お気楽チャット☆`,
+          userColor: entryColor,
+          extraMetadata: { visitCount, lastLogin: previousLogin },
+        })
+      );
+
       const entryContext = measurement.onEntered();
       trackEvent('chat_enter', {
         room_id: 'all',
-        room_title: '全部屋まとめ',
+        room_title: ALL_ROOMS_TITLE,
         entry_context: entryContext,
       });
     } catch (error) {
@@ -126,18 +106,22 @@ export function useAllRoomsChatHandlers({
   };
 
   const handleExit = async () => {
-    trackEvent('chat_exit', { room_id: 'all', room_title: '全部屋まとめ' });
+    trackEvent('chat_exit', { room_id: 'all', room_title: ALL_ROOMS_TITLE });
     measurement.onExited();
 
-    const optimistic = buildAdminOptimistic(`${name}さん、またきておくれやすぅ。`, color);
-    startTransition(() => addOptimistic(optimistic));
+    const optimistic = createAdminChat({
+      roomId: 'all',
+      message: `${name}さん、またきておくれやすぅ。`,
+      userColor: color,
+    });
 
+    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    showOptimistic(optimistic);
     setEntered(false);
     setName('');
     setMessage('');
 
-    const savedChat = await saveChatLogOptimistic('all', optimistic);
-    startTransition(() => mergeChat(savedChat));
+    await saveAndMerge('all', optimistic);
   };
 
   const handleSend = async (msg: string, metadata?: ChatMetadata) => {
@@ -194,11 +178,10 @@ export function useAllRoomsChatHandlers({
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
 
-    startTransition(() => addOptimistic(optimistic));
+    showOptimistic(optimistic);
     setMessage('');
 
-    const savedChat = await saveChatLogOptimistic(replyTarget, optimistic);
-    startTransition(() => mergeChat(savedChat));
+    const savedChat = await saveAndMerge(replyTarget, optimistic);
     if (trackedCommand) {
       trackEvent('command_used', { room_id: replyTarget, command: trackedCommand });
     } else {
@@ -206,27 +189,7 @@ export function useAllRoomsChatHandlers({
       measurement.onOwnMessageSaved(savedChat);
     }
 
-    if (isFortuneCommand(msg)) {
-      try {
-        const fortune = generateFortune(name);
-        const fortuneOptimistic = createOptimisticChat({
-          room_id: replyTarget,
-          name: fortune.senderName,
-          color: fortune.color,
-          message: fortune.message,
-          client_time: Date.now(),
-          system: true,
-          ip_masked: '',
-          ua: '',
-          metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
-        });
-        startTransition(() => addOptimistic(fortuneOptimistic));
-        const savedFortune = await saveChatLogOptimistic(replyTarget, fortuneOptimistic);
-        startTransition(() => mergeChat(savedFortune));
-      } catch {
-        // 巫女メッセージの保存失敗はサイレントに無視
-      }
-    }
+    await sendFortuneIfCommand(replyTarget, msg, name);
   };
 
   return { handleEnter, handleExit, handleSend };
