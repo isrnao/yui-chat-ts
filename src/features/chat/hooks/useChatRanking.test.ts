@@ -43,7 +43,7 @@ describe('useChatRanking', () => {
 
     const { result } = renderHook(() => useChatRanking(chatLog));
     expect(result.current).toHaveLength(1);
-    expect(result.current[0]).toEqual({
+    expect(result.current[0]).toMatchObject({
       name: 'User2',
       count: 1,
       lastTime: 300,
@@ -96,8 +96,8 @@ describe('useChatRanking', () => {
     const user1 = result.current.find((r) => r.name === 'User1');
     const user2 = result.current.find((r) => r.name === 'User2');
 
-    expect(user1).toEqual({ name: 'User1', count: 3, lastTime: 400 });
-    expect(user2).toEqual({ name: 'User2', count: 1, lastTime: 200 });
+    expect(user1).toMatchObject({ name: 'User1', count: 3, lastTime: 400 });
+    expect(user2).toMatchObject({ name: 'User2', count: 1, lastTime: 200 });
   });
 
   it('should sort by count descending, then by lastTime descending', () => {
@@ -153,9 +153,9 @@ describe('useChatRanking', () => {
     expect(result.current).toHaveLength(3);
 
     // User3とUser2は同じcount(2)だが、User3のlastTime(500) > User2のlastTime(300)なのでUser3が先
-    expect(result.current[0]).toEqual({ name: 'User3', count: 2, lastTime: 500 });
-    expect(result.current[1]).toEqual({ name: 'User2', count: 2, lastTime: 300 });
-    expect(result.current[2]).toEqual({ name: 'User1', count: 1, lastTime: 100 });
+    expect(result.current[0]).toMatchObject({ name: 'User3', count: 2, lastTime: 500 });
+    expect(result.current[1]).toMatchObject({ name: 'User2', count: 2, lastTime: 300 });
+    expect(result.current[2]).toMatchObject({ name: 'User1', count: 1, lastTime: 100 });
   });
 
   it('should update ranking when chat log changes', () => {
@@ -176,7 +176,7 @@ describe('useChatRanking', () => {
     });
 
     expect(result.current).toHaveLength(1);
-    expect(result.current[0]).toEqual({ name: 'User1', count: 1, lastTime: 100 });
+    expect(result.current[0]).toMatchObject({ name: 'User1', count: 1, lastTime: 100 });
 
     const updatedChatLog: Chat[] = [
       ...initialChatLog,
@@ -202,8 +202,8 @@ describe('useChatRanking', () => {
 
     rerender({ chatLog: updatedChatLog });
     expect(result.current).toHaveLength(2);
-    expect(result.current[0]).toEqual({ name: 'User2', count: 2, lastTime: 300 });
-    expect(result.current[1]).toEqual({ name: 'User1', count: 1, lastTime: 100 });
+    expect(result.current[0]).toMatchObject({ name: 'User2', count: 2, lastTime: 300 });
+    expect(result.current[1]).toMatchObject({ name: 'User1', count: 1, lastTime: 100 });
   });
 
   it('should handle users with same count and same lastTime', () => {
@@ -268,7 +268,7 @@ describe('useChatRanking', () => {
 
     const { result } = renderHook(() => useChatRanking(chatLog));
     expect(result.current).toHaveLength(1);
-    expect(result.current[0]).toEqual({ name: 'User1', count: 3, lastTime: 200 });
+    expect(result.current[0]).toMatchObject({ name: 'User1', count: 3, lastTime: 200 });
   });
 
   it('should handle empty names correctly', () => {
@@ -313,7 +313,7 @@ describe('useChatRanking', () => {
 
     const { result } = renderHook(() => useChatRanking(chatLog));
     expect(result.current).toHaveLength(1);
-    expect(result.current[0]).toEqual({ name: 'ValidUser', count: 1, lastTime: 400 });
+    expect(result.current[0]).toMatchObject({ name: 'ValidUser', count: 1, lastTime: 400 });
   });
 
   it('should handle mixed system and regular messages', () => {
@@ -360,8 +360,8 @@ describe('useChatRanking', () => {
 
     const { result } = renderHook(() => useChatRanking(chatLog));
     expect(result.current).toHaveLength(2);
-    expect(result.current[0]).toEqual({ name: 'User1', count: 2, lastTime: 300 });
-    expect(result.current[1]).toEqual({ name: 'User2', count: 1, lastTime: 400 });
+    expect(result.current[0]).toMatchObject({ name: 'User1', count: 2, lastTime: 300 });
+    expect(result.current[1]).toMatchObject({ name: 'User2', count: 1, lastTime: 400 });
   });
 
   it('should handle very large chat logs efficiently', () => {
@@ -415,5 +415,38 @@ describe('useChatRanking', () => {
     rerender({ chatLog });
 
     expect(result.current).toEqual(firstResult);
+  });
+
+  it('名前の色とホスト情報は最終発言のものを採用する', () => {
+    const chatLog: Chat[] = [
+      {
+        uuid: '1',
+        name: 'User1',
+        color: '#ff0000',
+        message: 'old',
+        time: 100,
+        ip_masked: '203.*.*.9',
+        ua: '',
+      },
+      {
+        uuid: '2',
+        name: 'User1',
+        color: '#0000ff',
+        message: 'new',
+        time: 200,
+        ip_masked: '133.*.*.214',
+        ua: '',
+      },
+    ];
+
+    const { result } = renderHook(() => useChatRanking(chatLog));
+
+    expect(result.current[0]).toMatchObject({
+      name: 'User1',
+      count: 2,
+      lastTime: 200,
+      color: '#0000ff',
+      host: '133.*.*.214',
+    });
   });
 });

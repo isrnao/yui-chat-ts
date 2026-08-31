@@ -32,12 +32,12 @@ describe('ChatRoute のランキング切り替え', () => {
     await enterRoom();
 
     fireEvent.click(screen.getByText('[ランキング]'));
-    expect(await screen.findByText('発言らんきんぐ')).toBeInTheDocument();
+    expect(await screen.findByText(/の発言ランキング$/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '更新' }));
 
     await waitFor(() => {
-      expect(screen.queryByText('発言らんきんぐ')).not.toBeInTheDocument();
+      expect(screen.queryByText(/の発言ランキング$/)).not.toBeInTheDocument();
     });
   });
 
@@ -45,7 +45,7 @@ describe('ChatRoute のランキング切り替え', () => {
     await enterRoom();
 
     fireEvent.click(screen.getByText('[ランキング]'));
-    expect(await screen.findByText('発言らんきんぐ')).toBeInTheDocument();
+    expect(await screen.findByText(/の発言ランキング$/)).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('textbox', { name: '発言' }), {
       target: { value: 'こんにちは' },
@@ -53,7 +53,7 @@ describe('ChatRoute のランキング切り替え', () => {
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
 
     await waitFor(() => {
-      expect(screen.queryByText('発言らんきんぐ')).not.toBeInTheDocument();
+      expect(screen.queryByText(/の発言ランキング$/)).not.toBeInTheDocument();
     });
   });
 
@@ -62,12 +62,12 @@ describe('ChatRoute のランキング切り替え', () => {
     await enterRoom();
 
     fireEvent.click(screen.getByText('[ランキング]'));
-    expect(await screen.findByText('発言らんきんぐ')).toBeInTheDocument();
+    expect(await screen.findByText(/の発言ランキング$/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
 
     await waitFor(() => {
-      expect(screen.queryByText('発言らんきんぐ')).not.toBeInTheDocument();
+      expect(screen.queryByText(/の発言ランキング$/)).not.toBeInTheDocument();
     });
   });
 });

@@ -4,55 +4,81 @@ import type { Chat } from '@features/chat/types';
 
 type Props = {
   chatLog: Chat[];
+  /** 見出しに出す部屋名。レガシーは「〇〇チャットの発言ランキング」だった */
+  roomTitle?: string;
+  /** 部屋名リンクの遷移先。レガシーではここがチャット本体へ戻る導線だった */
+  onBackToChat?: () => void;
 };
 
-export default function ChatRanking({ chatLog }: Props) {
+/**
+ * 発言ランキング（レガシー再現）。
+ *
+ * 当時のマークアップは枠線もクラスも持たない素の table で、見た目はブラウザ既定の
+ * テーブル描画そのものだった。chatgreen.css が持っていたのは次の3点だけ。
+ *   body   : background #C1FC92
+ *   a      : color #060 / underline
+ *   .rankingname font : display block / width 16em / height 1em / overflow hidden
+ * Tailwind の preflight が見出し・テーブル・hr の既定値を打ち消すため、
+ * ここでは当時のブラウザ既定値を明示的に戻している。
+ */
+export default function ChatRanking({ chatLog, roomTitle, onBackToChat }: Props) {
   const ranking = useChatRanking(chatLog);
 
   return (
-    <div className="mt-4 w-full mx-auto text-[#444]">
-      <div className="mb-2 text-sm font-bold">発言らんきんぐ</div>
+    <div className="font-yui text-[13px] text-black">
+      <h3 className="my-[1em] text-[1.17em] font-bold">
+        {roomTitle &&
+          (onBackToChat ? (
+            <button type="button" className="text-[#060] underline" onClick={onBackToChat}>
+              {roomTitle}
+            </button>
+          ) : (
+            roomTitle
+          ))}
+        の発言ランキング
+      </h3>
+
+      <hr className="my-[0.5em] [border-style:inset] [border-width:1px]" />
+
       <div className="overflow-x-auto">
-        <table className="w-full text-sm font-yui">
+        <table className="border-separate border-spacing-[2px]">
           <thead>
-            <tr className="text-[#444]">
-              <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">
-                おなまえ
-              </th>
-              <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">
-                発言回数
-              </th>
-              <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">
-                最終発言時刻
-              </th>
-              <th className="py-1 px-2 font-bold whitespace-nowrap border-b border-[#d2b48c]">
-                ホスト情報
-              </th>
+            <tr>
+              <th className="whitespace-nowrap p-px text-center font-bold">おなまえ</th>
+              <th className="whitespace-nowrap p-px text-center font-bold">発言回数</th>
+              <th className="whitespace-nowrap p-px text-center font-bold">最終発言時刻</th>
+              <th className="whitespace-nowrap p-px text-center font-bold">ホスト情報</th>
             </tr>
           </thead>
           <tbody>
             {ranking.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-gray-400 py-2">
+                <td className="p-px text-left" colSpan={4}>
                   データなし
                 </td>
               </tr>
             )}
-            {ranking.map(({ name, count, lastTime }) => (
+            {ranking.map(({ name, count, lastTime, color, host }) => (
               <tr key={name}>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">{name}</td>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">{count}</td>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
-                  {formatCountTime(lastTime)}
+                <td className="p-px text-left">
+                  {/* td.rankingname font { display:block; width:16em; height:1em; overflow:hidden } */}
+                  <span
+                    className="block h-[1em] w-[16em] overflow-hidden font-bold"
+                    style={{ color }}
+                  >
+                    {name}
+                  </span>
                 </td>
-                <td className="py-1 px-2 border-b border-[#e9d7ba] text-center">
-                  {/* ホスト情報は必要に応じて追加 */}
-                </td>
+                <td className="p-px text-left">{count}</td>
+                <td className="p-px text-left">{formatCountTime(lastTime)}</td>
+                <td className="p-px text-left">{host}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <hr className="my-[0.5em] [border-style:inset] [border-width:1px]" />
     </div>
   );
 }
