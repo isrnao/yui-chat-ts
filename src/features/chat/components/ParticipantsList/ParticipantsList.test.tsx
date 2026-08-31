@@ -47,4 +47,13 @@ describe('ParticipantsList', () => {
     const timeElement = screen.getByText(/\[TIME\(/);
     expect(timeElement).toBeInTheDocument();
   });
+
+  it('現在時刻は視覚回帰テストの比較対象から外す', () => {
+    const { container } = render(<ParticipantsList participants={[]} />);
+
+    // Chromatic が毎回差分として拾わないよう data-chromatic="ignore" を付けている
+    const clock = container.querySelector('[data-chromatic="ignore"]');
+    expect(clock).toBeInTheDocument();
+    expect(clock?.textContent).toMatch(/^\[.+\]$/);
+  });
 });

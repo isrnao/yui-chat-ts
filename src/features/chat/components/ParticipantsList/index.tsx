@@ -12,7 +12,11 @@ export default function ParticipantsList({ participants }: Props) {
 
   return (
     <div className="text-xs mb-2 flex flex-wrap gap-x-2 items-center">
-      <span className="text-xs text-gray-500 mr-2">[{formattedTime}]</span>
+      {/* 現在時刻は毎分変わるため、視覚回帰テスト（Chromatic）では比較対象から外す。
+          表示は常に "HH:MM" の5文字で幅が変わらないので、周囲のレイアウト差分は従来どおり検出される。 */}
+      <span data-chromatic="ignore" className="text-xs text-gray-500 mr-2">
+        [{formattedTime}]
+      </span>
       <span className="text-xs">参加者({participants.length}):</span>
       {participants.length === 0 ? (
         <b className="text-xs">（なし）</b>
