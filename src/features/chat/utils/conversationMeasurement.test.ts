@@ -184,6 +184,8 @@ describe('createConversationMeasurement', () => {
 
     expect(calls.some(([name]) => name === 'conversation_activated')).toBe(false);
   });
+
+  it('does not track replies after exit', () => {
     const { calls, measurement, setTime } = setup();
 
     measurement.onJoinStarted('superbeginner');
