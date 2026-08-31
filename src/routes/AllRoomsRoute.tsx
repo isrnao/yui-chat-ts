@@ -56,6 +56,7 @@ export default function AllRoomsRoute() {
     color,
     email,
     avatar,
+    chatLog,
     setEntered,
     setChatLog,
     setName,
