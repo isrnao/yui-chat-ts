@@ -36,6 +36,12 @@ function pagingKey(roomId: RoomId, limit: number, reloadToken: number): string {
 /**
  * `useResetOnChange` 等で windowRows / reloadToken が変わると新しい key で再 fetch される。
  * 古い key の entry はメモリリークを防ぐため同 prefix を一掃する。
+ *
+ * `reloadToken > 0`（= 利用者が明示的に再読込した）ときは、chatLogResource の
+ * 5 分 TTL キャッシュを迂回して実際にネットワークから取り直す。キャッシュ付きのままだと
+ * 「再読込」を押しても最大 5 分間は同じ snapshot が返り、その間に他ユーザーが発言していても
+ * 反映されなかった。preload 側の promise も捨てて、次のマウントで古い snapshot を
+ * 返さないようにする。
  */
 export function fetchInitialChatLogPage(
   roomId: RoomId,
@@ -51,12 +57,18 @@ export function fetchInitialChatLogPage(
         pagingCache.delete(k);
       }
     }
-    promise = getPreloadPromise(roomId)
-      .then(() => loadChatLogsWithPaging(roomId, limit, 0, true))
-      .catch(() => {
-        pagingCache.delete(key);
-        return { data: [] as Chat[], hasMore: false };
-      });
+    const onError = () => {
+      pagingCache.delete(key);
+      return { data: [] as Chat[], hasMore: false };
+    };
+    if (reloadToken === 0) {
+      promise = getPreloadPromise(roomId)
+        .then(() => loadChatLogsWithPaging(roomId, limit, 0, true))
+        .catch(onError);
+    } else {
+      preloadCache.delete(roomId);
+      promise = loadChatLogsWithPaging(roomId, limit, 0, false).catch(onError);
+    }
     pagingCache.set(key, promise);
   }
   return promise;
