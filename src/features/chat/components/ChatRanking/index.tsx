@@ -61,9 +61,12 @@ export default function ChatRanking({ chatLog, roomTitle, onBackToChat }: Props)
             {ranking.map(({ name, count, lastTime, color, host }) => (
               <tr key={name}>
                 <td className="p-px text-left">
-                  {/* td.rankingname font { display:block; width:16em; height:1em; overflow:hidden } */}
+                  {/* 当時は td.rankingname font { display:block; width:16em; height:1em; overflow:hidden }。
+                      長い名前でレイアウトを崩さないための1行クリップだが、height:1em をそのまま
+                      持ち込むと DotGothic16 では字面が収まらず下が切れる。意図（16em で1行に
+                      収める）はそのままに、縦のクリップは nowrap に置き換えている。 */}
                   <span
-                    className="block h-[1em] w-[16em] overflow-hidden font-bold"
+                    className="block w-[16em] overflow-hidden whitespace-nowrap font-bold"
                     style={{ color }}
                   >
                     {name}
