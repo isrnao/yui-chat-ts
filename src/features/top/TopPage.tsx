@@ -1,6 +1,13 @@
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import { buildAbsoluteUrl } from '@shared/utils/seo';
-import { Footer, Header, LeftColumn, MainColumn, RightColumn } from './components';
+import {
+  CommunitySection,
+  Footer,
+  Header,
+  LeftColumn,
+  MainColumn,
+  RightColumn,
+} from './components';
 import { useRoomCounts } from './hooks/useRoomCounts';
 
 export default function TopPage() {
@@ -36,6 +43,7 @@ export default function TopPage() {
           <MainColumn liveCounts={liveCounts} />
           <RightColumn />
         </div>
+        <CommunitySection />
       </main>
       <Footer />
     </div>

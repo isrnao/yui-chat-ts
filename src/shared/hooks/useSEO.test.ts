@@ -133,7 +133,7 @@ describe('useSEO', () => {
     });
 
     it('noindex 未指定では robots meta が index, follow に戻る (残留しない)', () => {
-      // Props を明示しないと initialProps から { noindex: boolean } に狭く推論され、
+      // Props を明示しないと initialProps から `{ noindex: boolean }` に狭く推論され、
       // 別のキーで rerender できなくなる
       const { rerender } = renderHook<void, { options: UseSEOOptions }>(
         ({ options }) => useSEO(options),
