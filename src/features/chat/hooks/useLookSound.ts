@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { onLookBroadcast } from '@features/chat/api/chatApi';
 import {
   playNotificationSound,
@@ -37,10 +37,10 @@ export function useLookSound(roomId: RoomId): {
   }, [roomId]);
 
   // ユーザーインタラクションで AudioContext を有効化する
-  const enableAudio = useCallback(async () => {
+  const enableAudio = async () => {
     await unlockAudio();
     setIsAudioEnabled(isAudioUnlocked());
-  }, []);
+  };
 
   return { isAudioEnabled, enableAudio };
 }

@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import type { Chat } from '@features/chat/types';
 
 export type RankingEntry = {
@@ -11,28 +10,27 @@ export type RankingEntry = {
   host: string;
 };
 
+// メモ化は React Compiler に任せる（手動の useMemo は不要）
 export function useChatRanking(chatLog: Chat[]): RankingEntry[] {
-  return useMemo(() => {
-    const map = new Map<string, RankingEntry>();
-    chatLog.forEach((c) => {
-      if (!c.system && c.name) {
-        const rec = map.get(c.name) ?? {
-          name: c.name,
-          count: 0,
-          lastTime: 0,
-          color: c.color,
-          host: c.ip_masked,
-        };
-        rec.count += 1;
-        // 色とホストは最終発言のものを採用する
-        if (c.time >= rec.lastTime) {
-          rec.lastTime = c.time;
-          rec.color = c.color;
-          rec.host = c.ip_masked;
-        }
-        map.set(c.name, rec);
+  const map = new Map<string, RankingEntry>();
+  chatLog.forEach((c) => {
+    if (!c.system && c.name) {
+      const rec = map.get(c.name) ?? {
+        name: c.name,
+        count: 0,
+        lastTime: 0,
+        color: c.color,
+        host: c.ip_masked,
+      };
+      rec.count += 1;
+      // 色とホストは最終発言のものを採用する
+      if (c.time >= rec.lastTime) {
+        rec.lastTime = c.time;
+        rec.color = c.color;
+        rec.host = c.ip_masked;
       }
-    });
-    return Array.from(map.values()).sort((a, b) => b.count - a.count || b.lastTime - a.lastTime);
-  }, [chatLog]);
+      map.set(c.name, rec);
+    }
+  });
+  return Array.from(map.values()).sort((a, b) => b.count - a.count || b.lastTime - a.lastTime);
 }
