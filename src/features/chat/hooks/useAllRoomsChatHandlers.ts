@@ -76,7 +76,6 @@ export function useAllRoomsChatHandlers({
     }: {
       name: string;
       color: string;
-      email?: string;
       silent?: boolean;
     }) => {
       measurement.onJoinStarted('all');
