@@ -2,11 +2,9 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import { fn } from 'storybook/test';
 import ChatRoom, { type ChatRoomProps } from './index';
-import { sampleChatLog } from '../../../../storybook/mocks/chatSamples';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 function ChatRoomContainer({
-  chatLog: initialChatLog = sampleChatLog,
   windowRows: initialWindowRows = 30,
   onExit,
   onSend,
@@ -14,12 +12,10 @@ function ChatRoomContainer({
   onShowRanking,
 }: Partial<ChatRoomProps>) {
   const [message, setMessage] = useState('');
-  const [chatLog, setChatLog] = useState(initialChatLog);
   const [windowRows, setWindowRows] = useState(initialWindowRows);
 
   // Storybook controls で initial 値が変わったら state を巻き戻す
   // (useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン)
-  useResetOnChange(initialChatLog, setChatLog);
   useResetOnChange(initialWindowRows, setWindowRows);
 
   return (
@@ -27,33 +23,13 @@ function ChatRoomContainer({
       <ChatRoom
         message={message}
         setMessage={setMessage}
-        chatLog={chatLog}
         windowRows={windowRows}
         setWindowRows={setWindowRows}
         onExit={onExit ?? fn()}
         onShowRanking={onShowRanking ?? fn()}
-        onReload={() => {
-          onReload?.();
-          setChatLog(sampleChatLog);
-        }}
+        onReload={() => onReload?.()}
         onSend={async (value) => {
           await (onSend?.(value) ?? Promise.resolve());
-          setChatLog((prev) => [
-            {
-              uuid: `local-${Date.now()}`,
-              name: 'あなた',
-              color: '#f97316',
-              message: value,
-              time: Date.now(),
-              client_time: Date.now(),
-              optimistic: false,
-              system: false,
-              email: '',
-              ip_masked: '127.0.0.1',
-              ua: 'Storybook',
-            },
-            ...prev,
-          ]);
         }}
       />
     </div>
@@ -84,7 +60,6 @@ export const Default: Story = {
   args: {
     message: '',
     setMessage: noopStringDispatch,
-    chatLog: sampleChatLog,
     windowRows: 30,
     setWindowRows: noopNumberDispatch,
     onExit: fn(),
@@ -99,7 +74,6 @@ export const LongerWindow: Story = {
   args: {
     message: '',
     setMessage: noopStringDispatch,
-    chatLog: sampleChatLog,
     windowRows: 100,
     setWindowRows: noopNumberDispatch,
     onExit: fn(),
