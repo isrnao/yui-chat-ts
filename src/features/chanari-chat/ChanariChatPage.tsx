@@ -1,5 +1,4 @@
-import { useId, useRef, useState, lazy, Suspense } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useState, lazy, Suspense } from 'react';
 import type { RoomId } from '@features/chat/rooms';
 import { getRoomMeta } from '@features/chat/rooms';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
@@ -34,15 +33,12 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   });
   usePageView(pageTitle);
 
-  const myId = useId();
-
   const measurement = useConversationMeasurement();
   const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
     roomId,
     measurement.onRealtimeChat
   );
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  useLookSound(channelRef, roomId);
+  useLookSound(roomId);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
   const [entered, setEntered] = useState(false);
@@ -58,8 +54,6 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     name,
     color: nameColor,
     email: '',
-    myId,
-    entered,
     setEntered,
     setChatLog,
     setShowRanking: () => {},
@@ -113,7 +107,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 sid=""
                 onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
                   updateSettings({ name: n, nameColor: nc, speechColor: sc });
-                  await handleEnter({ name: n, color: nc, email: '', silent: false });
+                  await handleEnter({ name: n, color: nc, silent: false });
                 }}
               />
             )}

@@ -35,8 +35,6 @@ function setup() {
     name: 'ゆい',
     color: '#ff69b4',
     email: '',
-    myId: 'me',
-    entered: true,
     setEntered: vi.fn(),
     setChatLog: vi.fn(),
     setShowRanking,
