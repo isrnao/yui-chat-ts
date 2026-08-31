@@ -9,7 +9,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
-import type { Chat, ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
+import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
@@ -17,7 +17,6 @@ import Input from '@shared/components/Input';
 export type ChatRoomProps = {
   message: string;
   setMessage: Dispatch<SetStateAction<string>>;
-  chatLog: Chat[];
   windowRows: number;
   setWindowRows: Dispatch<SetStateAction<number>>;
   onExit: () => void;
@@ -43,7 +42,6 @@ export type ChatRoomProps = {
 export default function ChatRoom({
   message,
   setMessage,
-  chatLog,
   windowRows,
   setWindowRows,
   onExit,
@@ -101,9 +99,21 @@ export default function ChatRoom({
     ''
   );
 
+  // 送信アクションが完了したときだけ入力欄へフォーカスを戻す。
+  // 以前は依存に chatLog が入っていたため、他人の発言が Realtime で届くたびに
+  // フォーカスが奪われていた (モバイルではキーボードが勝手に再表示される)。
+  // DOM のフォーカスは React 外部との同期なので Effect が正当な置き場所であり、
+  // onSend 内で直接 focus すると input がまだ disabled のことがあるため使わない。
+  const wasPendingRef = useRef(false);
   useEffect(() => {
-    if (!isPending && inputRef.current) inputRef.current.focus();
-  }, [chatLog, isPending]);
+    if (isPending) {
+      wasPendingRef.current = true;
+      return;
+    }
+    if (!wasPendingRef.current) return;
+    wasPendingRef.current = false;
+    inputRef.current?.focus();
+  }, [isPending]);
 
   const handleClear = () => {
     // レガシーの「消す」は自分の発言を消すコマンド → clear を送信

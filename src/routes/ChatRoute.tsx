@@ -74,7 +74,6 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
             <ChatRoom
               message={message}
               setMessage={setMessage}
-              chatLog={chatLog}
               windowRows={windowRows}
               setWindowRows={setWindowRows}
               onExit={handleExit}
