@@ -24,8 +24,9 @@ type Props = {
 export default function ChatRanking({ chatLog, roomTitle, onBackToChat }: Props) {
   const ranking = useChatRanking(chatLog);
 
+  // 当時のページは font-size を指定しておらず、ブラウザ既定（16px）で描画されていた
   return (
-    <div className="font-yui text-[13px] text-black">
+    <div className="font-yui text-black">
       <h3 className="my-[1em] text-[1.17em] font-bold">
         {roomTitle &&
           (onBackToChat ? (
