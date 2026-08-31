@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useOptimistic } from 'react';
 import { loadChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
+import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
@@ -54,47 +55,60 @@ export function useChatLog(
 ) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // 「更新」ごとにインクリメントして取得 effect を再実行させる
+  const [reloadKey, setReloadKey] = useState(0);
 
   // roomId 変更時は reload 開始状態へ巻き戻す (useResetOnChange = 公式推奨「前回値検知」パターン)
   useResetOnChange(roomId, () => {
     setChatLog([]);
     setIsLoading(true);
+    setReloadKey(0);
   });
 
-  const mergeChat = useCallback(
-    (chat: Chat) => {
-      setChatLog((prev) => {
-        const idx = prev.findIndex((c) => c.uuid === chat.uuid);
-        if (idx !== -1) {
-          const next = [...prev];
-          next[idx] = chat;
-          return next.slice(0, 2000);
-        }
-        return [chat, ...prev].slice(0, 2000);
-      });
-    },
-    [setChatLog]
-  );
+  const mergeChat = useCallback((chat: Chat) => {
+    setChatLog((prev) => mergeChatLogByUuid(prev, chat));
+  }, []);
+
+  /**
+   * 明示的な再読み込み。TTL キャッシュを迂回してサーバーから取り直す。
+   * 他ユーザーの発言は Realtime でしか届かず resource キャッシュには反映されないため、
+   * キャッシュ付きで取り直すと直近の発言がログから消えてしまう。
+   */
+  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
   useEffect(() => {
     let ignore = false;
-    loadChatLogs(roomId)
-      .then((logs) => {
-        if (!ignore) setChatLog(logs);
-      })
-      .finally(() => {
-        if (!ignore) setIsLoading(false);
-      });
+    // 取得中に Realtime で届いた発言を退避する。取得結果でそのまま置換すると、
+    // 先着した新着発言が消えてしまうため。
+    let loading = true;
+    const arrivedDuringLoad: Chat[] = [];
+
+    // 取りこぼしを防ぐため購読を先に張る
     const channel = subscribeChatLogs(roomId, (chat) => {
       onRealtimeChat?.(chat);
+      if (loading) arrivedDuringLoad.push(chat);
       mergeChat(chat);
     });
+
+    loadChatLogs(roomId, reloadKey === 0)
+      .then((logs) => {
+        if (ignore) return;
+        // 取得結果を canonical としつつ、取得中に届いた発言は落とさない
+        setChatLog(mergeChatLogByUuid(logs, arrivedDuringLoad));
+      })
+      .finally(() => {
+        loading = false;
+        if (!ignore) setIsLoading(false);
+      });
+
     return () => {
       ignore = true;
+      loading = false;
       channel.unsubscribe();
     };
-  }, [mergeChat, onRealtimeChat, roomId]);
+  }, [mergeChat, onRealtimeChat, roomId, reloadKey]);
 
   return {
     chatLog: optimisticLog,
@@ -102,5 +116,6 @@ export function useChatLog(
     setChatLog,
     addOptimistic,
     mergeChat,
+    reload,
   };
 }
