@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import ChatLogPage from './ChatLogPage';
 import type { Chat } from '@features/chat/types';
 
-const { mockChat, makeFulfilledPromise } = vi.hoisted(() => ({
+const { mockChat, makeFulfilledPromise, makeRejectedPromise } = vi.hoisted(() => ({
   mockChat: {
     uuid: 'chat-1',
     room_id: 'superbeginner',
@@ -21,6 +21,14 @@ const { mockChat, makeFulfilledPromise } = vi.hoisted(() => ({
     const p = Promise.resolve(value) as Promise<T> & { status?: string; value?: T };
     p.status = 'fulfilled';
     p.value = value;
+    return p;
+  },
+  makeRejectedPromise: <T,>(reason: Error): Promise<T> => {
+    const p = Promise.reject(reason) as Promise<T> & { status?: string; reason?: Error };
+    // 未処理 rejection の警告を出さないためのダミーハンドラ（元の promise は reject のまま）
+    p.catch(() => {});
+    p.status = 'rejected';
+    p.reason = reason;
     return p;
   },
 }));
@@ -59,5 +67,23 @@ describe('ChatLogPage Component', () => {
     // pre-tagged 'fulfilled' promise なので Suspense fallback は出ず、同期で本体描画
     expect(screen.getByTestId('chat-log-list')).toBeInTheDocument();
     expect(screen.getByText(/ChatLogLength: 1/)).toBeInTheDocument();
+  });
+
+  // 取得失敗を空配列へ変換していた頃は「エラー」と「発言 0 件」が区別できず、
+  // ErrorBoundary も機能していなかった
+  test('取得に失敗したらエラー表示と再読込ボタンを出す', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { fetchInitialChatLogPage } = await import('@features/chat/hooks/usePreloadChatLogs');
+    vi.mocked(fetchInitialChatLogPage).mockReturnValue(
+      makeRejectedPromise(new Error('network down'))
+    );
+
+    render(<ChatLogPage />);
+
+    expect(screen.getByText('チャットログの読み込みに失敗しました。')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument();
+    expect(screen.queryByTestId('chat-log-list')).not.toBeInTheDocument();
+
+    consoleError.mockRestore();
   });
 });

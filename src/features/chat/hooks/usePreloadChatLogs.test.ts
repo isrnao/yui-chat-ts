@@ -35,6 +35,8 @@ describe('usePreloadChatLogs resource cache', () => {
     vi.clearAllMocks();
   });
 
+  // 失敗は空配列へ変換せず reject を伝播させる（ErrorBoundary で扱えるようにするため）。
+  // 失敗した promise はキャッシュから外れるので次の呼び出しで再試行できる。
   it('removes failed preload entries so the next call can retry', async () => {
     loadInitialChatLogs
       .mockRejectedValueOnce(new Error('temporary failure'))
@@ -42,7 +44,7 @@ describe('usePreloadChatLogs resource cache', () => {
 
     const { usePreloadChatLogs } = await importSubject();
 
-    await expect(usePreloadChatLogs('superbeginner')).resolves.toEqual([]);
+    await expect(usePreloadChatLogs('superbeginner')).rejects.toThrow('temporary failure');
     await expect(usePreloadChatLogs('superbeginner')).resolves.toEqual([sampleChat]);
 
     expect(loadInitialChatLogs).toHaveBeenCalledTimes(2);
@@ -56,10 +58,9 @@ describe('usePreloadChatLogs resource cache', () => {
 
     const { fetchInitialChatLogPage } = await importSubject();
 
-    await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).resolves.toEqual({
-      data: [],
-      hasMore: false,
-    });
+    await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).rejects.toThrow(
+      'temporary failure'
+    );
     await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).resolves.toEqual({
       data: [sampleChat],
       hasMore: false,
