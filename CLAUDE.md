@@ -26,6 +26,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Tests include coverage reporting with 70% minimum threshold
 - Test files are located alongside source files (e.g., `Component.test.tsx`)
 
+## React Compiler
+
+React Compiler 1.0 is **enabled** for the app build and for tests. It is wired up in
+`vite.config.ts` per the official Vite instructions — `@vitejs/plugin-react` v6 no longer takes a
+`babel` option, so the compiler runs through `@rolldown/plugin-babel` with `reactCompilerPreset()`
+(`@babel/core` is a required peer dependency of that plugin):
+
+```ts
+plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
+```
+
+The compiler rules ship with `eslint-plugin-react-hooks` v7 and are already active through
+`reactHooks.configs.recommended` in `eslint.config.js`.
+
+Existing manual memoization (`useCallback` / `useMemo` / `memo`) is **intentionally left in place**
+for now: the official guidance is not to strip it all at once right after enabling the compiler.
+Remove it incrementally, verifying with tests and the Profiler. Do not add _new_ manual
+memoization — let the compiler handle it.
+
 ## Architecture Overview
 
 ### Project Structure
