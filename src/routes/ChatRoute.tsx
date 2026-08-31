@@ -113,14 +113,14 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
             </Suspense>
           ) : (
-            <div className="relative px-[var(--page-gap)] pb-[var(--page-gap)]">
-              <button
-                className="absolute right-0 top-0 px-2 py-1 text-xs text-blue-700 underline"
-                onClick={() => setShowRanking(false)}
-              >
-                戻る
-              </button>
-              <ChatRanking chatLog={chatLog} />
+            <div className="px-[var(--page-gap)] pb-[var(--page-gap)]">
+              {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
+                  （更新・発言ボタンからもチャット表示に戻れる） */}
+              <ChatRanking
+                chatLog={chatLog}
+                roomTitle={room.title}
+                onBackToChat={() => setShowRanking(false)}
+              />
             </div>
           )
         }
