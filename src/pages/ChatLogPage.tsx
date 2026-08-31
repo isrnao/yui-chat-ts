@@ -3,6 +3,7 @@ import ChatLogList from '@features/chat/components/ChatLogList';
 import { loadChatLogsWithPaging } from '@features/chat/api/chatApi';
 import { fetchInitialChatLogPage } from '@features/chat/hooks/usePreloadChatLogs';
 import Button from '@shared/components/Button';
+import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { usePageView } from '@shared/hooks/useSEO';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID } from '@features/chat/rooms';
@@ -38,14 +39,24 @@ export default function ChatLogPage() {
           再読込
         </Button>
       </div>
-      <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
-        {/* key で remount → 内側 use() が新 promise を待つ = 自然な再 fetch + fallback 再表示 */}
-        <ChatLogContent
-          key={`${windowRows}-${reloadKey}`}
-          windowRows={windowRows}
-          reloadKey={reloadKey}
-        />
-      </Suspense>
+      {/* ErrorBoundary にも同じ key を与えることで、再読込のたびに境界ごと remount され
+          hasError がリセットされる = 失敗後もリトライできる */}
+      <ErrorBoundary
+        key={`${windowRows}-${reloadKey}`}
+        fallback={
+          <div className="mt-8 flex flex-col items-center gap-2 font-yui">
+            <div className="text-red-600 text-sm">チャットログの読み込みに失敗しました。</div>
+            <Button type="button" onClick={handleRefresh}>
+              再試行
+            </Button>
+          </div>
+        }
+      >
+        <Suspense fallback={<div className="text-gray-400 mt-8">チャットログを読み込み中...</div>}>
+          {/* key で remount → 内側 use() が新 promise を待つ = 自然な再 fetch + fallback 再表示 */}
+          <ChatLogContent windowRows={windowRows} reloadKey={reloadKey} />
+        </Suspense>
+      </ErrorBoundary>
     </main>
   );
 }

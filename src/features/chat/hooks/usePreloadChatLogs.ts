@@ -11,6 +11,9 @@ import type { RoomId } from '@features/chat/rooms';
  * - consumer は `React.use(...)` で Suspense 境界から読み出す前提。
  * - render 中 I/O 発火 (Copilot PR #54 review #3) を解消するため、`useMemo` ベース
  *   実装からの置き換え。
+ * - 取得失敗は握りつぶさず reject を伝播させる。空配列へ変換していた頃は
+ *   ErrorBoundary が機能せず、「エラー」と「発言が 0 件」を区別できなかった。
+ *   失敗した promise はキャッシュから外すので、再マウント / 再読込で再試行できる。
  */
 
 const preloadCache = new Map<RoomId, Promise<Chat[]>>();
@@ -18,9 +21,9 @@ const preloadCache = new Map<RoomId, Promise<Chat[]>>();
 function getPreloadPromise(roomId: RoomId): Promise<Chat[]> {
   let promise = preloadCache.get(roomId);
   if (promise == null) {
-    promise = loadInitialChatLogs(roomId, 100).catch(() => {
+    promise = loadInitialChatLogs(roomId, 100).catch((error: unknown): never => {
       preloadCache.delete(roomId);
-      return [] as Chat[];
+      throw error;
     });
     preloadCache.set(roomId, promise);
   }
@@ -57,9 +60,9 @@ export function fetchInitialChatLogPage(
         pagingCache.delete(k);
       }
     }
-    const onError = () => {
+    const onError = (error: unknown): never => {
       pagingCache.delete(key);
-      return { data: [] as Chat[], hasMore: false };
+      throw error;
     };
     if (reloadToken === 0) {
       promise = getPreloadPromise(roomId)
