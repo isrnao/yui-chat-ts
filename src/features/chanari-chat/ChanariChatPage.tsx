@@ -34,7 +34,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   usePageView(pageTitle);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload } = useChatLog(
     roomId,
     measurement.onRealtimeChat
   );
@@ -49,7 +49,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const [windowRows] = useState(30);
   const [reloadSeconds, setReloadSeconds] = useState<number>(DEFAULT_RELOAD_SECONDS);
 
-  const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
+  const { handleEnter, handleExit, handleSend } = useChatHandlers({
     roomId,
     name,
     color: nameColor,
@@ -64,7 +64,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     measurement,
   });
 
-  useReloadInterval(reloadSeconds, handleReload, entered);
+  useReloadInterval(reloadSeconds, reload, entered);
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
@@ -84,7 +84,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 message={message}
                 setMessage={setMessage}
                 onSend={(msg) => handleSend(msg)}
-                onReload={handleReload}
+                onReload={reload}
                 onExit={handleExit}
                 onClearMyLogs={() => handleSend('clear')}
                 nameColor={nameColor}
