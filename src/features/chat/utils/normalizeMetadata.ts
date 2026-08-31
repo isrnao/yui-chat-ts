@@ -14,6 +14,8 @@ import { DEFAULT_ROOM_ID, isRoomId } from '../rooms';
 const FONT_SIZES = new Set<number>([1, 2, 3, 4, 5]);
 const COLOR_SET = new Set<string>(FONT_COLOR_NAMES);
 const AVATAR_SET = new Set<string>(AVATAR_IDS);
+// ChatMetadata['kind'] の union から Set を生成することで、型追加時に必ずここも更新が必要になる
+const VALID_KINDS = new Set<NonNullable<ChatMetadata['kind']>>(['normal', 'fortune', 'admin', 'bot']);
 
 export function isFontSize(value: unknown): value is FontSize {
   return typeof value === 'number' && FONT_SIZES.has(value);
@@ -75,8 +77,8 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.avatar = input.avatar;
     }
 
-    if (input.kind === 'normal' || input.kind === 'fortune' || input.kind === 'admin') {
-      result.kind = input.kind;
+    if (typeof input.kind === 'string' && VALID_KINDS.has(input.kind)) {
+      result.kind = input.kind as ChatMetadata['kind'];
     }
 
     if (typeof input.userColor === 'string') {
