@@ -21,6 +21,15 @@ vi.mock('@features/chat/api/chatApi', () => ({
 
 function setup() {
   const setShowRanking = vi.fn();
+  const measurement = {
+    onJoinStarted: vi.fn(),
+    onJoinFailed: vi.fn(),
+    onEntered: vi.fn(() => 'direct' as const),
+    onOwnMessagePending: vi.fn(),
+    onOwnMessageSaved: vi.fn(),
+    onRealtimeChat: vi.fn(),
+    onExited: vi.fn(),
+  };
   const props = {
     roomId: 'superbeginner' as const,
     name: 'ゆい',
@@ -35,9 +44,10 @@ function setup() {
     setMessage: vi.fn(),
     addOptimistic: vi.fn(),
     mergeChat: vi.fn(),
+    measurement,
   };
   const { result } = renderHook(() => useChatHandlers(props));
-  return { result, setShowRanking, props };
+  return { result, setShowRanking, props, measurement };
 }
 
 describe('useChatHandlers', () => {

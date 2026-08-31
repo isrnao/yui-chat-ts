@@ -15,6 +15,7 @@ import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/setting
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
 
 type TrackedCommand = 'look' | 'unlook' | 'fortune' | 'clear' | 'cut';
 
@@ -40,6 +41,7 @@ export function useChatHandlers({
   setMessage,
   addOptimistic,
   mergeChat,
+  measurement,
 }: {
   roomId: RoomId;
   name: string;
@@ -54,6 +56,7 @@ export function useChatHandlers({
   setMessage: Dispatch<SetStateAction<string>>;
   addOptimistic: (chat: Chat) => void;
   mergeChat: (chat: Chat) => void;
+  measurement: ConversationMeasurement;
 }) {
   const [, startTransition] = useTransition();
   const roomTitle = getRoomMeta(roomId).title;
@@ -70,53 +73,74 @@ export function useChatHandlers({
       email?: string;
       silent?: boolean;
     }) => {
+      measurement.onJoinStarted(roomId);
       const err = validateName(entryName);
-      if (err) throw new Error(err);
+      if (err) {
+        measurement.onJoinFailed(roomId, 'validation');
+        throw new Error(err);
+      }
       setEntered(true);
 
-      // こっそり入室の場合、入室システムメッセージをスキップ
-      if (silent) {
-        trackEvent('chat_enter', { room_id: roomId, room_title: roomTitle });
-        return;
+      try {
+        // こっそり入室の場合、入室システムメッセージをスキップ
+        if (silent) {
+          const entryContext = measurement.onEntered();
+          trackEvent('chat_enter', {
+            room_id: roomId,
+            room_title: roomTitle,
+            entry_context: entryContext,
+          });
+          return;
+        }
+
+        // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
+        const { visitCount, previousLogin } = getSettingsSnapshot();
+
+        const optimistic = createOptimisticChat({
+          room_id: roomId,
+          name: '管理人',
+          color: '#ffffff',
+          message: `${entryName} さん、Welcome to お気楽チャット☆`,
+          client_time: Date.now(),
+          system: true,
+          ip_masked: '',
+          ua: '',
+          metadata: {
+            version: 1,
+            avatar: 'hoshi1',
+            kind: 'admin',
+            userColor: entryColor,
+            fontStyle: { bold: true },
+            visitCount,
+            lastLogin: previousLogin,
+          },
+        });
+
+        startTransition(() => addOptimistic(optimistic));
+
+        // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
+        const savedChat = await saveChatLogOptimistic(roomId, optimistic);
+
+        startTransition(() => mergeChat(savedChat));
+        const entryContext = measurement.onEntered();
+        trackEvent('chat_enter', {
+          room_id: roomId,
+          room_title: roomTitle,
+          entry_context: entryContext,
+        });
+      } catch (error) {
+        setEntered(false);
+        measurement.onJoinFailed(roomId, 'save_error');
+        throw error;
       }
-
-      // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
-      const { visitCount, previousLogin } = getSettingsSnapshot();
-
-      const optimistic = createOptimisticChat({
-        room_id: roomId,
-        name: '管理人',
-        color: '#ffffff',
-        message: `${entryName} さん、Welcome to お気楽チャット☆`,
-        client_time: Date.now(),
-        system: true,
-        ip_masked: '',
-        ua: '',
-        metadata: {
-          version: 1,
-          avatar: 'hoshi1',
-          kind: 'admin',
-          userColor: entryColor,
-          fontStyle: { bold: true },
-          visitCount,
-          lastLogin: previousLogin,
-        },
-      });
-
-      startTransition(() => addOptimistic(optimistic));
-
-      // ip / ua は save-chat Edge Function がリクエストヘッダから確定する
-      const savedChat = await saveChatLogOptimistic(roomId, optimistic);
-
-      startTransition(() => mergeChat(savedChat));
-      trackEvent('chat_enter', { room_id: roomId, room_title: roomTitle });
     },
-    [roomId, roomTitle, setEntered, addOptimistic, mergeChat]
+    [roomId, roomTitle, setEntered, addOptimistic, mergeChat, measurement]
   );
 
   // 退室
   const handleExit = useCallback(async () => {
     trackEvent('chat_exit', { room_id: roomId, room_title: roomTitle });
+    measurement.onExited();
 
     const optimistic = createOptimisticChat({
       room_id: roomId,
@@ -158,6 +182,7 @@ export function useChatHandlers({
     addOptimistic,
     mergeChat,
     roomTitle,
+    measurement,
   ]);
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）
@@ -195,6 +220,8 @@ export function useChatHandlers({
         metadata: metadata ?? undefined,
       });
 
+      if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
+
       startTransition(() => addOptimistic(optimistic));
       setMessage('');
       setShowRanking(false);
@@ -206,6 +233,7 @@ export function useChatHandlers({
         trackEvent('command_used', { room_id: roomId, command: trackedCommand });
       } else {
         trackEvent('message_sent', { room_id: roomId, message_length: msg.length });
+        measurement.onOwnMessageSaved(savedChat);
       }
 
       // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信
@@ -247,7 +275,18 @@ export function useChatHandlers({
         }
       }
     },
-    [roomId, name, color, email, setMessage, setShowRanking, setChatLog, addOptimistic, mergeChat]
+    [
+      roomId,
+      name,
+      color,
+      email,
+      setMessage,
+      setShowRanking,
+      setChatLog,
+      addOptimistic,
+      mergeChat,
+      measurement,
+    ]
   );
 
   // チャット履歴再読み込み

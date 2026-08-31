@@ -13,6 +13,7 @@ import type { AvatarId } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
+import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -25,7 +26,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   useSEO(seo);
   usePageView(seo.title);
 
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
+  const measurement = useConversationMeasurement();
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
+    roomId,
+    measurement.onRealtimeChat
+  );
   // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す
   // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
   const { settings } = useSettings();
@@ -56,6 +61,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     setMessage,
     addOptimistic,
     mergeChat,
+    measurement,
   });
 
   return (

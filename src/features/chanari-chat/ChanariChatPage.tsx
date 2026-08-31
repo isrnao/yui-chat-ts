@@ -15,6 +15,7 @@ import ChanariChatRoom from './components/ChanariChatRoom';
 import { useReloadInterval } from './hooks/useReloadInterval';
 import { useChanariSettings } from './hooks/useChanariSettings';
 import { DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
+import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import './styles/chanari.css';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
@@ -35,7 +36,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   const myId = useId();
 
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(roomId);
+  const measurement = useConversationMeasurement();
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
+    roomId,
+    measurement.onRealtimeChat
+  );
   const channelRef = useRef<RealtimeChannel | null>(null);
   useLookSound(channelRef, roomId);
 
@@ -62,6 +67,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     setMessage,
     addOptimistic,
     mergeChat,
+    measurement,
   });
 
   useReloadInterval(reloadSeconds, handleReload, entered);

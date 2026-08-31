@@ -13,6 +13,7 @@ import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
+import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -25,6 +26,7 @@ export default function AllRoomsRoute() {
   useSEO(ALL_ROOMS_SEO);
   usePageView(ALL_ROOMS_SEO.title);
 
+  const measurement = useConversationMeasurement();
   const {
     chatLog,
     isLoading,
@@ -35,7 +37,7 @@ export default function AllRoomsRoute() {
     addOptimistic,
     mergeChat,
     reload,
-  } = useAllRoomsChatLog();
+  } = useAllRoomsChatLog(measurement.onRealtimeChat);
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
 
@@ -60,6 +62,7 @@ export default function AllRoomsRoute() {
     setMessage,
     addOptimistic,
     mergeChat,
+    measurement,
   });
 
   const replyTargetTitle = getRoomMeta(replyTarget).title;
