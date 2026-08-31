@@ -37,11 +37,15 @@ function createInitialState(): MeasurementState {
 }
 
 function isNormalSavedMessage(chat: Chat): boolean {
+  const message = chat.message.trim();
   return (
     !chat.optimistic &&
     !chat.system &&
     chat.metadata?.kind !== 'admin' &&
-    chat.metadata?.kind !== 'fortune'
+    chat.metadata?.kind !== 'fortune' &&
+    message !== 'look' &&
+    message !== 'unlook' &&
+    message !== 'おみくじ'
   );
 }
 
