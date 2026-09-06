@@ -97,7 +97,7 @@ export type ChatMetadata = {
   version: 1;
   fontStyle?: FontStyleMetadata;
   avatar?: Exclude<AvatarId, 'none'>;
-  kind?: 'normal' | 'fortune' | 'admin';
+  kind?: 'normal' | 'fortune' | 'admin' | 'bot';
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
   /** 入室メッセージ用: そのユーザーの訪問回数（レガシーの "49回目" 表示） */

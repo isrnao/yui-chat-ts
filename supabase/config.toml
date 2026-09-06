@@ -17,3 +17,8 @@ major_version = 17
 # 匿名チャットのため JWT 検証は無効（anon key での invoke を許可）。
 # ip / ua はリクエストヘッダから取得し service_role で INSERT する。
 verify_jwt = false
+
+[functions.bot-respond]
+# Webhook(pg_net)からのサーバー間呼び出しで起動される。ブラウザからは呼ばれない。
+# 軽量認証は BOT_WEBHOOK_SECRET のヘッダ照合で別途行う(verify_jwt とは独立)。
+verify_jwt = false

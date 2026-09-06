@@ -108,6 +108,7 @@ export default defineConfig({
       './src/**/*.test.tsx',
       './src/**/*.spec.tsx',
       './src/**/*.spec.ts',
+      './supabase/functions/_shared/**/*.test.ts',
     ],
     exclude: ['node_modules', 'dist', '**/*.d.ts', 'src/vite-env.d.ts'],
     coverage: {
