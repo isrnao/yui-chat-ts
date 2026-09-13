@@ -45,7 +45,11 @@ export default function ChatLogPage() {
         key={`${windowRows}-${reloadKey}`}
         fallback={
           <div className="mt-8 flex flex-col items-center gap-2 font-yui">
-            <div className="text-red-600 text-sm">チャットログの読み込みに失敗しました。</div>
+            {/* 非同期ロード後に動的に現れるため、ライブリージョンにしないと
+                スクリーンリーダーへ通知されない */}
+            <div role="alert" className="text-red-600 text-sm">
+              チャットログの読み込みに失敗しました。
+            </div>
             <Button type="button" onClick={handleRefresh}>
               再試行
             </Button>

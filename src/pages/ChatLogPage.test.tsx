@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import ChatLogPage from './ChatLogPage';
 import type { Chat } from '@features/chat/types';
 
@@ -71,7 +71,7 @@ describe('ChatLogPage Component', () => {
 
   // 取得失敗を空配列へ変換していた頃は「エラー」と「発言 0 件」が区別できず、
   // ErrorBoundary も機能していなかった
-  test('取得に失敗したらエラー表示と再読込ボタンを出す', async () => {
+  test('取得に失敗したらエラー表示と再試行ボタンを出す', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { fetchInitialChatLogPage } = await import('@features/chat/hooks/usePreloadChatLogs');
     vi.mocked(fetchInitialChatLogPage).mockReturnValue(
@@ -80,9 +80,37 @@ describe('ChatLogPage Component', () => {
 
     render(<ChatLogPage />);
 
-    expect(screen.getByText('チャットログの読み込みに失敗しました。')).toBeInTheDocument();
+    // 動的に現れる通知なのでライブリージョンとして公開されている必要がある
+    expect(screen.getByRole('alert')).toHaveTextContent('チャットログの読み込みに失敗しました。');
     expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument();
     expect(screen.queryByTestId('chat-log-list')).not.toBeInTheDocument();
+
+    consoleError.mockRestore();
+  });
+
+  // 本変更の要点は「再試行で ErrorBoundary がリセットされ、再取得後にログへ復帰する」経路。
+  // ボタンの存在だけでなく、クリック後の取得引数と再表示まで確認する
+  test('再試行で reloadKey を上げて再取得し、ログ表示へ復帰する', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { fetchInitialChatLogPage } = await import('@features/chat/hooks/usePreloadChatLogs');
+
+    vi.mocked(fetchInitialChatLogPage).mockImplementation((_roomId, _limit, reloadToken) =>
+      reloadToken === 0
+        ? makeRejectedPromise(new Error('network down'))
+        : makeFulfilledPromise({ data: [mockChat], hasMore: false })
+    );
+
+    render(<ChatLogPage />);
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(vi.mocked(fetchInitialChatLogPage).mock.calls.at(-1)?.[2]).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: '再試行' }));
+
+    await waitFor(() => expect(screen.getByTestId('chat-log-list')).toBeInTheDocument());
+    expect(screen.getByText(/ChatLogLength: 1/)).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // 再取得は新しい reloadToken で行われる（= 同じ key の失敗 thenable を再利用しない）
+    expect(vi.mocked(fetchInitialChatLogPage).mock.calls.at(-1)?.[2]).toBe(1);
 
     consoleError.mockRestore();
   });

@@ -36,38 +36,53 @@ describe('usePreloadChatLogs resource cache', () => {
   });
 
   // 失敗は空配列へ変換せず reject を伝播させる（ErrorBoundary で扱えるようにするため）。
-  // 失敗した promise はキャッシュから外れるので次の呼び出しで再試行できる。
-  it('removes failed preload entries so the next call can retry', async () => {
-    loadInitialChatLogs
-      .mockRejectedValueOnce(new Error('temporary failure'))
-      .mockResolvedValueOnce([sampleChat]);
+  // 失敗した thenable は同じ key では保持する。use() は同じ key に安定した thenable を
+  // 要求するため、失敗時に消すと React の retry render で余分な取得が走ってしまう。
+  it('同じ key では失敗した thenable を保持し、再取得を走らせない', async () => {
+    loadInitialChatLogs.mockRejectedValue(new Error('temporary failure'));
 
-    const { usePreloadChatLogs } = await importSubject();
+    const { fetchInitialChatLogPage } = await importSubject();
 
-    await expect(usePreloadChatLogs('superbeginner')).rejects.toThrow('temporary failure');
-    await expect(usePreloadChatLogs('superbeginner')).resolves.toEqual([sampleChat]);
+    const first = fetchInitialChatLogPage('superbeginner', 50, 0);
+    const second = fetchInitialChatLogPage('superbeginner', 50, 0);
 
-    expect(loadInitialChatLogs).toHaveBeenCalledTimes(2);
+    expect(second).toBe(first);
+    await expect(first).rejects.toThrow('temporary failure');
+    await expect(second).rejects.toThrow('temporary failure');
+    expect(loadInitialChatLogs).toHaveBeenCalledTimes(1);
   });
 
-  it('removes failed paging entries so the same page can retry', async () => {
+  it('paging の失敗も同じ key では保持する', async () => {
     loadInitialChatLogs.mockResolvedValue([]);
-    loadChatLogsWithPaging
-      .mockRejectedValueOnce(new Error('temporary failure'))
-      .mockResolvedValueOnce({ data: [sampleChat], hasMore: false });
+    loadChatLogsWithPaging.mockRejectedValue(new Error('temporary failure'));
 
     const { fetchInitialChatLogPage } = await importSubject();
 
     await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).rejects.toThrow(
       'temporary failure'
     );
-    await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).resolves.toEqual({
+    await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).rejects.toThrow(
+      'temporary failure'
+    );
+
+    expect(loadChatLogsWithPaging).toHaveBeenCalledTimes(1);
+  });
+
+  // 失敗した thenable の破棄は明示的な再読込 (reloadToken の変化) が担う
+  it('reloadToken が変わると失敗した取得を捨てて再試行する', async () => {
+    loadInitialChatLogs.mockRejectedValueOnce(new Error('temporary failure'));
+    loadChatLogsWithPaging.mockResolvedValue({ data: [sampleChat], hasMore: false });
+
+    const { fetchInitialChatLogPage } = await importSubject();
+
+    await expect(fetchInitialChatLogPage('superbeginner', 50, 0)).rejects.toThrow(
+      'temporary failure'
+    );
+
+    await expect(fetchInitialChatLogPage('superbeginner', 50, 1)).resolves.toEqual({
       data: [sampleChat],
       hasMore: false,
     });
-
-    expect(loadInitialChatLogs).toHaveBeenCalledTimes(1);
-    expect(loadChatLogsWithPaging).toHaveBeenCalledTimes(2);
   });
 
   // 回帰テスト: 以前は reloadToken が変わっても内部取得が useCache=true だったため、
