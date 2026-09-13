@@ -3,6 +3,7 @@ import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { useSettings } from '@features/chat/hooks/useSettings';
+import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { AVATAR_IDS } from '@features/chat/types';
 import type { AvatarId } from '@features/chat/types';
 
@@ -48,7 +49,10 @@ export default function EntryForm({
   // 本コンポーネントでは avatar 初期値 (内部 state のため) と updateSettings のみ参照する。
   const { settings, updateSettings } = useSettings();
   const [silent, setSilent] = useState(false);
-  const [avatar, setAvatar] = useState<AvatarId>(settings.avatar);
+  // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する。
+  // useState でコピーすると SSG 時の 'none' を握ったままになり、
+  // 保存済みアバターが復元されない。
+  const [avatar, setAvatar] = useStoreBackedState<AvatarId>(settings.avatar);
 
   return (
     <div className="flex flex-col">

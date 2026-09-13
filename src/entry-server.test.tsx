@@ -100,4 +100,20 @@ describe('SSG + hydrateRoot', () => {
     expect(values).toContain('ゆい');
     expect(warnings).toEqual([]);
   });
+
+  // アバターは EntryForm 内の state。name と同じく useState でコピーすると
+  // SSG 時の 'none' を握ったままになり、保存済みアバターが復元されない
+  it('hydration 後にストア由来のアバターが選択状態になる', async () => {
+    const settingsStore = await import('@features/chat/utils/settingsStore');
+    settingsStore.updateSettings({ avatar: 'hoshi1' });
+
+    const { container, warnings } = await ssgThenHydrate('/chat/superbeginner');
+
+    const checked = Array.from(
+      container.querySelectorAll<HTMLInputElement>('input[type="radio"]')
+    ).filter((el) => el.checked);
+
+    expect(checked.map((el) => el.value)).toContain('hoshi1');
+    expect(warnings).toEqual([]);
+  });
 });

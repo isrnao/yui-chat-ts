@@ -1,12 +1,5 @@
-import {
-  useRef,
-  useState,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useSyncExternalStore,
-} from 'react';
-import type { ReactNode, KeyboardEvent } from 'react';
+import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
+import type { ReactNode, KeyboardEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 /**
@@ -16,8 +9,11 @@ import { useResetOnChange } from '@shared/hooks/useResetOnChange';
  */
 export type SplitterTopKind = 'chat' | 'entry';
 
-/** Tailwind の lg (64rem) と同じ閾値。inline style ではブレークポイントが効かないため JS で判定する */
-const DESKTOP_MEDIA_QUERY = '(min-width: 64rem)';
+/*
+ * 初期高さのブレークポイント (Tailwind の lg = 64rem) は src/styles/utilities.css の
+ * .splitter-panes が持つ。JS で matchMedia を見ると SSG と hydration で値が
+ * 食い違い、デスクトップで必ずレイアウトシフトが出るため CSS に寄せている。
+ */
 
 /** topKind 未指定時の初期高さ(%) */
 const FALLBACK_TOP_HEIGHT = 30;
@@ -30,31 +26,14 @@ const TOP_HEIGHT_PRESETS: Record<SplitterTopKind, TopHeightPreset> = {
   entry: { base: 26, desktop: 24 },
 };
 
-function subscribeDesktopViewport(onChange: () => void): () => void {
-  const media = window.matchMedia?.(DESKTOP_MEDIA_QUERY);
-  // jsdom など addEventListener を持たない実装もあるので防御する
-  if (typeof media?.addEventListener !== 'function') return () => {};
-  media.addEventListener('change', onChange);
-  return () => media.removeEventListener('change', onChange);
-}
-
-function getDesktopViewportSnapshot(): boolean {
-  return window.matchMedia?.(DESKTOP_MEDIA_QUERY).matches === true;
-}
-
-/**
- * SSG 時はビューポートが分からないので base 側で描画する。
- * hydration ではクライアントもこの値を使うためマークアップが一致し、
- * 直後に実際のビューポートへ切り替わる。
- */
-function getDesktopViewportServerSnapshot(): boolean {
-  return false;
-}
-
-function resolveInitialTopHeight(topKind: SplitterTopKind | undefined, isDesktop: boolean): number {
-  if (topKind == null) return FALLBACK_TOP_HEIGHT;
+/** プリセット値 (%) を CSS 変数として渡す。ビューポート出し分けは CSS が行う。 */
+function resolveTopHeightVars(topKind: SplitterTopKind | undefined): {
+  base: number;
+  desktop: number;
+} {
+  if (topKind == null) return { base: FALLBACK_TOP_HEIGHT, desktop: FALLBACK_TOP_HEIGHT };
   const preset = TOP_HEIGHT_PRESETS[topKind];
-  return isDesktop ? (preset.desktop ?? preset.base) : preset.base;
+  return { base: preset.base, desktop: preset.desktop ?? preset.base };
 }
 
 export default function RetroSplitter({
@@ -73,19 +52,13 @@ export default function RetroSplitter({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // 上側の画面に応じて初期高さを決定（マウント時のみ参照）
-  const isDesktop = useSyncExternalStore(
-    subscribeDesktopViewport,
-    getDesktopViewportSnapshot,
-    getDesktopViewportServerSnapshot
-  );
-  // ドラッグ / キーボード操作で明示的に変えるまではプリセット値に追随する。
-  // useState にコピーすると SSG の base 値を握ったままになり、hydration 後に
-  // ビューポート実値へ切り替わらない。操作後の値だけを state に持つことで、
-  // setter を useState 由来の安定した参照のまま保てる
-  // (ドラッグ用 useCallback の依存に入るため同一性が要る)。
-  const presetTopHeight = resolveInitialTopHeight(topKind, isDesktop);
+  // 初期高さはビューポート出し分けを含めて CSS が決める (SSG と hydration で
+  // 値が食い違わないようにするため)。JS は操作後の値だけを持つ。
+  const topHeightVars = resolveTopHeightVars(topKind);
   const [adjustedTopHeight, setAdjustedTopHeight] = useState<number | null>(null);
-  const topHeight = adjustedTopHeight ?? presetTopHeight; // percent
+  // 操作前は CSS が実効値を決めるので、JS からは base 値を近似として扱う
+  // (aria-valuenow と、ドラッグ開始時の基準に使う)。
+  const topHeight = adjustedTopHeight ?? topHeightVars.base; // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -199,7 +172,7 @@ export default function RetroSplitter({
   const onBarKeyDown = (e: KeyboardEvent) => {
     const height = metrics.height || metricsRef.current.height || 1;
     const adjust = (delta: number, clamp: (value: number) => number) => {
-      setAdjustedTopHeight((previous) => clamp((previous ?? presetTopHeight) + delta));
+      setAdjustedTopHeight((previous) => clamp((previous ?? topHeightVars.base) + delta));
     };
     if (e.key === 'ArrowUp') {
       adjust(2, (value) => Math.min(value, 100 - (minBottom / height) * 100));
@@ -218,13 +191,21 @@ export default function RetroSplitter({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
+      className="splitter-panes flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
+      style={
+        {
+          '--splitter-top-base': `${topHeightVars.base}%`,
+          '--splitter-top-desktop': `${topHeightVars.desktop}%`,
+          // 操作後はこの inline 値が CSS のメディアクエリを上書きする
+          ...(adjustedTopHeight === null ? {} : { '--splitter-top-h': `${adjustedTopHeight}%` }),
+        } as CSSProperties
+      }
     >
       {/* 上側エリア */}
       <div
         className="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
         style={{
-          height: `${topHeight}%`,
+          height: 'var(--splitter-top-h)',
           minHeight: minTop,
         }}
       >
@@ -250,7 +231,7 @@ export default function RetroSplitter({
       <div
         className="overflow-y-auto min-h-0"
         style={{
-          height: `${100 - topHeight}%`,
+          height: 'calc(100% - var(--splitter-top-h))',
           minHeight: minBottom,
         }}
       >

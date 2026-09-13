@@ -11,3 +11,22 @@
   width: calc(100% + (var(--_gap) * 2));
   margin-inline: calc(var(--_gap) * -1);
 }
+
+/*
+ * RetroSplitter の初期高さ。ビューポートによる出し分けを CSS で行う。
+ *
+ * JS (matchMedia) で判定すると、SSG 時はビューポートが不明なので base 値で HTML を
+ * 生成し、hydration 直後にデスクトップ値へ変わる = 必ずレイアウトシフトが出る。
+ * CSS なら最初の描画から正しい値が当たるのでシフトが起きない。
+ * ドラッグ / キーボード操作時はコンテナの inline style が --splitter-top-h を
+ * 上書きする。
+ */
+.splitter-panes {
+  --splitter-top-h: var(--splitter-top-base);
+}
+
+@media (min-width: 64rem) {
+  .splitter-panes {
+    --splitter-top-h: var(--splitter-top-desktop, var(--splitter-top-base));
+  }
+}
