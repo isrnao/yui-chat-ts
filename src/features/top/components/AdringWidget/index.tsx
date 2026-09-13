@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react';
+import { useInViewport } from '@shared/hooks/useInViewport';
 
 const ADRING_WIDGET_SRC = 'https://ar-cdn.net/widget/v1.js';
+
+/** バナーの想定高さ (px)。領域の先行確保に使う */
+const BANNER_MIN_HEIGHT = { compact: 100, default: 250 } as const;
 
 export type AdringWidgetProps = {
   /** Adring 管理画面で発行されるサイト ID (UUID) */
@@ -21,7 +25,11 @@ export type AdringWidgetProps = {
 export function AdringWidget({ siteId, variant = 'compact', className }: AdringWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // バナーは画面下部にあるので、見えるまで widget script を読まない
+  const isVisible = useInViewport(containerRef);
+
   useEffect(() => {
+    if (!isVisible) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -33,7 +41,15 @@ export function AdringWidget({ siteId, variant = 'compact', className }: AdringW
     container.append(script);
 
     return () => container.replaceChildren();
-  }, [siteId, variant]);
+  }, [isVisible, siteId, variant]);
 
-  return <div ref={containerRef} className={className} />;
+  // 読み込みを遅延しているぶん、バナー挿入時にレイアウトが動かないよう
+  // 先に高さを確保する
+  return (
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ minHeight: BANNER_MIN_HEIGHT[variant] }}
+    />
+  );
 }
