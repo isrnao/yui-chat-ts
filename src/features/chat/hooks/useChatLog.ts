@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useOptimistic } from 'react';
+import { useCallback, useEffect, useRef, useState, useOptimistic } from 'react';
 import { loadChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
@@ -78,37 +78,54 @@ export function useChatLog(
 
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
-  useEffect(() => {
-    let ignore = false;
-    // 取得中に Realtime で届いた発言を退避する。取得結果でそのまま置換すると、
-    // 先着した新着発言が消えてしまうため。
-    let loading = true;
-    const arrivedDuringLoad: Chat[] = [];
+  // 取得中に Realtime で届いた発言を退避するバッファ。取得結果でそのまま置換すると
+  // 先着した新着発言が消えるため、取得の完了時にマージする。
+  // 購読 effect と取得 effect にまたがるので ref で共有する。
+  const arrivedDuringLoadRef = useRef<Chat[] | null>(null);
 
-    // 取りこぼしを防ぐため購読を先に張る
+  // 購読は roomId 単位で張りっぱなしにする。reloadKey を依存に入れて取得と同じ
+  // effect にまとめると、更新のたびに（ちゃなりの定期更新では既定 7 秒ごとに）
+  // room で共有している唯一の channel を破棄・再作成することになる。
+  // subscribeChatLogs は SUBSCRIBED を待たずに返るため、その再接続中に INSERT
+  // された発言は snapshot にもバッファにも入らず取りこぼす。
+  useEffect(() => {
     const channel = subscribeChatLogs(roomId, (chat) => {
       onRealtimeChat?.(chat);
-      if (loading) arrivedDuringLoad.push(chat);
+      arrivedDuringLoadRef.current?.push(chat);
       mergeChat(chat);
     });
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [mergeChat, onRealtimeChat, roomId]);
+
+  // 取得のみ reloadKey で再実行する。購読 effect より後に宣言することで、
+  // マウント時・roomId 変更時は必ず購読の確立を先に始める。
+  useEffect(() => {
+    let ignore = false;
+    const buffer: Chat[] = [];
+    arrivedDuringLoadRef.current = buffer;
+
+    const stopBuffering = () => {
+      if (arrivedDuringLoadRef.current === buffer) arrivedDuringLoadRef.current = null;
+    };
 
     loadChatLogs(roomId, reloadKey === 0)
       .then((logs) => {
         if (ignore) return;
         // 取得結果を canonical としつつ、取得中に届いた発言は落とさない
-        setChatLog(mergeChatLogByUuid(logs, arrivedDuringLoad));
+        setChatLog(mergeChatLogByUuid(logs, buffer));
       })
       .finally(() => {
-        loading = false;
+        stopBuffering();
         if (!ignore) setIsLoading(false);
       });
 
     return () => {
       ignore = true;
-      loading = false;
-      channel.unsubscribe();
+      stopBuffering();
     };
-  }, [mergeChat, onRealtimeChat, roomId, reloadKey]);
+  }, [roomId, reloadKey]);
 
   return {
     chatLog: optimisticLog,

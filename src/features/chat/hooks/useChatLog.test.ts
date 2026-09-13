@@ -14,10 +14,11 @@ const { loadChatLogsMock, subscribeChatLogsMock, emitRealtime, clearRealtimeList
       loadChatLogsMock: vi.fn(),
       subscribeChatLogsMock: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
         listeners.add(callback);
+        // 購読の張り直しを検証したいので unsubscribe も spy にする
         return {
-          unsubscribe: () => {
+          unsubscribe: vi.fn(() => {
             listeners.delete(callback);
-          },
+          }),
         };
       }),
       emitRealtime: (chat: Chat) => {
@@ -95,6 +96,58 @@ describe('useChatLog', () => {
 
       await waitFor(() =>
         expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-1', 'older-1'])
+      );
+    });
+
+    // 回帰テスト: 購読と取得を同じ effect にまとめていた頃は、更新のたびに
+    // room 共有の channel を破棄・再作成していた。subscribeChatLogs は SUBSCRIBED を
+    // 待たずに返るため、その再接続中に INSERT された発言を取りこぼす
+    it('reload しても購読を張り直さない', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
+      const unsubscribe = subscribeChatLogsMock.mock.results[0].value.unsubscribe;
+
+      await act(async () => {
+        result.current.reload();
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      // 取得は再実行されるが、購読は張り直されない
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
+      expect(unsubscribe).not.toHaveBeenCalled();
+    });
+
+    it('reload 中に届いた Realtime 発言も取得結果とマージする', async () => {
+      let resolveReload: (logs: Chat[]) => void = () => {};
+      loadChatLogsMock.mockResolvedValueOnce([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+
+      loadChatLogsMock.mockReturnValueOnce(
+        new Promise<Chat[]>((resolve) => {
+          resolveReload = resolve;
+        })
+      );
+      await act(async () => {
+        result.current.reload();
+      });
+
+      // 再取得の解決前に届いた発言
+      const remote = makeChat({ uuid: 'remote-2', time: 3_000, message: 'やっほー' });
+      act(() => emitRealtime(remote));
+
+      const older = makeChat({ uuid: 'older-2', time: 1_500, message: 'ただいま' });
+      await act(async () => {
+        resolveReload([older]);
+      });
+
+      await waitFor(() =>
+        expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-2', 'older-2'])
       );
     });
 
