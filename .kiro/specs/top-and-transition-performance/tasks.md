@@ -14,12 +14,11 @@ TBT が 10ms しかないため、JS 実行時間の削減より「描画開始�
 1. ~~**PR1**: Task 1（R1）— フォント配信の最適化~~ → #97 で完了（480 KB → 89 KB）
 2. **PR2**: Task 8（R8）— **静的 HTML への初期描画内容の埋め込み。LCP への効果が最大**
 3. **PR3**: Task 9（R9）— サードパーティ遅延化（318 KB、うち GTM 172.7 KB）
-4. **PR4**: Task 2（R2）— ルート単位 Code Splitting + Route_Error_Boundary
-5. **PR5**: Task 3（R3）— トップからの supabase-js 排除。PR4 と合わせて効く
-6. **PR6**: Task 4（R4）— クライアントサイド遷移。**遷移体感の本丸**
-7. **PR7**: Task 5（R5）— Room_Prefetcher。PR4 + PR6 が前提
-8. **PR8**: Task 6（R6）— チャット初期表示の段階化と差分取り直し
-9. **PR9**: Task 7（R7）— バジェット検証と実測値の記録
+4. ~~**PR4**: Task 2（R2）+ Task 3（R3）~~ → #99 で完了（157.6 → 81.2 kB gz、−48%）
+5. **PR6**: Task 4（R4）— クライアントサイド遷移。**遷移体感の本丸**
+6. **PR7**: Task 5（R5）— Room_Prefetcher。PR4 + PR6 が前提
+7. **PR8**: Task 6（R6）— チャット初期表示の段階化と差分取り直し
+8. **PR9**: Task 7（R7）— バジェット検証と実測値の記録
 
 ## Tasks
 
@@ -39,28 +38,28 @@ TBT が 10ms しかないため、JS 実行時間の削減より「描画開始�
   - [ ] 1.5 トップ / チャットで文字化け・フォールバック表示の退行がないことを目視確認する
     - _Requirements: 1.6_
 
-- [ ] 2. ルート単位の Code Splitting（Requirement 2）
-  - [ ] 2.1 `App.tsx` の各ルート import を `React.lazy` に置き換え、`Suspense` で包む
+- [x] 2. ルート単位の Code Splitting（Requirement 2）— #99
+  - [x] 2.1 `App.tsx` の各ルート import を `React.lazy` に置き換え、`Suspense` で包む
     - _Requirements: 2.1, 2.2, 2.3_
-  - [ ] 2.2 Route_Error_Boundary を追加し、チャンクロード失敗時に再試行導線を出す
+  - [x] 2.2 Route_Error_Boundary を追加し、チャンクロード失敗時に再試行導線を出す
     - 既存 `src/shared/components/ErrorBoundary.tsx` を利用し、`key` による remount で再試行する
       （`ChatLogPage` で実績のある形）
     - `Suspense fallback` は `null` にしない
     - _Requirements: 2.4_
-  - [ ] 2.3 `scripts/prerender-rooms.ts` に該当 Route_Chunk の `modulePreload` 埋め込みを追加する
+  - [x] 2.3 `scripts/prerender-rooms.ts` に該当 Route_Chunk の `modulePreload` 埋め込みを追加する
     - チャンク名はビルドマニフェストから解決する
     - 動的 import による追加ラウンドトリップを消すのが目的
     - _Requirements: 2.5_
-  - [ ] 2.4 リダイレクト仕様（`/chat` → `/chat/<default>`）の回帰テストが通ることを確認する
+  - [x] 2.4 リダイレクト仕様（`/chat` → `/chat/<default>`）の回帰テストが通ることを確認する
     - _Requirements: 2.6_
   - [ ]\* 2.5 `/` の依存グラフに chat feature が含まれないことをビルド検証で確かめる
     - _Requirements: 2.3_
 
-- [ ] 3. トップからの supabase-js 排除（Requirement 3）
-  - [ ] 3.1 Room_Counts_Client を PostgREST への直接 `fetch` に置き換える
+- [x] 3. トップからの supabase-js 排除（Requirement 3）— #99
+  - [x] 3.1 Room_Counts_Client を PostgREST への直接 `fetch` に置き換える
     - `apikey` と `Authorization: Bearer` ヘッダを付与する
     - _Requirements: 3.1, 3.2_
-  - [ ] 3.2 未設定時のガードと失敗時フォールバックの既存挙動を維持する
+  - [x] 3.2 未設定時のガードと失敗時フォールバックの既存挙動を維持する
     - _Requirements: 3.3, 3.5_
   - [ ]\* 3.3 `roomCountsApi.test.ts` を新方式に合わせて更新する
     - 問い合わせ URL とヘッダ、未設定時、失敗時を検証する
