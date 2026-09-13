@@ -30,10 +30,23 @@ export function RouteHost({ children }: { children: ReactNode }) {
       }
     >
       {/*
-        fallback を null にしない: 読み込みが遅い回線で「何も無い画面」になるのを避ける。
-        高さを確保しないことで、描画後のレイアウトシフトも起こさない。
+        fallback を null や空要素にしない: 遅い回線では読み込み状況が視覚的にも
+        スクリーンリーダーにも伝わらず、白画面と区別がつかなくなる。
+        チャンクは modulePreload 済みで通常は 1 マイクロタスクで解決するため、
+        この表示が実際に描画されるのは取得が遅いときだけ。
       */}
-      <Suspense fallback={<div className="min-h-dvh" aria-busy="true" />}>{children}</Suspense>
+      <Suspense
+        fallback={
+          <div
+            role="status"
+            className="flex min-h-dvh items-center justify-center p-4 font-yui text-sm text-gray-500"
+          >
+            読み込み中...
+          </div>
+        }
+      >
+        {children}
+      </Suspense>
     </ErrorBoundary>
   );
 }

@@ -43,9 +43,13 @@ beforeEach(() => {
 });
 
 /**
- * 本番の main.tsx と同じく、ルートチャンクを解決してから描画する。
- * 解決前に描画すると Suspense の fallback が挟まるため、
- * 「fallback を出さずに本体が出る」ことを検証する意図が保てなくなる。
+ * ルートチャンクを解決してから描画する。
+ *
+ * 本番の main.tsx は「先読みは開始するが待たずに描画する」(待つと待機中に
+ * RouteHost が未マウントで、取得が遅い / 失敗したときに読み込み表示も
+ * ErrorBoundary も出せないため)。テストでは同期 render の 1 マイクロタスクぶんの
+ * suspend を避けて本体の描画を検証したいので、ここでは解決を待つ。
+ * 読み込み表示と失敗時の挙動は RouteHost.test.tsx で検証している。
  */
 async function renderApp() {
   await preloadRoute(window.location.pathname);

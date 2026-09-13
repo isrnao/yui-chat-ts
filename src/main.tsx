@@ -10,16 +10,20 @@ recordVisitOncePerSession();
 
 const root = createRoot(document.getElementById('root')!);
 
-// ルートチャンクを解決してから描画する。未解決のまま描画すると Suspense の
-// fallback が一瞬挟まるため (分割前は同居していて即描画だった)。
-// チャンクはプリレンダ HTML の modulePreload で並行取得済み。
-void preloadRoute(window.location.pathname).then(() => {
-  root.render(
-    <StrictMode>
-      <App />
-    </StrictMode>
-  );
-});
+// ルートチャンクの取得は開始だけして、描画は待たずに行う。
+// 解決を待ってから描画すると、待機中は App も RouteHost も未マウントなので、
+// チャンク取得が遅い / 失敗したときに Suspense の読み込み表示も ErrorBoundary も
+// 出せず、ただの白画面になる。
+// React.lazy は同じ loader を使うため、この先読みと進行中リクエストを共有する。
+// チャンクはプリレンダ HTML の modulePreload で並行取得済みなので、
+// 通常は 1 マイクロタスクで解決し fallback は描画されない。
+void preloadRoute(window.location.pathname);
+
+root.render(
+  <StrictMode>
+    <App />
+  </StrictMode>
+);
 
 // フォントのフォールバックサブセット (ユーザー入力の任意の日本語用、123 分割) は
 // CSS が render-blocking なため初回描画後に読み込む。同梱すると CSS 自体が
@@ -27,7 +31,9 @@ void preloadRoute(window.location.pathname).then(() => {
 // 未ロードの間に稀な文字が現れてもフォールバック表示になるだけで、
 // font-display: swap の既定挙動と変わらない。
 function loadFallbackFontSubsets(): void {
-  void import('./styles/fonts-fallback.css');
+  // 失敗してもシステムフォントで継続できる任意のリソースなので明示的に握り潰す。
+  // void だけでは rejection が未処理のまま残る。
+  void import('./styles/fonts-fallback.css').catch(() => {});
 }
 
 if (typeof requestIdleCallback === 'function') {
