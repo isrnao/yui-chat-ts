@@ -214,9 +214,18 @@ export async function loadChatLogsSnapshot(
     return { data: cached.data, hasMore: cached.hasMore };
   }
 
-  const inflight = snapshotInflight.get(roomId);
-  if (inflight) {
-    return inflight;
+  if (useCache) {
+    const inflight = snapshotInflight.get(roomId);
+    if (inflight) {
+      return inflight;
+    }
+  } else {
+    // 強制取得 (useCache=false) は進行中のリクエストを共有しない。
+    // 共有すると「更新」も Realtime 接続確立時の取り直しも、既に確定した古い snapshot を
+    // そのまま受け取ることになり、再取得の意味が無くなる
+    // (取得確定〜SUBSCRIBED の間に INSERT された発言を取りこぼしたままになる)。
+    // あわせて世代を進め、先行する古い応答がキャッシュを上書きしないようにする。
+    bumpCacheGeneration(roomId);
   }
 
   const generation = getCacheGeneration(roomId);
