@@ -34,10 +34,8 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   usePageView(pageTitle);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload } = useChatLog(
-    roomId,
-    measurement.onRealtimeChat
-  );
+  const { chatLog, isLoading, realtimeStatus, setChatLog, addOptimistic, mergeChat, reload } =
+    useChatLog(roomId, measurement.onRealtimeChat);
   useLookSound(roomId);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
@@ -64,7 +62,10 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     measurement,
   });
 
-  useReloadInterval(reloadSeconds, reload, entered);
+  // レガシー互換の定期更新は Realtime が切れている間のフォールバックとしてのみ動かす。
+  // 接続中は push で新着が届くため、ポーリングしても取得済みの内容を取り直すだけになる
+  // (既定 7 秒間隔なので 1 人あたり毎時 500 回を超える無駄な問い合わせになっていた)。
+  useReloadInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">

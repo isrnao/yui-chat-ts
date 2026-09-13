@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useOptimistic } from 'react';
 import { loadChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
+import type { RealtimeStatus } from '@features/chat/api/chatApi';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { Chat } from '@features/chat/types';
@@ -57,12 +58,15 @@ export function useChatLog(
   const [isLoading, setIsLoading] = useState(true);
   // 「更新」ごとにインクリメントして取得 effect を再実行させる
   const [reloadKey, setReloadKey] = useState(0);
+  // Realtime の接続状態。push が届かない間のフォールバック判断に使う
+  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
 
   // roomId 変更時は reload 開始状態へ巻き戻す (useResetOnChange = 公式推奨「前回値検知」パターン)
   useResetOnChange(roomId, () => {
     setChatLog([]);
     setIsLoading(true);
     setReloadKey(0);
+    setRealtimeStatus('connecting');
   });
 
   const mergeChat = useCallback((chat: Chat) => {
@@ -89,11 +93,15 @@ export function useChatLog(
   // subscribeChatLogs は SUBSCRIBED を待たずに返るため、その再接続中に INSERT
   // された発言は snapshot にもバッファにも入らず取りこぼす。
   useEffect(() => {
-    const channel = subscribeChatLogs(roomId, (chat) => {
-      onRealtimeChat?.(chat);
-      arrivedDuringLoadRef.current?.push(chat);
-      mergeChat(chat);
-    });
+    const channel = subscribeChatLogs(
+      roomId,
+      (chat) => {
+        onRealtimeChat?.(chat);
+        arrivedDuringLoadRef.current?.push(chat);
+        mergeChat(chat);
+      },
+      setRealtimeStatus
+    );
     return () => {
       channel.unsubscribe();
     };
@@ -130,6 +138,7 @@ export function useChatLog(
   return {
     chatLog: optimisticLog,
     isLoading,
+    realtimeStatus,
     setChatLog,
     addOptimistic,
     mergeChat,
