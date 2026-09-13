@@ -3,7 +3,7 @@ import { useInViewport } from '@shared/hooks/useInViewport';
 
 const TWITTER_WIDGETS_SRC = 'https://platform.twitter.com/widgets.js';
 
-/** 埋め込み iframe の高さ。領域の先行確保にも使う */
+/** 埋め込み iframe の高さ */
 const TIMELINE_HEIGHT = 500;
 
 declare global {
@@ -57,10 +57,11 @@ export function TwitterTimeline({ screenName }: { screenName: string }) {
   // screenName は呼び出し元でハードコードする想定 (XSS 経路を断つため英数字 + _ のみ許可)
   const safeScreenName = screenName.replace(/[^a-zA-Z0-9_]/g, '');
 
+  // 高さの先行確保はしない。X 側の埋め込み制限やトラッキング防止で
+  // widgets.js がタイムラインを描画できないことがあり、そのとき min-height が
+  // 下の fallback リンクだけを残した空白になる (AdringWidget と同じ理由)。
   return (
-    // 読み込みを遅延しているぶん、差し替え時にレイアウトが動かないよう
-    // iframe と同じ高さ (data-height) を先に確保する
-    <div ref={containerRef} className="p-2" style={{ minHeight: TIMELINE_HEIGHT + 16 }}>
+    <div ref={containerRef} className="p-2">
       <a
         className="twitter-timeline"
         data-height={TIMELINE_HEIGHT}
