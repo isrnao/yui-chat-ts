@@ -1,13 +1,20 @@
-import { useEffect, useState } from 'react';
-import { matchRoute } from '@features/chat/routing';
-import type { RouteMatch } from '@features/chat/routing';
-import { matchChanariRoute } from '@features/chanari-chat/routing';
-import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
-import ChatRoute from './routes/ChatRoute';
-import AllRoomsRoute from './routes/AllRoomsRoute';
-import TopRoute from './routes/TopRoute';
-import ChanariRoute from './routes/ChanariRoute';
-import NotFoundRoute from './routes/NotFoundRoute';
+import { lazy, useEffect, useState } from 'react';
+import { RouteHost } from './routes/RouteHost';
+import { routeLoaders } from './routes/routeLoaders';
+import {
+  resolveRouteFollowingRedirects,
+  type ResolvedRoute,
+  type RouteResolution,
+} from './routes/resolveRoute';
+
+// ルート単位の code splitting。トップページ訪問者にチャット一式を配らないための分割。
+// 静的 import に戻すと index チャンクへ再び同居するので注意
+// (.kiro/specs/top-and-transition-performance Requirement 2)。
+const ChatRoute = lazy(routeLoaders['chat-room']);
+const AllRoomsRoute = lazy(routeLoaders['all-rooms']);
+const TopRoute = lazy(routeLoaders.top);
+const ChanariRoute = lazy(routeLoaders['chanari-room']);
+const NotFoundRoute = lazy(routeLoaders['not-found']);
 
 type ShellChrome = {
   backgroundColor: string;
@@ -28,8 +35,6 @@ const CHANARI_SHELL_CHROME: ShellChrome = {
   backgroundColor: '#ffffdd',
   themeColor: '#ffffdd',
 };
-
-type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
 
 function upsertMetaColor(name: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
@@ -53,31 +58,6 @@ function resolveShellChrome(route: ResolvedRoute): ShellChrome {
     case 'chanari-room':
       return CHANARI_SHELL_CHROME;
   }
-}
-
-function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
-  const chanari = matchChanariRoute(pathname);
-  if (chanari !== null) return chanari;
-  return matchRoute(pathname);
-}
-
-type RouteResolution = {
-  route: ResolvedRoute;
-  // 入力 pathname から redirect chain を辿った後の最終 pathname。
-  // 元の pathname と異なる場合のみ history.replaceState を commit 後 effect で実行する。
-  finalPathname: string;
-};
-
-// PURE: redirect chain を解決して確定 route と最終 pathname を返す。
-// 副作用 (history.replaceState) は呼ばず、呼び出し側で commit 後 effect で実行する。
-function resolveRouteFollowingRedirects(pathname: string): RouteResolution {
-  let current = resolveRoute(pathname);
-  let finalPathname = pathname;
-  while (current.type === 'redirect') {
-    finalPathname = current.to;
-    current = resolveRoute(current.to);
-  }
-  return { route: current, finalPathname };
 }
 
 export default function App() {
@@ -115,7 +95,7 @@ export default function App() {
   }, [route]);
 
   return (
-    <>
+    <RouteHost>
       {route.type === 'top' && <TopRoute />}
       {route.type === 'chat-room' &&
         (route.roomId === 'all' ? <AllRoomsRoute /> : <ChatRoute roomId={route.roomId} />)}
@@ -126,6 +106,6 @@ export default function App() {
       */}
       {route.type === 'chanari-room' && <ChanariRoute key={route.roomId} roomId={route.roomId} />}
       {route.type === 'not-found' && <NotFoundRoute />}
-    </>
+    </RouteHost>
   );
 }
