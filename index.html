@@ -10,8 +10,16 @@
 
     <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。
          unicode-range で分割してあり、描画に必要なサブセットだけをブラウザが取得する。
-         font-display: swap があるため描画は止まらないので preload はしない。
-         単一 480KB を preload していた頃は、critical path で JS と帯域を奪っていた。 -->
+         UI テキスト用サブセット (89KB) だけ preload する。preload しないと
+         swap のタイミングで文字幅が変わりレイアウトシフトになるため。
+         分割前は単一 480KB を preload しており、critical path で帯域を奪っていた。 -->
+    <link
+      rel="preload"
+      href="/fonts/dotgothic16/ui.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
     <meta name="author" content="お気楽チャットTS" />
     <meta name="robots" content="index, follow" />
@@ -106,8 +114,12 @@
       }
     </script>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES"></script>
+    <!-- Google tag (gtag.js)
+         本体は初回描画の後に読み込む。実測で 172.7KB あり、critical path で
+         帯域とメインスレッドを奪っていた (トップの転送量 574KB 中 303KB が
+         サードパーティで、自前の資産より大きかった)。
+         下の inline snippet が window.gtag を先に定義して dataLayer へ
+         キューするので、読み込み前に発生したイベントも取りこぼさない。 -->
     <script>
       (function (l) {
         if (l.search.length > 1 && l.search[1] === '/') {
@@ -130,6 +142,29 @@
       gtag('js', new Date());
 
       gtag('config', 'G-S3LCSTZBES', { send_page_view: false });
+
+      // gtag.js 本体の読み込み。初期描画と競合させないよう load 後に回すが、
+      // load は画像も待つため回線が細いと数秒遅れる。その前に離脱されると
+      // キュー済みのイベントごと失われるので、タイムアウトでも打ち切る。
+      (function () {
+        // LCP 目標 (2.5s) より後に倒れる値。これより短いと帯域を奪い合う
+        var TIMEOUT_MS = 3000;
+        var requested = false;
+        function loadGtag() {
+          if (requested) return;
+          requested = true;
+          var script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES';
+          document.head.appendChild(script);
+        }
+        setTimeout(loadGtag, TIMEOUT_MS);
+        if (document.readyState === 'complete') {
+          loadGtag();
+        } else {
+          window.addEventListener('load', loadGtag, { once: true });
+        }
+      })();
     </script>
   </head>
   <body>

@@ -88,7 +88,9 @@ roomCountsApi → @shared/supabaseClient` の連鎖。実際に使うのは Post
 
 #### Acceptance Criteria
 
-1. THE `index.html` SHALL フォントファイルに対する `<link rel="preload" as="font">` を含まない。
+1. THE `index.html` SHALL UI テキスト用サブセット以外のフォントを preload しない。
+   1a. THE `index.html` SHALL UI テキスト用サブセットを preload する。preload しないと
+   swap のタイミングで文字幅が変わりレイアウトシフトになるため（実測で CLS 0.023 → 0）。
 2. THE Font_Subset_Set SHALL `unicode-range` を指定した複数の `@font-face` で構成される。
 3. WHEN ブラウザがトップページを描画する, THE ブラウザ SHALL 描画に必要な `unicode-range` を含むサブセットのみを取得する。
 4. THE Font_Subset_Set SHALL `font-display: swap` を維持する。

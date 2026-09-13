@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useInViewport } from '@shared/hooks/useInViewport';
 
 const ADRING_WIDGET_SRC = 'https://ar-cdn.net/widget/v1.js';
 
@@ -21,7 +22,11 @@ export type AdringWidgetProps = {
 export function AdringWidget({ siteId, variant = 'compact', className }: AdringWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // バナーは画面下部にあるので、見えるまで widget script を読まない
+  const isVisible = useInViewport(containerRef);
+
   useEffect(() => {
+    if (!isVisible) return;
     const container = containerRef.current;
     if (!container) return;
 
@@ -33,7 +38,10 @@ export function AdringWidget({ siteId, variant = 'compact', className }: AdringW
     container.append(script);
 
     return () => container.replaceChildren();
-  }, [siteId, variant]);
+  }, [isVisible, siteId, variant]);
 
+  // 高さの先行確保はしない。在庫なし・ブロック時に widget が自身を
+  // display:none にして畳む挙動 (CommunitySection のコメント参照) を
+  // min-height が打ち消し、見出しの下に空白が残ってしまうため。
   return <div ref={containerRef} className={className} />;
 }
