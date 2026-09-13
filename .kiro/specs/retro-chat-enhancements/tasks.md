@@ -1,0 +1,297 @@
+# 実装計画: retro-chat-enhancements
+
+## 概要
+
+ゆいちゃっとTSにオリジナルCGIチャットのレトロ機能群（設定永続化、URL自動リンク化、フォントスタイル変更、こっそり入室、アバター選択、おみくじ、lookコマンド）を移植する。静的アセット → 型定義 → ユーティリティ → フック → コンポーネント → 統合の順で段階的に実装する。
+
+## Tasks
+
+- [x] 1. 静的アセットの配置と開発依存パッケージの追加
+  - [x] 1.1 アバターGIF画像を `public/avatars/` に配置する
+    - `hoshi1.gif` 〜 `hoshi8.gif`、`miko1.gif`、`tuki1.gif` 〜 `tuki4.gif` の13ファイルをコピー
+    - ソース: `yuichat2/` または `oldyuichat/` ディレクトリから取得
+    - _Requirements: 5.2, 5.3_
+  - [x] 1.2 通知音ファイルを `public/sounds/` に配置する
+    - `rin.mp3` と `rin.webm` の2ファイルをコピー
+    - ソース: `yuichat2/` または `oldyuichat/` ディレクトリから取得
+    - _Requirements: 7.8_
+  - [x] 1.3 fast-check を devDependencies に追加する
+    - `pnpm add -D fast-check` を実行
+    - _Requirements: テスト戦略（PBT）_
+
+- [x] 2. 型定義の拡張（types.ts）
+  - [x] 2.1 FontSize、FontColorName、FontStyleMetadata 型と定数マッピングを追加する
+    - `FontSize` = `1 | 2 | 3 | 4 | 5`
+    - `FontColorName` = 15色のliteral union型
+    - `FONT_COLOR_NAMES` 定数配列、`FONT_COLOR_CSS` マッピング、`FONT_SIZE_CSS` マッピング
+    - _Requirements: 3.1, 3.6_
+  - [x] 2.2 AvatarId 型と AVATAR_IDS 定数を追加する
+    - `AvatarId` = `'none' | 'hoshi1' | ... | 'tuki4'` のliteral union型
+    - `AVATAR_IDS` 定数配列
+    - _Requirements: 5.2_
+  - [x] 2.3 ChatMetadata 型を追加し、Chat 型に `metadata?: ChatMetadata` フィールドを追加する
+    - `ChatMetadata` = `{ version: 1; fontStyle?: FontStyleMetadata; avatar?: Exclude<AvatarId, 'none'>; kind?: 'normal' | 'fortune' }`
+    - 既存の Chat 型に `metadata` optional フィールドを追加
+    - `system` フラグは既存互換として維持（metadata.kind とは別）
+    - `client_time` / `optimistic` は metadata に入れない（クライアント一時状態）
+    - _Requirements: 3.3, 5.4_
+
+- [x] 3. normalizeMetadata.ts の実装とテスト
+  - [x] 3.1 normalizeMetadata.ts を作成する
+    - `isFontSize()`, `isFontColorName()`, `isAvatarId()` 型ガード関数を実装
+    - `normalizeChatMetadata()` 関数を実装（不正値をサイレントに除去、version検証含む）
+    - `normalizeChat()` ラッパー関数を実装（Chat行全体を正規化、API境界で使用）
+    - ファイルパス: `src/features/chat/utils/normalizeMetadata.ts`
+    - _Requirements: 3.3, 3.4, 5.4_
+  - [ ]\* 3.2 normalizeMetadata.test.ts のプロパティテストを作成する
+    - **Property 4: メタデータのランタイム正規化**
+    - 任意のunknown型入力に対して例外をスローしないこと
+    - 有効な ChatMetadata を返すか undefined を返すこと
+    - 不正な fontSize/fontColor/avatar が除去されること
+    - **Validates: Requirements 3.3, 3.4, 5.4**
+  - [ ]\* 3.3 normalizeMetadata.test.ts のユニットテストを作成する
+    - null/undefined/空オブジェクト/有効なmetadata/部分的に不正なmetadataのケース
+    - _Requirements: 3.3, 3.4, 5.4_
+
+- [x] 4. settingsStore.ts と useSettings フックの実装とテスト
+  - [x] 4.1 settingsStore.ts を作成する
+    - `getSnapshot()`, `getServerSnapshot()`, `subscribe()`, `updateSettings()` を実装
+    - `recordVisitOncePerSession()` を実装（sessionStorageフラグで1セッション1回のみ）
+    - `SETTINGS_CHANGE_EVENT` カスタムイベントと `storage` イベントの両方をリッスン
+    - ファイルパス: `src/features/chat/utils/settingsStore.ts`
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
+  - [x] 4.2 useSettings フックを作成する
+    - `useSyncExternalStore` で settingsStore を購読
+    - ファイルパス: `src/features/chat/hooks/useSettings.ts`
+    - _Requirements: 1.2_
+  - [ ]\* 4.3 settingsStore.test.ts のプロパティテストを作成する
+    - **Property 1: 設定の保存・復元ラウンドトリップ**
+    - 任意の有効な UserSettings を `updateSettings()` → `getSnapshot()` で復元できること
+    - **Validates: Requirements 1.1, 1.6, 5.7**
+    - **Property 2: 訪問回数のセッション単位インクリメント**
+    - 同一セッション内で複数回呼んでも visitCount は N+1 のみ
+    - **Validates: Requirements 1.4**
+  - [ ]\* 4.4 settingsStore.test.ts のユニットテストを作成する
+    - localStorage破損JSONでデフォルト値にフォールバックすること
+    - localStorage unavailableでもアプリが動作すること
+    - デフォルト値（名前: 空文字、色: #ff69b4、メール: 空文字、ログ行数: 30）が正しいこと
+    - _Requirements: 1.3, 1.5_
+
+- [x] 5. チェックポイント - 型定義・ユーティリティ基盤の確認
+  - すべてのテストが通ることを確認し、不明点があればユーザーに質問する。
+
+- [x] 6. urlLinker.ts の実装とテスト
+  - [x] 6.1 urlLinker.ts を作成する
+    - `MessageSegment` 型（`text` | `url`）を定義
+    - `parseMessageSegments()` 関数を実装
+    - `http://` と `https://` のみ許可、`javascript:` スキームはリンク化しない
+    - URL末尾の日本語句読点（。、）】」』）をURLから分離
+    - ファイルパス: `src/features/chat/utils/urlLinker.ts`
+    - _Requirements: 2.1, 2.3, 2.4, 2.5, 2.6_
+  - [ ]\* 6.2 urlLinker.test.ts のプロパティテストを作成する
+    - **Property 3: URLパース正当性**
+    - すべてのセグメントのコンテンツを結合すると元のメッセージと一致すること（ラウンドトリップ）
+    - N個のURLを含む文字列は正確にN個の `url` 型セグメントを返すこと
+    - `javascript:` スキームがリンク化されないこと
+    - **Validates: Requirements 2.1, 2.3, 2.4, 2.5**
+  - [ ]\* 6.3 urlLinker.test.ts のユニットテストを作成する
+    - URL末尾の日本語句読点が分離されること
+    - 複数URLが個別にリンク化されること
+    - URLなしメッセージがtextセグメントのみを返すこと
+    - `<script>` を含むテキストがプレーンテキストとして扱われること
+    - _Requirements: 2.1, 2.3, 2.4, 2.6_
+
+- [x] 7. fortuneBot.ts の実装とテスト
+  - [x] 7.1 fortuneBot.ts を作成する
+    - `FortuneResult` 型を定義
+    - `isFortuneCommand()` 関数を実装（`message.trim() === 'おみくじ'`）
+    - `generateFortune()` 関数を実装（10件以上の運勢メッセージリスト）
+    - `FORTUNE_MESSAGES` 定数をエクスポート
+    - ファイルパス: `src/features/chat/utils/fortuneBot.ts`
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [ ]\* 7.2 fortuneBot.test.ts のプロパティテストを作成する
+    - **Property 8: おみくじボットの正当性**
+    - `senderName` が `'巫女'`、`color` が `'hotpink'` であること
+    - `message` が `FORTUNE_MESSAGES` のいずれかを含むこと
+    - `message` が `＞{userName}さん` 形式で発言者名を含むこと
+    - **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
+    - **Property 9: おみくじコマンド検出**
+    - `str.trim()` が `'おみくじ'` の場合のみ `true` を返すこと
+    - **Validates: Requirements 6.5**
+  - [ ]\* 7.3 fortuneBot.test.ts のユニットテストを作成する
+    - 「おみくじ」以外のメッセージで `isFortuneCommand()` が false を返すこと
+    - _Requirements: 6.5_
+
+- [x] 8. webAudioPlayer.ts の実装とテスト
+  - [x] 8.1 webAudioPlayer.ts を作成する
+    - `playNotificationSound()`, `stopNotificationSound()`, `isAudioUnlocked()`, `unlockAudio()` を実装
+    - Web Audio API（AudioContext + AudioBufferSourceNode）を使用
+    - ブラウザ対応フォーマットに応じて mp3/webm を選択
+    - `AudioBufferSourceNode` は再生ごとに新規作成
+    - ファイルパス: `src/features/chat/utils/webAudioPlayer.ts`
+    - _Requirements: 7.2, 7.4, 7.5, 7.6, 7.9_
+  - [ ]\* 8.2 webAudioPlayer.test.ts のユニットテストを作成する
+    - AudioContext のモックを使用
+    - `unlockAudio()` が `AudioContext.resume()` を呼ぶこと
+    - `stopNotificationSound()` が再生中の音声を停止すること
+    - _Requirements: 7.4, 7.5, 7.6_
+
+- [x] 9. チェックポイント - ユーティリティモジュールの確認
+  - すべてのテストが通ることを確認し、不明点があればユーザーに質問する。
+
+- [x] 10. Supabase スキーマ変更と chatApi.ts の拡張
+  - [x] 10.1 Supabase chats テーブルに metadata JSONB カラムを追加する SQL を用意する
+    - `ALTER TABLE chats ADD COLUMN metadata JSONB DEFAULT NULL;`
+    - RLS policy が metadata を含む INSERT/SELECT を許可しているか確認
+    - _Requirements: 3.3, 5.4_
+  - [x] 10.2 chatApi.ts を拡張して metadata フィールドに対応する
+    - `loadChatLogs()` の select に `metadata` を追加
+    - `loadChatLogs()` の返却値に `normalizeChat()` を適用: `(data ?? []).map(normalizeChat)`
+    - `subscribeChatLogs()` のコールバック内で `normalizeChat(payload.new)` を適用
+    - `saveChatLog()` / `saveChatLogOptimistic()` の sanitized に `metadata: chat.metadata ?? null` を追加
+    - `saveChatLogOptimistic()` の `select('uuid,time')` はそのまま維持（楽観更新の metadata は `...chat` で維持される）
+    - _Requirements: 3.3, 5.4_
+  - [x] 10.3 chatApi.ts に Broadcast 送受信関数を追加する
+    - `broadcastLookEvent(messageId)` 関数を追加
+    - `broadcastUnlookEvent()` 関数を追加
+    - `onLookBroadcast(callback)` 関数を追加
+    - 既存の `chats` チャネルを共有し Broadcast イベントを追加
+    - _Requirements: 7.1, 7.2, 7.4_
+
+- [x] 11. useLookSound フックの実装とテスト
+  - [x] 11.1 useLookSound フックを作成する
+    - Supabase Realtime Broadcast 受信で `playNotificationSound()` を呼ぶ
+    - `unlook` Broadcast 受信で `stopNotificationSound()` を呼ぶ
+    - `isAudioEnabled` 状態と `enableAudio()` 関数を返す
+    - 過去ログ・Postgres Changes・楽観更新では音声を再生しない
+    - ファイルパス: `src/features/chat/hooks/useLookSound.ts`
+    - _Requirements: 7.2, 7.3, 7.4, 7.6_
+  - [ ]\* 11.2 useLookSound.test.ts のユニットテストを作成する
+    - Broadcast受信の新規 `look` でのみ鳴ること
+    - 初回ロードの過去 `look` で鳴らないこと
+    - `unlook` Broadcast受信で停止すること
+    - **Property 10: look音声の安全性**
+    - **Validates: Requirements 7.2, 7.3, 7.4**
+
+- [x] 12. main.tsx に訪問カウント呼び出しを追加する
+  - `recordVisitOncePerSession()` を React 外のエントリーポイント（main.tsx）で1回だけ呼び出す
+  - React ライフサイクルの影響を受けない位置に配置
+  - _Requirements: 1.4, 1.5_
+
+- [x] 13. チェックポイント - API層・フック層の確認
+  - すべてのテストが通ることを確認し、不明点があればユーザーに質問する。
+
+- [x] 14. EntryForm コンポーネントの拡張
+  - [x] 14.1 EntryForm に useSettings フックを統合する
+    - `useSettings()` で localStorage から設定値を復元し、各フィールドの初期値として使用
+    - 入室時に `updateSettings()` で設定値を保存
+    - _Requirements: 1.1, 1.2, 1.3_
+  - [x] 14.2 EntryForm に「こっそり」チェックボックスを追加する
+    - `silent` state を追加
+    - `onEnter` に `silent` パラメータを渡す
+    - _Requirements: 4.1, 4.2_
+  - [x] 14.3 EntryForm にアバター選択UIを追加する
+    - ラジオボタン形式で「なし」+ 13種類のアバターを表示
+    - 各ラジオボタンの横に GIF 画像のインラインプレビューを表示
+    - `import.meta.env.BASE_URL` を使用した画像パス
+    - 選択されたアバターを `updateSettings()` で保存
+    - _Requirements: 5.1, 5.2, 5.3, 5.7_
+  - [ ]\* 14.4 EntryForm.test.tsx のコンポーネントテストを作成する
+    - 「こっそり」チェックボックスが表示されること
+    - アバター選択UIが表示されること
+    - 設定値が復元されること
+    - _Requirements: 1.2, 4.1, 5.1_
+
+- [x] 15. useChatHandlers の拡張
+  - [x] 15.1 useChatHandlers に こっそり入室ロジックを追加する
+    - `handleEnter` に `silent` パラメータを追加
+    - `silent=true` の場合、入室システムメッセージ（「おいでやすぅ」）をスキップ
+    - 入室後の機能（メッセージ送信・退室・リロード）は通常入室と同一
+    - _Requirements: 4.2, 4.3, 4.4, 4.5_
+  - [x] 15.2 useChatHandlers に おみくじロジックを追加する
+    - `handleSend` 内で `isFortuneCommand()` をチェック
+    - ユーザー発言を保存後、`generateFortune()` で巫女メッセージを生成・保存
+    - ユーザー発言の保存失敗時は巫女メッセージも投稿しない
+    - 巫女メッセージの保存失敗時はサイレントに失敗
+    - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
+  - [x] 15.3 useChatHandlers に look/unlook Broadcast 送信を追加する
+    - `handleSend` 内で `look` メッセージ検出時に `broadcastLookEvent()` を呼ぶ
+    - `unlook` メッセージ検出時に `broadcastUnlookEvent()` を呼ぶ
+    - _Requirements: 7.1, 7.4_
+  - [x] 15.4 useChatHandlers に metadata（フォントスタイル + アバター）の送信対応を追加する
+    - `handleSend` に `metadata` パラメータを追加
+    - フォントスタイル設定とアバター識別子を `metadata` として `saveChatLogOptimistic()` に渡す
+    - _Requirements: 3.3, 3.5, 5.4_
+  - [ ]\* 15.5 useChatHandlers.test.ts のテストを作成する
+    - **Property 7: こっそり入室**
+    - `silent=true` で入室時にシステムメッセージが追加されないこと
+    - おみくじコマンドで巫女メッセージが生成されること
+    - **Validates: Requirements 4.2, 4.4, 6.1**
+
+- [x] 16. ChatMessage コンポーネントの拡張
+  - [x] 16.1 ChatMessage に URL 自動リンク化を追加する
+    - `parseMessageSegments()` でメッセージを解析
+    - `url` セグメントを `<a target="_blank" rel="noopener noreferrer">` でレンダリング
+    - `text` セグメントを React テキストノードとしてレンダリング
+    - `dangerouslySetInnerHTML` は使用しない
+    - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
+  - [x] 16.2 ChatMessage にフォントスタイル適用を追加する
+    - `metadata.fontStyle` が存在する場合、inline style で fontSize/color/fontWeight を適用
+    - `FONT_SIZE_CSS` と `FONT_COLOR_CSS` マッピングを使用
+    - _Requirements: 3.4, 3.5_
+  - [x] 16.3 ChatMessage にアバター画像表示を追加する
+    - `metadata.avatar` が存在する場合、ユーザー名の左側にアバター画像を表示
+    - `import.meta.env.BASE_URL` を使用した画像パス
+    - アバターが `none` または未設定の場合はアイコンを表示しない
+    - _Requirements: 5.5, 5.6_
+  - [ ]\* 16.4 ChatMessage.test.tsx のプロパティテストを作成する
+    - **Property 5: フォントスタイルの適用**
+    - 有効な FontStyleMetadata を持つ Chat のレンダリング結果が正しい CSS スタイルを持つこと
+    - **Validates: Requirements 3.4**
+    - **Property 6: アバター画像の表示**
+    - 有効なアバター識別子を持つ Chat のレンダリング結果に正しい img 要素が含まれること
+    - **Validates: Requirements 5.5**
+  - [ ]\* 16.5 ChatMessage.test.tsx のコンポーネントテストを作成する
+    - URL がクリッカブルリンクとして表示されること
+    - XSS文字列がプレーンテキストとして描画されること
+    - 不正 metadata が無視されること
+    - アバター未設定時に画像が出ないこと
+    - _Requirements: 2.1, 2.2, 3.4, 5.5, 5.6_
+
+- [x] 17. ChatRoom コンポーネントの拡張
+  - [x] 17.1 ChatRoom にフォントスタイルのトグルと追加コントロールを追加する
+    - フォントスタイルチェックボックスを追加
+    - 有効時にフォントサイズセレクター（1〜5）、フォントカラーセレクター（15色）、太字チェックボックスを表示
+    - 無効時は追加コントロールを非表示
+    - _Requirements: 3.1, 3.2, 3.6_
+  - [x] 17.2 ChatRoom に音声通知有効化ボタンを追加する
+    - 「🔔 通知音を有効にする」ボタンを表示
+    - クリックで `unlockAudio()` → `AudioContext.resume()` を呼び出す
+    - `useLookSound` フックを統合
+    - _Requirements: 7.6, 7.7_
+  - [ ]\* 17.3 ChatRoom.test.tsx のコンポーネントテストを作成する
+    - フォントスタイルチェックボックスの表示・非表示が切り替わること
+    - 音声通知有効化ボタンが表示されること
+    - フォントスタイル有効時に追加コントロールが表示されること
+    - _Requirements: 3.1, 3.2, 7.7_
+
+- [x] 18. App.tsx の統合
+  - [x] 18.1 App.tsx に useSettings / useLookSound / metadata の統合を行う
+    - `useSettings()` で設定値を管理し、EntryForm と ChatRoom に渡す
+    - `useLookSound` を ChatRoom に統合
+    - `handleEnter` に `silent` と `avatar` パラメータを渡す
+    - `handleSend` に `metadata`（フォントスタイル設定 + アバター）を渡す
+    - _Requirements: 1.1, 1.2, 3.3, 4.2, 5.4, 7.2_
+
+- [x] 19. 最終チェックポイント - 全機能の統合確認
+  - すべてのテストが通ることを確認し、不明点があればユーザーに質問する。
+
+## Notes
+
+- `*` マーク付きのタスクはオプションであり、MVP実装時にはスキップ可能
+- 各タスクは特定の Requirements を参照しており、トレーサビリティを確保
+- チェックポイントで段階的に検証を行い、問題を早期発見する
+- プロパティテストは正当性プロパティ（Correctness Properties）を検証し、ユニットテストは具体的なエッジケースを検証する
+- テスト命名は日本語で記述する（プロジェクト規約に準拠）
+- pnpm をパッケージマネージャーとして使用
+- Vitest + fast-check でプロパティベーステストを実行

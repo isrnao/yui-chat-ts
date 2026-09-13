@@ -106,7 +106,7 @@ roomCountsApi → @shared/supabaseClient` の連鎖。実際に使うのは Post
    1a. THE `App.tsx` SHALL トップページのルートを静的 import する。lazy にすると
    「チャンク到着まで何も描画できない」時間が必ず入り、体感の初期描画が分割前より
    悪化するため（軽量サイトでは分割の旨味より待ちの害が大きい）。
-2. WHEN ビルドが完了する, THE ビルド成果物 SHALL TopRoute / ChatRoute / ChanariRoute / AllRoomsRoute を別チャンクとして出力する。
+2. WHEN ビルドが完了する, THE ビルド成果物 SHALL ChatRoute / ChanariRoute / AllRoomsRoute を別チャンクとして出力する（TopRoute は 1a により静的依存なのでエントリに含まれる）。
 3. WHEN ユーザーが `/` を訪問する, THE ブラウザ SHALL chat feature のコードを初期ロードで取得しない。
 4. WHEN Route_Chunk のロードに失敗する, THE Route_Error_Boundary SHALL 再試行導線を表示し、ホワイトスクリーンにしない。
    4a. THE Route_Chunk の待機中 SHALL 全画面の読み込み表示を出さない。出せるものから順に

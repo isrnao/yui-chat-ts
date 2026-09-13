@@ -78,8 +78,12 @@ index.html
 分割の目的はトップを lazy にしなくても達成できる。
 
 ```ts
-const TopRoute = lazy(() => import('./routes/TopRoute'));
+// トップは入口なので lazy にしない (チャンク到着まで何も描画できない時間が入るため)
+import TopRoute from './routes/TopRoute';
+
+// チャット系だけ分割する
 const ChatRoute = lazy(() => import('./routes/ChatRoute'));
+const ChanariRoute = lazy(() => import('./routes/ChanariRoute'));
 // …
 ```
 
