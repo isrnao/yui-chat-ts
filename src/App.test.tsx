@@ -57,12 +57,12 @@ async function renderApp() {
 }
 
 describe('<App />', () => {
+  // トップは入口なので lazy にしない。同期レンダーで本文が出ること自体が要件
+  // (lazy に戻すと findBy が必要になり、実画面では読み込み待ちが挟まる)
   it('shows the top page immediately without route loading fallback', async () => {
-    await renderApp();
+    render(<App />);
 
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'お気楽チャット' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(document.documentElement.style.backgroundColor).toBe('rgb(255, 255, 255)');

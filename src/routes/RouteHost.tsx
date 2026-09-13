@@ -30,23 +30,13 @@ export function RouteHost({ children }: { children: ReactNode }) {
       }
     >
       {/*
-        fallback を null や空要素にしない: 遅い回線では読み込み状況が視覚的にも
-        スクリーンリーダーにも伝わらず、白画面と区別がつかなくなる。
-        チャンクは modulePreload 済みで通常は 1 マイクロタスクで解決するため、
-        この表示が実際に描画されるのは取得が遅いときだけ。
+        fallback は出さない。軽量なサイトなので、出せるものから順に出すほうが体感が良い。
+        全画面の読み込み表示を挟むと、分割前は直接描画されていた画面の前に
+        「読み込み中」が一枚増えるだけで初期描画の体感が悪化する。
+        トップは lazy にしていないので、この境界に入るのはチャット系ルートのみ。
+        チャンクは modulePreload + 先読みで並行取得済みなので通常は即解決する。
       */}
-      <Suspense
-        fallback={
-          <div
-            role="status"
-            className="flex min-h-dvh items-center justify-center p-4 font-yui text-sm text-gray-500"
-          >
-            読み込み中...
-          </div>
-        }
-      >
-        {children}
-      </Suspense>
+      <Suspense fallback={null}>{children}</Suspense>
     </ErrorBoundary>
   );
 }

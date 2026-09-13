@@ -14,17 +14,21 @@ describe('RouteHost', () => {
     vi.restoreAllMocks();
   });
 
-  // fallback を空要素にすると、遅い回線で白画面と区別がつかない
-  it('チャンク取得が終わらない間は読み込み状況を role="status" で伝える', () => {
-    render(
+  // 軽量なサイトなので、出せるものから順に出すほうが体感が良い。
+  // 全画面の読み込み表示を挟むと初期描画の体感が悪化するため出さない。
+  // (トップは lazy にしていないので、この境界に入るのはチャット系ルートのみ)
+  it('チャンク待機中に読み込み表示を挟まない', () => {
+    const { container } = render(
       <RouteHost>
         <NeverResolving />
       </RouteHost>
     );
 
-    expect(screen.getByRole('status')).toHaveTextContent('読み込み中');
+    expect(container).toBeEmptyDOMElement();
+    expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
   });
 
+  // 待機中に何も出さない方針でも、失敗は黙って白画面にせず復旧導線を出す
   it('チャンク取得に失敗したらエラー表示と再読み込み導線を出す', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
 
@@ -36,8 +40,6 @@ describe('RouteHost', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('ページの読み込みに失敗しました');
     expect(screen.getByRole('button', { name: '再読み込み' })).toBeInTheDocument();
-    // ホワイトスクリーンにしない = 読み込み表示のままにもしない
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
     consoleError.mockRestore();
   });

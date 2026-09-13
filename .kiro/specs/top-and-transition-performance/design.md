@@ -71,7 +71,11 @@ index.html
 
 ### 2. Route_Chunk と Route_Error_Boundary（Requirement 2）
 
-`App.tsx` の静的 import を `React.lazy` へ置き換え、`Suspense` で包む。
+`App.tsx` のチャット系ルートを `React.lazy` へ置き換え、`Suspense` で包む。
+**トップページは静的 import のまま残す。** lazy にすると「チャンク到着まで何も描画できない」
+時間が必ず入り、体感の初期描画が分割前より悪化する。トップのチャンクは 30KB 程度で分割の
+旨味が薄く、重い依存（supabase-js / チャット一式）はチャット系ルート側に残るため、
+分割の目的はトップを lazy にしなくても達成できる。
 
 ```ts
 const TopRoute = lazy(() => import('./routes/TopRoute'));
@@ -79,7 +83,9 @@ const ChatRoute = lazy(() => import('./routes/ChatRoute'));
 // …
 ```
 
-- `Suspense` の fallback は **`null` にしない。** ロード失敗時のホワイトスクリーンを避けるため、
+- `Suspense` の fallback は **出さない（`null`）。** 軽量なサイトでは、出せるものから順に
+  描画するほうが体感が良く、全画面の読み込み表示を一枚挟むと初期描画の体感が悪化する。
+  ロード失敗時のホワイトスクリーンは fallback ではなく ErrorBoundary で防ぐため、
   既存の `ErrorBoundary`（`src/shared/components/ErrorBoundary.tsx`）で包み、再試行導線を出す。
   **再試行はページの再読み込みで行う。** 境界に `key` を与えて remount しても、
   モジュールスコープで作った `React.lazy` 参照は rejected な import を保持し続けるため
