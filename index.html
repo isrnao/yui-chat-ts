@@ -143,14 +143,22 @@
 
       gtag('config', 'G-S3LCSTZBES', { send_page_view: false });
 
-      // gtag.js 本体の読み込み。load 後に回して初期描画と競合させない。
+      // gtag.js 本体の読み込み。初期描画と競合させないよう load 後に回すが、
+      // load は画像も待つため回線が細いと数秒遅れる。その前に離脱されると
+      // キュー済みのイベントごと失われるので、タイムアウトでも打ち切る。
       (function () {
+        // LCP 目標 (2.5s) より後に倒れる値。これより短いと帯域を奪い合う
+        var TIMEOUT_MS = 3000;
+        var requested = false;
         function loadGtag() {
+          if (requested) return;
+          requested = true;
           var script = document.createElement('script');
           script.async = true;
           script.src = 'https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES';
           document.head.appendChild(script);
         }
+        setTimeout(loadGtag, TIMEOUT_MS);
         if (document.readyState === 'complete') {
           loadGtag();
         } else {

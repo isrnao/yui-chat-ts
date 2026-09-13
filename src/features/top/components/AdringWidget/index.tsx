@@ -3,9 +3,6 @@ import { useInViewport } from '@shared/hooks/useInViewport';
 
 const ADRING_WIDGET_SRC = 'https://ar-cdn.net/widget/v1.js';
 
-/** バナーの想定高さ (px)。領域の先行確保に使う */
-const BANNER_MIN_HEIGHT = { compact: 100, default: 250 } as const;
-
 export type AdringWidgetProps = {
   /** Adring 管理画面で発行されるサイト ID (UUID) */
   siteId: string;
@@ -43,13 +40,8 @@ export function AdringWidget({ siteId, variant = 'compact', className }: AdringW
     return () => container.replaceChildren();
   }, [isVisible, siteId, variant]);
 
-  // 読み込みを遅延しているぶん、バナー挿入時にレイアウトが動かないよう
-  // 先に高さを確保する
-  return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ minHeight: BANNER_MIN_HEIGHT[variant] }}
-    />
-  );
+  // 高さの先行確保はしない。在庫なし・ブロック時に widget が自身を
+  // display:none にして畳む挙動 (CommunitySection のコメント参照) を
+  // min-height が打ち消し、見出しの下に空白が残ってしまうため。
+  return <div ref={containerRef} className={className} />;
 }
