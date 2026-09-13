@@ -42,8 +42,8 @@ TBT が 10ms しかないため、JS 実行時間の削減より「描画開始�
   - [x] 2.1 `App.tsx` の各ルート import を `React.lazy` に置き換え、`Suspense` で包む
     - _Requirements: 2.1, 2.2, 2.3_
   - [x] 2.2 Route_Error_Boundary を追加し、チャンクロード失敗時に再試行導線を出す
-    - 既存 `src/shared/components/ErrorBoundary.tsx` を利用し、`key` による remount で再試行する
-      （`ChatLogPage` で実績のある形）
+    - 既存 `src/shared/components/ErrorBoundary.tsx` を利用する。**再試行はページ再読み込み**。
+      `key` による remount では `React.lazy` が保持する rejected import が解消されない
     - `Suspense fallback` は `null` にしない
     - _Requirements: 2.4_
   - [x] 2.3 `scripts/prerender-rooms.ts` に該当 Route_Chunk の `modulePreload` 埋め込みを追加する

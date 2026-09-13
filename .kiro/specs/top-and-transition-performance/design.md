@@ -81,7 +81,11 @@ const ChatRoute = lazy(() => import('./routes/ChatRoute'));
 
 - `Suspense` の fallback は **`null` にしない。** ロード失敗時のホワイトスクリーンを避けるため、
   既存の `ErrorBoundary`（`src/shared/components/ErrorBoundary.tsx`）で包み、再試行導線を出す。
-  再試行は境界に `key` を与えて remount する方式（`ChatLogPage` で実績のある形）を使う。
+  **再試行はページの再読み込みで行う。** 境界に `key` を与えて remount しても、
+  モジュールスコープで作った `React.lazy` 参照は rejected な import を保持し続けるため
+  再取得にならない（`ChatLogPage` の Suspense リソースとはここが違う）。
+  加えてチャンク取得の失敗は「デプロイでハッシュが変わった古いタブ」が主因で、
+  再読み込みが最も確実に復旧する。
 - **waterfall 対策。** 動的 import は `index.js` の実行後に始まるため 1 RTT 増える。
   `scripts/prerender-rooms.ts` が各ルームの HTML を生成しているので、同じ仕組みで
   `<link rel="modulePreload">` を該当 Route_Chunk に対して埋め込む。チャンク名はビルド後の
