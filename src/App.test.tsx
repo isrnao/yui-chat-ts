@@ -52,6 +52,9 @@ beforeEach(() => {
  * 読み込み表示と失敗時の挙動は RouteHost.test.tsx で検証している。
  */
 async function renderApp() {
+  // チャット系ルートは lazy なので、本番の main.tsx と同じくチャンクの解決を待ってから描画する
+  // (待たずに描画するとプリレンダ済みの本文が消えて空白になる)。
+  // トップは静的 import なので preloadRoute が null を返し、待たずに描画される。
   await preloadRoute(window.location.pathname);
   render(<App />);
 }

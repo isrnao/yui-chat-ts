@@ -10,20 +10,29 @@ recordVisitOncePerSession();
 
 const root = createRoot(document.getElementById('root')!);
 
-// ルートチャンクの取得は開始だけして、描画は待たずに行う。
-// 解決を待ってから描画すると、待機中は App も RouteHost も未マウントなので、
-// チャンク取得が遅い / 失敗したときに Suspense の読み込み表示も ErrorBoundary も
-// 出せず、ただの白画面になる。
-// React.lazy は同じ loader を使うため、この先読みと進行中リクエストを共有する。
-// チャンクはプリレンダ HTML の modulePreload で並行取得済みなので、
-// 通常は 1 マイクロタスクで解決し fallback は描画されない。
-void preloadRoute(window.location.pathname);
+function renderApp(): void {
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+}
 
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+// lazy ルート (チャット系) はチャンクの解決を待ってから描画する。
+// 部屋ページの HTML には #root にプリレンダ済みの本文が入っているため、
+// 待っている間はそれが表示されたままになり、空白を挟まずに実 UI へ切り替わる。
+// 先に描画してしまうと createRoot がプリレンダ本文を消し、チャンクが届くまで
+// 何も無い画面になる。
+//
+// トップは静的 import なので preloadRoute が null を返し、同期で即描画する。
+// 取得に失敗しても preloadRoute は解決するので、描画後に RouteHost の
+// ErrorBoundary が復旧導線を出す。
+const pendingRoute = preloadRoute(window.location.pathname);
+if (pendingRoute) {
+  void pendingRoute.then(renderApp);
+} else {
+  renderApp();
+}
 
 // フォントのフォールバックサブセット (ユーザー入力の任意の日本語用、123 分割) は
 // CSS が render-blocking なため初回描画後に読み込む。同梱すると CSS 自体が

@@ -28,10 +28,11 @@ export const routeLoaders = {
  *
  * 失敗しても解決済み扱いにして描画へ進む (RouteHost の ErrorBoundary が拾う)。
  */
-export function preloadRoute(pathname: string): Promise<unknown> {
+export function preloadRoute(pathname: string): Promise<unknown> | null {
   const { route } = resolveRouteFollowingRedirects(pathname);
   const key = route.type === 'chat-room' && route.roomId === 'all' ? 'all-rooms' : route.type;
   const load = routeLoaders[key as keyof typeof routeLoaders];
-  // トップは静的 import なのでローダを持たない (= 何もしないで解決)
-  return load ? load().catch(() => undefined) : Promise.resolve();
+  // トップは静的 import なのでローダを持たない。null を返して
+  // 呼び出し側が「待たずに描画してよい」と判断できるようにする。
+  return load ? load().catch(() => undefined) : null;
 }
