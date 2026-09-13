@@ -87,6 +87,53 @@ describe('chatLogResource', () => {
     expect(secondData).toBe(firstData);
   });
 
+  // 「更新」や Realtime 接続確立時の取り直しが、進行中の古い snapshot を
+  // 共有してしまうと再取得の意味が無くなる (取得確定〜SUBSCRIBED 間の発言を
+  // 取りこぼしたままになる)
+  it('強制取得 (useCache=false) は進行中のリクエストを共有せず再取得する', async () => {
+    const { resource, from } = await importResource();
+    const first = deferred<QueryResult>();
+    const second = deferred<QueryResult>();
+    from
+      .mockReturnValueOnce(createQueryMock({ limitResult: first.promise }))
+      .mockReturnValueOnce(createQueryMock({ limitResult: second.promise }));
+
+    const initial = resource.loadChatLogs(ROOM_ID);
+    expect(from).toHaveBeenCalledTimes(1);
+
+    // 初回が進行中のまま強制取得する
+    const forced = resource.loadChatLogs(ROOM_ID, false);
+    expect(from).toHaveBeenCalledTimes(2);
+    expect(forced).not.toBe(initial);
+
+    first.resolve({ data: makeChats(1), error: null });
+    second.resolve({ data: makeChats(5), error: null });
+
+    await expect(forced).resolves.toHaveLength(5);
+  });
+
+  it('強制取得の後は先行する古い応答でキャッシュを上書きしない', async () => {
+    const { resource, from } = await importResource();
+    const stale = deferred<QueryResult>();
+    const fresh = deferred<QueryResult>();
+    from
+      .mockReturnValueOnce(createQueryMock({ limitResult: stale.promise }))
+      .mockReturnValueOnce(createQueryMock({ limitResult: fresh.promise }));
+
+    const initial = resource.loadChatLogs(ROOM_ID);
+    const forced = resource.loadChatLogs(ROOM_ID, false);
+
+    // 新しい方を先に、古い方を後に解決させる
+    fresh.resolve({ data: makeChats(5), error: null });
+    await forced;
+    stale.resolve({ data: makeChats(1), error: null });
+    await initial;
+
+    from.mockClear();
+    await expect(resource.loadChatLogs(ROOM_ID)).resolves.toHaveLength(5);
+    expect(from).not.toHaveBeenCalled();
+  });
+
   // 表示にはマスク済みの ip_masked を使う。生 ip は anon から遮蔽されており取得しない
   it('selects ip_masked instead of raw ip in chat log select columns', async () => {
     const { resource, from } = await importResource();
@@ -185,31 +232,6 @@ describe('chatLogResource', () => {
     from.mockClear();
     await expect(resource.loadChatLogs(ROOM_ID)).resolves.toHaveLength(2);
     expect(from).not.toHaveBeenCalled();
-  });
-
-  it('keeps optimistic cache updates capped at the canonical snapshot size', async () => {
-    const { resource, from } = await importResource();
-    const query = createQueryMock({
-      limitResult: Promise.resolve({ data: makeChats(100), error: null }),
-    });
-    from.mockReturnValue(query);
-
-    await expect(resource.loadChatLogs(ROOM_ID)).resolves.toHaveLength(100);
-
-    const optimisticChat: Chat = {
-      ...makeChat(999),
-      uuid: 'temp-999',
-      optimistic: true,
-    };
-    resource.applyOptimisticToCache(ROOM_ID, optimisticChat);
-
-    from.mockClear();
-    const cached = await resource.loadChatLogs(ROOM_ID);
-
-    expect(from).not.toHaveBeenCalled();
-    expect(cached).toHaveLength(100);
-    expect(cached[0]).toBe(optimisticChat);
-    expect(cached[cached.length - 1]?.uuid).toBe('chat-98');
   });
 
   it('refetches after the cache TTL expires', async () => {

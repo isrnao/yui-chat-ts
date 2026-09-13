@@ -1,5 +1,4 @@
-import { useId, useRef, useState, lazy, Suspense } from 'react';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useState, lazy, Suspense } from 'react';
 import type { RoomId } from '@features/chat/rooms';
 import { getRoomMeta } from '@features/chat/rooms';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
@@ -34,15 +33,10 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   });
   usePageView(pageTitle);
 
-  const myId = useId();
-
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
-    roomId,
-    measurement.onRealtimeChat
-  );
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  useLookSound(channelRef, roomId);
+  const { chatLog, isLoading, realtimeStatus, setChatLog, addOptimistic, mergeChat, reload } =
+    useChatLog(roomId, measurement.onRealtimeChat);
+  useLookSound(roomId);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
   const [entered, setEntered] = useState(false);
@@ -53,13 +47,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const [windowRows] = useState(30);
   const [reloadSeconds, setReloadSeconds] = useState<number>(DEFAULT_RELOAD_SECONDS);
 
-  const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
+  const { handleEnter, handleExit, handleSend } = useChatHandlers({
     roomId,
     name,
     color: nameColor,
     email: '',
-    myId,
-    entered,
     setEntered,
     setChatLog,
     setShowRanking: () => {},
@@ -70,7 +62,10 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     measurement,
   });
 
-  useReloadInterval(reloadSeconds, handleReload, entered);
+  // レガシー互換の定期更新は Realtime が切れている間のフォールバックとしてのみ動かす。
+  // 接続中は push で新着が届くため、ポーリングしても取得済みの内容を取り直すだけになる
+  // (既定 7 秒間隔なので 1 人あたり毎時 500 回を超える無駄な問い合わせになっていた)。
+  useReloadInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
@@ -90,7 +85,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 message={message}
                 setMessage={setMessage}
                 onSend={(msg) => handleSend(msg)}
-                onReload={handleReload}
+                onReload={reload}
                 onExit={handleExit}
                 onClearMyLogs={() => handleSend('clear')}
                 nameColor={nameColor}
@@ -113,7 +108,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 sid=""
                 onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
                   updateSettings({ name: n, nameColor: nc, speechColor: sc });
-                  await handleEnter({ name: n, color: nc, email: '', silent: false });
+                  await handleEnter({ name: n, color: nc, silent: false });
                 }}
               />
             )}

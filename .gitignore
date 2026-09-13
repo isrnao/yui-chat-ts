@@ -44,3 +44,6 @@ supabase/.branches/
 logs/
 settings.local.json
 chromatic-diagnostics.json
+
+# tsc -b --noEmit の副産物
+*.tsbuildinfo

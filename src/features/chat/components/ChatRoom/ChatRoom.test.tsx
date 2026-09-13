@@ -11,7 +11,6 @@ describe('ChatRoom', () => {
     props = {
       message: '',
       setMessage: vi.fn(),
-      chatLog: [],
       windowRows: 50,
       setWindowRows: vi.fn(),
       onExit: vi.fn(),
@@ -113,5 +112,36 @@ describe('ChatRoom', () => {
     render(<ChatRoom {...props} />);
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
     await waitFor(() => expect(props.onSend).not.toHaveBeenCalled());
+  });
+
+  describe('入力欄のフォーカス', () => {
+    it('送信アクション完了後に入力欄へフォーカスが戻る', async () => {
+      props.message = 'フォーカステスト';
+      render(<ChatRoom {...props} />);
+      const input = screen.getByRole('textbox', { name: '発言' });
+      fireEvent.change(input, { target: { value: 'フォーカステスト' } });
+
+      // 送信前に別要素へフォーカスを移しておく
+      const select = screen.getByRole('combobox', { name: 'ログ行数' });
+      select.focus();
+      expect(document.activeElement).toBe(select);
+
+      fireEvent.click(screen.getByRole('button', { name: '発言' }));
+
+      await waitFor(() => expect(document.activeElement).toBe(input));
+    });
+
+    // 回帰テスト: 以前は effect の依存に chatLog が入っていたため、他人の発言が
+    // Realtime で届いて再レンダーされるだけでフォーカスを奪っていた
+    it('送信を伴わない再レンダーではフォーカスを奪わない', () => {
+      const { rerender } = render(<ChatRoom {...props} />);
+      const select = screen.getByRole('combobox', { name: 'ログ行数' });
+      select.focus();
+      expect(document.activeElement).toBe(select);
+
+      rerender(<ChatRoom {...props} userName="ゆい" />);
+
+      expect(document.activeElement).toBe(select);
+    });
   });
 });

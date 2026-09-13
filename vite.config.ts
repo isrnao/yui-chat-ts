@@ -1,12 +1,19 @@
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import react, { reactCompilerPreset } from '@vitejs/plugin-react';
+import babel from '@rolldown/plugin-babel';
 import mdx from '@mdx-js/rollup';
 
 export default defineConfig({
   base: '/',
-  plugins: [react(), mdx()],
+  // React Compiler は @vitejs/plugin-react v6 では babel オプションではなく
+  // @rolldown/plugin-babel + reactCompilerPreset() で組み込む（公式手順）。
+  // https://react.dev/learn/react-compiler/installation
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
   build: {
     target: 'es2022',
+    // プリレンダ時に「その URL が使うルートチャンク」を modulePreload するために必要。
+    // ルート分割で生じる 1 往復ぶんの待ちを消す (scripts/prerender-rooms.ts)。
+    manifest: true,
     modulePreload: {
       polyfill: false,
     },

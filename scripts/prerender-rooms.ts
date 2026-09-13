@@ -14,7 +14,11 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { exit } from 'node:process';
 import { fileURLToPath } from 'node:url';
-import { renderRoomHtml, buildOutputRelativePath } from '../src/shared/utils/prerenderHtml.ts';
+import {
+  renderRoomHtml,
+  buildOutputRelativePath,
+  injectRoutePreload,
+} from '../src/shared/utils/prerenderHtml.ts';
 import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -28,16 +32,52 @@ if (!existsSync(templatePath)) {
 
 const template = readFileSync(templatePath, 'utf-8');
 
+/**
+ * ルートチャンクとその静的依存を manifest から解決する。
+ * 部屋ページは ChatRoute (all は AllRoomsRoute) を使う。
+ */
+const manifestPath = resolve(distDir, '.vite/manifest.json');
+type ManifestEntry = { file: string; css?: string[]; imports?: string[] };
+const manifest: Record<string, ManifestEntry> = existsSync(manifestPath)
+  ? (JSON.parse(readFileSync(manifestPath, 'utf-8')) as Record<string, ManifestEntry>)
+  : {};
+
+function resolveChunkPaths(entryKey: string): string[] {
+  const seen = new Set<string>();
+  const walk = (key: string) => {
+    const entry = manifest[key];
+    if (!entry || seen.has(key)) return;
+    seen.add(key);
+    for (const dep of entry.imports ?? []) walk(dep);
+  };
+  walk(entryKey);
+  return [...seen].flatMap((key) => {
+    const entry = manifest[key];
+    return entry ? [entry.file, ...(entry.css ?? [])] : [];
+  });
+}
+
 // enabled な全部屋 + 全部屋まとめビュー ('all')
 const targets = [...getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled), 'all' as const];
 
 let count = 0;
 for (const roomId of targets) {
-  const html = renderRoomHtml(template, roomId);
+  const routeKey = roomId === 'all' ? 'src/routes/AllRoomsRoute.tsx' : 'src/routes/ChatRoute.tsx';
+  const html = injectRoutePreload(renderRoomHtml(template, roomId), resolveChunkPaths(routeKey));
   const outPath = resolve(distDir, buildOutputRelativePath(roomId));
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, html, 'utf-8');
   count += 1;
 }
 
+// トップページ自身にも TopRoute の先読みを入れる。
+// 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい
+// (先に index.html を書き換えると部屋ページにも TopRoute の preload が混ざる)。
+writeFileSync(
+  templatePath,
+  injectRoutePreload(template, resolveChunkPaths('src/routes/TopRoute.tsx')),
+  'utf-8'
+);
+
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
+console.log('✔ injected route preloads into dist/index.html');

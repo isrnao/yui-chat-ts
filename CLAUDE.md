@@ -26,6 +26,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Tests include coverage reporting with 70% minimum threshold
 - Test files are located alongside source files (e.g., `Component.test.tsx`)
 
+## React Compiler
+
+React Compiler 1.0 is **enabled** for the app build and for tests. It is wired up in
+`vite.config.ts` per the official Vite instructions — `@vitejs/plugin-react` v6 no longer takes a
+`babel` option, so the compiler runs through `@rolldown/plugin-babel` with `reactCompilerPreset()`
+(`@babel/core` is a required peer dependency of that plugin):
+
+```ts
+plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
+```
+
+The compiler rules ship with `eslint-plugin-react-hooks` v7 and are already active through
+`reactHooks.configs.recommended` in `eslint.config.js`.
+
+Manual memoization is being removed incrementally (the official guidance is not to strip it all at
+once right after enabling the compiler). Event handlers and derived values now rely on the
+compiler. What is deliberately **kept**:
+
+- `useCallback` whose identity actually appears in a `useEffect` dependency array:
+  `useChatLog.mergeChat` and `useAllRoomsChatLog.mergeChat` (both gate the realtime subscription —
+  a new identity tears down and recreates the channel), `RetroSplitter`'s drag handlers, and
+  `TermsModal`'s effect callbacks. Each carries a comment saying why. Nothing else qualifies:
+  `reload` / `addOptimistic` are plain functions, since only `reloadKey` is a dependency.
+- `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
+
+Do not add _new_ manual memoization — let the compiler handle it.
+
 ## Architecture Overview
 
 ### Project Structure
@@ -68,8 +95,8 @@ Realtime**, not BroadcastChannel:
   pushed to all clients. `useChatLog` wires this up.
 - look/unlook notifications: Supabase Realtime **broadcast** channel (`broadcastLookEvent` /
   `onLookBroadcast`).
-- Note: `src/shared/hooks/useBroadcastChannel.ts` (Web BroadcastChannel API) still exists but is
-  currently **unused** — do not treat it as the sync mechanism.
+- Note: the Web BroadcastChannel API is **not** used anywhere in this app; the former
+  `src/shared/hooks/useBroadcastChannel.ts` was removed as dead code.
 
 **Participants**: There is no presence table. The participant list is **derived from the message
 log** by `getRecentParticipants` (`useParticipants.ts`): it scans the last 5 minutes of messages,

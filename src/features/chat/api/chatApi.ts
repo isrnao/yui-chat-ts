@@ -11,8 +11,6 @@ import {
   loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
   loadInitialChatLogs as resourceLoadInitialChatLogs,
   invalidateCache as resourceInvalidateCache,
-  applyOptimisticToCache,
-  replaceOptimisticInCache,
   getCacheInfo as resourceGetCacheInfo,
   getPagingHasMore,
 } from './chatLogResource';
@@ -226,25 +224,6 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
   });
 }
 
-// Fire-and-forget版（Edge Function 経由・レスポンスを待たない）
-export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
-  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
-
-  void invokeSaveChat({
-    room_id: roomId,
-    name: chat.name,
-    color: chat.color,
-    message: chat.message,
-    system: chat.system,
-    email: chat.email,
-    metadata: chat.metadata ?? null,
-  })
-    .then(() => invalidateCache(roomId))
-    .catch((err: unknown) => console.error('Background chat save failed:', err));
-
-  return Promise.resolve();
-}
-
 export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
   // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
   // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
@@ -316,17 +295,6 @@ export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'opt
   };
 }
 
-// キャッシュに楽観的チャットを追加
-export function addOptimisticChatToCache(chat: Chat): void {
-  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
-  applyOptimisticToCache(roomId, chat);
-}
-
-// 楽観的チャットをサーバーからの結果で置換
-export function replaceOptimisticChatInCache(optimisticUuid: string, serverChat: Chat): void {
-  replaceOptimisticInCache(optimisticUuid, serverChat);
-}
-
 // キャッシュ状態確認関数
 export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
   return resourceGetCacheInfo(roomId);
@@ -384,13 +352,24 @@ export async function loadChatLogsByTimeRange(
 
 export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
 
+/**
+ * Realtime 購読の接続状態。
+ * - `connecting`: channel を張った直後、最初の SUBSCRIBED を待っている
+ * - `connected`: SUBSCRIBED 済み。新着は push で届く
+ * - `disconnected`: CHANNEL_ERROR / TIMED_OUT / CLOSED。push が届かない
+ */
+export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected';
+
 type PostgresListener = (chat: Chat) => void;
+type StatusListener = (status: RealtimeStatus) => void;
 type LookListener = (event: LookEvent) => void;
 
 // Postgres Changes (INSERT) の購読 registry
 type PostgresEntry = {
   channel: RealtimeChannel;
   listeners: Set<PostgresListener>;
+  statusListeners: Set<StatusListener>;
+  status: RealtimeStatus;
 };
 const postgresEntries = new Map<RoomId, PostgresEntry>();
 
@@ -403,7 +382,14 @@ const broadcastEntries = new Map<RoomId, BroadcastEntry>();
 
 function createPostgresEntry(roomId: RoomId): PostgresEntry {
   const listeners = new Set<PostgresListener>();
-  const channel = supabase
+  const statusListeners = new Set<StatusListener>();
+  const entry = {
+    listeners,
+    statusListeners,
+    status: 'connecting',
+  } as PostgresEntry;
+
+  entry.channel = supabase
     .channel(`chats-postgres-${roomId}`)
     .on(
       'postgres_changes',
@@ -413,8 +399,16 @@ function createPostgresEntry(roomId: RoomId): PostgresEntry {
         for (const listener of listeners) listener(chat);
       }
     )
-    .subscribe();
-  return { channel, listeners };
+    .subscribe((status: string) => {
+      // SUBSCRIBED 以外 (CHANNEL_ERROR / TIMED_OUT / CLOSED) は push が届かない状態。
+      // supabase-js が再接続に成功すると再び SUBSCRIBED が届く。
+      const next: RealtimeStatus = status === 'SUBSCRIBED' ? 'connected' : 'disconnected';
+      if (entry.status === next) return;
+      entry.status = next;
+      for (const listener of statusListeners) listener(next);
+    });
+
+  return entry;
 }
 
 function createBroadcastEntry(roomId: RoomId): BroadcastEntry {
@@ -441,10 +435,14 @@ function getOrCreateBroadcastEntry(roomId: RoomId): BroadcastEntry {
 /**
  * Postgres Changes 用の購読を登録する。
  * 同 room の複数購読者は同一 channel を共有し、最後の解除で channel が破棄される。
+ *
+ * `onStatusChange` を渡すと接続状態の変化を受け取れる。購読者は「push が届いて
+ * いるか」を知れるので、届かない間だけポーリングへフォールバックできる。
  */
 export function subscribeChatLogs(
   roomId: RoomId,
-  callback: PostgresListener
+  callback: PostgresListener,
+  onStatusChange?: StatusListener
 ): { unsubscribe: () => void } {
   let entry = postgresEntries.get(roomId);
   if (!entry) {
@@ -453,11 +451,23 @@ export function subscribeChatLogs(
   }
   entry.listeners.add(callback);
 
+  const joined = entry;
+  if (onStatusChange) {
+    joined.statusListeners.add(onStatusChange);
+    // 既に接続済みの channel に後から加わった購読者にも現在の状態を伝える。
+    // 呼び出し元の effect 内で同期 setState が走らないよう microtask へ逃がし、
+    // 状態は捕捉時ではなく通知時に読む (待っている間に変化しうるため)。
+    void Promise.resolve().then(() => {
+      if (joined.statusListeners.has(onStatusChange)) onStatusChange(joined.status);
+    });
+  }
+
   return {
     unsubscribe() {
       const current = postgresEntries.get(roomId);
       if (!current) return;
       current.listeners.delete(callback);
+      if (onStatusChange) current.statusListeners.delete(onStatusChange);
       if (current.listeners.size === 0) {
         supabase.removeChannel(current.channel);
         postgresEntries.delete(roomId);

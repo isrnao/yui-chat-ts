@@ -16,7 +16,7 @@ function createChat(uuid: string, roomId: RoomId, overrides: Partial<Chat> = {})
     color: '#000000',
     message: 'こんにちは',
     time: 1,
-    ip: '',
+    ip_masked: '',
     ua: '',
     metadata: { version: 1 },
     ...overrides,

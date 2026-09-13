@@ -214,9 +214,18 @@ export async function loadChatLogsSnapshot(
     return { data: cached.data, hasMore: cached.hasMore };
   }
 
-  const inflight = snapshotInflight.get(roomId);
-  if (inflight) {
-    return inflight;
+  if (useCache) {
+    const inflight = snapshotInflight.get(roomId);
+    if (inflight) {
+      return inflight;
+    }
+  } else {
+    // 強制取得 (useCache=false) は進行中のリクエストを共有しない。
+    // 共有すると「更新」も Realtime 接続確立時の取り直しも、既に確定した古い snapshot を
+    // そのまま受け取ることになり、再取得の意味が無くなる
+    // (取得確定〜SUBSCRIBED の間に INSERT された発言を取りこぼしたままになる)。
+    // あわせて世代を進め、先行する古い応答がキャッシュを上書きしないようにする。
+    bumpCacheGeneration(roomId);
   }
 
   const generation = getCacheGeneration(roomId);
@@ -333,26 +342,6 @@ export function invalidateCache(roomId?: RoomId): void {
   }
 }
 
-export function applyOptimisticToCache(roomId: RoomId, chat: Chat): void {
-  const roomCache = getCachedChatLogs(roomId);
-  if (!roomCache) return;
-
-  setCachedChatLogs(roomId, [chat, ...roomCache.data], roomCache.hasMore);
-}
-
-export function replaceOptimisticInCache(optimisticUuid: string, serverChat: Chat): void {
-  const roomId = serverChat.room_id ?? DEFAULT_ROOM_ID;
-  const roomCache = getCachedChatLogs(roomId);
-  if (!roomCache) return;
-
-  const index = roomCache.data.findIndex((chat) => chat.uuid === optimisticUuid && chat.optimistic);
-  if (index === -1) return;
-
-  const next = [...roomCache.data];
-  next[index] = serverChat;
-  setCachedChatLogs(roomId, next, roomCache.hasMore);
-}
-
 export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
   const roomCache = getCachedChatLogs(roomId);
   if (!roomCache) {
@@ -388,7 +377,6 @@ export const chatLogResource = {
   loadInitialChatLogs,
   prefetchChatLogs,
   invalidateCache,
-  applyOptimisticToCache,
   getCacheInfo,
   getPagingHasMore,
   getSnapshotHasMore,
