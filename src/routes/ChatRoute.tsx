@@ -1,4 +1,4 @@
-import { useState, useRef, lazy, Suspense, useId } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
@@ -10,7 +10,6 @@ import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
 import type { AvatarId } from '@features/chat/types';
-import type { RealtimeChannel } from '@supabase/supabase-js';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
@@ -42,18 +41,14 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const [showRanking, setShowRanking] = useState(false);
   const [email, setEmail] = useState(() => settings.email ?? '');
   const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
-  const myId = useId();
 
-  const channelRef = useRef<RealtimeChannel | null>(null);
-  useLookSound(channelRef, roomId);
+  useLookSound(roomId);
 
   const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
     roomId,
     name,
     color,
     email,
-    myId,
-    entered,
     setEntered,
     setChatLog,
     setShowRanking,
@@ -100,9 +95,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 setColor={setColor}
                 email={email}
                 setEmail={setEmail}
-                onEnter={({ name: n, color: c, email: e, silent, avatar: a }) => {
+                onEnter={({ name: n, color: c, silent, avatar: a }) => {
                   setAvatar(a);
-                  return handleEnter({ name: n, color: c, email: e, silent });
+                  return handleEnter({ name: n, color: c, silent });
                 }}
               />
               <RoomInfo roomId={roomId} />

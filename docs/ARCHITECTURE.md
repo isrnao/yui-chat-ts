@@ -68,7 +68,6 @@ src/
 │   │   │   ├── useNowMinute.ts      # 1 分境界で再評価する現在時刻
 │   │   │   ├── useChatRanking.ts
 │   │   │   ├── useLookSound.ts      # look/unlook 通知音
-│   │   │   ├── useOptimisticChat.ts
 │   │   │   ├── usePreloadChatLogs.ts
 │   │   │   └── useSettings.ts
 │   │   ├── utils/                   # validation / fortune / urlLinker / settingsStore / fallback など
@@ -109,7 +108,7 @@ src/
 │           └── shared/              # resolveCount / tones など top 内部共通ロジック
 ├── shared/                          # 機能横断の共通モジュール
 │   ├── components/                  # Button / Input / Loader / Modal / TermsModal
-│   ├── hooks/                       # useSEO / useBroadcastChannel
+│   ├── hooks/                       # useSEO / useResetOnChange
 │   ├── utils/                       # format / uuid / seo / clientInfo
 │   └── supabaseClient.ts
 ├── pages/                           # ページレベルの単機能 view
@@ -338,7 +337,6 @@ fetchRoomParticipantCounts()
 | `useChanariSettings`  | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                            |
 | `useReloadInterval`   | Chanari のリロード間隔タイマー                                                                                                                    | `useEffect`                                                         |
 | `useSEO`              | メタ・OGP・Twitter Card・canonical の動的更新 (title / description / og:image を変更すると og:_ / twitter:_ / canonical / structured data も追従) | `useEffect`                                                         |
-| `useBroadcastChannel` | クロスタブ通信                                                                                                                                    | `useRef`, `useEffect`                                               |
 
 ### 6.2 useChatLog の内部構造
 
@@ -397,8 +395,6 @@ const mergeChat = useCallback((chat: Chat) => {
 | `loadInitialChatLogs(roomId, limit?)`                      | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス                                  |
 | `prefetchChatLogs(roomId)`                                 | 結果を捨てつつキャッシュ充填する best-effort                                        |
 | `invalidateCache(roomId?)`                                 | room 指定 or 全体クリア、in-flight も解除                                           |
-| `applyOptimisticToCache(roomId, chat)`                     | 楽観的 chat をキャッシュ先頭に挿入                                                  |
-| `replaceOptimisticInCache(tempUuid, serverChat)`           | temp 行を server chat で置換                                                        |
 | `getCacheInfo(roomId?)`                                    | キャッシュ有無 / age を返す                                                         |
 | `getPagingHasMore(roomId, offset, limit)`                  | 直近の paging クエリの `count` 由来判定                                             |
 | `getSnapshotHasMore(roomId)`                               | 観測用: 直近 snapshot 取得時の hasMore（未取得 / オフライン中は undefined）         |
@@ -431,7 +427,6 @@ const mergeChat = useCallback((chat: Chat) => {
 | ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
 | `saveChatLogOptimistic()`    | 楽観的更新用保存       | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate                      |
 | `saveChatLog()`              | 従来互換の保存         | 全カラム select                                                                   |
-| `saveChatLogFireAndForget()` | 非ブロッキング保存     | レスポンス不要の最高速版                                                          |
 | `clearChatLogs(roomId)`      | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
 | `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
 | `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |

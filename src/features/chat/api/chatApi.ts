@@ -11,8 +11,6 @@ import {
   loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
   loadInitialChatLogs as resourceLoadInitialChatLogs,
   invalidateCache as resourceInvalidateCache,
-  applyOptimisticToCache,
-  replaceOptimisticInCache,
   getCacheInfo as resourceGetCacheInfo,
   getPagingHasMore,
 } from './chatLogResource';
@@ -226,25 +224,6 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
   });
 }
 
-// Fire-and-forget版（Edge Function 経由・レスポンスを待たない）
-export function saveChatLogFireAndForget(chat: Chat): Promise<void> {
-  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
-
-  void invokeSaveChat({
-    room_id: roomId,
-    name: chat.name,
-    color: chat.color,
-    message: chat.message,
-    system: chat.system,
-    email: chat.email,
-    metadata: chat.metadata ?? null,
-  })
-    .then(() => invalidateCache(roomId))
-    .catch((err: unknown) => console.error('Background chat save failed:', err));
-
-  return Promise.resolve();
-}
-
 export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
   // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
   // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
@@ -314,17 +293,6 @@ export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'opt
     optimistic: true,
     metadata: { ...baseMetadata, optimisticNonce: nonce },
   };
-}
-
-// キャッシュに楽観的チャットを追加
-export function addOptimisticChatToCache(chat: Chat): void {
-  const roomId = chat.room_id ?? DEFAULT_ROOM_ID;
-  applyOptimisticToCache(roomId, chat);
-}
-
-// 楽観的チャットをサーバーからの結果で置換
-export function replaceOptimisticChatInCache(optimisticUuid: string, serverChat: Chat): void {
-  replaceOptimisticInCache(optimisticUuid, serverChat);
 }
 
 // キャッシュ状態確認関数

@@ -32,8 +32,6 @@ export function useChatHandlers({
   name,
   color,
   email,
-  myId: _myId,
-  entered: _entered,
   setEntered,
   setChatLog,
   setShowRanking,
@@ -47,8 +45,6 @@ export function useChatHandlers({
   name: string;
   color: string;
   email: string;
-  myId: string;
-  entered: boolean;
   setEntered: Dispatch<SetStateAction<boolean>>;
   setChatLog: Dispatch<SetStateAction<Chat[]>>;
   setShowRanking: Dispatch<SetStateAction<boolean>>;
@@ -70,7 +66,6 @@ export function useChatHandlers({
     }: {
       name: string;
       color: string;
-      email?: string;
       silent?: boolean;
     }) => {
       measurement.onJoinStarted(roomId);

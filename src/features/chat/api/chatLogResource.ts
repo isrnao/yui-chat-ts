@@ -333,26 +333,6 @@ export function invalidateCache(roomId?: RoomId): void {
   }
 }
 
-export function applyOptimisticToCache(roomId: RoomId, chat: Chat): void {
-  const roomCache = getCachedChatLogs(roomId);
-  if (!roomCache) return;
-
-  setCachedChatLogs(roomId, [chat, ...roomCache.data], roomCache.hasMore);
-}
-
-export function replaceOptimisticInCache(optimisticUuid: string, serverChat: Chat): void {
-  const roomId = serverChat.room_id ?? DEFAULT_ROOM_ID;
-  const roomCache = getCachedChatLogs(roomId);
-  if (!roomCache) return;
-
-  const index = roomCache.data.findIndex((chat) => chat.uuid === optimisticUuid && chat.optimistic);
-  if (index === -1) return;
-
-  const next = [...roomCache.data];
-  next[index] = serverChat;
-  setCachedChatLogs(roomId, next, roomCache.hasMore);
-}
-
 export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
   const roomCache = getCachedChatLogs(roomId);
   if (!roomCache) {
@@ -388,7 +368,6 @@ export const chatLogResource = {
   loadInitialChatLogs,
   prefetchChatLogs,
   invalidateCache,
-  applyOptimisticToCache,
   getCacheInfo,
   getPagingHasMore,
   getSnapshotHasMore,

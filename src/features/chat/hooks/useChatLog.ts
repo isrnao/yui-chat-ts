@@ -1,10 +1,5 @@
-import { useCallback, useEffect, useState, useOptimistic, startTransition } from 'react';
-import {
-  loadChatLogs,
-  saveChatLog,
-  clearChatLogs,
-  subscribeChatLogs,
-} from '@features/chat/api/chatApi';
+import { useCallback, useEffect, useState, useOptimistic } from 'react';
+import { loadChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
@@ -101,31 +96,11 @@ export function useChatLog(
     };
   }, [mergeChat, onRealtimeChat, roomId]);
 
-  const addChat = useCallback(
-    async (chat: Chat) => {
-      startTransition(() => {
-        addOptimistic(chat);
-      });
-      await saveChatLog(roomId, chat);
-      startTransition(() => {
-        mergeChat(chat);
-      });
-    },
-    [addOptimistic, mergeChat, roomId]
-  );
-
-  const clear = useCallback(async () => {
-    await clearChatLogs(roomId);
-    // Supabaseリアルタイム購読でクリアが反映されるため、ローカル状態は変更しない
-  }, [roomId]);
-
   return {
     chatLog: optimisticLog,
     isLoading,
     setChatLog,
-    addChat,
     addOptimistic,
     mergeChat,
-    clear,
   };
 }

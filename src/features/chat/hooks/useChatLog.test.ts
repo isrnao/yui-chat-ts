@@ -11,8 +11,6 @@ vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn(() => new Promise<never>(() => {})),
   loadInitialChatLogs: vi.fn().mockResolvedValue([]),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
-  saveChatLog: vi.fn().mockResolvedValue(undefined),
-  clearChatLogs: vi.fn().mockResolvedValue(undefined),
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
 }));
 
@@ -23,17 +21,13 @@ describe('useChatLog', () => {
     // フックが期待されるインターフェースを返すことのみをテスト
     expect(result.current).toHaveProperty('chatLog');
     expect(result.current).toHaveProperty('setChatLog');
-    expect(result.current).toHaveProperty('addChat');
     expect(result.current).toHaveProperty('addOptimistic');
     expect(result.current).toHaveProperty('mergeChat');
-    expect(result.current).toHaveProperty('clear');
 
     expect(Array.isArray(result.current.chatLog)).toBe(true);
     expect(typeof result.current.setChatLog).toBe('function');
-    expect(typeof result.current.addChat).toBe('function');
     expect(typeof result.current.addOptimistic).toBe('function');
     expect(typeof result.current.mergeChat).toBe('function');
-    expect(typeof result.current.clear).toBe('function');
   });
 
   it('prepends a temp optimistic chat to the base state', () => {
