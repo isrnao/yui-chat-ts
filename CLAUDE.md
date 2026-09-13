@@ -44,9 +44,11 @@ Manual memoization is being removed incrementally (the official guidance is not 
 once right after enabling the compiler). Event handlers and derived values now rely on the
 compiler. What is deliberately **kept**:
 
-- `useCallback` whose identity gates a `useEffect` (subscription setup): `useChatLog.mergeChat` /
-  `reload`, `useAllRoomsChatLog.mergeChat` / `addOptimistic` / `reload`, `RetroSplitter`'s drag
-  handlers, `TermsModal`'s effect callbacks. Each carries a comment saying why.
+- `useCallback` whose identity actually appears in a `useEffect` dependency array:
+  `useChatLog.mergeChat` and `useAllRoomsChatLog.mergeChat` (both gate the realtime subscription —
+  a new identity tears down and recreates the channel), `RetroSplitter`'s drag handlers, and
+  `TermsModal`'s effect callbacks. Each carries a comment saying why. Nothing else qualifies:
+  `reload` / `addOptimistic` are plain functions, since only `reloadKey` is a dependency.
 - `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
 
 Do not add _new_ manual memoization — let the compiler handle it.

@@ -69,8 +69,8 @@ export function useChatLog(
     setRealtimeStatus('connecting');
   });
 
-  // mergeChat / reload は下の useEffect の依存に入る。React Compiler も同等に
-  // メモ化するが、購読の張り直しに直結するため同一性の要件を明示して useCallback を残す。
+  // mergeChat は下の購読 effect の依存に入る。React Compiler も同等にメモ化するが、
+  // 同一性が変わると channel を張り直すことになるため、要件を明示して useCallback を残す。
   const mergeChat = useCallback((chat: Chat) => {
     setChatLog((prev) => mergeChatLogByUuid(prev, chat));
   }, []);
@@ -80,7 +80,7 @@ export function useChatLog(
    * 他ユーザーの発言は Realtime でしか届かず resource キャッシュには反映されないため、
    * キャッシュ付きで取り直すと直近の発言がログから消えてしまう。
    */
-  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  const reload = () => setReloadKey((k) => k + 1);
 
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 

@@ -64,7 +64,7 @@ src/
 │   │   ├── hooks/
 │   │   │   ├── useChatLog.ts        # 楽観的更新 + temp/saved dedup reducer
 │   │   │   ├── useChatHandlers.ts   # 入室 / 退室 / 送信 / リロード
-│   │   │   ├── useParticipants.ts   # useDeferredValue + useMemo
+│   │   │   ├── useParticipants.ts   # useDeferredValue（メモ化は React Compiler）
 │   │   │   ├── useNowMinute.ts      # 1 分境界で再評価する現在時刻
 │   │   │   ├── useChatRanking.ts
 │   │   │   ├── useLookSound.ts      # look/unlook 通知音
@@ -331,7 +331,7 @@ fetchRoomParticipantCounts()
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
 | `useChatLog`          | チャットログ全体の管理 + 楽観的更新                                                                                                               | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
 | `useChatHandlers`     | 入室・退室・送信・リロード                                                                                                                        | `useCallback`, `useTransition`                                      |
-| `useParticipants`     | 参加者リスト導出                                                                                                                                  | `useDeferredValue` → `useMemo`                                      |
+| `useParticipants`     | 参加者リスト導出                                                                                                                                  | `useDeferredValue`（メモ化は React Compiler）                       |
 | `useNowMinute`        | 1 分境界で再評価する現在時刻                                                                                                                      | `useState`, `useEffect` (`setTimeout` + `setInterval`)              |
 | `useRoomCounts`       | トップ用ルーム別参加人数                                                                                                                          | `useState`, `useEffect`                                             |
 | `useChanariSettings`  | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                            |
@@ -376,8 +376,8 @@ const mergeChat = useCallback((chat: Chat) => {
 
 ### 6.3 派生値の最適化
 
-- `useParticipants` は `useDeferredValue(chatLog)` で入力側を遅延化したうえで `useMemo` 内で `getRecentParticipants` を呼ぶ。参照不変なら再計算されない。
-- `ChatLogList` は `React.memo` でラップし、`chats = useMemo(() => chatLog.slice(0, windowRows), [chatLog, windowRows])` で派生値を安定化。
+- `useParticipants` は `useDeferredValue(chatLog)` で入力側を遅延化したうえで `getRecentParticipants` を呼ぶ。メモ化は React Compiler が行うため手動の `useMemo` は置かない。
+- `ChatLogList` は `React.memo` でラップする。内部の `sortChatsByTime` → `slice(0, windowRows)` のメモ化は React Compiler に任せる。
 - `ChatMessage` も `React.memo` 化（shallow compare で十分）。
 - `ParticipantsList` は `useNowMinute()` を内製しており、親に `currentTime` プロップを渡させない。1 分に 1 度だけ再描画する。
 
@@ -532,7 +532,7 @@ type Chat = {
 | `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                                   |
 | `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                                           |
 | `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                                           |
-| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`useMemo` で `sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ              |
+| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ                           |
 | `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                                       |
 | `ChatRanking`                | 発言数ランキング表示                                                                                                                       |
 | `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                                         |
@@ -585,8 +585,8 @@ type Chat = {
 | 遅延読み込み          | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）                                                            |
 | 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
 | トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
-| 派生値のメモ化        | `ChatLogList` / `ChatMessage` を `React.memo`、`chats = useMemo(...)`                                                           |
-| `useParticipants`     | `useDeferredValue(chatLog)` の出力を `useMemo` に通し、再計算を抑制                                                             |
+| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                       |
+| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                    |
 | 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
 | API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                                                                      |
 | キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止                                                      |
