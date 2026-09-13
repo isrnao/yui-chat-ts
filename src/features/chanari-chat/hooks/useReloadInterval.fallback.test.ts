@@ -48,6 +48,13 @@ describe('ちゃなりの定期更新フォールバック', () => {
     vi.useRealTimers();
   });
 
+  /** fake timer 下では waitFor が使えないため、microtask を手で流す */
+  async function flush() {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
+
   async function advance(seconds: number) {
     for (let i = 0; i < seconds / 7; i++) {
       await act(async () => {
@@ -67,11 +74,16 @@ describe('ちゃなりの定期更新フォールバック', () => {
     });
     expect(result.current).toBe('connected');
 
+    // 接続確立時の取り直しが 1 回入る (初回ロード + resync)
+    await flush();
+    expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
+    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', true);
+    expect(loadChatLogsMock).toHaveBeenNthCalledWith(2, 'durarara', false);
+
     await advance(63);
 
-    // 初回ロードの 1 回だけ。7 秒ごとの取得は走らない
-    expect(loadChatLogsMock).toHaveBeenCalledTimes(1);
-    expect(loadChatLogsMock).toHaveBeenCalledWith('durarara', true);
+    // 以降は 7 秒ごとの取得が走らない = 接続中はポーリングしない
+    expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
   });
 
   it('Realtime が切れている間はフォールバックとしてポーリングする', async () => {
@@ -106,8 +118,13 @@ describe('ちゃなりの定期更新フォールバック', () => {
       emitStatus('connected');
       await Promise.resolve();
     });
+    // 復帰時の取り直しが 1 回だけ入る
+    await flush();
+    expect(loadChatLogsMock).toHaveBeenCalledTimes(whileDown + 1);
+
     await advance(63);
 
-    expect(loadChatLogsMock).toHaveBeenCalledTimes(whileDown);
+    // その後はポーリングが止まっている
+    expect(loadChatLogsMock).toHaveBeenCalledTimes(whileDown + 1);
   });
 });
