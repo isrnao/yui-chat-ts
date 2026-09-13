@@ -102,7 +102,8 @@ describe('ChatLogPage Component', () => {
 
     render(<ChatLogPage />);
     expect(screen.getByRole('alert')).toBeInTheDocument();
-    expect(vi.mocked(fetchInitialChatLogPage).mock.calls.at(-1)?.[2]).toBe(0);
+    const firstCalls = vi.mocked(fetchInitialChatLogPage).mock.calls;
+    expect(firstCalls[firstCalls.length - 1]?.[2]).toBe(0);
 
     fireEvent.click(screen.getByRole('button', { name: '再試行' }));
 
@@ -110,7 +111,8 @@ describe('ChatLogPage Component', () => {
     expect(screen.getByText(/ChatLogLength: 1/)).toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     // 再取得は新しい reloadToken で行われる（= 同じ key の失敗 thenable を再利用しない）
-    expect(vi.mocked(fetchInitialChatLogPage).mock.calls.at(-1)?.[2]).toBe(1);
+    const retryCalls = vi.mocked(fetchInitialChatLogPage).mock.calls;
+    expect(retryCalls[retryCalls.length - 1]?.[2]).toBe(1);
 
     consoleError.mockRestore();
   });
