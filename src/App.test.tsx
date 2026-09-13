@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
+import { preloadRoute } from './routes/routeLoaders';
 import { loadChatLogs } from '@features/chat/api/chatApi';
 import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
 
@@ -41,11 +42,23 @@ beforeEach(() => {
     .forEach((element) => element.remove());
 });
 
+/**
+ * 本番の main.tsx と同じく、ルートチャンクを解決してから描画する。
+ * 解決前に描画すると Suspense の fallback が挟まるため、
+ * 「fallback を出さずに本体が出る」ことを検証する意図が保てなくなる。
+ */
+async function renderApp() {
+  await preloadRoute(window.location.pathname);
+  render(<App />);
+}
+
 describe('<App />', () => {
   it('shows the top page immediately without route loading fallback', async () => {
-    render(<App />);
+    await renderApp();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'お気楽チャット' })
+    ).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(document.documentElement.style.backgroundColor).toBe('rgb(255, 255, 255)');
@@ -61,11 +74,11 @@ describe('<App />', () => {
   it('shows the current room title in the entry form immediately', async () => {
     window.history.replaceState(null, '', '/chat/superbeginner');
 
-    render(<App />);
+    await renderApp();
 
-    const visibleTitle = screen
-      .getAllByText('超初心者チャット')
-      .find((el) => !el.closest('.sr-only'));
+    const visibleTitle = (await screen.findAllByText('超初心者チャット')).find(
+      (el) => !el.closest('.sr-only')
+    );
     expect(visibleTitle).toBeDefined();
     expect(visibleTitle?.tagName).toBe('HEADER');
     expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
@@ -81,10 +94,10 @@ describe('<App />', () => {
   it('shows the chanari entry form immediately without route loading fallback', async () => {
     window.history.replaceState(null, '', '/chanari/durarara');
 
-    render(<App />);
+    await renderApp();
 
     expect(
-      screen.getByRole('heading', { level: 1, name: 'デュラララ チャット' })
+      await screen.findByRole('heading', { level: 1, name: 'デュラララ チャット' })
     ).toBeInTheDocument();
     expect(screen.queryByText('読み込み中…')).not.toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
@@ -100,12 +113,14 @@ describe('<App />', () => {
     });
   });
 
-  it('shows the not found page immediately without route loading fallback', () => {
+  it('shows the not found page immediately without route loading fallback', async () => {
     window.history.replaceState(null, '', '/not-found');
 
-    render(<App />);
+    await renderApp();
 
-    expect(screen.getByRole('heading', { level: 1, name: '４０４ＥＲＲＯＲ' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '４０４ＥＲＲＯＲ' })
+    ).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
@@ -116,12 +131,12 @@ describe('<App />', () => {
   it('redirects /chat to the default chat room and updates history', async () => {
     window.history.replaceState(null, '', '/chat');
 
-    render(<App />);
+    await renderApp();
 
     // 初回 render 時点で確定 route (chat-room / 超初心者チャット) が描画される
-    const visibleTitle = screen
-      .getAllByText('超初心者チャット')
-      .find((el) => !el.closest('.sr-only'));
+    const visibleTitle = (await screen.findAllByText('超初心者チャット')).find(
+      (el) => !el.closest('.sr-only')
+    );
     expect(visibleTitle).toBeDefined();
     expect(visibleTitle?.tagName).toBe('HEADER');
 
@@ -142,10 +157,12 @@ describe('<App />', () => {
   it('redirects /chanari to the default chanari room and updates history', async () => {
     window.history.replaceState(null, '', '/chanari');
 
-    render(<App />);
+    await renderApp();
 
     // 初回 render 時点で確定 route (chanari-room) が描画される (default room ID は chat と共通)
-    expect(screen.getByRole('heading', { level: 1, name: '超初心者チャット' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: '超初心者チャット' })
+    ).toBeInTheDocument();
 
     // chanari 用 chrome 色が適用される
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');

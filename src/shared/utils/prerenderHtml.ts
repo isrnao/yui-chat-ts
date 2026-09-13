@@ -18,6 +18,40 @@ import {
 export const PAGE_SEO_START = '<!-- page-seo:start -->';
 export const PAGE_SEO_END = '<!-- page-seo:end -->';
 const ROOT_OPEN = '<div id="root">';
+const HEAD_CLOSE = '</head>';
+
+/**
+ * その URL が使うルートチャンクを modulePreload させるタグを head に足す。
+ *
+ * ルート単位の code splitting により、ルート本体は index チャンクの実行後に
+ * 動的 import される。何もしないとその 1 往復ぶん描画が遅れるため、
+ * ビルドマニフェストから解決したチャンクを先読みさせる
+ * (.kiro/specs/top-and-transition-performance Requirement 2.5)。
+ */
+export function injectRoutePreload(html: string, assetPaths: readonly string[]): string {
+  if (assetPaths.length === 0) return html;
+
+  const headIndex = html.indexOf(HEAD_CLOSE);
+  if (headIndex === -1) {
+    throw new Error('prerender: </head> が見つかりません');
+  }
+
+  const tags = assetPaths
+    // テンプレートが既に参照しているもの (エントリ JS / 共通 CSS など) は足さない
+    .filter((path) => !html.includes(`/${path}`))
+    .map((path) =>
+      path.endsWith('.css')
+        ? // CSS に modulePreload は使えない。ルート固有 CSS は stylesheet として
+          // 先に当てて FOUC を避ける
+          `<link rel="stylesheet" crossorigin href="/${path}" />`
+        : `<link rel="modulePreload" crossorigin href="/${path}" />`
+    )
+    .join('');
+
+  if (tags === '') return html;
+
+  return html.replace(HEAD_CLOSE, `${tags}${HEAD_CLOSE}`);
+}
 
 function escapeHtml(value: string): string {
   return value

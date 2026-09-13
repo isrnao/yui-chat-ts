@@ -11,6 +11,9 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
   build: {
     target: 'es2022',
+    // プリレンダ時に「その URL が使うルートチャンク」を modulePreload するために必要。
+    // ルート分割で生じる 1 往復ぶんの待ちを消す (scripts/prerender-rooms.ts)。
+    manifest: true,
     modulePreload: {
       polyfill: false,
     },

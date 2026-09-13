@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './App.css';
 import App from './App';
+import { preloadRoute } from './routes/routeLoaders';
 import { recordVisitOncePerSession } from '@features/chat/utils/settingsStore';
 
 // React ライフサイクルの影響を受けない位置で1回だけ呼び出す
@@ -9,11 +10,16 @@ recordVisitOncePerSession();
 
 const root = createRoot(document.getElementById('root')!);
 
-root.render(
-  <StrictMode>
-    <App />
-  </StrictMode>
-);
+// ルートチャンクを解決してから描画する。未解決のまま描画すると Suspense の
+// fallback が一瞬挟まるため (分割前は同居していて即描画だった)。
+// チャンクはプリレンダ HTML の modulePreload で並行取得済み。
+void preloadRoute(window.location.pathname).then(() => {
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>
+  );
+});
 
 // フォントのフォールバックサブセット (ユーザー入力の任意の日本語用、123 分割) は
 // CSS が render-blocking なため初回描画後に読み込む。同梱すると CSS 自体が

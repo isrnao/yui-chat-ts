@@ -1,4 +1,3 @@
-import { supabase } from '@shared/supabaseClient';
 import { getListableRoomIds, type RoomId } from '@features/chat/rooms';
 import type { ChatMetadata } from '@features/chat/types';
 
@@ -35,6 +34,27 @@ function isSupabaseConfigured(): boolean {
  * Supabase に到達できない / 設定がない場合は空オブジェクトを返す。
  * 呼び出し側でフォールバックを用意すること。
  */
+/**
+ * PostgREST へ直接投げるクエリ URL を組み立てる (テスト用に export)。
+ *
+ * supabase-js を使わないのは、この 1 クエリのためにトップページへ
+ * 約 50kB gz のライブラリを載せないため
+ * (.kiro/specs/top-and-transition-performance Requirement 3)。
+ * Supabase の REST は PostgREST そのものなので、素の fetch で等価に表現できる。
+ */
+export function buildRoomCountsUrl(baseUrl: string, since: number): string {
+  const roomList = getListableRoomIds().join(',');
+  const params = new URLSearchParams({
+    select: 'room_id,name,message,system,metadata,time',
+    time: `gte.${since}`,
+    room_id: `in.(${roomList})`,
+    deleted: 'eq.false',
+    order: 'time.asc',
+    limit: '5000',
+  });
+  return `${baseUrl.replace(/\/$/, '')}/rest/v1/chats?${params.toString()}`;
+}
+
 export async function fetchRoomParticipantCounts(
   windowMs: number = 6 * 60 * 60 * 1000
 ): Promise<RoomCountMap> {
@@ -42,26 +62,28 @@ export async function fetchRoomParticipantCounts(
     return {};
   }
 
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   const since = Date.now() - windowMs;
 
   try {
-    const { data, error } = await supabase
-      .from('chats')
-      .select('room_id, name, message, system, metadata, time')
-      .gte('time', since)
-      .in('room_id', getListableRoomIds() as unknown as string[])
-      .eq('deleted', false)
-      .order('time', { ascending: true })
-      .limit(5000);
+    const response = await fetch(buildRoomCountsUrl(baseUrl, since), {
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${anonKey}`,
+        Accept: 'application/json',
+      },
+    });
 
-    if (error || !data) {
+    if (!response.ok) {
       if (import.meta.env.DEV) {
-        console.warn('[roomCountsApi] fetch failed:', error?.message);
+        console.warn('[roomCountsApi] fetch failed:', response.status, response.statusText);
       }
       return {};
     }
 
-    return aggregateCountsFromRows(data as ChatRow[]);
+    const rows = (await response.json()) as ChatRow[];
+    return aggregateCountsFromRows(rows);
   } catch (err) {
     if (import.meta.env.DEV) {
       console.warn('[roomCountsApi] unexpected error:', err);
