@@ -29,6 +29,7 @@ const { loadChatLogsMock, subscribeChatLogsMock, emitStatus } = vi.hoisted(() =>
 
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: loadChatLogsMock,
+  loadRecentChatLogs: loadChatLogsMock,
   subscribeChatLogs: subscribeChatLogsMock,
 }));
 
@@ -77,8 +78,7 @@ describe('ちゃなりの定期更新フォールバック', () => {
     // 接続確立時の取り直しが 1 回入る (初回ロード + resync)
     await flush();
     expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
-    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', true);
-    expect(loadChatLogsMock).toHaveBeenNthCalledWith(2, 'durarara', false);
+    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', 10, true);
 
     await advance(63);
 

@@ -10,6 +10,7 @@ import {
   loadChatLogsSnapshot as resourceLoadChatLogsSnapshot,
   loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
   loadInitialChatLogs as resourceLoadInitialChatLogs,
+  loadRecentChatLogs as resourceLoadRecentChatLogs,
   invalidateCache as resourceInvalidateCache,
   getCacheInfo as resourceGetCacheInfo,
   getPagingHasMore,
@@ -144,6 +145,18 @@ export async function loadChatLogsWithPaging(
     data,
     hasMore: exactHasMore ?? data.length >= limit,
   };
+}
+
+/**
+ * 初期表示用に直近 N 件だけ取得する。canonical snapshot のキャッシュは汚さない。
+ * 入室時に全件へ広げる想定 (.kiro/specs/top-and-transition-performance Requirement 6)。
+ */
+export async function loadRecentChatLogs(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  limit = 10,
+  useInflight = true
+): Promise<Chat[]> {
+  return resourceLoadRecentChatLogs(roomId, limit, useInflight);
 }
 
 // 初回読み込み時の最適化された関数

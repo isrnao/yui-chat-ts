@@ -35,8 +35,16 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   usePageView(pageTitle);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, realtimeStatus, setChatLog, addOptimistic, mergeChat, reload } =
-    useChatLog(roomId, measurement.onRealtimeChat);
+  const {
+    chatLog,
+    isLoading,
+    realtimeStatus,
+    setChatLog,
+    addOptimistic,
+    mergeChat,
+    reload,
+    expandChatLog,
+  } = useChatLog(roomId, measurement.onRealtimeChat);
   useLookSound(roomId);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
@@ -110,6 +118,8 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 sid=""
                 onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
                   updateSettings({ name: n, nameColor: nc, speechColor: sc });
+                  // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
+                  expandChatLog();
                   await handleEnter({ name: n, color: nc, silent: false });
                 }}
               />

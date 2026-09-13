@@ -2,12 +2,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
-import { loadChatLogs } from '@features/chat/api/chatApi';
+import { loadRecentChatLogs } from '@features/chat/api/chatApi';
 import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
 
 // 複雑なSupabase統合部分はモック化
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn().mockResolvedValue([]),
+  loadRecentChatLogs: vi.fn().mockResolvedValue([]),
   loadInitialChatLogs: vi.fn().mockResolvedValue([]),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
   saveChatLog: vi.fn(),
@@ -93,7 +94,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadChatLogs).toHaveBeenCalledWith('superbeginner', true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
     });
   });
 
@@ -112,7 +113,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadChatLogs).toHaveBeenCalledWith('durarara', true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10, true);
     });
     await waitFor(() => {
       expect(screen.queryByText('チャットログを読み込み中...')).not.toBeInTheDocument();
@@ -156,7 +157,7 @@ describe('<App />', () => {
 
     // 確定 roomId で chatApi が呼ばれる
     await waitFor(() => {
-      expect(loadChatLogs).toHaveBeenCalledWith('superbeginner', true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
     });
   });
 

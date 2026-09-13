@@ -17,6 +17,7 @@ vi.mock('@features/chat/api/chatApi', async (importOriginal) => {
   return {
     ...actual,
     loadChatLogs: vi.fn(() => Promise.resolve([])),
+    loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
     subscribeChatLogs: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
       realtimeListeners.add(callback);
       return {
@@ -120,5 +121,31 @@ describe('ChatRoute のフォーカス', () => {
 
     await waitFor(() => expect(screen.getByText('こんばんは')).toBeInTheDocument());
     expect(document.activeElement).toBe(select);
+  });
+});
+
+// 初期表示を軽くするため入室前は 10 件だけ取得し、入室で全件へ広げる
+// (.kiro/specs/top-and-transition-performance Requirement 6)
+describe('ChatRoute の段階的なログ取得', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    realtimeListeners.clear();
+  });
+
+  it('入室前は 10 件だけ取得し、全件取得は行わない', async () => {
+    const { loadChatLogs, loadRecentChatLogs } = await import('@features/chat/api/chatApi');
+
+    render(<ChatRoute roomId="superbeginner" />);
+
+    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true));
+    expect(loadChatLogs).not.toHaveBeenCalled();
+  });
+
+  it('「チャットに参加する」で全件取得へ広げる', async () => {
+    const { loadChatLogs } = await import('@features/chat/api/chatApi');
+
+    await enterRoom();
+
+    await waitFor(() => expect(loadChatLogs).toHaveBeenCalledWith('superbeginner', true));
   });
 });

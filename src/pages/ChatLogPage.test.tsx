@@ -52,6 +52,7 @@ vi.mock('@features/chat/hooks/usePreloadChatLogs', () => ({
 // 「もっと読み込む」用に chatApi も最低限モック
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: vi.fn().mockResolvedValue([mockChat]),
+  loadRecentChatLogs: vi.fn().mockResolvedValue([mockChat]),
   loadInitialChatLogs: vi.fn().mockResolvedValue([mockChat]),
   loadChatLogsWithPaging: vi.fn().mockResolvedValue({ data: [mockChat], hasMore: false }),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),

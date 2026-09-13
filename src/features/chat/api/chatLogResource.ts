@@ -196,6 +196,73 @@ async function fetchPage(
   });
 }
 
+/** 初期表示用の少量取得。同一 key の同時呼び出しを束ねるだけの軽い in-flight。 */
+const recentInflight = new Map<string, Promise<Chat[]>>();
+
+/**
+ * 直近 `limit` 件だけを取得する。初期表示を速くするための経路。
+ *
+ * @param useInflight false を渡すと進行中のリクエストを共有せず、必ず実取得する。
+ *   「更新」や接続確立時の取り直しで使う。
+ *
+ * canonical snapshot (MAX_CHAT_LOG 件) のキャッシュは汚さない。少量の結果で
+ * キャッシュを上書きすると、後から全件が必要になったときに 10 件しか返せなくなるため。
+ * 入室時の全件取得は従来どおり `loadChatLogsSnapshot` が担う。
+ */
+export async function loadRecentChatLogs(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  limit = 10,
+  useInflight = true
+): Promise<Chat[]> {
+  if (limit >= MAX_CHAT_LOG) {
+    const { data } = await loadChatLogsSnapshot(roomId, useInflight);
+    return data;
+  }
+
+  const key = `${roomId}|${limit}`;
+  // 「更新」と Realtime 接続確立時の取り直しは進行中のリクエストを共有しない。
+  // 共有すると、初回取得が未完了のうちに接続が確立した場合に同じ古い Promise を
+  // 受け取ってしまい、snapshot 確定〜SUBSCRIBED の間に INSERT された発言を
+  // 取りこぼしたままになる (loadChatLogsSnapshot の useCache=false と同じ理由)。
+  if (useInflight) {
+    const inflight = recentInflight.get(key);
+    if (inflight) return inflight;
+  }
+
+  const startTime = startPerf();
+  const request = retryApiCall(async () => {
+    if (!isOnline()) {
+      endPerf('loadRecentChatLogs-offline', startTime);
+      return getOfflineChatData(roomId).slice(0, limit);
+    }
+
+    const { data, error } = await supabase
+      .from(TABLE)
+      .select(SELECT_COLUMNS)
+      .eq('room_id', roomId)
+      .eq('deleted', false)
+      .order('uuid', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      if (error.code === '401' || error.message.includes('JWT')) {
+        return getOfflineChatData(roomId).slice(0, limit);
+      }
+      throw new Error(`Supabase error: ${error.message} (${error.code})`);
+    }
+
+    endPerf('loadRecentChatLogs-network', startTime);
+    return (data ?? []).map(normalizeChat);
+  }).finally(() => {
+    if (recentInflight.get(key) === request) {
+      recentInflight.delete(key);
+    }
+  });
+
+  recentInflight.set(key, request);
+  return request;
+}
+
 /**
  * canonical snapshot を `{ data, hasMore }` shape で返す。
  * 取得タイミングで決まった hasMore を取得結果と必ずペアで返すため、
@@ -372,6 +439,7 @@ export function getSnapshotHasMore(roomId: RoomId): boolean | undefined {
 
 export const chatLogResource = {
   loadChatLogs,
+  loadRecentChatLogs,
   loadChatLogsSnapshot,
   loadChatLogsWithPaging,
   loadInitialChatLogs,
