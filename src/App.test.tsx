@@ -94,7 +94,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
     });
   });
 
@@ -113,7 +113,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10, true);
     });
     await waitFor(() => {
       expect(screen.queryByText('チャットログを読み込み中...')).not.toBeInTheDocument();
@@ -157,7 +157,7 @@ describe('<App />', () => {
 
     // 確定 roomId で chatApi が呼ばれる
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
     });
   });
 

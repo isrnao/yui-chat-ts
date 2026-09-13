@@ -202,22 +202,32 @@ const recentInflight = new Map<string, Promise<Chat[]>>();
 /**
  * 直近 `limit` 件だけを取得する。初期表示を速くするための経路。
  *
+ * @param useInflight false を渡すと進行中のリクエストを共有せず、必ず実取得する。
+ *   「更新」や接続確立時の取り直しで使う。
+ *
  * canonical snapshot (MAX_CHAT_LOG 件) のキャッシュは汚さない。少量の結果で
  * キャッシュを上書きすると、後から全件が必要になったときに 10 件しか返せなくなるため。
  * 入室時の全件取得は従来どおり `loadChatLogsSnapshot` が担う。
  */
 export async function loadRecentChatLogs(
   roomId: RoomId = DEFAULT_ROOM_ID,
-  limit = 10
+  limit = 10,
+  useInflight = true
 ): Promise<Chat[]> {
   if (limit >= MAX_CHAT_LOG) {
-    const { data } = await loadChatLogsSnapshot(roomId);
+    const { data } = await loadChatLogsSnapshot(roomId, useInflight);
     return data;
   }
 
   const key = `${roomId}|${limit}`;
-  const inflight = recentInflight.get(key);
-  if (inflight) return inflight;
+  // 「更新」と Realtime 接続確立時の取り直しは進行中のリクエストを共有しない。
+  // 共有すると、初回取得が未完了のうちに接続が確立した場合に同じ古い Promise を
+  // 受け取ってしまい、snapshot 確定〜SUBSCRIBED の間に INSERT された発言を
+  // 取りこぼしたままになる (loadChatLogsSnapshot の useCache=false と同じ理由)。
+  if (useInflight) {
+    const inflight = recentInflight.get(key);
+    if (inflight) return inflight;
+  }
 
   const startTime = startPerf();
   const request = retryApiCall(async () => {

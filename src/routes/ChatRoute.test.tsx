@@ -137,7 +137,7 @@ describe('ChatRoute の段階的なログ取得', () => {
 
     render(<ChatRoute roomId="superbeginner" />);
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10));
+    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true));
     expect(loadChatLogs).not.toHaveBeenCalled();
   });
 

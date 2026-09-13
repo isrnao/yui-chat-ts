@@ -131,6 +131,9 @@ export function useChatLog(
   // 購読 effect と取得 effect にまたがるので ref で共有する。
   const arrivedDuringLoadRef = useRef<Chat[] | null>(null);
 
+  // 現在表示しているログが何件要求の結果か。10 → 100 の拡張を検知するために持つ。
+  const displayedLimitRef = useRef(INITIAL_CHAT_LOG_LIMIT);
+
   // 購読は roomId 単位で張りっぱなしにする。reloadKey を依存に入れて取得と同じ
   // effect にまとめると、更新のたびに（ちゃなりの定期更新では既定 7 秒ごとに）
   // room で共有している唯一の channel を破棄・再作成することになる。
@@ -165,17 +168,29 @@ export function useChatLog(
       if (arrivedDuringLoadRef.current === buffer) arrivedDuringLoadRef.current = null;
     };
 
+    // 初回取得以外 (更新 / 接続確立時の取り直し) は実取得する。
+    // 進行中のリクエストを共有すると、取り直しの意味が無くなる。
+    const isFirstFetch = reloadKey === 0;
+    // 10 件 → 全件へ広げる回だけは、既に表示している発言を残す必要がある。
+    // それ以外は取得結果を canonical として置き換える。そうしないと、別クライアントで
+    // 論理削除された発言や最新 100 件から外れた発言がいつまでも残ってしまう。
+    const isExpansion = logLimit > displayedLimitRef.current;
+
     const fetchLogs =
       logLimit >= FULL_CHAT_LOG_LIMIT
-        ? loadChatLogs(roomId, reloadKey === 0)
-        : loadRecentChatLogs(roomId, logLimit);
+        ? loadChatLogs(roomId, isFirstFetch)
+        : loadRecentChatLogs(roomId, logLimit, isFirstFetch);
 
     fetchLogs
       .then((logs) => {
         if (ignore) return;
-        // 取得結果を canonical としつつ、取得中に届いた発言と
-        // 既に表示している発言 (少量取得 → 全件取得の移行中など) は落とさない
-        setChatLog((previous) => mergeChatLogByUuid(logs, [...previous, ...buffer]));
+        displayedLimitRef.current = logLimit;
+        // 取得中に届いた発言は取得結果に含まれないことがあるので必ず足す
+        setChatLog((previous) =>
+          isExpansion
+            ? mergeChatLogByUuid(logs, [...previous, ...buffer])
+            : mergeChatLogByUuid(logs, buffer)
+        );
       })
       .finally(() => {
         stopBuffering();
