@@ -101,10 +101,16 @@ roomCountsApi → @shared/supabaseClient` の連鎖。実際に使うのは Post
 
 #### Acceptance Criteria
 
-1. THE `App.tsx` SHALL 各ルートを `React.lazy` 経由でのみ参照する。
-2. WHEN ビルドが完了する, THE ビルド成果物 SHALL TopRoute / ChatRoute / ChanariRoute / AllRoomsRoute を別チャンクとして出力する。
+1. THE `App.tsx` SHALL チャット系ルート（chat / chanari / all-rooms / not-found）を
+   `React.lazy` 経由でのみ参照する。
+   1a. THE `App.tsx` SHALL トップページのルートを静的 import する。lazy にすると
+   「チャンク到着まで何も描画できない」時間が必ず入り、体感の初期描画が分割前より
+   悪化するため（軽量サイトでは分割の旨味より待ちの害が大きい）。
+2. WHEN ビルドが完了する, THE ビルド成果物 SHALL ChatRoute / ChanariRoute / AllRoomsRoute を別チャンクとして出力する（TopRoute は 1a により静的依存なのでエントリに含まれる）。
 3. WHEN ユーザーが `/` を訪問する, THE ブラウザ SHALL chat feature のコードを初期ロードで取得しない。
 4. WHEN Route_Chunk のロードに失敗する, THE Route_Error_Boundary SHALL 再試行導線を表示し、ホワイトスクリーンにしない。
+   4a. THE Route_Chunk の待機中 SHALL 全画面の読み込み表示を出さない。出せるものから順に
+   描画するほうが体感が良く、読み込み表示を一枚挟むと初期描画の体感が悪化するため。
 5. WHEN ユーザーがプリレンダ済みの `/chat/<id>` に直接アクセスする, THE HTML SHALL 該当 Route_Chunk への `modulePreload` ヒントを含み、動的 import による追加ラウンドトリップを発生させない。
 6. THE 既存のリダイレクト仕様（`/chat` → `/chat/<default>`）SHALL 維持される。
 

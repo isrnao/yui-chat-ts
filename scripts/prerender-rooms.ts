@@ -70,14 +70,7 @@ for (const roomId of targets) {
   count += 1;
 }
 
-// トップページ自身にも TopRoute の先読みを入れる。
-// 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい
-// (先に index.html を書き換えると部屋ページにも TopRoute の preload が混ざる)。
-writeFileSync(
-  templatePath,
-  injectRoutePreload(template, resolveChunkPaths('src/routes/TopRoute.tsx')),
-  'utf-8'
-);
+// トップは静的 import なのでエントリの依存として既に modulePreload されている。
+// 先読みを追加する必要はない。
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
-console.log('✔ injected route preloads into dist/index.html');

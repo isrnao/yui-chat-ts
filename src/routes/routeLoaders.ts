@@ -1,17 +1,18 @@
 import { resolveRouteFollowingRedirects } from './resolveRoute';
 
 /**
- * ルート単位の code splitting のための動的 import 群。
+ * チャット系ルートの動的 import 群。
  *
  * `App.tsx` の `React.lazy` と `preloadRoute` が同じ関数を共有することで、
  * 先読みと描画で同一のモジュールキャッシュに当たるようにしている。
- * 静的 import に戻すと index チャンクへ再び同居するので注意
- * (.kiro/specs/top-and-transition-performance Requirement 2)。
+ *
+ * トップ (`TopRoute`) は入口なので意図的に含めない。lazy にすると
+ * 「チャンク到着まで何も出せない」時間が必ず入り、体感の初期描画が
+ * 分割前より悪くなるため (.kiro/specs/top-and-transition-performance Requirement 2)。
  */
 export const routeLoaders = {
   'chat-room': () => import('./ChatRoute'),
   'all-rooms': () => import('./AllRoomsRoute'),
-  top: () => import('./TopRoute'),
   'chanari-room': () => import('./ChanariRoute'),
   'not-found': () => import('./NotFoundRoute'),
 } as const;
@@ -27,9 +28,11 @@ export const routeLoaders = {
  *
  * 失敗しても解決済み扱いにして描画へ進む (RouteHost の ErrorBoundary が拾う)。
  */
-export function preloadRoute(pathname: string): Promise<unknown> {
+export function preloadRoute(pathname: string): Promise<unknown> | null {
   const { route } = resolveRouteFollowingRedirects(pathname);
   const key = route.type === 'chat-room' && route.roomId === 'all' ? 'all-rooms' : route.type;
   const load = routeLoaders[key as keyof typeof routeLoaders];
-  return load ? load().catch(() => undefined) : Promise.resolve();
+  // トップは静的 import なのでローダを持たない。null を返して
+  // 呼び出し側が「待たずに描画してよい」と判断できるようにする。
+  return load ? load().catch(() => undefined) : null;
 }

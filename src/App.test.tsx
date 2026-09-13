@@ -43,22 +43,28 @@ beforeEach(() => {
 });
 
 /**
- * 本番の main.tsx と同じく、ルートチャンクを解決してから描画する。
- * 解決前に描画すると Suspense の fallback が挟まるため、
- * 「fallback を出さずに本体が出る」ことを検証する意図が保てなくなる。
+ * ルートチャンクを解決してから描画する。本番の main.tsx と同じ順序。
+ *
+ * main.tsx が待つのは、部屋ページの HTML に既に表示可能な内容が入っており、
+ * 先に描画するとそれを消して空白にしてしまうため。待っている間はユーザーに
+ * 完成した画面が見えている。
+ * 失敗時の挙動 (ErrorBoundary) は RouteHost.test.tsx で検証している。
  */
 async function renderApp() {
+  // チャット系ルートは lazy なので、本番の main.tsx と同じくチャンクの解決を待ってから描画する
+  // (待たずに描画するとプリレンダ済みの本文が消えて空白になる)。
+  // トップは静的 import なので preloadRoute が null を返し、待たずに描画される。
   await preloadRoute(window.location.pathname);
   render(<App />);
 }
 
 describe('<App />', () => {
+  // トップは入口なので lazy にしない。同期レンダーで本文が出ること自体が要件
+  // (lazy に戻すと findBy が必要になり、実画面では読み込み待ちが挟まる)
   it('shows the top page immediately without route loading fallback', async () => {
-    await renderApp();
+    render(<App />);
 
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'お気楽チャット' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'お気楽チャット' })).toBeInTheDocument();
     expect(screen.queryByText(/読み込み中/)).not.toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
     expect(document.documentElement.style.backgroundColor).toBe('rgb(255, 255, 255)');

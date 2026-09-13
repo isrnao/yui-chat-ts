@@ -30,10 +30,13 @@ export function RouteHost({ children }: { children: ReactNode }) {
       }
     >
       {/*
-        fallback を null にしない: 読み込みが遅い回線で「何も無い画面」になるのを避ける。
-        高さを確保しないことで、描画後のレイアウトシフトも起こさない。
+        fallback は出さない。軽量なサイトなので、出せるものから順に出すほうが体感が良い。
+        全画面の読み込み表示を挟むと、分割前は直接描画されていた画面の前に
+        「読み込み中」が一枚増えるだけで初期描画の体感が悪化する。
+        トップは lazy にしていないので、この境界に入るのはチャット系ルートのみ。
+        チャンクは modulePreload + 先読みで並行取得済みなので通常は即解決する。
       */}
-      <Suspense fallback={<div className="min-h-dvh" aria-busy="true" />}>{children}</Suspense>
+      <Suspense fallback={null}>{children}</Suspense>
     </ErrorBoundary>
   );
 }

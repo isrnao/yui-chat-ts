@@ -1,18 +1,22 @@
 import { lazy, useEffect, useState } from 'react';
 import { RouteHost } from './routes/RouteHost';
 import { routeLoaders } from './routes/routeLoaders';
+// トップは入口であり、ここだけは lazy にしない。
+// lazy にすると「チャンク到着まで何も出せない」時間が必ず入り、
+// 体感の初期描画が分割前より悪くなる (サイズは 30KB 程度で分割の旨味が薄い)。
+// 重い依存 (supabase / チャット一式) はチャット系ルートの側に残っている。
+import TopRoute from './routes/TopRoute';
 import {
   resolveRouteFollowingRedirects,
   type ResolvedRoute,
   type RouteResolution,
 } from './routes/resolveRoute';
 
-// ルート単位の code splitting。トップページ訪問者にチャット一式を配らないための分割。
-// 静的 import に戻すと index チャンクへ再び同居するので注意
+// チャット系ルートの code splitting。トップページ訪問者にチャット一式と
+// supabase-js を配らないための分割
 // (.kiro/specs/top-and-transition-performance Requirement 2)。
 const ChatRoute = lazy(routeLoaders['chat-room']);
 const AllRoomsRoute = lazy(routeLoaders['all-rooms']);
-const TopRoute = lazy(routeLoaders.top);
 const ChanariRoute = lazy(routeLoaders['chanari-room']);
 const NotFoundRoute = lazy(routeLoaders['not-found']);
 
