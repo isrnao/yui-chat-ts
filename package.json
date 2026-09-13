@@ -31,8 +31,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:prod": "pnpm run generate:sitemap && tsc -b && vite build && pnpm run prerender:rooms",
+    "build:prod": "pnpm run generate:sitemap && tsc -b && vite build && pnpm run build:ssr && pnpm run prerender:rooms",
     "generate:sitemap": "node --experimental-strip-types scripts/generate-sitemap.ts",
+    "build:ssr": "vite build --ssr src/entry-server.tsx --outDir dist-ssr",
     "prerender:rooms": "node --experimental-strip-types scripts/prerender-rooms.ts",
     "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.mdx",
     "preview": "vite preview",

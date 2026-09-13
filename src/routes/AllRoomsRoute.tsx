@@ -3,6 +3,7 @@ import { useAllRoomsChatLog } from '@features/chat/hooks/useAllRoomsChatLog';
 import { useAllRoomsChatHandlers } from '@features/chat/hooks/useAllRoomsChatHandlers';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
+import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import { getRoomMeta } from '@features/chat/rooms';
 import type { RoomId } from '@features/chat/rooms';
@@ -42,9 +43,10 @@ export default function AllRoomsRoute() {
   const { settings } = useSettings();
 
   const [entered, setEntered] = useState(false);
-  const [name, setName] = useState(() => settings.name ?? '');
-  const [color, setColor] = useState(() => settings.color || '#ff69b4');
-  const [email, setEmail] = useState(() => settings.email ?? '');
+  // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
+  const [name, setName] = useStoreBackedState(settings.name ?? '');
+  const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
+  const [email, setEmail] = useStoreBackedState(settings.email ?? '');
   const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
   const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);

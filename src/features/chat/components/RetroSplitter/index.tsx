@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
-import type { ReactNode, KeyboardEvent } from 'react';
+import type { ReactNode, KeyboardEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 /**
@@ -9,8 +9,11 @@ import { useResetOnChange } from '@shared/hooks/useResetOnChange';
  */
 export type SplitterTopKind = 'chat' | 'entry';
 
-/** Tailwind の lg (64rem) と同じ閾値。inline style ではブレークポイントが効かないため JS で判定する */
-const DESKTOP_MEDIA_QUERY = '(min-width: 64rem)';
+/*
+ * 初期高さのブレークポイント (Tailwind の lg = 64rem) は src/styles/utilities.css の
+ * .splitter-panes が持つ。JS で matchMedia を見ると SSG と hydration で値が
+ * 食い違い、デスクトップで必ずレイアウトシフトが出るため CSS に寄せている。
+ */
 
 /** topKind 未指定時の初期高さ(%) */
 const FALLBACK_TOP_HEIGHT = 30;
@@ -23,14 +26,14 @@ const TOP_HEIGHT_PRESETS: Record<SplitterTopKind, TopHeightPreset> = {
   entry: { base: 26, desktop: 24 },
 };
 
-function isDesktopViewport(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.(DESKTOP_MEDIA_QUERY).matches === true;
-}
-
-function resolveInitialTopHeight(topKind: SplitterTopKind | undefined): number {
-  if (topKind == null) return FALLBACK_TOP_HEIGHT;
+/** プリセット値 (%) を CSS 変数として渡す。ビューポート出し分けは CSS が行う。 */
+function resolveTopHeightVars(topKind: SplitterTopKind | undefined): {
+  base: number;
+  desktop: number;
+} {
+  if (topKind == null) return { base: FALLBACK_TOP_HEIGHT, desktop: FALLBACK_TOP_HEIGHT };
   const preset = TOP_HEIGHT_PRESETS[topKind];
-  return isDesktopViewport() ? (preset.desktop ?? preset.base) : preset.base;
+  return { base: preset.base, desktop: preset.desktop ?? preset.base };
 }
 
 export default function RetroSplitter({
@@ -49,7 +52,13 @@ export default function RetroSplitter({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // 上側の画面に応じて初期高さを決定（マウント時のみ参照）
-  const [topHeight, setTopHeight] = useState(() => resolveInitialTopHeight(topKind)); // percent
+  // 初期高さはビューポート出し分けを含めて CSS が決める (SSG と hydration で
+  // 値が食い違わないようにするため)。JS は操作後の値だけを持つ。
+  const topHeightVars = resolveTopHeightVars(topKind);
+  const [adjustedTopHeight, setAdjustedTopHeight] = useState<number | null>(null);
+  // 操作前は CSS が実効値を決めるので、JS からは base 値を近似として扱う
+  // (aria-valuenow と、ドラッグ開始時の基準に使う)。
+  const topHeight = adjustedTopHeight ?? topHeightVars.base; // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -118,7 +127,7 @@ export default function RetroSplitter({
         rafRef.current = null;
       }
       rafRef.current = requestAnimationFrame(() => {
-        setTopHeight(calcPercent(clientY));
+        setAdjustedTopHeight(calcPercent(clientY));
       });
     },
     [calcPercent]
@@ -154,15 +163,23 @@ export default function RetroSplitter({
 
   // 入室前後で上側の画面が入れ替わったら初期高さに戻す
   // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
-  useResetOnChange(topKind, (next) => {
-    setTopHeight(resolveInitialTopHeight(next));
+  useResetOnChange(topKind, () => {
+    // null に戻すことで、新しい topKind のプリセット値に再び追随させる
+    setAdjustedTopHeight(null);
   });
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {
     const height = metrics.height || metricsRef.current.height || 1;
-    if (e.key === 'ArrowUp') setTopHeight((h) => Math.min(h + 2, 100 - (minBottom / height) * 100));
-    if (e.key === 'ArrowDown') setTopHeight((h) => Math.max(h - 2, (minTop / height) * 100));
+    const adjust = (delta: number, clamp: (value: number) => number) => {
+      setAdjustedTopHeight((previous) => clamp((previous ?? topHeightVars.base) + delta));
+    };
+    if (e.key === 'ArrowUp') {
+      adjust(2, (value) => Math.min(value, 100 - (minBottom / height) * 100));
+    }
+    if (e.key === 'ArrowDown') {
+      adjust(-2, (value) => Math.max(value, (minTop / height) * 100));
+    }
   };
 
   const containerHeight = metrics.height;
@@ -174,13 +191,21 @@ export default function RetroSplitter({
   return (
     <div
       ref={containerRef}
-      className="flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
+      className="splitter-panes flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
+      style={
+        {
+          '--splitter-top-base': `${topHeightVars.base}%`,
+          '--splitter-top-desktop': `${topHeightVars.desktop}%`,
+          // 操作後はこの inline 値が CSS のメディアクエリを上書きする
+          ...(adjustedTopHeight === null ? {} : { '--splitter-top-h': `${adjustedTopHeight}%` }),
+        } as CSSProperties
+      }
     >
       {/* 上側エリア */}
       <div
         className="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
         style={{
-          height: `${topHeight}%`,
+          height: 'var(--splitter-top-h)',
           minHeight: minTop,
         }}
       >
@@ -206,7 +231,7 @@ export default function RetroSplitter({
       <div
         className="overflow-y-auto min-h-0"
         style={{
-          height: `${100 - topHeight}%`,
+          height: 'calc(100% - var(--splitter-top-h))',
           minHeight: minBottom,
         }}
       >

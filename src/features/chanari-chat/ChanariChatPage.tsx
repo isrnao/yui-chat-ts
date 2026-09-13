@@ -4,6 +4,7 @@ import { getRoomMeta } from '@features/chat/rooms';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
+import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import { buildPageTitle } from '@shared/utils/seo';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
@@ -40,10 +41,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   const { settings, updateSettings } = useChanariSettings(roomId);
   const [entered, setEntered] = useState(false);
-  const [name, setName] = useState(settings.name ?? '');
-  const [nameColor, setNameColor] = useState(settings.nameColor ?? '#ff69b4');
-  const [speechColor, setSpeechColor] = useState(settings.speechColor ?? '#000000');
-  const [message, setMessage] = useState(settings.lastMessage ?? '');
+  // SSG/hydration 中は既定値、hydration 後は draft 由来の値に追随する
+  const [name, setName] = useStoreBackedState(settings.name ?? '');
+  const [nameColor, setNameColor] = useStoreBackedState(settings.nameColor ?? '#ff69b4');
+  const [speechColor, setSpeechColor] = useStoreBackedState(settings.speechColor ?? '#000000');
+  const [message, setMessage] = useStoreBackedState(settings.lastMessage ?? '');
   const [windowRows] = useState(30);
   const [reloadSeconds, setReloadSeconds] = useState<number>(DEFAULT_RELOAD_SECONDS);
 

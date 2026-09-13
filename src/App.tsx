@@ -64,9 +64,14 @@ function resolveShellChrome(route: ResolvedRoute): ShellChrome {
   }
 }
 
-export default function App() {
+/**
+ * @param initialPathname SSG 時に描画対象の URL を渡す。クライアントでは未指定にして
+ *   `window.location.pathname` を使う。SSG した URL でそのまま読み込まれる限り
+ *   両者は一致するので hydration mismatch は起きない。
+ */
+export default function App({ initialPathname }: { initialPathname?: string } = {}) {
   const [resolution, setResolution] = useState<RouteResolution>(() =>
-    resolveRouteFollowingRedirects(window.location.pathname)
+    resolveRouteFollowingRedirects(initialPathname ?? window.location.pathname)
   );
   const { route, finalPathname } = resolution;
 

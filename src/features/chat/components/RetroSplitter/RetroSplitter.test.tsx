@@ -3,9 +3,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import RetroSplitter from './index';
 
-function getPercentHeight(div: HTMLElement) {
-  // style="height: XX%"
-  return Number(div.style.height.replace('%', ''));
+/**
+ * 実効の上側高さ(%)を得る。
+ *
+ * 高さは CSS 変数経由で決まる (SSG と hydration で値が食い違わないよう、
+ * ビューポート出し分けを CSS のメディアクエリに任せているため)。
+ * 操作後は --splitter-top-h が入り、未操作なら --splitter-top-base が実効値になる
+ * (jsdom はメディアクエリを適用しないので desktop 値は当たらない)。
+ */
+function getPercentHeight(node: HTMLElement) {
+  const panes = node.closest('.splitter-panes') as HTMLElement | null;
+  const target = panes ?? node;
+  const adjusted = target.style.getPropertyValue('--splitter-top-h');
+  const base = target.style.getPropertyValue('--splitter-top-base');
+  return Number((adjusted || base).replace('%', ''));
 }
 
 describe('RetroSplitter', () => {
@@ -96,9 +107,10 @@ describe('RetroSplitter', () => {
       window.dispatchEvent(new MouseEvent('mousemove', { clientY: 499 }));
     });
     const topDiv = screen.getByText('TT').parentElement as HTMLElement;
-    const bottomDiv = screen.getByText('BB').parentElement as HTMLElement;
-    expect(getPercentHeight(topDiv)).toBeGreaterThanOrEqual(20);
-    expect(getPercentHeight(bottomDiv)).toBeGreaterThanOrEqual(30);
+    const topPercent = getPercentHeight(topDiv);
+    expect(topPercent).toBeGreaterThanOrEqual(20);
+    // 下側は calc(100% - 上側) なので、上側の上限で担保する
+    expect(100 - topPercent).toBeGreaterThanOrEqual(30);
   });
 
   it('sets initial topHeight based on topKind', () => {
@@ -114,12 +126,17 @@ describe('RetroSplitter', () => {
     expect(getPercentHeight(topDiv)).toBeCloseTo(26, 1);
   });
 
-  it('uses the desktop preset for entry on lg viewports', () => {
-    vi.spyOn(window, 'matchMedia').mockImplementation(
-      (query: string) => ({ matches: query === '(min-width: 64rem)' }) as MediaQueryList
-    );
+  // ビューポート出し分けは CSS のメディアクエリ (.splitter-panes) が担う。
+  // JS で matchMedia を見ると SSG と hydration で値が食い違い、デスクトップで
+  // 必ずレイアウトシフトが出るため、JS の責務は変数を渡すところまで。
+  it('デスクトップ用のプリセットを CSS 変数として渡す', () => {
     render(<RetroSplitter topKind="entry" top={<div>TT</div>} bottom={<div>BB</div>} />);
-    const topDiv = screen.getByText('TT').parentElement as HTMLElement;
-    expect(getPercentHeight(topDiv)).toBeCloseTo(24, 1);
+    const panes = (screen.getByText('TT').closest('.splitter-panes') as HTMLElement) ?? null;
+
+    expect(panes).not.toBeNull();
+    expect(panes!.style.getPropertyValue('--splitter-top-base')).toBe('26%');
+    expect(panes!.style.getPropertyValue('--splitter-top-desktop')).toBe('24%');
+    // 未操作のうちは inline の実効値を持たない (CSS が決める)
+    expect(panes!.style.getPropertyValue('--splitter-top-h')).toBe('');
   });
 });

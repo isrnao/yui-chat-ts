@@ -1,5 +1,5 @@
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import { createRoot, hydrateRoot } from 'react-dom/client';
 import './App.css';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
@@ -8,21 +8,30 @@ import { recordVisitOncePerSession } from '@features/chat/utils/settingsStore';
 // React ライフサイクルの影響を受けない位置で1回だけ呼び出す
 recordVisitOncePerSession();
 
-const root = createRoot(document.getElementById('root')!);
+const container = document.getElementById('root')!;
+
+// SSG 済みのページ (prerender が data-ssg="1" を付ける) は hydrate する。
+// createRoot だと SSG した内容を捨てて描き直すため、せっかく HTML に入っている
+// 初期描画が一度消えてしまう。印が無いページ (dev サーバー等) は従来どおり createRoot。
+const isSsg = container.dataset.ssg === '1';
 
 function renderApp(): void {
-  root.render(
+  const tree = (
     <StrictMode>
       <App />
     </StrictMode>
   );
+  if (isSsg) {
+    hydrateRoot(container, tree);
+  } else {
+    createRoot(container).render(tree);
+  }
 }
 
 // lazy ルート (チャット系) はチャンクの解決を待ってから描画する。
-// 部屋ページの HTML には #root にプリレンダ済みの本文が入っているため、
-// 待っている間はそれが表示されたままになり、空白を挟まずに実 UI へ切り替わる。
-// 先に描画してしまうと createRoot がプリレンダ本文を消し、チャンクが届くまで
-// 何も無い画面になる。
+// SSG 済みの HTML が既に表示されているので、待っている間もユーザーには
+// 完成した画面が見えている。未解決のまま hydrate すると Suspense の境界が
+// SSG 済みの内容を捨ててしまう。
 //
 // トップは静的 import なので preloadRoute が null を返し、同期で即描画する。
 // 取得に失敗しても preloadRoute は解決するので、描画後に RouteHost の
