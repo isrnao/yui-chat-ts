@@ -27,10 +27,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   usePageView(seo.title);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload } = useChatLog(
-    roomId,
-    measurement.onRealtimeChat
-  );
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload, expandChatLog } =
+    useChatLog(roomId, measurement.onRealtimeChat);
   // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す
   // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
   const { settings } = useSettings();
@@ -98,6 +96,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 setEmail={setEmail}
                 onEnter={({ name: n, color: c, silent, avatar: a }) => {
                   setAvatar(a);
+                  // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
+                  expandChatLog();
                   return handleEnter({ name: n, color: c, silent });
                 }}
               />

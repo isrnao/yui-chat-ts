@@ -9,6 +9,7 @@ import type { Chat } from '@features/chat/types';
 // APIモック
 const {
   loadChatLogsMock,
+  loadRecentChatLogsMock,
   subscribeChatLogsMock,
   emitRealtime,
   emitStatus,
@@ -18,6 +19,7 @@ const {
   const statusListeners = new Set<(status: 'connecting' | 'connected' | 'disconnected') => void>();
   return {
     loadChatLogsMock: vi.fn(),
+    loadRecentChatLogsMock: vi.fn(),
     subscribeChatLogsMock: vi.fn(
       (
         _roomId: string,
@@ -50,6 +52,7 @@ const {
 
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: loadChatLogsMock,
+  loadRecentChatLogs: loadRecentChatLogsMock,
   loadInitialChatLogs: vi.fn().mockResolvedValue([]),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
   subscribeChatLogs: subscribeChatLogsMock,
@@ -73,6 +76,7 @@ describe('useChatLog', () => {
     vi.clearAllMocks();
     clearRealtimeListeners();
     loadChatLogsMock.mockReturnValue(new Promise<never>(() => {}));
+    loadRecentChatLogsMock.mockReturnValue(new Promise<never>(() => {}));
   });
 
   it('should initialize and return expected interface', () => {
@@ -95,7 +99,7 @@ describe('useChatLog', () => {
   describe('初期ロードと Realtime の整合性', () => {
     it('ロード中に届いた Realtime 発言を取得結果で上書きしない', async () => {
       let resolveLoad: (logs: Chat[]) => void = () => {};
-      loadChatLogsMock.mockReturnValue(
+      loadRecentChatLogsMock.mockReturnValue(
         new Promise<Chat[]>((resolve) => {
           resolveLoad = resolve;
         })
@@ -123,11 +127,12 @@ describe('useChatLog', () => {
     // room 共有の channel を破棄・再作成していた。subscribeChatLogs は SUBSCRIBED を
     // 待たずに返るため、その再接続中に INSERT された発言を取りこぼす
     it('reload しても購読を張り直さない', async () => {
+      loadRecentChatLogsMock.mockResolvedValue([]);
       loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
       expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
       const unsubscribe = subscribeChatLogsMock.mock.results[0].value.unsubscribe;
 
@@ -135,7 +140,7 @@ describe('useChatLog', () => {
         result.current.reload();
       });
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
       // 取得は再実行されるが、購読は張り直されない
       expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
       expect(unsubscribe).not.toHaveBeenCalled();
@@ -143,12 +148,12 @@ describe('useChatLog', () => {
 
     it('reload 中に届いた Realtime 発言も取得結果とマージする', async () => {
       let resolveReload: (logs: Chat[]) => void = () => {};
-      loadChatLogsMock.mockResolvedValueOnce([]);
+      loadRecentChatLogsMock.mockResolvedValueOnce([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
 
-      loadChatLogsMock.mockReturnValueOnce(
+      loadRecentChatLogsMock.mockReturnValueOnce(
         new Promise<Chat[]>((resolve) => {
           resolveReload = resolve;
         })
@@ -175,74 +180,79 @@ describe('useChatLog', () => {
     // から接続が確立するまでに INSERT された発言は snapshot にもバッファにも入らない。
     // 接続確立時に一度だけ取り直して塞ぐ (初回描画は待たせない)。
     it('SUBSCRIBED 到達時にキャッシュを迂回して取り直す', async () => {
-      loadChatLogsMock.mockResolvedValue([]);
+      loadRecentChatLogsMock.mockResolvedValue([]);
 
       renderHook(() => useChatLog('superbeginner'));
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
       // 初回取得は接続を待たずに始まる
-      expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', true);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10);
 
       await act(async () => {
         emitStatus('connected');
       });
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
-      expect(loadChatLogsMock).toHaveBeenNthCalledWith(2, 'superbeginner', false);
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
       // 取り直しで購読を張り直さない
       expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
     });
 
     it('接続したままなら重ねて取り直さない', async () => {
-      loadChatLogsMock.mockResolvedValue([]);
+      loadRecentChatLogsMock.mockResolvedValue([]);
 
       renderHook(() => useChatLog('superbeginner'));
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
 
       await act(async () => {
         emitStatus('connected');
       });
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
 
       await act(async () => {
         emitStatus('connected');
         emitStatus('connected');
       });
 
-      expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
+      expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2);
     });
 
     // 切断中の発言は Postgres Changes では再配送されないため、復帰時の取り直しが
     // 唯一の回復手段になる (通常チャットにはポーリングがない)
     it('再接続のたびに取り直して切断中の取りこぼしを回復する', async () => {
-      loadChatLogsMock.mockResolvedValue([]);
+      loadRecentChatLogsMock.mockResolvedValue([]);
 
       renderHook(() => useChatLog('superbeginner'));
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
 
       await act(async () => {
         emitStatus('connected');
       });
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
 
       await act(async () => {
         emitStatus('disconnected');
       });
-      expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
+      expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2);
 
       await act(async () => {
         emitStatus('connected');
       });
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(3));
-      expect(loadChatLogsMock).toHaveBeenNthCalledWith(3, 'superbeginner', false);
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(3));
       expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
     });
 
-    it('reload は TTL キャッシュを迂回して取り直す', async () => {
+    // 初期表示は少量取得 (常に実取得) なので、TTL キャッシュの迂回は
+    // 入室後の全件取得の経路で検証する
+    it('入室後の reload は TTL キャッシュを迂回して取り直す', async () => {
+      loadRecentChatLogsMock.mockResolvedValue([]);
       loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
 
+      await act(async () => {
+        result.current.expandChatLog();
+      });
       await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', true));
 
       await act(async () => {
@@ -250,6 +260,28 @@ describe('useChatLog', () => {
       });
 
       await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', false));
+    });
+
+    // 初期表示を軽くするため、入室前は 10 件だけ取得する
+    it('初期表示は 10 件、入室で全件へ広げる', async () => {
+      loadRecentChatLogsMock.mockResolvedValue([]);
+      loadChatLogsMock.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledWith('superbeginner', 10));
+      expect(loadChatLogsMock).not.toHaveBeenCalled();
+
+      await act(async () => {
+        result.current.expandChatLog();
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', true));
+      // 広げたあとに重ねて呼ばれない
+      await act(async () => {
+        result.current.expandChatLog();
+      });
+      expect(loadChatLogsMock).toHaveBeenCalledTimes(1);
     });
   });
 

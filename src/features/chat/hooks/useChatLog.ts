@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useOptimistic } from 'react';
-import { loadChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
+import { loadChatLogs, loadRecentChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
 import type { RealtimeStatus } from '@features/chat/api/chatApi';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
@@ -50,6 +50,15 @@ export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
   return [chat, ...state].slice(0, 2000);
 }
 
+/**
+ * 初期表示で取得する件数。LCP を縮めるため少量にとどめ、入室時に全件へ広げる。
+ * (.kiro/specs/top-and-transition-performance Requirement 6)
+ */
+export const INITIAL_CHAT_LOG_LIMIT = 10;
+
+/** 入室後に取得する件数。canonical snapshot と同じ。 */
+export const FULL_CHAT_LOG_LIMIT = 100;
+
 export function useChatLog(
   roomId: RoomId = DEFAULT_ROOM_ID,
   onRealtimeChat?: (chat: Chat) => void
@@ -58,6 +67,8 @@ export function useChatLog(
   const [isLoading, setIsLoading] = useState(true);
   // 「更新」ごとにインクリメントして取得 effect を再実行させる
   const [reloadKey, setReloadKey] = useState(0);
+  // 初期表示は少量。入室時に expandChatLog() で全件へ広げる
+  const [logLimit, setLogLimit] = useState(INITIAL_CHAT_LOG_LIMIT);
   // Realtime の接続状態。push が届かない間のフォールバック判断に使う
   const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
 
@@ -67,6 +78,7 @@ export function useChatLog(
     setIsLoading(true);
     setReloadKey(0);
     setRealtimeStatus('connecting');
+    setLogLimit(INITIAL_CHAT_LOG_LIMIT);
   });
 
   // mergeChat / handleRealtimeStatus は下の購読 effect の依存に入る。React Compiler も
@@ -105,6 +117,12 @@ export function useChatLog(
    * キャッシュ付きで取り直すと直近の発言がログから消えてしまう。
    */
   const reload = () => setReloadKey((k) => k + 1);
+
+  /**
+   * 取得件数を全件へ広げる。入室時に呼ぶ想定。
+   * 既に広げてあるなら何もしない (再取得を誘発しない)。
+   */
+  const expandChatLog = () => setLogLimit(FULL_CHAT_LOG_LIMIT);
 
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
@@ -147,11 +165,17 @@ export function useChatLog(
       if (arrivedDuringLoadRef.current === buffer) arrivedDuringLoadRef.current = null;
     };
 
-    loadChatLogs(roomId, reloadKey === 0)
+    const fetchLogs =
+      logLimit >= FULL_CHAT_LOG_LIMIT
+        ? loadChatLogs(roomId, reloadKey === 0)
+        : loadRecentChatLogs(roomId, logLimit);
+
+    fetchLogs
       .then((logs) => {
         if (ignore) return;
-        // 取得結果を canonical としつつ、取得中に届いた発言は落とさない
-        setChatLog(mergeChatLogByUuid(logs, buffer));
+        // 取得結果を canonical としつつ、取得中に届いた発言と
+        // 既に表示している発言 (少量取得 → 全件取得の移行中など) は落とさない
+        setChatLog((previous) => mergeChatLogByUuid(logs, [...previous, ...buffer]));
       })
       .finally(() => {
         stopBuffering();
@@ -162,7 +186,7 @@ export function useChatLog(
       ignore = true;
       stopBuffering();
     };
-  }, [roomId, reloadKey]);
+  }, [roomId, reloadKey, logLimit]);
 
   return {
     chatLog: optimisticLog,
@@ -172,5 +196,6 @@ export function useChatLog(
     addOptimistic,
     mergeChat,
     reload,
+    expandChatLog,
   };
 }
