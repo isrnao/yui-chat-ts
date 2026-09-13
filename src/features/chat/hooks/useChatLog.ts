@@ -69,10 +69,34 @@ export function useChatLog(
     setRealtimeStatus('connecting');
   });
 
-  // mergeChat は下の購読 effect の依存に入る。React Compiler も同等にメモ化するが、
-  // 同一性が変わると channel を張り直すことになるため、要件を明示して useCallback を残す。
+  // mergeChat / handleRealtimeStatus は下の購読 effect の依存に入る。React Compiler も
+  // 同等にメモ化するが、同一性が変わると channel を張り直すことになるため、
+  // 要件を明示して useCallback を残す。
   const mergeChat = useCallback((chat: Chat) => {
     setChatLog((prev) => mergeChatLogByUuid(prev, chat));
+  }, []);
+
+  // 直前の接続状態。connected への「遷移」だけを検知するために保持する
+  const lastRealtimeStatusRef = useRef<RealtimeStatus>('connecting');
+
+  const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
+    const previous = lastRealtimeStatusRef.current;
+    lastRealtimeStatusRef.current = status;
+    setRealtimeStatus(status);
+
+    // 接続が確立した時点で一度だけ取り直して、push が届いていなかった間の穴を塞ぐ。
+    //
+    // subscribeChatLogs は SUBSCRIBED を待たずに返るため、初回は
+    // 「snapshot がサーバーで確定した時刻」から「SUBSCRIBED 到達」までに INSERT された
+    // 発言が snapshot にもバッファにも入らない。再接続時も同様に、切れていた間の発言が
+    // push されない (Postgres Changes は再購読時に取りこぼしを配送しない)。
+    //
+    // 取得の開始自体は SUBSCRIBED を待たない。待たせると毎回のマウントで初回描画が
+    // websocket のハンドシェイク待ちになるため、描画は従来どおり即時に始め、
+    // 接続確立後の取り直しで穴を埋める。
+    if (status === 'connected' && previous !== 'connected') {
+      setReloadKey((k) => k + 1);
+    }
   }, []);
 
   /**
@@ -95,6 +119,9 @@ export function useChatLog(
   // subscribeChatLogs は SUBSCRIBED を待たずに返るため、その再接続中に INSERT
   // された発言は snapshot にもバッファにも入らず取りこぼす。
   useEffect(() => {
+    // ref は「この購読における直前の状態」なので、購読を張り直すたびに初期化する
+    lastRealtimeStatusRef.current = 'connecting';
+
     const channel = subscribeChatLogs(
       roomId,
       (chat) => {
@@ -102,12 +129,12 @@ export function useChatLog(
         arrivedDuringLoadRef.current?.push(chat);
         mergeChat(chat);
       },
-      setRealtimeStatus
+      handleRealtimeStatus
     );
     return () => {
       channel.unsubscribe();
     };
-  }, [mergeChat, onRealtimeChat, roomId]);
+  }, [handleRealtimeStatus, mergeChat, onRealtimeChat, roomId]);
 
   // 取得のみ reloadKey で再実行する。購読 effect より後に宣言することで、
   // マウント時・roomId 変更時は必ず購読の確立を先に始める。

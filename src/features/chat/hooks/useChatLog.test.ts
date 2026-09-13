@@ -7,26 +7,46 @@ import type { Chat } from '@features/chat/types';
 // 基本的なインターフェーステストのみに簡略化
 
 // APIモック
-const { loadChatLogsMock, subscribeChatLogsMock, emitRealtime, clearRealtimeListeners } =
-  vi.hoisted(() => {
-    const listeners = new Set<(chat: Chat) => void>();
-    return {
-      loadChatLogsMock: vi.fn(),
-      subscribeChatLogsMock: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
+const {
+  loadChatLogsMock,
+  subscribeChatLogsMock,
+  emitRealtime,
+  emitStatus,
+  clearRealtimeListeners,
+} = vi.hoisted(() => {
+  const listeners = new Set<(chat: Chat) => void>();
+  const statusListeners = new Set<(status: 'connecting' | 'connected' | 'disconnected') => void>();
+  return {
+    loadChatLogsMock: vi.fn(),
+    subscribeChatLogsMock: vi.fn(
+      (
+        _roomId: string,
+        callback: (chat: Chat) => void,
+        onStatus?: (status: 'connecting' | 'connected' | 'disconnected') => void
+      ) => {
         listeners.add(callback);
+        if (onStatus) statusListeners.add(onStatus);
         // 購読の張り直しを検証したいので unsubscribe も spy にする
         return {
           unsubscribe: vi.fn(() => {
             listeners.delete(callback);
+            if (onStatus) statusListeners.delete(onStatus);
           }),
         };
-      }),
-      emitRealtime: (chat: Chat) => {
-        for (const listener of listeners) listener(chat);
-      },
-      clearRealtimeListeners: () => listeners.clear(),
-    };
-  });
+      }
+    ),
+    emitStatus: (status: 'connecting' | 'connected' | 'disconnected') => {
+      for (const l of statusListeners) l(status);
+    },
+    emitRealtime: (chat: Chat) => {
+      for (const listener of listeners) listener(chat);
+    },
+    clearRealtimeListeners: () => {
+      listeners.clear();
+      statusListeners.clear();
+    },
+  };
+});
 
 vi.mock('@features/chat/api/chatApi', () => ({
   loadChatLogs: loadChatLogsMock,
@@ -149,6 +169,73 @@ describe('useChatLog', () => {
       await waitFor(() =>
         expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-2', 'older-2'])
       );
+    });
+
+    // subscribeChatLogs は SUBSCRIBED を待たずに返るため、snapshot がサーバーで確定して
+    // から接続が確立するまでに INSERT された発言は snapshot にもバッファにも入らない。
+    // 接続確立時に一度だけ取り直して塞ぐ (初回描画は待たせない)。
+    it('SUBSCRIBED 到達時にキャッシュを迂回して取り直す', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      // 初回取得は接続を待たずに始まる
+      expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', true);
+
+      await act(async () => {
+        emitStatus('connected');
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      expect(loadChatLogsMock).toHaveBeenNthCalledWith(2, 'superbeginner', false);
+      // 取り直しで購読を張り直さない
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('接続したままなら重ねて取り直さない', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        emitStatus('connected');
+      });
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        emitStatus('connected');
+        emitStatus('connected');
+      });
+
+      expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
+    });
+
+    // 切断中の発言は Postgres Changes では再配送されないため、復帰時の取り直しが
+    // 唯一の回復手段になる (通常チャットにはポーリングがない)
+    it('再接続のたびに取り直して切断中の取りこぼしを回復する', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        emitStatus('connected');
+      });
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        emitStatus('disconnected');
+      });
+      expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        emitStatus('connected');
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(3));
+      expect(loadChatLogsMock).toHaveBeenNthCalledWith(3, 'superbeginner', false);
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
     });
 
     it('reload は TTL キャッシュを迂回して取り直す', async () => {
