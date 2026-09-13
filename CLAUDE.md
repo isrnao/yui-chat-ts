@@ -40,10 +40,18 @@ plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
 The compiler rules ship with `eslint-plugin-react-hooks` v7 and are already active through
 `reactHooks.configs.recommended` in `eslint.config.js`.
 
-Existing manual memoization (`useCallback` / `useMemo` / `memo`) is **intentionally left in place**
-for now: the official guidance is not to strip it all at once right after enabling the compiler.
-Remove it incrementally, verifying with tests and the Profiler. Do not add _new_ manual
-memoization — let the compiler handle it.
+Manual memoization is being removed incrementally (the official guidance is not to strip it all at
+once right after enabling the compiler). Event handlers and derived values now rely on the
+compiler. What is deliberately **kept**:
+
+- `useCallback` whose identity actually appears in a `useEffect` dependency array:
+  `useChatLog.mergeChat` and `useAllRoomsChatLog.mergeChat` (both gate the realtime subscription —
+  a new identity tears down and recreates the channel), `RetroSplitter`'s drag handlers, and
+  `TermsModal`'s effect callbacks. Each carries a comment saying why. Nothing else qualifies:
+  `reload` / `addOptimistic` are plain functions, since only `reloadKey` is a dependency.
+- `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
+
+Do not add _new_ manual memoization — let the compiler handle it.
 
 ## Architecture Overview
 

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { loadDraft, saveDraft, type ChanariDraft } from '../utils/draftStore';
 
@@ -29,16 +29,13 @@ export function useChanariSettings(roomId: string) {
     setSettings(draft ?? {});
   }, [roomId]);
 
-  const updateSettings = useCallback(
-    (partial: SettingsPartial) => {
-      // ref を即時更新することで、同一 tick 内の連続呼び出しでも取りこぼさない
-      const next = { ...settingsRef.current, ...partial };
-      settingsRef.current = next;
-      setSettings(next);
-      saveDraft({ roomId, ...next });
-    },
-    [roomId]
-  );
+  const updateSettings = (partial: SettingsPartial) => {
+    // ref を即時更新することで、同一 tick 内の連続呼び出しでも取りこぼさない
+    const next = { ...settingsRef.current, ...partial };
+    settingsRef.current = next;
+    setSettings(next);
+    saveDraft({ roomId, ...next });
+  };
 
   return { settings, updateSettings };
 }

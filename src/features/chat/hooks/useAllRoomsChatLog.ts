@@ -23,24 +23,23 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
   const [subscribeError, setSubscribeError] = useState(false);
   // reload ごとにインクリメントして effect を再実行させる
   const [reloadKey, setReloadKey] = useState(0);
-  const reload = useCallback(() => setReloadKey((k) => k + 1), []);
+  const reload = () => setReloadKey((k) => k + 1);
   // effect が再実行されたとき同期 setState を避けるため ref で管理する
   const effectRunRef = useRef(0);
 
+  // mergeChat は下の購読 effect の依存に入る。React Compiler も同等にメモ化するが、
+  // 同一性が変わると channel を張り直すことになるため、要件を明示して useCallback を残す。
   const mergeChat = useCallback((chat: Chat) => {
     setBaseLog((prev) => mergeChatLogByUuid(prev, chat));
   }, []);
 
   const [chatLog, addOptimisticInternal] = useOptimistic(baseLog, reduceOptimisticChat);
 
-  const addOptimistic = useCallback(
-    (chat: Chat) => {
-      startTransition(() => {
-        addOptimisticInternal(chat);
-      });
-    },
-    [addOptimisticInternal]
-  );
+  const addOptimistic = (chat: Chat) => {
+    startTransition(() => {
+      addOptimisticInternal(chat);
+    });
+  };
 
   useEffect(() => {
     let ignore = false;
