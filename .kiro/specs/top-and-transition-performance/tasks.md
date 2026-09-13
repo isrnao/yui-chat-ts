@@ -115,23 +115,57 @@ TBT が 10ms しかないため、JS 実行時間の削減より「描画開始�
     - 取り直しが取得済み最新以降のみを要求すること
     - _Requirements: 6.2, 6.3, 6.4_
 
-- [ ] 8. 静的 HTML への初期描画内容の埋め込み（Requirement 8）
-  - [ ] 8.1 トップページの初期描画内容をビルド時に生成し、`#root` に埋め込む
-    - 現状 `scripts/prerender-rooms.ts` は meta タグのみ書き換えており、`#root` は空。
-      トップも部屋ページも JS 到着まで一文字も描画されない
-    - 方式は 2 案。採用前に比較する
-      - (a) `react-dom/server` で SSG し、`createRoot` を `hydrateRoot` に変える。正攻法だが
-        hydration mismatch（`useState(() => localStorage...)` 等）の対処が要る
-      - (b) 静的スケルトンを HTML に埋め、`createRoot` がそのまま置換する。実装は軽いが
-        マークアップの二重管理になる
+- [ ] 8. SSG + hydrateRoot（Requirement 8）
+
+  Lighthouse の実測で、手書きの静的フォールバックでは LCP が直らないことが分かっている
+  （`/chat/<id>/` はフォールバックがあっても LCP 7.2s / Render Delay 82%、LCP 要素は
+  React が描画した `<div class="mb-1">`）。LCP を直すにはサーバー出力とクライアント出力が
+  同一である必要があるため SSG を採る。詳細は design.md 「10. SSG + hydrateRoot」。
+
+  **フェーズ 1: トップページのみ（低リスク）**
+  - [ ] 8.1 `App` が `initialPathname` を受け取れるようにする
+    - クライアントでは従来どおり `window.location.pathname` を既定値にする
     - _Requirements: 8.1, 8.2_
-  - [ ] 8.2 置換時にレイアウトシフトが出ないことを確認する
+  - [ ] 8.2 `src/entry-server.tsx` を追加し、`render(pathname)` で HTML 文字列を返す
+    - _Requirements: 8.1_
+  - [ ] 8.3 SSR ビルドを `build:prod` に組み込む
+    - `generate:sitemap → tsc -b → vite build → vite build --ssr → prerender`
+    - CSS import（`Header/headerTheme.css`）と MDX（`TermsModal`）が SSR ビルドを通ること
+    - _Requirements: 8.1_
+  - [ ] 8.4 `scripts/prerender-rooms.ts` を拡張し、トップページを SSG して `#root` に注入する
+    - `data-ssg="1"` を `#root` に付与する
+    - 既存の meta / OGP / JSON-LD 生成は据え置き
+    - _Requirements: 8.1, 8.4_
+  - [ ] 8.5 `main.tsx` を `data-ssg` で `hydrateRoot` / `createRoot` に分岐させる
+    - SSG していないページへ誤って hydrate して mismatch を起こすのを防ぐ
+    - _Requirements: 8.2_
+  - [ ] 8.6 hydration 警告が出ないことを確認する
+    - ヘッドレスでトップを開き `console.error` を監視する
     - _Requirements: 8.3_
-  - [ ] 8.3 既存の meta / OGP / JSON-LD 生成を壊さないことを確認する
-    - _Requirements: 8.4_
-  - [ ] 8.4 JS 無効時にトップページの内容が表示されることを確認する
+  - [ ] 8.7 JS 無効時にトップページの内容が表示されることを確認する
     - _Requirements: 8.5_
-  - [ ]\* 8.5 ビルド成果物の `#root` が空でないことを検証する
+  - [ ]\* 8.8 生成 HTML の `#root` が空でなく、LCP 要素（紹介文 `<p>`）を含むことを検証する
+    - _Requirements: 8.1, 8.2_
+
+  **フェーズ 2: 部屋ページ（要 state 設計変更）**
+  - [ ] 8.9 localStorage / ビューポート由来の初期 state を SSR 安全にする
+    - `ChatRoute` / `AllRoomsRoute` / `ChanariChatPage` の `useState(() => settings.X)` は、
+      hydration 自体は `getServerSnapshot` で一致するが、その後 store が実値へ切り替わっても
+      `useState` が追随せず「名前を覚える」機能が壊れる。ストア値を直接使う形へ変更する
+    - `RetroSplitter` は SSR 時に base 値で描画し、mount 後に補正する
+    - `useLookSound` の `isAudioUnlocked()` は mount 後に評価する
+    - _Requirements: 8.2, 8.3_
+  - [ ] 8.10 部屋ページを SSG へ移行し、手書きフォールバックを置き換える
+    - サーバー出力とクライアント出力が同一になるため CLS 0.021 も解消される見込み
+    - _Requirements: 8.1, 8.3_
+  - [ ]\* 8.11 部屋ページで hydration 警告と CLS の退行がないことを確認する
+    - _Requirements: 8.3_
+
+  **Task 2（ルート分割）との相互作用**
+  - [ ] 8.12 lazy ルートを SSG で解決できるようにする
+    - `React.lazy` を `renderToString` に通すと Suspense の fallback が出力されてしまう。
+      描画前に該当モジュールを `await import(...)` で解決しておく
+    - Task 2 と Task 8 のどちらを先に入れても本対応は Task 8 側に必要
     - _Requirements: 8.1_
 
 - [ ] 9. サードパーティスクリプトの遅延化（Requirement 9）

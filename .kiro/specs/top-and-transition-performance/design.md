@@ -156,6 +156,108 @@ headers: { apikey, Authorization: `Bearer ${anon}` }
 - 超過時は非ゼロ終了させ、CI から呼べる形にする。
 - 改善前後の実測値を本 spec に記録する（下表）。
 
+### 10. SSG + hydrateRoot（Requirement 8）
+
+#### なぜ「手書きの静的フォールバック」では足りないか
+
+本リポジトリには既に静的フォールバックの仕組みがある。`prerenderHtml.ts` の
+`buildStaticFallback()` が部屋ページの `#root` に h1 + 説明 + 関連リンクを埋め込んでおり、
+`/chat/<id>/` の HTML は空ではない。**空なのはトップページだけ。**
+
+しかし Lighthouse で両方を測ると、静的フォールバックがあっても LCP は改善していない。
+
+| ページ                         | LCP   | Render Delay  | LCP 要素             | CLS   |
+| ------------------------------ | ----- | ------------- | -------------------- | ----- |
+| `/`（フォールバックなし）      | 8.9 s | 7644 ms (86%) | 紹介文 `<p>`         | 0     |
+| `/chat/superbeginner/`（あり） | 7.2 s | 5944 ms (82%) | `<div class="mb-1">` | 0.021 |
+
+部屋ページの LCP 要素は **React が描画した `<div class="mb-1">`** であって、埋め込んだ
+フォールバックではない。LCP は「最大の要素」を採るため、フォールバックより大きい要素が
+React 描画後に現れると、LCP はそちらへ後ろ倒しになる。CLS 0.021 も、フォールバックと
+React 出力でマークアップが異なるために起きている。
+
+つまり **LCP を直すには「サーバー出力とクライアント出力が同一である」ことが要る**。
+手書きスケルトンでは保証できない。ここが SSG（Requirement 8）を採る理由。
+
+#### 構成
+
+```
+src/entry-server.tsx        render(pathname) → HTML 文字列
+  ↓ vite build --ssr
+dist-ssr/entry-server.js
+  ↓ import
+scripts/prerender.ts        各 URL を描画し #root へ注入 + data-ssg="1" を付与
+  ↓
+dist/index.html, dist/chat/<id>/index.html …
+```
+
+クライアント側は `#root` の `data-ssg` を見て分岐する。SSG 済みなら `hydrateRoot`、
+そうでなければ従来どおり `createRoot`。これにより、SSG していないページ（既存の
+手書きフォールバックが入った部屋ページなど）へ誤って hydrate して mismatch を起こすことを防ぐ。
+
+```ts
+const container = document.getElementById('root')!;
+if (container.dataset.ssg === '1') {
+  hydrateRoot(container, <StrictMode><App /></StrictMode>);
+} else {
+  createRoot(container).render(<StrictMode><App /></StrictMode>);
+}
+```
+
+`App` は SSR 用に `initialPathname` を受け取れるようにする。クライアントでは従来どおり
+`window.location.pathname` を既定値にするため、SSG した URL とロード時の URL が一致する限り
+mismatch は起きない。
+
+#### hydration mismatch の棚卸し（コードを実際に確認した結果）
+
+| 箇所                                                                                       | 状況                                                                                                                                     | 対応                                                                |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `App.tsx` の `useState(() => …window.location.pathname)`                                   | サーバーに `window` がない                                                                                                               | `initialPathname` prop で注入                                       |
+| `useSettings`                                                                              | **既に `useSyncExternalStore` + `getServerSnapshot`** で SSR 対応済み                                                                    | 対応不要                                                            |
+| `settingsStore` のモジュールスコープ `loadFromStorage()`                                   | **try/catch 済み**。localStorage 不在でも既定値へフォールバック                                                                          | 対応不要                                                            |
+| `useRoomCounts`                                                                            | 初期 state が `{ counts: {}, isLoading: true }` で決定的                                                                                 | 対応不要（人数バッジは hydration 後に出る）                         |
+| `useSEO` / `TwitterTimeline` / `AdringWidget`                                              | いずれも effect 内でのみ DOM を触る                                                                                                      | 対応不要                                                            |
+| `main.tsx` の `recordVisitOncePerSession()`                                                | モジュールスコープだが `main.tsx` は SSR バンドルに含めない                                                                              | 対応不要                                                            |
+| `ChatRoute` / `AllRoomsRoute` / `ChanariChatPage` の `useState(() => settings.name ?? '')` | hydration 自体は server snapshot で一致するが、**その後 store が実値へ切り替わっても `useState` は追随せず「名前を覚える」機能が壊れる** | 部屋ページを SSG する場合のみ要対応。ストア値を直接使う形へ変更する |
+| `RetroSplitter` の `useState(() => resolveInitialTopHeight())`                             | `isDesktopViewport()` がビューポートを読む。サーバーでは決まらない                                                                       | 同上。SSR 時は base 値で描画し、mount 後に補正する                  |
+| `useLookSound` の `useState(() => isAudioUnlocked())`                                      | AudioContext を参照                                                                                                                      | 同上                                                                |
+
+**この棚卸しから、トップページと部屋ページでリスクが大きく違う。** トップページ経路には
+localStorage / ビューポート依存の初期 state が一つも無い（`settingsStore` を辿らない）。
+一方チャット経路は 3 種類ある。よって段階を分ける。
+
+#### Task 2（ルート分割）との相互作用
+
+`React.lazy` を `renderToString` に通すと、lazy の中身ではなく Suspense の fallback が
+出力される。SSG と併用するには、サーバー側で描画前に該当モジュールを解決しておく必要がある
+（`await import(...)` を先に走らせてから `renderToString` する、または
+`renderToPipeableStream` を使う）。Task 2 と Task 8 のどちらを先に入れても、
+この解決処理は Task 8 側に必要になる。
+
+#### ビルドパイプライン
+
+`build:prod` は現在
+`generate:sitemap → tsc -b → vite build → prerender:rooms` の順。ここへ SSR ビルドを挟む。
+
+```
+generate:sitemap → tsc -b → vite build → vite build --ssr → prerender
+```
+
+SSR ビルドで注意する点:
+
+- `Header/index.tsx` が `./headerTheme.css` を import しているため、SSR ビルドでも CSS import を
+  通す必要がある（Vite が SSR 出力では実体を落とすので、スタイルはクライアント側の CSS に任せる）
+- `App.tsx` は全ルートを静的 import しているため、SSR バンドルに `TermsModal` 経由で MDX が入る。
+  `@mdx-js/rollup` は SSR ビルドでも有効にしておく
+- React Compiler の babel プラグインは SSR ビルドにも適用されるが、出力は変わらない
+
+#### 検証
+
+- 生成された HTML の `#root` が空でなく、LCP 要素（トップなら紹介文 `<p>`）を含むこと
+- hydration 警告が出ないこと。ヘッドレスでページを開き `console.error` を監視する
+- CLS が悪化しないこと（サーバー出力とクライアント出力が同一なら 0 のまま）
+- Lighthouse で LCP / FCP を再計測する
+
 ## データフロー
 
 ### トップ初期表示（after）
