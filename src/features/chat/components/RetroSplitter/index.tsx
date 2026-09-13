@@ -6,7 +6,6 @@ import {
   useLayoutEffect,
   useSyncExternalStore,
 } from 'react';
-import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import type { ReactNode, KeyboardEvent } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
@@ -80,11 +79,13 @@ export default function RetroSplitter({
     getDesktopViewportServerSnapshot
   );
   // ドラッグ / キーボード操作で明示的に変えるまではプリセット値に追随する。
-  // useState にコピーすると SSG の base 値を握ったままになり、
-  // hydration 後にビューポート実値へ切り替わらない。
-  const [topHeight, setTopHeight] = useStoreBackedState(
-    resolveInitialTopHeight(topKind, isDesktop)
-  ); // percent
+  // useState にコピーすると SSG の base 値を握ったままになり、hydration 後に
+  // ビューポート実値へ切り替わらない。操作後の値だけを state に持つことで、
+  // setter を useState 由来の安定した参照のまま保てる
+  // (ドラッグ用 useCallback の依存に入るため同一性が要る)。
+  const presetTopHeight = resolveInitialTopHeight(topKind, isDesktop);
+  const [adjustedTopHeight, setAdjustedTopHeight] = useState<number | null>(null);
+  const topHeight = adjustedTopHeight ?? presetTopHeight; // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -153,7 +154,7 @@ export default function RetroSplitter({
         rafRef.current = null;
       }
       rafRef.current = requestAnimationFrame(() => {
-        setTopHeight(calcPercent(clientY));
+        setAdjustedTopHeight(calcPercent(clientY));
       });
     },
     [calcPercent]
@@ -189,15 +190,23 @@ export default function RetroSplitter({
 
   // 入室前後で上側の画面が入れ替わったら初期高さに戻す
   // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
-  useResetOnChange(topKind, (next) => {
-    setTopHeight(resolveInitialTopHeight(next, isDesktop));
+  useResetOnChange(topKind, () => {
+    // null に戻すことで、新しい topKind のプリセット値に再び追随させる
+    setAdjustedTopHeight(null);
   });
 
   // キーボード操作でもドラッグできるように
   const onBarKeyDown = (e: KeyboardEvent) => {
     const height = metrics.height || metricsRef.current.height || 1;
-    if (e.key === 'ArrowUp') setTopHeight((h) => Math.min(h + 2, 100 - (minBottom / height) * 100));
-    if (e.key === 'ArrowDown') setTopHeight((h) => Math.max(h - 2, (minTop / height) * 100));
+    const adjust = (delta: number, clamp: (value: number) => number) => {
+      setAdjustedTopHeight((previous) => clamp((previous ?? presetTopHeight) + delta));
+    };
+    if (e.key === 'ArrowUp') {
+      adjust(2, (value) => Math.min(value, 100 - (minBottom / height) * 100));
+    }
+    if (e.key === 'ArrowDown') {
+      adjust(-2, (value) => Math.max(value, (minTop / height) * 100));
+    }
   };
 
   const containerHeight = metrics.height;
