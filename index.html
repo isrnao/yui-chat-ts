@@ -8,14 +8,10 @@
     <link rel="dns-prefetch" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" />
     <link rel="preconnect" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" crossorigin />
 
-    <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。 -->
-    <link
-      rel="preload"
-      href="/fonts/DotGothic16-Regular.woff2"
-      as="font"
-      type="font/woff2"
-      crossorigin
-    />
+    <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。
+         unicode-range で分割してあり、描画に必要なサブセットだけをブラウザが取得する。
+         font-display: swap があるため描画は止まらないので preload はしない。
+         単一 480KB を preload していた頃は、critical path で JS と帯域を奪っていた。 -->
 
     <meta name="author" content="お気楽チャットTS" />
     <meta name="robots" content="index, follow" />
