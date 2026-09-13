@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { reduceOptimisticChat, useChatLog } from './useChatLog';
 import type { Chat } from '@features/chat/types';
 
@@ -7,14 +7,54 @@ import type { Chat } from '@features/chat/types';
 // 基本的なインターフェーステストのみに簡略化
 
 // APIモック
+const { loadChatLogsMock, subscribeChatLogsMock, emitRealtime, clearRealtimeListeners } =
+  vi.hoisted(() => {
+    const listeners = new Set<(chat: Chat) => void>();
+    return {
+      loadChatLogsMock: vi.fn(),
+      subscribeChatLogsMock: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
+        listeners.add(callback);
+        // 購読の張り直しを検証したいので unsubscribe も spy にする
+        return {
+          unsubscribe: vi.fn(() => {
+            listeners.delete(callback);
+          }),
+        };
+      }),
+      emitRealtime: (chat: Chat) => {
+        for (const listener of listeners) listener(chat);
+      },
+      clearRealtimeListeners: () => listeners.clear(),
+    };
+  });
+
 vi.mock('@features/chat/api/chatApi', () => ({
-  loadChatLogs: vi.fn(() => new Promise<never>(() => {})),
+  loadChatLogs: loadChatLogsMock,
   loadInitialChatLogs: vi.fn().mockResolvedValue([]),
   getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
-  subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  subscribeChatLogs: subscribeChatLogsMock,
 }));
 
+function makeChat(overrides: Partial<Chat> & Pick<Chat, 'uuid' | 'time'>): Chat {
+  return {
+    room_id: 'superbeginner',
+    name: 'Taro',
+    color: '#f00',
+    message: 'Hello',
+    client_time: overrides.time,
+    ip_masked: 'test-ip',
+    ua: 'test-ua',
+    ...overrides,
+  };
+}
+
 describe('useChatLog', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    clearRealtimeListeners();
+    loadChatLogsMock.mockReturnValue(new Promise<never>(() => {}));
+  });
+
   it('should initialize and return expected interface', () => {
     const { result } = renderHook(() => useChatLog());
 
@@ -23,11 +63,107 @@ describe('useChatLog', () => {
     expect(result.current).toHaveProperty('setChatLog');
     expect(result.current).toHaveProperty('addOptimistic');
     expect(result.current).toHaveProperty('mergeChat');
+    expect(result.current).toHaveProperty('reload');
 
     expect(Array.isArray(result.current.chatLog)).toBe(true);
     expect(typeof result.current.setChatLog).toBe('function');
     expect(typeof result.current.addOptimistic).toBe('function');
     expect(typeof result.current.mergeChat).toBe('function');
+    expect(typeof result.current.reload).toBe('function');
+  });
+
+  describe('初期ロードと Realtime の整合性', () => {
+    it('ロード中に届いた Realtime 発言を取得結果で上書きしない', async () => {
+      let resolveLoad: (logs: Chat[]) => void = () => {};
+      loadChatLogsMock.mockReturnValue(
+        new Promise<Chat[]>((resolve) => {
+          resolveLoad = resolve;
+        })
+      );
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+
+      // 初期ロードの解決前に Realtime で新着が届く
+      const remote = makeChat({ uuid: 'remote-1', time: 2_000, message: 'こんばんは' });
+      act(() => emitRealtime(remote));
+      expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-1']);
+
+      // 遅れて届いた初期ロード結果に remote-1 は含まれていない
+      const older = makeChat({ uuid: 'older-1', time: 1_000, message: 'こんにちは' });
+      await act(async () => {
+        resolveLoad([older]);
+      });
+
+      await waitFor(() =>
+        expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-1', 'older-1'])
+      );
+    });
+
+    // 回帰テスト: 購読と取得を同じ effect にまとめていた頃は、更新のたびに
+    // room 共有の channel を破棄・再作成していた。subscribeChatLogs は SUBSCRIBED を
+    // 待たずに返るため、その再接続中に INSERT された発言を取りこぼす
+    it('reload しても購読を張り直さない', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
+      const unsubscribe = subscribeChatLogsMock.mock.results[0].value.unsubscribe;
+
+      await act(async () => {
+        result.current.reload();
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(2));
+      // 取得は再実行されるが、購読は張り直されない
+      expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
+      expect(unsubscribe).not.toHaveBeenCalled();
+    });
+
+    it('reload 中に届いた Realtime 発言も取得結果とマージする', async () => {
+      let resolveReload: (logs: Chat[]) => void = () => {};
+      loadChatLogsMock.mockResolvedValueOnce([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+
+      loadChatLogsMock.mockReturnValueOnce(
+        new Promise<Chat[]>((resolve) => {
+          resolveReload = resolve;
+        })
+      );
+      await act(async () => {
+        result.current.reload();
+      });
+
+      // 再取得の解決前に届いた発言
+      const remote = makeChat({ uuid: 'remote-2', time: 3_000, message: 'やっほー' });
+      act(() => emitRealtime(remote));
+
+      const older = makeChat({ uuid: 'older-2', time: 1_500, message: 'ただいま' });
+      await act(async () => {
+        resolveReload([older]);
+      });
+
+      await waitFor(() =>
+        expect(result.current.chatLog.map((c) => c.uuid)).toEqual(['remote-2', 'older-2'])
+      );
+    });
+
+    it('reload は TTL キャッシュを迂回して取り直す', async () => {
+      loadChatLogsMock.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useChatLog('superbeginner'));
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', true));
+
+      await act(async () => {
+        result.current.reload();
+      });
+
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', false));
+    });
   });
 
   it('prepends a temp optimistic chat to the base state', () => {

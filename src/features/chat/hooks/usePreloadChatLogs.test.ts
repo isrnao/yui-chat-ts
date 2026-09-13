@@ -68,4 +68,34 @@ describe('usePreloadChatLogs resource cache', () => {
     expect(loadInitialChatLogs).toHaveBeenCalledTimes(1);
     expect(loadChatLogsWithPaging).toHaveBeenCalledTimes(2);
   });
+
+  // 回帰テスト: 以前は reloadToken が変わっても内部取得が useCache=true だったため、
+  // 「再読込」を押しても最大 5 分間は同じ snapshot が返っていた
+  it('明示的な再読込では TTL キャッシュを迂回して取り直す', async () => {
+    loadInitialChatLogs.mockResolvedValue([]);
+    loadChatLogsWithPaging.mockResolvedValue({ data: [sampleChat], hasMore: false });
+
+    const { fetchInitialChatLogPage } = await importSubject();
+
+    await fetchInitialChatLogPage('superbeginner', 50, 0);
+    expect(loadChatLogsWithPaging).toHaveBeenLastCalledWith('superbeginner', 50, 0, true);
+
+    await fetchInitialChatLogPage('superbeginner', 50, 1);
+    expect(loadChatLogsWithPaging).toHaveBeenLastCalledWith('superbeginner', 50, 0, false);
+  });
+
+  it('明示的な再読込のあとは preload も取り直す', async () => {
+    loadInitialChatLogs.mockResolvedValue([]);
+    loadChatLogsWithPaging.mockResolvedValue({ data: [sampleChat], hasMore: false });
+
+    const { fetchInitialChatLogPage, usePreloadChatLogs } = await importSubject();
+
+    await fetchInitialChatLogPage('superbeginner', 50, 0);
+    expect(loadInitialChatLogs).toHaveBeenCalledTimes(1);
+
+    await fetchInitialChatLogPage('superbeginner', 50, 1);
+    await usePreloadChatLogs('superbeginner');
+
+    expect(loadInitialChatLogs).toHaveBeenCalledTimes(2);
+  });
 });

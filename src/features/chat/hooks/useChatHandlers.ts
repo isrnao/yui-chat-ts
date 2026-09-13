@@ -1,7 +1,6 @@
 import { useCallback, useTransition } from 'react';
 import {
   saveChatLogOptimistic,
-  loadChatLogs,
   clearChatLogsByName,
   broadcastLookEvent,
   broadcastUnlookEvent,
@@ -284,15 +283,12 @@ export function useChatHandlers({
     ]
   );
 
-  // チャット履歴再読み込み
-  const handleReload = useCallback(() => {
-    loadChatLogs(roomId).then((loaded) => setChatLog(() => loaded));
-  }, [roomId, setChatLog]);
+  // 再読み込みは useChatLog の reload が担う。
+  // (TTL キャッシュの迂回と、取得中に届いた Realtime 発言のマージを一箇所に集約するため)
 
   return {
     handleEnter,
     handleExit,
     handleSend,
-    handleReload,
   };
 }

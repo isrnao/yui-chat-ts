@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useOptimistic, startTransition } from 'react';
 import { loadAllRoomsChatLogs, subscribeAllRoomsChatLogs } from '@features/chat/api/chatAllApi';
-import { mergeAggregatedLog } from '@features/chat/utils/aggregatedLog';
+import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { reduceOptimisticChat } from './useChatLog';
 import type { Chat } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
@@ -28,7 +28,7 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
   const effectRunRef = useRef(0);
 
   const mergeChat = useCallback((chat: Chat) => {
-    setBaseLog((prev) => mergeAggregatedLog(prev, chat));
+    setBaseLog((prev) => mergeChatLogByUuid(prev, chat));
   }, []);
 
   const [chatLog, addOptimisticInternal] = useOptimistic(baseLog, reduceOptimisticChat);
@@ -55,7 +55,7 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
     loadAllRoomsChatLogs(200)
       .then((logs) => {
         // realtime で先着した新着を丸ごと上書きしないよう merge する
-        if (!ignore) setBaseLog((prev) => mergeAggregatedLog(logs, prev));
+        if (!ignore) setBaseLog((prev) => mergeChatLogByUuid(logs, prev));
       })
       .catch(() => {
         if (!ignore) setLoadError(true);

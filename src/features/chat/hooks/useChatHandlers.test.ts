@@ -4,7 +4,6 @@ import type { Chat } from '@features/chat/types';
 import { useChatHandlers } from './useChatHandlers';
 
 vi.mock('@features/chat/api/chatApi', () => ({
-  loadChatLogs: vi.fn(() => Promise.resolve([] as Chat[])),
   saveChatLogOptimistic: vi.fn((_roomId: string, chat: Chat) =>
     Promise.resolve({ ...chat, uuid: 'server-uuid', optimistic: false })
   ),
@@ -51,17 +50,6 @@ function setup() {
 describe('useChatHandlers', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('更新でログを再取得する', async () => {
-    const { result } = setup();
-    const { loadChatLogs } = await import('@features/chat/api/chatApi');
-
-    await act(async () => {
-      result.current.handleReload();
-    });
-
-    expect(loadChatLogs).toHaveBeenCalledWith('superbeginner');
   });
 
   // 表示の切り替え自体は ChatRoom の onBackToChat が担うが、コマンド経由の送信でも

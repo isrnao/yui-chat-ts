@@ -26,7 +26,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   usePageView(seo.title);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat } = useChatLog(
+  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload } = useChatLog(
     roomId,
     measurement.onRealtimeChat
   );
@@ -44,7 +44,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
 
   useLookSound(roomId);
 
-  const { handleEnter, handleExit, handleSend, handleReload } = useChatHandlers({
+  const { handleEnter, handleExit, handleSend } = useChatHandlers({
     roomId,
     name,
     color,
@@ -78,7 +78,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               setWindowRows={setWindowRows}
               onExit={handleExit}
               onSend={(msg, metadata) => handleSend(msg, metadata)}
-              onReload={handleReload}
+              onReload={reload}
               onShowRanking={() => setShowRanking(true)}
               onBackToChat={() => setShowRanking(false)}
               avatar={avatar}
