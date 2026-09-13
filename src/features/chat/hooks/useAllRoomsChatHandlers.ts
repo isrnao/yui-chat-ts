@@ -21,6 +21,7 @@ export function useAllRoomsChatHandlers({
   email,
   avatar,
   fontStyle,
+  chatLog,
   setEntered,
   setChatLog,
   setName,
@@ -35,6 +36,8 @@ export function useAllRoomsChatHandlers({
   email: string;
   avatar?: AvatarId;
   fontStyle?: ChatMetadata['fontStyle'];
+  /** clear コマンドの削除対象を判定するための現在のログ */
+  chatLog: Chat[];
   setEntered: Dispatch<SetStateAction<boolean>>;
   setChatLog: Dispatch<SetStateAction<Chat[]>>;
   setName: Dispatch<SetStateAction<string>>;
@@ -167,15 +170,9 @@ export function useAllRoomsChatHandlers({
       }
 
       if (trimmed === 'clear') {
-        const targets = await (async () => {
-          return new Promise<Chat[]>((resolve) => {
-            setChatLog((prev) => {
-              const t = prev.filter((c) => isClearTarget(c, replyTarget, name));
-              resolve(t);
-              return prev;
-            });
-          });
-        })();
+        // state updater は純粋である必要があるため、削除対象は updater 内から
+        // resolve して読み出すのではなく props で受け取った chatLog から判定する
+        const targets = chatLog.filter((c) => isClearTarget(c, replyTarget, name));
 
         if (targets.length === 0) {
           setMessage('');
@@ -250,6 +247,7 @@ export function useAllRoomsChatHandlers({
       email,
       avatar,
       fontStyle,
+      chatLog,
       setMessage,
       setChatLog,
       addOptimistic,
