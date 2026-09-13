@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   renderRoomHtml,
   buildOutputRelativePath,
+  injectRoutePreload,
+  injectSsgMarkup,
   PAGE_SEO_START,
   PAGE_SEO_END,
 } from './prerenderHtml';
@@ -49,30 +51,13 @@ describe('renderRoomHtml', () => {
     expect(jsonLd).toEqual(buildRoomSeo('anime').jsonLd);
   });
 
-  it('#root に静的フォールバック本文 (h1 + 紹介文 + トップへのリンク) を挿入する', () => {
+  // #root の中身は SSG (injectSsgMarkup) が埋める。
+  // 手書きの静的フォールバックは、クライアント出力と異なるマークアップで
+  // 二重表示とレイアウトシフトを招くため廃止した。
+  it('#root は空のまま返す (中身は SSG が埋める)', () => {
     const html = renderRoomHtml(TEMPLATE, 'anime');
 
-    expect(html).toContain('<h1>アニメチャット</h1>');
-    expect(html).toContain('<a href="/">');
-    // SPA のマウントポイントは維持される
-    expect(html).toContain('<div id="root">');
-    expect(html).toContain('<script type="module" src="/assets/index-abc.js"></script>');
-  });
-
-  it('フォールバック本文にカテゴリ名と同カテゴリの関連部屋リンクを含める (内部リンクグラフ)', () => {
-    const html = renderRoomHtml(TEMPLATE, 'anime');
-
-    expect(html).toContain('<a href="/chat/reborn">リボーンチャット</a>');
-    expect(html).toContain('カテゴリ: アニメチャット ／ 他の部屋: ');
-    // 自分自身へのリンクは含めない
-    expect(html).not.toContain('<a href="/chat/anime">');
-  });
-
-  it('関連部屋が無い部屋でもカテゴリ名はフォールバック本文に含める', () => {
-    const html = renderRoomHtml(TEMPLATE, 'com_sb');
-
-    expect(html).toContain('カテゴリ: 管理者チャット');
-    expect(html).not.toContain('他の部屋:');
+    expect(html).toContain('<div id="root"></div>');
   });
 
   it('マーカーが無いテンプレートでは throw してビルドを失敗させる', () => {
@@ -108,5 +93,57 @@ describe('buildOutputRelativePath', () => {
   it('chat/<id>/index.html を返す', () => {
     expect(buildOutputRelativePath('anime')).toBe('chat/anime/index.html');
     expect(buildOutputRelativePath('all')).toBe('chat/all/index.html');
+  });
+});
+
+describe('injectRoutePreload', () => {
+  const html =
+    '<html><head><link rel="stylesheet" href="/assets/app.css" /></head><body></body></html>';
+
+  it('JS には modulePreload、CSS には stylesheet を使う', () => {
+    const out = injectRoutePreload(html, ['assets/ChatRoute.js', 'assets/ChatRoute.css']);
+
+    expect(out).toContain('<link rel="modulePreload" crossorigin href="/assets/ChatRoute.js" />');
+    expect(out).toContain('<link rel="stylesheet" crossorigin href="/assets/ChatRoute.css" />');
+  });
+
+  it('テンプレートが既に参照している資産は足さない', () => {
+    const out = injectRoutePreload(html, ['assets/app.css', 'assets/ChatRoute.js']);
+
+    expect(out.match(/assets\/app\.css/g)).toHaveLength(1);
+  });
+
+  it('</head> の直前に差し込む', () => {
+    const out = injectRoutePreload(html, ['assets/ChatRoute.js']);
+
+    expect(out.indexOf('/assets/ChatRoute.js')).toBeLessThan(out.indexOf('</head>'));
+  });
+
+  it('空配列なら何もしない', () => {
+    expect(injectRoutePreload(html, [])).toBe(html);
+  });
+
+  it('</head> が無ければ throw する (壊れた HTML を黙って配信しないため)', () => {
+    expect(() => injectRoutePreload('<html><body></body></html>', ['a.js'])).toThrow();
+  });
+});
+
+describe('injectSsgMarkup', () => {
+  const html = '<html><head></head><body><div id="root"></div></body></html>';
+
+  it('#root に SSG 済みマークアップを入れ、hydrate 対象の印を付ける', () => {
+    const out = injectSsgMarkup(html, '<main><h1>やあ</h1></main>');
+
+    expect(out).toContain('<div id="root" data-ssg="1"><main><h1>やあ</h1></main></div>');
+  });
+
+  // 印が無いページへ hydrate するとマークアップ不一致になるため、
+  // クライアントはこの印で hydrateRoot / createRoot を出し分ける
+  it('印が無いテンプレートは hydrate 対象にならない', () => {
+    expect(html).not.toContain('data-ssg');
+  });
+
+  it('#root が無いテンプレートでは throw する', () => {
+    expect(() => injectSsgMarkup('<html><body></body></html>', '<main></main>')).toThrow();
   });
 });

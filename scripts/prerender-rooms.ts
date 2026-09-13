@@ -10,16 +10,18 @@
  * 返るようになる (.kiro/specs/seo-improvement Req 1 / SEO-01)。
  * 生成ロジック本体は src/shared/utils/prerenderHtml.ts (vitest でテスト)。
  */
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { exit } from 'node:process';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   renderRoomHtml,
   buildOutputRelativePath,
   injectRoutePreload,
+  injectSsgMarkup,
 } from '../src/shared/utils/prerenderHtml.ts';
 import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
+import { buildRoomPath } from '../src/shared/utils/roomSeo.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, '../dist');
@@ -31,6 +33,24 @@ if (!existsSync(templatePath)) {
 }
 
 const template = readFileSync(templatePath, 'utf-8');
+
+// SSR ビルドの成果物から描画関数を読み込む。
+// これが無いと #root が空のままになり、初回描画が JS 待ちに戻るのでビルドを失敗させる。
+const ssrEntryDir = resolve(__dirname, '../dist-ssr/assets');
+const ssrEntry = existsSync(ssrEntryDir)
+  ? readdirSync(ssrEntryDir).find(
+      (name) => name.startsWith('entry-server-') && name.endsWith('.js')
+    )
+  : undefined;
+if (!ssrEntry) {
+  console.error(
+    '✖ dist-ssr に entry-server がありません。先に pnpm build:ssr を実行してください。'
+  );
+  exit(1);
+}
+const { render } = (await import(pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href)) as {
+  render: (pathname: string) => Promise<string>;
+};
 
 /**
  * ルートチャンクとその静的依存を manifest から解決する。
@@ -63,14 +83,22 @@ const targets = [...getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled),
 let count = 0;
 for (const roomId of targets) {
   const routeKey = roomId === 'all' ? 'src/routes/AllRoomsRoute.tsx' : 'src/routes/ChatRoute.tsx';
-  const html = injectRoutePreload(renderRoomHtml(template, roomId), resolveChunkPaths(routeKey));
+  const withMeta = injectRoutePreload(
+    renderRoomHtml(template, roomId),
+    resolveChunkPaths(routeKey)
+  );
+  // 入室フォームまで含めた実マークアップを埋める。JS の到着を待たずに描画でき、
+  // クライアント側と同一の出力なのでレイアウトシフトも起きない。
+  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(roomId)));
   const outPath = resolve(distDir, buildOutputRelativePath(roomId));
   mkdirSync(dirname(outPath), { recursive: true });
   writeFileSync(outPath, html, 'utf-8');
   count += 1;
 }
 
-// トップは静的 import なのでエントリの依存として既に modulePreload されている。
-// 先読みを追加する必要はない。
+// トップページも SSG する。#root が空だと LCP 要素 (紹介文) が JS 待ちになる。
+// 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい。
+writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8');
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
+console.log('✔ SSG: dist/index.html + 各部屋ページ');

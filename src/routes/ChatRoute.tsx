@@ -3,6 +3,7 @@ import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
+import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
@@ -34,12 +35,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
   const { settings } = useSettings();
   const [entered, setEntered] = useState(false);
-  const [name, setName] = useState(() => settings.name ?? '');
-  const [color, setColor] = useState(() => settings.color || '#ff69b4');
+  // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
+  const [name, setName] = useStoreBackedState(settings.name ?? '');
+  const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
   const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
-  const [email, setEmail] = useState(() => settings.email ?? '');
+  const [email, setEmail] = useStoreBackedState(settings.email ?? '');
   const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
 
   useLookSound(roomId);

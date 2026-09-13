@@ -1,4 +1,12 @@
-import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
+import {
+  useRef,
+  useState,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useSyncExternalStore,
+} from 'react';
+import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import type { ReactNode, KeyboardEvent } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
@@ -23,14 +31,31 @@ const TOP_HEIGHT_PRESETS: Record<SplitterTopKind, TopHeightPreset> = {
   entry: { base: 26, desktop: 24 },
 };
 
-function isDesktopViewport(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia?.(DESKTOP_MEDIA_QUERY).matches === true;
+function subscribeDesktopViewport(onChange: () => void): () => void {
+  const media = window.matchMedia?.(DESKTOP_MEDIA_QUERY);
+  // jsdom など addEventListener を持たない実装もあるので防御する
+  if (typeof media?.addEventListener !== 'function') return () => {};
+  media.addEventListener('change', onChange);
+  return () => media.removeEventListener('change', onChange);
 }
 
-function resolveInitialTopHeight(topKind: SplitterTopKind | undefined): number {
+function getDesktopViewportSnapshot(): boolean {
+  return window.matchMedia?.(DESKTOP_MEDIA_QUERY).matches === true;
+}
+
+/**
+ * SSG 時はビューポートが分からないので base 側で描画する。
+ * hydration ではクライアントもこの値を使うためマークアップが一致し、
+ * 直後に実際のビューポートへ切り替わる。
+ */
+function getDesktopViewportServerSnapshot(): boolean {
+  return false;
+}
+
+function resolveInitialTopHeight(topKind: SplitterTopKind | undefined, isDesktop: boolean): number {
   if (topKind == null) return FALLBACK_TOP_HEIGHT;
   const preset = TOP_HEIGHT_PRESETS[topKind];
-  return isDesktopViewport() ? (preset.desktop ?? preset.base) : preset.base;
+  return isDesktop ? (preset.desktop ?? preset.base) : preset.base;
 }
 
 export default function RetroSplitter({
@@ -49,7 +74,17 @@ export default function RetroSplitter({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   // 上側の画面に応じて初期高さを決定（マウント時のみ参照）
-  const [topHeight, setTopHeight] = useState(() => resolveInitialTopHeight(topKind)); // percent
+  const isDesktop = useSyncExternalStore(
+    subscribeDesktopViewport,
+    getDesktopViewportSnapshot,
+    getDesktopViewportServerSnapshot
+  );
+  // ドラッグ / キーボード操作で明示的に変えるまではプリセット値に追随する。
+  // useState にコピーすると SSG の base 値を握ったままになり、
+  // hydration 後にビューポート実値へ切り替わらない。
+  const [topHeight, setTopHeight] = useStoreBackedState(
+    resolveInitialTopHeight(topKind, isDesktop)
+  ); // percent
   const [dragging, setDragging] = useState(false);
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
@@ -155,7 +190,7 @@ export default function RetroSplitter({
   // 入室前後で上側の画面が入れ替わったら初期高さに戻す
   // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
   useResetOnChange(topKind, (next) => {
-    setTopHeight(resolveInitialTopHeight(next));
+    setTopHeight(resolveInitialTopHeight(next, isDesktop));
   });
 
   // キーボード操作でもドラッグできるように

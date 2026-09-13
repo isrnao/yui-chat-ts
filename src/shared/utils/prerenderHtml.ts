@@ -8,12 +8,7 @@
  */
 import { buildRoomSeo, buildRoomPath, type RoomSeo } from './roomSeo.ts';
 import { SITE_NAME } from './seo.ts';
-import {
-  getRoomMeta,
-  getRelatedRooms,
-  ROOM_CATEGORY_LABELS,
-  type RoomId,
-} from '../../features/chat/rooms.ts';
+import { type RoomId } from '../../features/chat/rooms.ts';
 
 export const PAGE_SEO_START = '<!-- page-seo:start -->';
 export const PAGE_SEO_END = '<!-- page-seo:end -->';
@@ -99,32 +94,18 @@ function buildHeadBlock(seo: RoomSeo): string {
 }
 
 /**
- * #root に入れる静的フォールバック本文。
- * JS 非実行クローラ向け。React の CSR マウント時に同等の画面に置き換わる。
- * 構成 (h1 + 紹介文 + カテゴリ + 関連部屋リンク + トップへのリンク) は
- * RoomInfo コンポーネントと同じデータソース (rooms.ts) から導出しており一致する。
+ * SSG 済みの HTML を #root に流し込み、hydrate 対象であることを示す印を付ける。
+ *
+ * `data-ssg="1"` はクライアント (main.tsx) が hydrateRoot / createRoot を
+ * 出し分けるための目印。SSG していないページへ誤って hydrate すると
+ * マークアップ不一致になるため、印のあるページだけ hydrate する。
  */
-function buildStaticFallback(roomId: RoomId): string {
-  const room = getRoomMeta(roomId);
-  const related = getRelatedRooms(roomId);
-  const relatedLinks = related
-    .map((r) => `<a href="${buildRoomPath(r.id)}">${escapeHtml(r.title)}</a>`)
-    .join('／');
-
-  // カテゴリ名は RoomInfo と同様、関連部屋の有無に関わらず常に出す
-  const categoryLine =
-    `<p>カテゴリ: ${escapeHtml(ROOM_CATEGORY_LABELS[room.category])}` +
-    (related.length > 0 ? ` ／ 他の部屋: ${relatedLinks}` : '') +
-    '</p>';
-
-  return [
-    '<main>',
-    `<h1>${escapeHtml(room.title)}</h1>`,
-    `<p>${escapeHtml(buildRoomSeo(roomId).description)}</p>`,
-    categoryLine,
-    `<p><a href="/">${escapeHtml(SITE_NAME)} トップページへ</a></p>`,
-    '</main>',
-  ].join('');
+export function injectSsgMarkup(html: string, markup: string): string {
+  const rootIndex = html.indexOf(ROOT_OPEN);
+  if (rootIndex === -1) {
+    throw new Error('prerender: #root が見つかりません');
+  }
+  return html.replace(ROOT_OPEN, `<div id="root" data-ssg="1">${markup}`);
 }
 
 /**
@@ -154,7 +135,10 @@ export function renderRoomHtml(template: string, roomId: RoomId): string {
     `\n    ${PAGE_SEO_END}` +
     template.slice(endIndex + PAGE_SEO_END.length);
 
-  return head.replace(ROOT_OPEN, `${ROOT_OPEN}${buildStaticFallback(roomId)}`);
+  // #root の中身は SSG (injectSsgMarkup) が埋める。
+  // 以前はここで手書きの静的フォールバックを入れていたが、SSG はクライアントと
+  // 同一のマークアップを出すため、そちらに一本化した (二重表示とレイアウトシフトを避ける)。
+  return head;
 }
 
 /** プリレンダ後の出力先 (dist からの相対パス)。 例: chat/anime/index.html */
