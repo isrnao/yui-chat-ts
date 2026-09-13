@@ -7,27 +7,33 @@
 
 ## 推奨実装順序（PR 単位）
 
-1. **PR1**: Task 1（R1）— フォント配信の最適化。**単独で最大効果、依存なし**
-2. **PR2**: Task 2（R2）— ルート単位 Code Splitting + Route_Error_Boundary
-3. **PR3**: Task 3（R3）— トップからの supabase-js 排除。PR2 と合わせて効く
-4. **PR4**: Task 4（R4）— クライアントサイド遷移。**遷移体感の本丸**
-5. **PR5**: Task 5（R5）— Room_Prefetcher。PR2 + PR4 が前提
-6. **PR6**: Task 6（R6）— チャット初期表示の段階化と差分取り直し
-7. **PR7**: Task 7（R7）— バジェット検証と実測値の記録
+Lighthouse ベースライン（Performance 66 / LCP 8.9s / TBT 10ms）を踏まえ、
+**LCP の 86% を占める Render Delay を潰す Task 8 を最優先**に組み替えた。
+TBT が 10ms しかないため、JS 実行時間の削減より「描画開始を早めること」が効く。
+
+1. ~~**PR1**: Task 1（R1）— フォント配信の最適化~~ → #97 で完了（480 KB → 89 KB）
+2. **PR2**: Task 8（R8）— **静的 HTML への初期描画内容の埋め込み。LCP への効果が最大**
+3. **PR3**: Task 9（R9）— サードパーティ遅延化（318 KB、うち GTM 172.7 KB）
+4. **PR4**: Task 2（R2）— ルート単位 Code Splitting + Route_Error_Boundary
+5. **PR5**: Task 3（R3）— トップからの supabase-js 排除。PR4 と合わせて効く
+6. **PR6**: Task 4（R4）— クライアントサイド遷移。**遷移体感の本丸**
+7. **PR7**: Task 5（R5）— Room_Prefetcher。PR4 + PR6 が前提
+8. **PR8**: Task 6（R6）— チャット初期表示の段階化と差分取り直し
+9. **PR9**: Task 7（R7）— バジェット検証と実測値の記録
 
 ## Tasks
 
-- [ ] 1. フォント配信の最適化（Requirement 1）
-  - [ ] 1.1 `index.html` からフォントの `<link rel="preload" as="font">` を削除する
+- [x] 1. フォント配信の最適化（Requirement 1）— #97
+  - [x] 1.1 `index.html` からフォントの `<link rel="preload" as="font">` を削除する
     - `font-display: swap` があるため描画は止まらない
     - _Requirements: 1.1, 1.4_
-  - [ ] 1.2 DotGothic16 を `unicode-range` 単位のサブセットへ分割する
+  - [x] 1.2 DotGothic16 を `unicode-range` 単位のサブセットへ分割する
     - latin / kana / jis1 / jis2 の 4 分割を基本とする
     - 生成手順をリポジトリに残す（スクリプト or 手順書）
     - _Requirements: 1.2, 1.5_
-  - [ ] 1.3 `src/styles/fonts.css` を複数 `@font-face` + `unicode-range` に書き換える
+  - [x] 1.3 `src/styles/fonts.css` を複数 `@font-face` + `unicode-range` に書き換える
     - _Requirements: 1.2, 1.3_
-  - [ ] 1.4 合計の文字集合が分割前と一致することを確認する
+  - [x] 1.4 合計の文字集合が分割前と一致することを確認する
     - チャット本文はユーザー入力のため、文字を削るサブセット化は不可
     - _Requirements: 1.5, 1.6_
   - [ ] 1.5 トップ / チャットで文字化け・フォールバック表示の退行がないことを目視確認する
@@ -109,12 +115,47 @@
     - 取り直しが取得済み最新以降のみを要求すること
     - _Requirements: 6.2, 6.3, 6.4_
 
+- [ ] 8. 静的 HTML への初期描画内容の埋め込み（Requirement 8）
+  - [ ] 8.1 トップページの初期描画内容をビルド時に生成し、`#root` に埋め込む
+    - 現状 `scripts/prerender-rooms.ts` は meta タグのみ書き換えており、`#root` は空。
+      トップも部屋ページも JS 到着まで一文字も描画されない
+    - 方式は 2 案。採用前に比較する
+      - (a) `react-dom/server` で SSG し、`createRoot` を `hydrateRoot` に変える。正攻法だが
+        hydration mismatch（`useState(() => localStorage...)` 等）の対処が要る
+      - (b) 静的スケルトンを HTML に埋め、`createRoot` がそのまま置換する。実装は軽いが
+        マークアップの二重管理になる
+    - _Requirements: 8.1, 8.2_
+  - [ ] 8.2 置換時にレイアウトシフトが出ないことを確認する
+    - _Requirements: 8.3_
+  - [ ] 8.3 既存の meta / OGP / JSON-LD 生成を壊さないことを確認する
+    - _Requirements: 8.4_
+  - [ ] 8.4 JS 無効時にトップページの内容が表示されることを確認する
+    - _Requirements: 8.5_
+  - [ ]\* 8.5 ビルド成果物の `#root` が空でないことを検証する
+    - _Requirements: 8.1_
+
+- [ ] 9. サードパーティスクリプトの遅延化（Requirement 9）
+  - [ ] 9.1 Google Tag Manager を初回描画後の読み込みに変える
+    - 実測 172.7 KB。現状 `index.html` で `async` 読み込みしており、帯域を早期に奪う
+    - _Requirements: 9.1, 9.5_
+  - [ ] 9.2 X タイムライン埋め込みをビューポート到達まで遅延する
+    - 実測 135.1 KB（widgets.js 27.5 + iframe ドキュメント 103.4）
+    - _Requirements: 9.2_
+  - [ ] 9.3 広告ウィジェットをビューポート到達まで遅延する
+    - 実測 16.5 KB
+    - _Requirements: 9.3_
+  - [ ] 9.4 サードパーティの読み込み失敗時も本文が使えることを確認する
+    - _Requirements: 9.4_
+
 - [ ] 7. 計測と退行防止（Requirement 7）
   - [ ] 7.1 トップ初期 JS 転送量のバジェット検証スクリプトを追加する
     - 超過で非ゼロ終了。CI から呼べる形にする
     - _Requirements: 7.1, 7.2_
   - [ ] 7.2 改善前後の実測値を `design.md` の記録表に反映する
     - _Requirements: 7.3_
+  - [ ] 7.3 Lighthouse の実測値を改善前後で記録する
+    - ベースライン: Performance 66 / FCP 3.7s / LCP 8.9s / TBT 10ms / CLS 0
+    - _Requirements: 7.4_
 
 ## 注記: 旧 spec との関係
 
