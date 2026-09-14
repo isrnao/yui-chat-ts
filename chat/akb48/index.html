@@ -10,8 +10,16 @@
 
     <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。
          unicode-range で分割してあり、描画に必要なサブセットだけをブラウザが取得する。
-         font-display: swap があるため描画は止まらないので preload はしない。
-         単一 480KB を preload していた頃は、critical path で JS と帯域を奪っていた。 -->
+         UI テキスト用サブセット (89KB) だけ preload する。preload しないと
+         swap のタイミングで文字幅が変わりレイアウトシフトになるため。
+         分割前は単一 480KB を preload しており、critical path で帯域を奪っていた。 -->
+    <link
+      rel="preload"
+      href="/fonts/dotgothic16/ui.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
 
     <meta name="author" content="お気楽チャットTS" />
     <meta name="robots" content="index, follow" />
@@ -95,8 +103,12 @@
       }
     </script>
 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES"></script>
+    <!-- Google tag (gtag.js)
+         本体は初回描画の後に読み込む。実測で 172.7KB あり、critical path で
+         帯域とメインスレッドを奪っていた (トップの転送量 574KB 中 303KB が
+         サードパーティで、自前の資産より大きかった)。
+         下の inline snippet が window.gtag を先に定義して dataLayer へ
+         キューするので、読み込み前に発生したイベントも取りこぼさない。 -->
     <script>
       (function (l) {
         if (l.search.length > 1 && l.search[1] === '/') {
@@ -119,12 +131,35 @@
       gtag('js', new Date());
 
       gtag('config', 'G-S3LCSTZBES', { send_page_view: false });
+
+      // gtag.js 本体の読み込み。初期描画と競合させないよう load 後に回すが、
+      // load は画像も待つため回線が細いと数秒遅れる。その前に離脱されると
+      // キュー済みのイベントごと失われるので、タイムアウトでも打ち切る。
+      (function () {
+        // LCP 目標 (2.5s) より後に倒れる値。これより短いと帯域を奪い合う
+        var TIMEOUT_MS = 3000;
+        var requested = false;
+        function loadGtag() {
+          if (requested) return;
+          requested = true;
+          var script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES';
+          document.head.appendChild(script);
+        }
+        setTimeout(loadGtag, TIMEOUT_MS);
+        if (document.readyState === 'complete') {
+          loadGtag();
+        } else {
+          window.addEventListener('load', loadGtag, { once: true });
+        }
+      })();
     </script>
-    <script type="module" crossorigin src="/assets/index-DgnMEsCk.js"></script>
+    <script type="module" crossorigin src="/assets/index-DasDp2Fj.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-DAjN9S5C.js">
     <link rel="modulepreload" crossorigin href="/assets/vendor-react-_MUSjSE3.js">
     <link rel="stylesheet" crossorigin href="/assets/index-CSaahsGq.css">
-  <link rel="modulePreload" crossorigin href="/assets/ChatRoute-BavWqp5w.js" /><link rel="modulePreload" crossorigin href="/assets/useConversationMeasurement-BEqTzJlG.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-supabase-BafTf89s.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-iceberg-js-DhKlva01.js" /><link rel="modulePreload" crossorigin href="/assets/RoomInfo-CEk53HKV.js" /><link rel="modulePreload" crossorigin href="/assets/useLookSound-DLX4vtEr.js" /><link rel="modulePreload" crossorigin href="/assets/format-3yEiulNu.js" /></head>
+  <link rel="modulePreload" crossorigin href="/assets/ChatRoute-DSHKiUUD.js" /><link rel="modulePreload" crossorigin href="/assets/useConversationMeasurement-Bi-AKrmu.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-supabase-BafTf89s.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-iceberg-js-DhKlva01.js" /><link rel="modulePreload" crossorigin href="/assets/RoomInfo-BPXRZkf9.js" /><link rel="modulePreload" crossorigin href="/assets/useLookSound-Br65hAnM.js" /><link rel="modulePreload" crossorigin href="/assets/format-3yEiulNu.js" /></head>
   <body>
     <div id="root" data-ssg="1"><!--$--><main class="flex min-h-dvh h-dvh flex-col overflow-hidden bg-yui-green" role="main"><header class="sr-only"><h1>AKB48チャット</h1><p>AKB48グループが好きな人の部屋です。推しメンの話題や楽曲・公演の感想、当時の総選挙の思い出話まで、ファン同士で懐かしく語り合えます。他グループの話題も大丈夫です。</p></header><div class="splitter-panes flex flex-1 flex-col bg-transparent select-none min-h-0 h-full" style="--splitter-top-base:26%;--splitter-top-desktop:24%"><div class="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]" style="height:var(--splitter-top-h);min-height:100px"><div class="flex flex-col"><header class="mb-1 text-2xl font-bold text-yui-pink font-yui">AKB48チャット</header><form autoComplete="off"><div class="mb-1 flex items-center bg-[#feb6c1] px-2 py-1"><label class="font-bold whitespace-nowrap" for="_R_5i_">おなまえ</label><input class="border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd] ml-2" type="text" id="_R_5i_" maxLength="24" size="20" required="" autofocus="" aria-label="おなまえ" autoComplete="nickname" name="name" value=""/><span class="ml-2 text-sm whitespace-nowrap">記入してね！</span></div><div class="mb-1 flex gap-1"><button class="border-2 border-ie-gray [border-style:outset] bg-gradient-to-b from-ie-bg to-[#e4e4e4] text-[#222] px-3 py-0.5 text-sm cursor-pointer rounded-none shadow-none transition font-yui active:[border-style:inset] active:border-ie-gray active:bg-gradient-to-b active:from-[#e1e1e1] active:to-ie-bg disabled:text-[#a9a9a9] disabled:border-[#e2e2e2] disabled:bg-[#f6f6f6] disabled:cursor-not-allowed whitespace-nowrap leading-[1.6] min-h-[28px] " type="submit">チャットに参加する</button><button class="border-2 border-ie-gray [border-style:outset] bg-gradient-to-b from-ie-bg to-[#e4e4e4] text-[#222] px-3 py-0.5 text-sm cursor-pointer rounded-none shadow-none transition font-yui active:[border-style:inset] active:border-ie-gray active:bg-gradient-to-b active:from-[#e1e1e1] active:to-ie-bg disabled:text-[#a9a9a9] disabled:border-[#e2e2e2] disabled:bg-[#f6f6f6] disabled:cursor-not-allowed whitespace-nowrap leading-[1.6] min-h-[28px] " type="button">リセット</button></div><div class="mb-1 flex items-center flex-wrap gap-x-2"><label for="_R_5iH1_" class="whitespace-nowrap">名前の色</label><input class="border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd] w-20" type="text" id="_R_5iH1_" maxLength="12" aria-label="名前の色" name="color" value="#ff69b4"/><label for="_R_5iH2_" class="text-green-700 underline cursor-pointer text-sm">カラーナビ</label><input type="color" id="_R_5iH2_" class="w-0 h-0 opacity-0 absolute" tabindex="-1" value="#ff69b4"/><label class="flex items-center gap-1 cursor-pointer select-none"><input type="checkbox" id="_R_5iH4_" aria-label="こっそり" class="w-3.5 h-3.5"/><span class="text-sm">こっそり</span></label></div><div class="mb-1 flex items-center"><label for="_R_5iH3_" class="whitespace-nowrap">E-Mail/URL:</label><input class="border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd] ml-2" type="text" id="_R_5iH3_" maxLength="64" autoComplete="email" placeholder="任意" aria-label="E-Mail/URL" name="email" value=""/></div><div class="mb-1 flex items-center flex-wrap gap-0"><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバターなし" name="_R_5iH5_" checked="" value="none"/><span class="text-xs text-gray-500 ml-0.5">なし</span></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi1" name="_R_5iH5_" value="hoshi1"/><img src="/avatars/hoshi1.gif" alt="hoshi1" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi2" name="_R_5iH5_" value="hoshi2"/><img src="/avatars/hoshi2.gif" alt="hoshi2" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi3" name="_R_5iH5_" value="hoshi3"/><img src="/avatars/hoshi3.gif" alt="hoshi3" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi4" name="_R_5iH5_" value="hoshi4"/><img src="/avatars/hoshi4.gif" alt="hoshi4" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi5" name="_R_5iH5_" value="hoshi5"/><img src="/avatars/hoshi5.gif" alt="hoshi5" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi6" name="_R_5iH5_" value="hoshi6"/><img src="/avatars/hoshi6.gif" alt="hoshi6" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi7" name="_R_5iH5_" value="hoshi7"/><img src="/avatars/hoshi7.gif" alt="hoshi7" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター hoshi8" name="_R_5iH5_" value="hoshi8"/><img src="/avatars/hoshi8.gif" alt="hoshi8" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター miko1" name="_R_5iH5_" value="miko1"/><img src="/avatars/miko1.gif" alt="miko1" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター tuki1" name="_R_5iH5_" value="tuki1"/><img src="/avatars/tuki1.gif" alt="tuki1" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター tuki2" name="_R_5iH5_" value="tuki2"/><img src="/avatars/tuki2.gif" alt="tuki2" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター tuki3" name="_R_5iH5_" value="tuki3"/><img src="/avatars/tuki3.gif" alt="tuki3" class="w-6 h-6 ml-0.5" loading="lazy"/></label><label class="inline-flex items-center cursor-pointer mr-0.5"><input type="radio" aria-label="アバター tuki4" name="_R_5iH5_" value="tuki4"/><img src="/avatars/tuki4.gif" alt="tuki4" class="w-6 h-6 ml-0.5" loading="lazy"/></label></div><div class="text-xs text-gray-500 text-right mt-1"><a href="https://www.cup.com/yui/" target="_blank" rel="noreferrer">ゆいちゃっと Pro(Free)</a></div></form></div><section class="mx-auto mt-24 max-w-[560px] px-4 pb-4 text-center text-[12px] leading-relaxed text-gray-700"><p>AKB48グループが好きな人の部屋です。推しメンの話題や楽曲・公演の感想、当時の総選挙の思い出話まで、ファン同士で懐かしく語り合えます。他グループの話題も大丈夫です。</p><p class="mt-2">カテゴリ: <span class="font-bold">なりきりチャット</span> ／ 他の部屋: <span><a href="/chat/durarara" class="text-blue-700 underline">デュラララ チャット</a></span><span>／<a href="/chat/vocaloid" class="text-blue-700 underline">ボカロチャット</a></span><span>／<a href="/chat/hetaria" class="text-blue-700 underline">ヘタリア チャット</a></span><span>／<a href="/chat/gintama" class="text-blue-700 underline">銀魂チャット</a></span><span>／<a href="/chat/inazuma11" class="text-blue-700 underline">イナズマイレブンチャット</a></span><span>／<a href="/chat/tenipri" class="text-blue-700 underline">テニプリチャット</a></span></p><p class="mt-2"><a href="/" class="text-blue-700 underline">部屋一覧（トップページ）へ</a></p></section></div><div role="separator" aria-label="上下の領域を分割するバー" aria-description="上下の境界です。矢印キーで調整できます" aria-orientation="horizontal" aria-valuenow="26" aria-valuemin="0" aria-valuemax="100" tabindex="0" class="bleed-x cursor-row-resize outline-none"><hr class="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full"/></div><div class="overflow-y-auto min-h-0" style="height:calc(100% - var(--splitter-top-h));min-height:100px"><!--$--><div class="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div><!--/$--></div></div></main><!--/$--></div>
   </body>
