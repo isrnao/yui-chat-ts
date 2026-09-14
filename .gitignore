@@ -47,3 +47,6 @@ chromatic-diagnostics.json
 
 # tsc -b --noEmit の副産物
 *.tsbuildinfo
+
+# pnpm lighthouse の出力 (約 1MB の計測レポート)
+lighthouse-report.html

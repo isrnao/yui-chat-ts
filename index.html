@@ -5,8 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- Performance optimizations -->
-    <link rel="dns-prefetch" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" />
-    <link rel="preconnect" href="https://tklxdjqlvwntdsfxfcwo.supabase.co" crossorigin />
+    <!-- Supabase への接続を先に張る。ホストは VITE_SUPABASE_URL から生成する
+         (Vite の HTML env 置換)。直書きするとプロジェクト差し替え時に置き去りになり、
+         実接続先と違うホストへ preconnect して逆に無駄な DNS/TLS を張ることになる。 -->
+    <link rel="dns-prefetch" href="%VITE_SUPABASE_URL%" />
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
 
     <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。
          unicode-range で分割してあり、描画に必要なサブセットだけをブラウザが取得する。
