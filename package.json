@@ -54,7 +54,9 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build --stats-json",
     "chromatic": "chromatic --project-token=$CHROMATIC_PROJECT_TOKEN",
-    "chromatic:dryrun": "dotenv -e .env -- chromatic --dry-run --debug"
+    "chromatic:dryrun": "dotenv -e .env -- chromatic --dry-run --debug",
+    "generate:search-rooms": "node --experimental-strip-types scripts/generate-search-rooms.ts",
+    "check:search-rooms": "pnpm generate:search-rooms --check"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",
@@ -106,6 +108,7 @@
     "lighthouse": "^12.6.1",
     "lightningcss": "^1.32.0",
     "postcss": "^8.5.4",
+    "postgres": "3.4.7",
     "prettier": "^3.5.3",
     "sass": "^1.89.1",
     "storybook": "^10.4.0",

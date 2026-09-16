@@ -1,3 +1,4 @@
+import { CHAT_ROOM_IDS } from '../_shared/chatRoomIds.ts';
 // Edge Function: save-chat
 //
 // チャット発言の INSERT を一手に担うサーバー側エンドポイント。
@@ -83,7 +84,10 @@ Deno.serve(async (req: Request) => {
   }
 
   // 最低限のバリデーション（name / message / room_id 必須）。
-  if (!isNonEmptyString(body.room_id)) {
+  if (
+    !isNonEmptyString(body.room_id) ||
+    !(CHAT_ROOM_IDS as readonly string[]).includes(body.room_id)
+  ) {
     return json({ error: 'room_id is required' }, 400, cors);
   }
   if (!isNonEmptyString(body.name)) {

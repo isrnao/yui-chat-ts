@@ -1,3 +1,4 @@
+import RoomSearch from '@features/chat/search/RoomSearch';
 import { useState, lazy, Suspense } from 'react';
 import type { RoomId } from '@features/chat/rooms';
 import { getRoomMeta } from '@features/chat/rooms';
@@ -127,13 +128,15 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
           </div>
         }
         bottom={
-          <Suspense
-            fallback={
-              <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
-            }
-          >
-            <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
-          </Suspense>
+          <RoomSearch key={roomId} roomId={roomId} onReturn={reload}>
+            <Suspense
+              fallback={
+                <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
+              }
+            >
+              <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
+            </Suspense>
+          </RoomSearch>
         }
       />
     </main>
