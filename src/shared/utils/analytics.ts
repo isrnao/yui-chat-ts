@@ -10,6 +10,14 @@ export type ReminderChannel = 'web_push' | 'email' | 'line' | 'calendar';
  * 自由入力、表示名、メッセージ本文、メールアドレス、URLは追加しない。
  */
 export type AnalyticsEventMap = {
+  search_submitted: { room_id: RoomId; range_days: 30 | 90 };
+  search_results: {
+    room_id: RoomId;
+    result_count_bucket: '0' | '1-19' | '20+';
+    latency_bucket: 'under_800ms' | '800ms_or_more';
+  };
+  search_result_opened: { room_id: RoomId };
+  search_return_to_chat: { room_id: RoomId };
   room_selected: {
     room_id: RoomId;
     room_title: string;

@@ -1,0 +1,76 @@
+name: Chat search checks
+on:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'supabase/**'
+      - 'scripts/generate-search-rooms.ts'
+      - '.github/workflows/chat-search.yml'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+permissions:
+  contents: read
+jobs:
+  application:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check:search-rooms
+      - run: pnpm typecheck
+      - run: pnpm exec vitest run src/features/chat/search src/features/chat/api/chatApi.test.ts --coverage=false
+      - run: node --experimental-strip-types --test supabase/functions/search-chats/*.test.ts
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check --node-modules-dir=manual --config supabase/functions/search-chats/deno.json supabase/functions/search-chats/index.ts
+  database:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # groonga/pgroonga:4.0.8-alpine-17 (verified 2026-09-16)
+        image: groonga/pgroonga@sha256:e61f2b18d62287326878b83ea3bbde4f02efe9859da3285400e0b7af36c1e976
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply migrations to disposable PostgreSQL
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/bootstrap.sql
+          for migration in supabase/migrations/*.sql; do
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          psql -v ON_ERROR_STOP=1 -f supabase/operations/harden_chat_reads.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/operations/create_chat_search_index.sql
+      - name: Check Japanese search, RLS and anonymous clear/cut
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/chat_search.sql
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+      - run: pnpm install --frozen-lockfile
+      - name: Exercise production SQL builders
+        env:
+          CHAT_SEARCH_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: node --experimental-strip-types supabase/tests/search-query.integration.ts

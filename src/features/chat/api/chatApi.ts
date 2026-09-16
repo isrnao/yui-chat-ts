@@ -238,32 +238,18 @@ export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat):
 }
 
 export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
-  // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
-  // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ deleted: true })
-    .eq('room_id', roomId)
-    .eq('deleted', false);
-  if (error) {
-    throw new Error(`Failed to clear chat logs: ${error.message}`);
-  }
+  const { error } = await supabase.rpc('clear_chat_logs', { p_room_id: roomId, p_name: null });
+  if (error) throw new Error(`Failed to clear chat logs: ${error.message}`);
   invalidateCache(roomId);
 }
 
-// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
+// 名前一致は従来の匿名コマンド仕様であり、本人確認ではない。
 export async function clearChatLogsByName(
   roomId: RoomId = DEFAULT_ROOM_ID,
   name: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ deleted: true })
-    .eq('room_id', roomId)
-    .eq('name', name);
-  if (error) {
-    throw new Error(`Failed to clear chat logs: ${error.message}`);
-  }
+  const { error } = await supabase.rpc('clear_chat_logs', { p_room_id: roomId, p_name: name });
+  if (error) throw new Error(`Failed to clear chat logs: ${error.message}`);
   invalidateCache(roomId);
 }
 

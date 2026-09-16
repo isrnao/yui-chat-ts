@@ -21,6 +21,7 @@ Object.defineProperty(globalThis, 'ResizeObserver', {
 // 複雑なモックが必要なテストは削除済みなので、最低限の設定のみ
 vi.mock('@shared/supabaseClient', () => ({
   supabase: {
+    rpc: vi.fn().mockResolvedValue({ data: null, error: null }),
     from: vi.fn().mockReturnValue({
       select: vi.fn().mockReturnValue({
         order: vi.fn().mockReturnValue({

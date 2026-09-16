@@ -1,3 +1,4 @@
+import RoomSearch from '@features/chat/search/RoomSearch';
 import { useState, lazy, Suspense } from 'react';
 import { useChatLog } from '@features/chat/hooks/useChatLog';
 import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
@@ -106,25 +107,29 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           )
         }
         bottom={
-          !showRanking ? (
-            <Suspense
-              fallback={
-                <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
-              }
-            >
-              <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
-            </Suspense>
-          ) : (
-            <div className="px-[var(--page-gap)] pb-[var(--page-gap)]">
-              {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
+          <RoomSearch key={roomId} roomId={roomId} onReturn={reload}>
+            {!showRanking ? (
+              <Suspense
+                fallback={
+                  <div className="mt-8 animate-pulse text-gray-400">
+                    チャットログを読み込み中...
+                  </div>
+                }
+              >
+                <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
+              </Suspense>
+            ) : (
+              <div className="px-[var(--page-gap)] pb-[var(--page-gap)]">
+                {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
                   （更新・発言ボタンからもチャット表示に戻れる） */}
-              <ChatRanking
-                chatLog={chatLog}
-                roomTitle={room.title}
-                onBackToChat={() => setShowRanking(false)}
-              />
-            </div>
-          )
+                <ChatRanking
+                  chatLog={chatLog}
+                  roomTitle={room.title}
+                  onBackToChat={() => setShowRanking(false)}
+                />
+              </div>
+            )}
+          </RoomSearch>
         }
       />
     </main>
