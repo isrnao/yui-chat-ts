@@ -1,13 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
   renderRoomHtml,
+  renderChanariRoomHtml,
   buildOutputRelativePath,
+  buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
   PAGE_SEO_START,
   PAGE_SEO_END,
 } from './prerenderHtml';
-import { buildRoomSeo } from './roomSeo';
+import { buildRoomSeo, buildChanariRoomSeo } from './roomSeo';
 
 const TEMPLATE = `<!doctype html>
 <html lang="ja">
@@ -89,10 +91,60 @@ describe('renderRoomHtml', () => {
   });
 });
 
+describe('renderChanariRoomHtml', () => {
+  it('なりきり用の title に差し替える', () => {
+    const html = renderChanariRoomHtml(TEMPLATE, 'durarara');
+    const seo = buildChanariRoomSeo('durarara');
+
+    expect(html).toContain(`<title>${seo.title}</title>`);
+    expect(seo.title).toContain('（なりきり）');
+  });
+
+  it('canonical は /chat/<id> に向ける (通常チャット側へ評価を集約する)', () => {
+    const html = renderChanariRoomHtml(TEMPLATE, 'durarara');
+
+    expect(html).toContain(
+      '<link rel="canonical" href="https://www.okiraku.chat/chat/durarara" />'
+    );
+    expect(html).toContain(
+      '<meta property="og:url" content="https://www.okiraku.chat/chat/durarara" />'
+    );
+    // トップ用の canonical は残らない
+    expect(html).not.toContain('href="https://www.okiraku.chat/" />');
+  });
+
+  // ChanariChatPage は useSEO に jsonLd を渡さないため、hydrate 後に
+  // data-page-jsonld ノードは削除される。プリレンダで出すと「出してすぐ消す」不一致になる
+  it('data-page-jsonld は出さず、ベース @graph は残す', () => {
+    const html = renderChanariRoomHtml(TEMPLATE, 'durarara');
+
+    expect(html).not.toContain('data-page-jsonld');
+    expect(html).toContain('"@graph":[{"@type":"WebSite"}]');
+  });
+
+  it('#root は空のまま返す (中身は SSG が埋める)', () => {
+    expect(renderChanariRoomHtml(TEMPLATE, 'durarara')).toContain('<div id="root"></div>');
+  });
+
+  it('マーカーが無いテンプレートでは throw してビルドを失敗させる', () => {
+    expect(() =>
+      renderChanariRoomHtml('<html><head></head><body></body></html>', 'durarara')
+    ).toThrow(/page-seo markers not found/);
+  });
+});
+
 describe('buildOutputRelativePath', () => {
   it('chat/<id>/index.html を返す', () => {
     expect(buildOutputRelativePath('anime')).toBe('chat/anime/index.html');
     expect(buildOutputRelativePath('all')).toBe('chat/all/index.html');
+  });
+});
+
+describe('buildChanariOutputRelativePath', () => {
+  // これが出力されないと GitHub Pages が 404.html を返し、
+  // `/?/chanari/<id>` 経由でトップが一度描画される
+  it('chanari/<id>/index.html を返す', () => {
+    expect(buildChanariOutputRelativePath('durarara')).toBe('chanari/durarara/index.html');
   });
 });
 

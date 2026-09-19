@@ -10,7 +10,7 @@
  * - import は相対パス + .ts 拡張子 (path alias は Node で解決されない)
  * という制約を守ること。パスは vite.config.ts の base: '/' を前提に固定形で組み立てる。
  */
-import { SITE_ORIGIN, SITE_NAME, buildAbsoluteUrl } from './seo.ts';
+import { SITE_ORIGIN, SITE_NAME, buildAbsoluteUrl, buildPageTitle } from './seo.ts';
 import { getRoomMeta, ROOM_CATEGORY_LABELS, type RoomId } from '../../features/chat/rooms.ts';
 
 export type RoomSeo = {
@@ -29,6 +29,41 @@ export type RoomSeoOverrides = {
 
 export function buildRoomPath(roomId: RoomId): string {
   return `/chat/${roomId}`;
+}
+
+/**
+ * なりきり UI (`/chanari/<id>`) のパス。
+ *
+ * ランタイム用は `@features/chanari-chat/routing` の `buildChanariRoomPath` だが、
+ * あちらは import.meta.env.BASE_URL を読むため Node 直接実行のプリレンダから使えない。
+ * このファイルの制約 (冒頭コメント参照) に合わせた固定形の実装を置く。
+ */
+export function buildChanariPath(roomId: RoomId): string {
+  return `/chanari/${roomId}`;
+}
+
+/**
+ * なりきり部屋ページ (`/chanari/<id>`) の SEO メタ。
+ *
+ * ChanariChatPage の useSEO 呼び出しと同値になるよう組む。ズレると hydrate 後に
+ * head が書き換わり、プリレンダした値が一瞬だけ見える状態になる。
+ * - title: 「{部屋名}（なりきり） | {サイト名}」
+ * - canonical: `/chat/<id>`。内容が重複するため評価を通常チャット側に集約する
+ *   (sitemap 除外と同じ canonical 化方針。.kiro/specs/seo-improvement design §3)
+ * - jsonLd: 空。ChanariChatPage は useSEO に jsonLd を渡しておらず、hydrate 後に
+ *   data-page-jsonld ノードが削除されるため、プリレンダで入れると
+ *   「出してすぐ消す」ことになる
+ */
+export function buildChanariRoomSeo(roomId: RoomId): RoomSeo {
+  const room = getRoomMeta(roomId);
+
+  return {
+    title: buildPageTitle(`${room.title}（なりきり）`),
+    description: room.description,
+    canonical: buildAbsoluteUrl(buildRoomPath(roomId)),
+    ogImage: buildAbsoluteUrl('/ogp.png'),
+    jsonLd: [],
+  };
 }
 
 export function buildRoomSeo(roomId: RoomId, overrides: RoomSeoOverrides = {}): RoomSeo {

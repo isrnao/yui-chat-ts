@@ -9,7 +9,11 @@
  *   (service-improvement Req 2 でルート復活が確定したら戻す)
  * - enabled な全ルーム (`getListableRoomIds()`、`all` は含まない) を `/chat/<id>` で列挙し、
  *   全部屋まとめビュー `/chat/all` は固定エントリとして別途追加する
- * - `/chanari/<id>` は `/chat/<id>` と内容が重複するため除外 (canonical 化方針)
+ * - `/chanari/<id>` は `/chat/<id>` と内容が重複するため除外 (canonical 化方針)。
+ *   prerender-rooms.ts は `/chanari/<id>` の静的 HTML も出力するようになったが
+ *   (出力しないと 404.html 経由でトップが一度描画される)、それらの canonical は
+ *   `/chat/<id>` を指しているので sitemap には載せない。非正規 URL を載せると
+ *   canonical と食い違うシグナルを送ることになる
  * - `lastmod` / `changefreq` / `priority` は出力しない:
  *   changefreq / priority は Google が無視する死に要素、lastmod は
  *   「全 URL 一律のビルド日」しか出せず虚偽シグナルになるため省略

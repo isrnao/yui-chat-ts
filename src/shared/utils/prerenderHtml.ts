@@ -6,7 +6,13 @@
  * Node 直接実行の import ツリーに入るため import.meta.env に依存しないこと
  * (roomSeo.ts と同じ制約)。
  */
-import { buildRoomSeo, buildRoomPath, type RoomSeo } from './roomSeo.ts';
+import {
+  buildRoomSeo,
+  buildRoomPath,
+  buildChanariRoomSeo,
+  buildChanariPath,
+  type RoomSeo,
+} from './roomSeo.ts';
 import { SITE_NAME } from './seo.ts';
 import { type RoomId } from '../../features/chat/rooms.ts';
 
@@ -63,7 +69,7 @@ function buildHeadBlock(seo: RoomSeo): string {
   const canonical = escapeHtml(seo.canonical);
   const ogImage = escapeHtml(seo.ogImage);
 
-  return [
+  const tags = [
     `<title>${title}</title>`,
     `<meta name="title" content="${title}" />`,
     `<meta name="description" content="${description}" />`,
@@ -84,13 +90,22 @@ function buildHeadBlock(seo: RoomSeo): string {
     `<meta name="twitter:description" content="${description}" />`,
     `<meta name="twitter:image" content="${ogImage}" />`,
     `<meta name="twitter:image:alt" content="${title}" />`,
-    // ページ固有の構造化データ (WebPage + BreadcrumbList)。
-    // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする。
-    // "<" は Unicode エスケープ (バックスラッシュ + u003c) に置換し、値に "</script>" が
-    // 紛れても HTML が壊れないようにする
-    // (JSON としては等価なので JSON.parse の結果は変わらない)
-    `<script type="application/ld+json" data-page-jsonld>${JSON.stringify(seo.jsonLd).replace(/</g, '\\u003c')}</script>`,
-  ].join('\n    ');
+  ];
+
+  // ページ固有の構造化データ (WebPage + BreadcrumbList)。
+  // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする。
+  // jsonLd を持たないページ (なりきり) では useSEO がこのノードを削除するため、
+  // ここでも出さない。出すと hydrate 直後に消える不一致になる。
+  // "<" は Unicode エスケープ (バックスラッシュ + u003c) に置換し、値に "</script>" が
+  // 紛れても HTML が壊れないようにする
+  // (JSON としては等価なので JSON.parse の結果は変わらない)
+  if (seo.jsonLd.length > 0) {
+    tags.push(
+      `<script type="application/ld+json" data-page-jsonld>${JSON.stringify(seo.jsonLd).replace(/</g, '\\u003c')}</script>`
+    );
+  }
+
+  return tags.join('\n    ');
 }
 
 /**
@@ -109,11 +124,11 @@ export function injectSsgMarkup(html: string, markup: string): string {
 }
 
 /**
- * テンプレート (dist/index.html) から部屋ページの HTML を生成する。
+ * テンプレート (dist/index.html) の page-seo マーカー範囲を、渡された SEO で差し替える。
  * マーカーや #root が見つからない場合は throw してビルドを失敗させる
  * (壊れた HTML を黙って配信しないため)。
  */
-export function renderRoomHtml(template: string, roomId: RoomId): string {
+function renderPageHtml(template: string, seo: RoomSeo): string {
   const startIndex = template.indexOf(PAGE_SEO_START);
   const endIndex = template.indexOf(PAGE_SEO_END);
   if (startIndex === -1 || endIndex === -1 || endIndex < startIndex) {
@@ -127,7 +142,6 @@ export function renderRoomHtml(template: string, roomId: RoomId): string {
     throw new Error(`${ROOT_OPEN} not found in template.`);
   }
 
-  const seo = buildRoomSeo(roomId);
   const head =
     template.slice(0, startIndex) +
     `${PAGE_SEO_START}\n    ` +
@@ -141,7 +155,29 @@ export function renderRoomHtml(template: string, roomId: RoomId): string {
   return head;
 }
 
+/** テンプレートから通常チャット部屋ページ (`/chat/<id>`) の HTML を生成する。 */
+export function renderRoomHtml(template: string, roomId: RoomId): string {
+  return renderPageHtml(template, buildRoomSeo(roomId));
+}
+
+/**
+ * テンプレートからなりきり部屋ページ (`/chanari/<id>`) の HTML を生成する。
+ *
+ * これを出さないと GitHub Pages が `/chanari/<id>` に 404.html を返し、
+ * SPA リダイレクトハックで `/?/chanari/<id>` (= トップの index.html) を
+ * 読み込むことになる。結果としてトップが一度描画され、hydrate も
+ * マークアップ不一致で失敗する。
+ */
+export function renderChanariRoomHtml(template: string, roomId: RoomId): string {
+  return renderPageHtml(template, buildChanariRoomSeo(roomId));
+}
+
 /** プリレンダ後の出力先 (dist からの相対パス)。 例: chat/anime/index.html */
 export function buildOutputRelativePath(roomId: RoomId): string {
   return `${buildRoomPath(roomId).replace(/^\//, '')}/index.html`;
+}
+
+/** なりきり側の出力先 (dist からの相対パス)。 例: chanari/durarara/index.html */
+export function buildChanariOutputRelativePath(roomId: RoomId): string {
+  return `${buildChanariPath(roomId).replace(/^\//, '')}/index.html`;
 }

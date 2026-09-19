@@ -1,10 +1,41 @@
 import { describe, it, expect } from 'vitest';
-import { buildRoomSeo, buildRoomPath } from './roomSeo';
+import { buildRoomSeo, buildRoomPath, buildChanariRoomSeo, buildChanariPath } from './roomSeo';
 import { SITE_NAME } from './seo';
 
 describe('buildRoomPath', () => {
   it('/chat/<id> 形式のパスを返す', () => {
     expect(buildRoomPath('anime')).toBe('/chat/anime');
+  });
+});
+
+describe('buildChanariPath', () => {
+  it('/chanari/<id> 形式のパスを返す', () => {
+    expect(buildChanariPath('durarara')).toBe('/chanari/durarara');
+  });
+});
+
+describe('buildChanariRoomSeo', () => {
+  // ChanariChatPage の useSEO と同値であることが前提。ズレると hydrate 後に
+  // head が書き換わり、プリレンダした値が一瞬だけ見える
+  it('title は「{部屋名}（なりきり） | {サイト名}」形式', () => {
+    expect(buildChanariRoomSeo('durarara').title).toBe(
+      `デュラララ チャット（なりきり） | ${SITE_NAME}`
+    );
+  });
+
+  it('canonical は /chat/<id> を指す (内容が重複するため評価を集約する)', () => {
+    expect(buildChanariRoomSeo('durarara').canonical).toBe(
+      'https://www.okiraku.chat/chat/durarara'
+    );
+    expect(buildChanariRoomSeo('durarara').canonical).toBe(buildRoomSeo('durarara').canonical);
+  });
+
+  it('jsonLd は空 (ランタイムで data-page-jsonld が削除されるため)', () => {
+    expect(buildChanariRoomSeo('durarara').jsonLd).toEqual([]);
+  });
+
+  it('description は部屋の紹介文をそのまま使う', () => {
+    expect(buildChanariRoomSeo('durarara').description).toBe(buildRoomSeo('durarara').description);
   });
 });
 
