@@ -5,7 +5,16 @@ import { reduceOptimisticChat } from './useChatLog';
 import type { Chat } from '@features/chat/types';
 import type { Dispatch, SetStateAction } from 'react';
 
-export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
+/** 全部屋まとめで最初に取得する件数 */
+export const ALL_ROOMS_INITIAL_LIMIT = 200;
+
+/**
+ * @param limit 取得件数。「ログ行数」で 200 件より多く選ばれたときに呼び出し元が広げる。
+ */
+export function useAllRoomsChatLog(
+  onRealtimeChat?: (chat: Chat) => void,
+  limit: number = ALL_ROOMS_INITIAL_LIMIT
+): {
   chatLog: Chat[];
   isLoading: boolean;
   loadError: boolean;
@@ -51,7 +60,7 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
       setLoadError(false);
     }
 
-    loadAllRoomsChatLogs(200)
+    loadAllRoomsChatLogs(limit)
       .then((logs) => {
         // realtime で先着した新着を丸ごと上書きしないよう merge する
         if (!ignore) setBaseLog((prev) => mergeChatLogByUuid(logs, prev));
@@ -89,7 +98,7 @@ export function useAllRoomsChatLog(onRealtimeChat?: (chat: Chat) => void): {
       ignore = true;
       sub?.unsubscribe();
     };
-  }, [mergeChat, onRealtimeChat, reloadKey]);
+  }, [mergeChat, onRealtimeChat, reloadKey, limit]);
 
   return {
     chatLog,

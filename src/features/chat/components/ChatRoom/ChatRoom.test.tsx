@@ -49,6 +49,20 @@ describe('ChatRoom', () => {
     expect(props.setMessage).toHaveBeenCalledWith('abc');
   });
 
+  it('ログ行数の選択肢は既定で 100 件まで', () => {
+    render(<ChatRoom {...props} />);
+    const options = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(options).toContain('100');
+    expect(options).not.toContain('1000');
+  });
+
+  it('windowRowOptions を渡すと 1000 件まで選べる', () => {
+    render(<ChatRoom {...props} windowRowOptions={[30, 100, 1000]} />);
+    const select = screen.getByRole('combobox', { name: 'ログ行数' });
+    fireEvent.change(select, { target: { value: '1000' } });
+    expect(props.setWindowRows).toHaveBeenCalledWith(1000);
+  });
+
   it('calls setWindowRows when select changes', () => {
     render(<ChatRoom {...props} />);
     const select = screen.getByRole('combobox', { name: 'ログ行数' });

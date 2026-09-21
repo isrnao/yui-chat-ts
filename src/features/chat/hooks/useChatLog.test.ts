@@ -262,6 +262,51 @@ describe('useChatLog', () => {
       await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', false));
     });
 
+    it('100 件より多く広げると、その件数を直接取得して既存の発言を残す', async () => {
+      const existing = makeChat({ uuid: 'old', time: 1 });
+      loadRecentChatLogsMock.mockResolvedValueOnce([existing]);
+      loadChatLogsMock.mockResolvedValue([existing]);
+
+      const { result } = renderHook(() => useChatLog('com_sb'));
+      await waitFor(() => expect(result.current.chatLog).toHaveLength(1));
+
+      await act(async () => {
+        result.current.expandChatLog();
+      });
+      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+
+      const older = makeChat({ uuid: 'older', time: 0 });
+      loadRecentChatLogsMock.mockResolvedValueOnce([existing, older]);
+      await act(async () => {
+        result.current.expandChatLog(1000);
+      });
+
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 1000, true)
+      );
+      await waitFor(() => expect(result.current.chatLog).toHaveLength(2));
+    });
+
+    it('取得件数は減らす方向には戻さない', async () => {
+      loadRecentChatLogsMock.mockResolvedValue([]);
+      loadChatLogsMock.mockResolvedValue([]);
+
+      const { result } = renderHook(() => useChatLog('com_sb'));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
+
+      await act(async () => {
+        result.current.expandChatLog(1000);
+      });
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        result.current.expandChatLog(30);
+      });
+
+      expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2);
+      expect(loadChatLogsMock).not.toHaveBeenCalled();
+    });
+
     // 初回取得が進行中のうちに接続が確立すると、in-flight を共有した場合に
     // 同じ古い Promise を受け取り、snapshot 確定〜SUBSCRIBED の発言を取りこぼす
     it('取得中に接続が確立したら in-flight を共有せず実取得する', async () => {
