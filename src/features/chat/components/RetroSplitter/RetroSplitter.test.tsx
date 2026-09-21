@@ -93,6 +93,44 @@ describe('RetroSplitter', () => {
     });
   });
 
+  // select-none を常時付けると、チャットログを含む全チャット欄で文字が選択できず
+  // 右クリックからのコピーも効かなくなる
+  it('通常時はチャット欄のテキストを選択できる', () => {
+    render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
+    const panes = screen.getByText('TT').closest('.splitter-panes') as HTMLElement;
+
+    expect(panes.className).not.toContain('select-none');
+    expect(document.body.style.userSelect).toBe('');
+  });
+
+  it('ドラッグ中だけテキスト選択を止め、終了で元に戻す', () => {
+    render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
+    const separator = screen
+      .getAllByRole('separator')
+      .find((sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
+
+    fireEvent.mouseDown(separator!);
+    expect(document.body.style.userSelect).toBe('none');
+
+    act(() => {
+      window.dispatchEvent(new MouseEvent('mouseup'));
+    });
+    expect(document.body.style.userSelect).toBe('');
+  });
+
+  it('ドラッグ中にアンマウントされても選択禁止を残さない', () => {
+    const { unmount } = render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
+    const separator = screen
+      .getAllByRole('separator')
+      .find((sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
+
+    fireEvent.mouseDown(separator!);
+    expect(document.body.style.userSelect).toBe('none');
+
+    unmount();
+    expect(document.body.style.userSelect).toBe('');
+  });
+
   it('respects minTop and minBottom constraints', () => {
     render(
       <RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} minTop={100} minBottom={150} />

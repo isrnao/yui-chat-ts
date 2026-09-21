@@ -1,6 +1,6 @@
 /**
  * ビルド後プリレンダ: dist/index.html をテンプレートに、enabled な各部屋の
- * 静的 HTML (dist/chat/<id>/index.html) を生成する。
+ * 静的 HTML (dist/chat/<id>/index.html と dist/chanari/<id>/index.html) を生成する。
  *
  * 実行: `node --experimental-strip-types scripts/prerender-rooms.ts`
  * (pnpm build:prod で vite build の後に実行される)
@@ -16,12 +16,14 @@ import { exit } from 'node:process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   renderRoomHtml,
+  renderChanariRoomHtml,
   buildOutputRelativePath,
+  buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
 } from '../src/shared/utils/prerenderHtml.ts';
 import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
-import { buildRoomPath } from '../src/shared/utils/roomSeo.ts';
+import { buildRoomPath, buildChanariPath } from '../src/shared/utils/roomSeo.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const distDir = resolve(__dirname, '../dist');
@@ -80,6 +82,12 @@ function resolveChunkPaths(entryKey: string): string[] {
 // enabled な全部屋 + 全部屋まとめビュー ('all')
 const targets = [...getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled), 'all' as const];
 
+function writePage(relativePath: string, html: string): void {
+  const outPath = resolve(distDir, relativePath);
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, html, 'utf-8');
+}
+
 let count = 0;
 for (const roomId of targets) {
   const routeKey = roomId === 'all' ? 'src/routes/AllRoomsRoute.tsx' : 'src/routes/ChatRoute.tsx';
@@ -90,10 +98,32 @@ for (const roomId of targets) {
   // 入室フォームまで含めた実マークアップを埋める。JS の到着を待たずに描画でき、
   // クライアント側と同一の出力なのでレイアウトシフトも起きない。
   const html = injectSsgMarkup(withMeta, await render(buildRoomPath(roomId)));
-  const outPath = resolve(distDir, buildOutputRelativePath(roomId));
-  mkdirSync(dirname(outPath), { recursive: true });
-  writeFileSync(outPath, html, 'utf-8');
+  writePage(buildOutputRelativePath(roomId), html);
   count += 1;
+}
+
+// なりきり UI (`/chanari/<id>`) も同様にプリレンダする。
+// これが無いと GitHub Pages が 404.html を返し、SPA リダイレクトハック経由で
+// `/?/chanari/<id>` (= トップの index.html) を読むことになる。トップが一度描画され、
+// hydrate も「サーバー HTML = トップ / クライアント route = 部屋」の不一致で
+// 失敗していた (React error #418)。
+//
+// 対象は matchChanariRoute が受け付ける範囲、つまり enabled な全部屋に合わせる。
+// トップから実際にリンクしているのは chanari カテゴリの部屋だけだが、
+// `/chanari` 単体のリダイレクト先が DEFAULT_ROOM_ID (chanari カテゴリ外) なので、
+// リンク済みの部屋だけに絞るとそこが 404 に戻る。
+// `all` は matchChanariRoute が `/chat/all` へリダイレクトするため含めない。
+const chanariTargets = getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled);
+
+let chanariCount = 0;
+for (const roomId of chanariTargets) {
+  const withMeta = injectRoutePreload(
+    renderChanariRoomHtml(template, roomId),
+    resolveChunkPaths('src/routes/ChanariRoute.tsx')
+  );
+  const html = injectSsgMarkup(withMeta, await render(buildChanariPath(roomId)));
+  writePage(buildChanariOutputRelativePath(roomId), html);
+  chanariCount += 1;
 }
 
 // トップページも SSG する。#root が空だと LCP 要素 (紹介文) が JS 待ちになる。
@@ -101,4 +131,5 @@ for (const roomId of targets) {
 writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8');
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
+console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);
 console.log('✔ SSG: dist/index.html + 各部屋ページ');
