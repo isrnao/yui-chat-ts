@@ -162,6 +162,27 @@ describe('ChatMessage', () => {
     expect(screen.queryByText(/プロフィールも作ってみてね/)).not.toBeInTheDocument();
   });
 
+  it('管理人の機能要求受付メッセージの Issue 番号を GitHub へのリンクにする', () => {
+    const replyChat: Chat = {
+      uuid: '7',
+      name: '管理人',
+      color: '#ffffff',
+      message: '機能要求を受け付けました（Issue #112）',
+      time: 1680000000000,
+      system: true,
+      ip_masked: '',
+      ua: '',
+      metadata: { version: 1, kind: 'admin' },
+    };
+
+    render(<ChatMessage chat={replyChat} />);
+
+    const link = screen.getByRole('link', { name: 'Issue #112' });
+    expect(link).toHaveAttribute('href', 'https://github.com/isrnao/yui-chat-ts/issues/112');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(screen.getByText(/機能要求を受け付けました（/)).toBeInTheDocument();
+  });
+
   it('look 発言の右にきらめき画像を出す', () => {
     const lookChat: Chat = {
       uuid: '7',

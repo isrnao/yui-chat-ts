@@ -129,6 +129,32 @@ const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;
 /** レガシーの look コマンド。発言の右にきらめきを出す */
 const LOOK_PATTERN = /^look$/i;
 const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
+/** save-chat の機能要求受付返信「…（Issue #112）」の Issue 番号部分 */
+const ISSUE_REF_PATTERN = /(Issue #(\d+))/;
+const ISSUE_BASE_URL = 'https://github.com/isrnao/yui-chat-ts/issues/';
+
+/**
+ * 管理人メッセージ中の "Issue #N" を GitHub Issue へのリンクにする。
+ * リンク先は自リポジトリに固定し、番号だけを本文から取る（任意 URL に飛ばせないように）。
+ */
+function AdminText({ message }: { message: string }) {
+  const [before, label, number, after] = message.split(ISSUE_REF_PATTERN);
+  if (label === undefined) return <>{message}</>;
+  return (
+    <>
+      {before}
+      <a
+        href={`${ISSUE_BASE_URL}${number}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-blue-600 underline"
+      >
+        {label}
+      </a>
+      {after}
+    </>
+  );
+}
 
 /**
  * レガシーの入室メッセージ2行目（ブラウザ行）を組み立てる。
@@ -188,7 +214,7 @@ function AdminMessage({
         </>
       ) : (
         <span className="font-bold" style={{ color: 'red' }}>
-          {isWelcome ? `${chat.message}${PROFILE_SUFFIX}` : chat.message}
+          {isWelcome ? `${chat.message}${PROFILE_SUFFIX}` : <AdminText message={chat.message} />}
         </span>
       )}
       {browserLine && (
