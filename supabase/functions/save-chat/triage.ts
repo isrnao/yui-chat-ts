@@ -15,7 +15,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 export const TRIAGE_ROOM_ID = 'com_sb';
 
-const JEV_ENDPOINT = 'https://okiraku-api.vercel.app/api/v1/evaluate';
+const JEV_ENDPOINT = 'https://api.okiraku.chat/api/v1/evaluate';
 const GITHUB_REPO = 'isrnao/yui-chat-ts';
 
 /** cr の確率がこれ未満なら発火しない（誤検知で Issue を量産しないため） */

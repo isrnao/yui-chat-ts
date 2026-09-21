@@ -76,6 +76,122 @@ INSERT via RLS is a separate, later step — see
 [docs/save-chat-edge-function.md](docs/save-chat-edge-function.md) for the full staged rollout
 (function deploy → client deploy → RLS migration) and the rationale.
 
+### Okiraku API
+
+The `save-chat` Edge Function classifies administrator-chat messages through
+`https://api.okiraku.chat/api/v1/evaluate`. Set `JEV_API_TOKEN` in Supabase Secrets to the
+API server's `OKIRAKU_API_KEY`; the triage flow also requires `GITHUB_TOKEN`.
+These credentials must stay server-side and must never be stored in `VITE_*` variables.
+
+After changing the API endpoint, redeploy `save-chat` with `supabase functions deploy save-chat`.
+The browser continues to connect to Supabase, so this endpoint change requires no frontend
+environment-variable update. The API health check is `https://api.okiraku.chat/api/health`.
+
+## 監視・障害通知
+
+公開サイト `https://www.okiraku.chat/` とAPIヘルスチェックを **HetrixTools Free** で外形監視し、
+**PagerDuty Free** を通じて担当者へメール通知する（2026-09-22 設定）。
+設定は各サービスの管理画面に保存されており、アプリ側の環境変数や追加プロセスは不要。
+
+```text
+https://www.okiraku.chat/
+https://api.okiraku.chat/api/health
+  ← HetrixTools が1分間隔でHTTPS GET
+  → 障害・復旧イベントをPagerDutyへ送信
+  → PagerDutyが担当者へ障害通知メールを送信
+```
+
+### 監視条件
+
+| 項目 | 設定 |
+| --- | --- |
+| 監視名 | `okiraku.chat` |
+| URL | `https://www.okiraku.chat/`（`www` あり） |
+| 方法・間隔 | HTTPS GET、1分間隔 |
+| 拠点 | 東京、シンガポール、サンフランシスコ、アムステルダム |
+| 正常なHTTPステータス | `200` |
+| タイムアウト | 10秒 |
+| リダイレクト | 最大5回まで追跡 |
+| 再試行 | 各拠点で3回 |
+| 障害・復旧判定 | 4拠点中3拠点（過半数）が状態変化を確認 |
+| 通知タイミング | 障害判定後、追加の待機時間なし |
+| SSL | 証明書の有効性とホスト名を検証 |
+| 通知リスト | HetrixToolsの`Default Contact` |
+
+1分間隔はチェックの周期であり、通知までの時間を保証するものではない。
+再試行や複数拠点での判定、通知処理に時間がかかる場合がある。
+この監視は公開ページのHTTP応答を確認するもので、ブラウザーでの描画、
+チャット送受信、Supabaseや`save-chat` Edge Functionの正常動作までは検証しない。
+
+### APIのヘルスチェックとドメイン構成
+
+- `www.okiraku.chat` は引き続きGitHub Pages（`isrnao.github.io`）で配信する。
+- `api.okiraku.chat` をVercelの `okiraku-api` プロジェクトのProduction環境に接続する。
+  既存の `www` とルートドメインのDNS設定は変更しない。
+- APIのカスタムドメインはVercelの **okiraku-api → Domains** で管理する。
+  `www.okiraku.chat/api` へのパス転送は設定していない。
+- 既存の Vercel 標準ドメインも維持する。`save-chat` Edge Function の評価 API 接続先は `https://api.okiraku.chat/api/v1/evaluate` を使用する。
+
+| 項目 | API監視の設定 |
+| --- | --- |
+| 監視名 | `okiraku-api health` |
+| URL | `https://api.okiraku.chat/api/health` |
+| 正常な応答 | HTTP `200`、本文に `"status":"ok"` を含む |
+| 通知リスト | Webサイトと同じ `Default Contact`（PagerDuty連携済み） |
+| その他の監視条件 | 上記Webサイト監視と同じ |
+
+期待するレスポンスは `{"status":"ok","service":"okiraku-api"}`。
+キーワード判定はJSON解析ではなく、大文字・小文字を区別する文字列一致なので、
+レスポンスの空白や表記を変更する場合は監視条件も確認する。
+
+この監視はヘルスエンドポイントの応答を確認する。`/api/v1/evaluate` の評価処理や
+外部依存先の正常動作を保証するものではなく、評価APIへの定期リクエストは行わない。
+当初の `vercel.app` URLはHetrixToolsで登録を拒否されたため、独自ドメインを使用した。
+
+### PagerDuty連携
+
+- サービス名：`okiraku.chat`。エスカレーションポリシーは`Default`。
+- 連携名：`HetrixTools - okiraku.chat`。
+  [HetrixTools公式手順](https://docs.hetrixtools.com/pagerduty-integration/)に従い、
+  連携タイプは`API Fortress Connector`を使用する。
+- この連携のIntegration Keyを、HetrixToolsの
+  **Contact Lists → Default Contact → PagerDuty** に保存する。
+- 障害時はHetrixToolsがインシデントを作成し、PagerDutyが高緊急度として
+  担当者の登録済みメールアドレスへ即時通知する。電話・SMS・モバイルPushは未設定。
+- 復旧時はHetrixToolsが対応するインシデントを解決する。
+  PagerDuty側の時間経過による自動解決は無効。
+- 初期設定で作成したEmail連携は未使用。監視イベントは専用のAPI連携を通る。
+
+Integration Keyや通知先メールアドレスは、README・ソースコード・公開Issueへ記載しない。
+キーはPagerDutyとHetrixToolsの管理画面で管理する。
+
+### 動作確認・再テスト
+
+1. HetrixToolsの監視レポートで`Online`と4拠点のチェック結果を確認する。
+2. **Contact Lists → Default Contact → PagerDuty** のキーを保存したうえで、
+   **Send test notification** を実行する。
+3. PagerDutyの`okiraku.chat`サービスに
+   `This is a test PagerDuty notification.` が作成されたことを確認する。
+4. インシデントの**Timeline**でメール通知履歴を確認し、受信箱でも着信を確認する。
+5. テストインシデントを**Resolve**して終了する。
+
+2026-09-22に4拠点での`Online`、テストイベントの受信、PagerDutyのメール通知履歴を確認済み。
+テストインシデントは手動で解決済み。実際の障害・復旧による自動解決は未テスト。
+同日、API監視も4拠点での`Online`を確認。独自ドメインのヘルスチェックと
+既存の`www`がともにHTTP `200`を返すことを確認した。API専用の障害発生テストは未実施。
+
+### 無料運用の条件
+
+- HetrixTools Freeは15監視まで、1分間隔の監視とPagerDuty連携に対応。
+  **少なくとも90日に一度ログイン**し、アカウントをアクティブに保つ。
+- PagerDutyはトライアルではなくFreeプラン（月額$0）に切り替え済み。
+  この構成では1サービス・1エスカレーションポリシーとメール通知を使用する。
+- 各サービスの提供条件は変更される可能性があるため、運用変更時に公式情報を確認する。
+
+参照：[HetrixTools料金表](https://hetrixtools.com/pricing/uptime-monitor/)、
+[無料アカウントの継続条件](https://docs.hetrixtools.com/free-accounts-inactivity/)、
+[PagerDuty料金表](https://www.pagerduty.com/pricing/incident-management/)。
+
 ## Styling Notes
 
 - The root `main` element owns the viewport height via `min-h-dvh`; descendant panes should rely on flex sizing plus `overflow-y-auto` instead of duplicating `min-height` styles.
