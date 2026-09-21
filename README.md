@@ -76,6 +76,83 @@ INSERT via RLS is a separate, later step — see
 [docs/save-chat-edge-function.md](docs/save-chat-edge-function.md) for the full staged rollout
 (function deploy → client deploy → RLS migration) and the rationale.
 
+## 監視・障害通知
+
+公開サイト `https://www.okiraku.chat/` を **HetrixTools Free** で外形監視し、
+**PagerDuty Free** を通じて担当者へメール通知する（2026-09-22 設定）。
+設定は各サービスの管理画面に保存されており、アプリ側の環境変数や追加プロセスは不要。
+
+```text
+https://www.okiraku.chat/
+  ← HetrixTools が1分間隔でHTTPS GET
+  → 障害・復旧イベントをPagerDutyへ送信
+  → PagerDutyが担当者へ障害通知メールを送信
+```
+
+### 監視条件
+
+| 項目 | 設定 |
+| --- | --- |
+| 監視名 | `okiraku.chat` |
+| URL | `https://www.okiraku.chat/`（`www` あり） |
+| 方法・間隔 | HTTPS GET、1分間隔 |
+| 拠点 | 東京、シンガポール、サンフランシスコ、アムステルダム |
+| 正常なHTTPステータス | `200` |
+| タイムアウト | 10秒 |
+| リダイレクト | 最大5回まで追跡 |
+| 再試行 | 各拠点で3回 |
+| 障害・復旧判定 | 4拠点中3拠点（過半数）が状態変化を確認 |
+| 通知タイミング | 障害判定後、追加の待機時間なし |
+| SSL | 証明書の有効性とホスト名を検証 |
+| 通知リスト | HetrixToolsの`Default Contact` |
+
+1分間隔はチェックの周期であり、通知までの時間を保証するものではない。
+再試行や複数拠点での判定、通知処理に時間がかかる場合がある。
+この監視は公開ページのHTTP応答を確認するもので、ブラウザーでの描画、
+チャット送受信、Supabaseや`save-chat` Edge Functionの正常動作までは検証しない。
+
+### PagerDuty連携
+
+- サービス名：`okiraku.chat`。エスカレーションポリシーは`Default`。
+- 連携名：`HetrixTools - okiraku.chat`。
+  [HetrixTools公式手順](https://docs.hetrixtools.com/pagerduty-integration/)に従い、
+  連携タイプは`API Fortress Connector`を使用する。
+- この連携のIntegration Keyを、HetrixToolsの
+  **Contact Lists → Default Contact → PagerDuty** に保存する。
+- 障害時はHetrixToolsがインシデントを作成し、PagerDutyが高緊急度として
+  担当者の登録済みメールアドレスへ即時通知する。電話・SMS・モバイルPushは未設定。
+- 復旧時はHetrixToolsが対応するインシデントを解決する。
+  PagerDuty側の時間経過による自動解決は無効。
+- 初期設定で作成したEmail連携は未使用。監視イベントは専用のAPI連携を通る。
+
+Integration Keyや通知先メールアドレスは、README・ソースコード・公開Issueへ記載しない。
+キーはPagerDutyとHetrixToolsの管理画面で管理する。
+
+### 動作確認・再テスト
+
+1. HetrixToolsの監視レポートで`Online`と4拠点のチェック結果を確認する。
+2. **Contact Lists → Default Contact → PagerDuty** のキーを保存したうえで、
+   **Send test notification** を実行する。
+3. PagerDutyの`okiraku.chat`サービスに
+   `This is a test PagerDuty notification.` が作成されたことを確認する。
+4. インシデントの**Timeline**でメール通知履歴を確認し、受信箱でも着信を確認する。
+5. テストインシデントを**Resolve**して終了する。
+
+2026-09-22に4拠点での`Online`、テストイベントの受信、PagerDutyのメール通知履歴を確認済み。
+テストインシデントは手動で解決済み。実際の障害・復旧による自動解決は未テスト。
+
+### 無料運用の条件
+
+- HetrixTools Freeは15監視まで、1分間隔の監視とPagerDuty連携に対応。
+  **少なくとも90日に一度ログイン**し、アカウントをアクティブに保つ。
+- PagerDutyはトライアルではなくFreeプラン（月額$0）に切り替え済み。
+  この構成では1サービス・1エスカレーションポリシーとメール通知を使用する。
+- 各サービスの提供条件は変更される可能性があるため、運用変更時に公式情報を確認する。
+
+参照：[HetrixTools料金表](https://hetrixtools.com/pricing/uptime-monitor/)、
+[無料アカウントの継続条件](https://docs.hetrixtools.com/free-accounts-inactivity/)、
+[PagerDuty料金表](https://www.pagerduty.com/pricing/incident-management/)。
+
 ## Styling Notes
 
 - The root `main` element owns the viewport height via `min-h-dvh`; descendant panes should rely on flex sizing plus `overflow-y-auto` instead of duplicating `min-height` styles.
