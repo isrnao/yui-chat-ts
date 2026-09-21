@@ -144,4 +144,15 @@ describe('ChatRoom', () => {
       expect(document.activeElement).toBe(select);
     });
   });
+
+  describe('レイアウト', () => {
+    // 回帰テスト: 発言欄は size=60 由来の固有幅 (Chromium 440px / 全角メトリクスの
+    // iOS Safari は 860px) を持ち、親がブロック要素なのでそのままでは親をはみ出す。
+    // 親の main は overflow-hidden なので横スクロールでも拾えない。
+    // jsdom ではレイアウトを計測できないため、上限クラスの有無で担保する。
+    it('発言欄は親幅を超えないよう max-w-full が付いている', () => {
+      render(<ChatRoom {...props} />);
+      expect(screen.getByRole('textbox', { name: '発言' })).toHaveClass('max-w-full');
+    });
+  });
 });
