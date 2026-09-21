@@ -13,6 +13,7 @@ import ChatRanking from '@features/chat/components/ChatRanking';
 import { useRoomRanking } from '@features/chat/hooks/useRoomRanking';
 import type { AvatarId } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
+import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 
@@ -78,7 +79,12 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               message={message}
               setMessage={setMessage}
               windowRows={windowRows}
-              setWindowRows={setWindowRows}
+              setWindowRows={(rows) => {
+                setWindowRows(rows);
+                // 100 件を超える行数を選んだら、その件数まで取得を広げる
+                expandChatLog(rows);
+              }}
+              windowRowOptions={getWindowRowOptions(roomId)}
               onExit={handleExit}
               onSend={(msg, metadata) => handleSend(msg, metadata)}
               onReload={reload}

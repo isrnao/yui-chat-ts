@@ -68,6 +68,17 @@ describe('chatLogResource', () => {
     });
   });
 
+  it('100 件を超える件数は snapshot を経由せず、その件数で直接取得する', async () => {
+    const { resource, from } = await importResource();
+    const query = createQueryMock({ limitResult: { data: makeChats(1000), error: null } });
+    from.mockReturnValue(query);
+
+    const logs = await resource.loadRecentChatLogs(ROOM_ID, 1000);
+
+    expect(query.limit).toHaveBeenCalledWith(1000);
+    expect(logs).toHaveLength(1000);
+  });
+
   it('dedupes concurrent snapshot loads for the same roomId', async () => {
     const { resource, from } = await importResource();
     const result = deferred<QueryResult>();
