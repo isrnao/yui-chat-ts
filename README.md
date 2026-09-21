@@ -76,6 +76,17 @@ INSERT via RLS is a separate, later step — see
 [docs/save-chat-edge-function.md](docs/save-chat-edge-function.md) for the full staged rollout
 (function deploy → client deploy → RLS migration) and the rationale.
 
+### Okiraku API
+
+The `save-chat` Edge Function classifies administrator-chat messages through
+`https://api.okiraku.chat/api/v1/evaluate`. Set `JEV_API_TOKEN` in Supabase Secrets to the
+API server's `OKIRAKU_API_KEY`; the triage flow also requires `GITHUB_TOKEN`.
+These credentials must stay server-side and must never be stored in `VITE_*` variables.
+
+After changing the API endpoint, redeploy `save-chat` with `supabase functions deploy save-chat`.
+The browser continues to connect to Supabase, so this endpoint change requires no frontend
+environment-variable update. The API health check is `https://api.okiraku.chat/api/health`.
+
 ## 監視・障害通知
 
 公開サイト `https://www.okiraku.chat/` とAPIヘルスチェックを **HetrixTools Free** で外形監視し、
@@ -119,7 +130,7 @@ https://api.okiraku.chat/api/health
   既存の `www` とルートドメインのDNS設定は変更しない。
 - APIのカスタムドメインはVercelの **okiraku-api → Domains** で管理する。
   `www.okiraku.chat/api` へのパス転送は設定していない。
-- 既存の `okiraku-api.vercel.app` も維持する。今回の監視追加ではクライアントのAPI接続先を変更しない。
+- 既存の Vercel 標準ドメインも維持する。`save-chat` Edge Function の評価 API 接続先は `https://api.okiraku.chat/api/v1/evaluate` を使用する。
 
 | 項目 | API監視の設定 |
 | --- | --- |
