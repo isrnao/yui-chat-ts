@@ -197,7 +197,11 @@ export default function ChatRoom({
             </button>
           )}
         </div>
-        {/* 3行目: 発言入力欄（独立行） */}
+        {/* 3行目: 発言入力欄（独立行）。
+            親はブロック要素なので、size=60 由来の固有幅 (Chromium 440px / 全角メトリクスの
+            iOS Safari は 860px) はそのままだと親からはみ出す。親の main は overflow-hidden の
+            ため横スクロールでも拾えず、SP では入力欄の右側が切れていた。max-w-full で
+            親幅を上限にする。幅に余裕がある PC では固有幅のままなので表示は変わらない。 */}
         <div className="mb-1">
           <Input
             type="text"
@@ -212,6 +216,7 @@ export default function ChatRoom({
             ref={inputRef}
             autoFocus
             aria-label="発言"
+            className="max-w-full"
           />
         </div>
         {error && <div className="w-full text-xs text-red-500 mt-1">{error}</div>}
