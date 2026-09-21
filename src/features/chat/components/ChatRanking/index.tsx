@@ -7,10 +7,14 @@ type Props = {
    * 以前はここで表示用のチャットログ (直近最大 100 件) を数えていたため、
    * それより前の発言者が載らなかった。
    */
-  ranking: RankingEntry[];
-  /** 取得中。「データなし」と区別して表示する */
+  ranking: RankingEntry[] | null;
+  /**
+   * 読み込み中表示を出すか。ranking が null のときだけ使う。
+   * 数 ms で返る取得でチラつかないよう、呼び出し側で遅延させた値を渡す
+   * (useRoomRanking は RANKING_LOADING_DELAY_MS を超えたときだけ true にする)
+   */
   isLoading?: boolean;
-  /** 取得失敗 */
+  /** 取得失敗。表示できる結果が無いときだけ出す */
   hasError?: boolean;
   /** 見出しに出す部屋名。レガシーは「〇〇チャットの発言ランキング」だった */
   roomTitle?: string;
@@ -36,13 +40,19 @@ export default function ChatRanking({
   roomTitle,
   onBackToChat,
 }: Props) {
-  const statusMessage = isLoading
-    ? '読み込み中...'
-    : hasError
-      ? 'ランキングを読み込めませんでした'
-      : ranking.length === 0
+  // 結果があれば (前回分でも) それを出す。取り直し中・取り直しの失敗では表示を変えない
+  const rows = ranking ?? [];
+  const statusMessage =
+    ranking !== null
+      ? ranking.length === 0
         ? 'データなし'
-        : null;
+        : null
+      : hasError
+        ? 'ランキングを読み込めませんでした'
+        : isLoading
+          ? '読み込み中...'
+          : // まだ結果が無く、取得も長引いていない間は何も出さない (すぐ結果に置き換わるため)
+            null;
 
   // 当時のページは font-size を指定しておらず、ブラウザ既定（16px）で描画されていた
   return (
@@ -74,13 +84,17 @@ export default function ChatRanking({
           <tbody>
             {statusMessage !== null && (
               <tr>
-                <td className="p-px text-left" colSpan={4} role={hasError ? 'alert' : undefined}>
+                <td
+                  className="p-px text-left"
+                  colSpan={4}
+                  role={ranking === null && hasError ? 'alert' : undefined}
+                >
                   {statusMessage}
                 </td>
               </tr>
             )}
             {statusMessage === null &&
-              ranking.map(({ name, count, lastTime, color, host }) => (
+              rows.map(({ name, count, lastTime, color, host }) => (
                 <tr key={name}>
                   <td className="p-px text-left">
                     {/* 当時は td.rankingname font { display:block; width:16em; height:1em; overflow:hidden }。

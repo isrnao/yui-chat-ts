@@ -18,7 +18,7 @@ const meta = {
       description: '集計済みのランキング（本番は chat_ranking ビューの全期間集計）',
     },
     isLoading: {
-      description: '取得中',
+      description: '読み込み中表示を出すか（ranking が null のときだけ効く）',
     },
     hasError: {
       description: '取得失敗',
@@ -42,14 +42,14 @@ export const Empty: Story = {
 
 export const Loading: Story = {
   args: {
-    ranking: [],
+    ranking: null,
     isLoading: true,
   },
 };
 
 export const LoadError: Story = {
   args: {
-    ranking: [],
+    ranking: null,
     hasError: true,
   },
 };

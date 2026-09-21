@@ -121,16 +121,35 @@ describe('<ChatRanking />', () => {
     expect(container.firstElementChild).toHaveClass('font-yui');
   });
 
-  it('取得中は「データなし」ではなく読み込み中を出す', () => {
-    render(<ChatRanking ranking={[]} isLoading />);
+  it('結果が無く取得が長引いているときは「データなし」ではなく読み込み中を出す', () => {
+    render(<ChatRanking ranking={null} isLoading />);
     expect(screen.getByText('読み込み中...')).toBeInTheDocument();
     expect(screen.queryByText('データなし')).not.toBeInTheDocument();
   });
 
-  it('取得に失敗したらその旨を出す', () => {
-    render(<ChatRanking ranking={[]} hasError />);
+  // 数 ms で返る取得のたびに文言が一瞬出て消えるチラつきを防ぐ
+  it('結果が無くても、読み込み表示の指示が無い間は何も出さない', () => {
+    const { container } = render(<ChatRanking ranking={null} />);
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    expect(screen.queryByText('データなし')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
+  });
+
+  it('取得に失敗して結果が無ければその旨を出す', () => {
+    render(<ChatRanking ranking={null} hasError />);
     expect(screen.getByRole('alert')).toHaveTextContent('ランキングを読み込めませんでした');
     expect(screen.queryByText('データなし')).not.toBeInTheDocument();
+  });
+
+  it('前回の結果があるときは、取り直し中・取り直しの失敗でも結果を出し続ける', () => {
+    const ranking = [{ name: '常連', count: 5, lastTime: 1, color: '#000', host: '' }];
+    const { rerender } = render(<ChatRanking ranking={ranking} isLoading />);
+    expect(screen.getByText('常連')).toBeInTheDocument();
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+
+    rerender(<ChatRanking ranking={ranking} hasError />);
+    expect(screen.getByText('常連')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('渡された順 (発言回数の多い順) で行を並べる', () => {
