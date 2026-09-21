@@ -66,7 +66,10 @@ export default function EntryForm({
         }}
         autoComplete="off"
       >
-        {/* 名前（ピンク背景・横幅いっぱい、入力欄は固定幅） */}
+        {/* 名前（ピンク背景・横幅いっぱい、入力欄は size=20 の固有幅）。
+            入力欄は flex アイテムなので min-width:auto のままだと固有幅を下回れず、
+            SP では行ごと画面外にはみ出す (main が overflow-hidden なので横スクロールも
+            できない)。min-w-0 で縮小を許可し、幅が足りないときだけ縮むようにする。 */}
         <div className="mb-1 flex items-center bg-[#feb6c1] px-2 py-1">
           <label className="font-bold whitespace-nowrap" htmlFor={nameId}>
             おなまえ
@@ -86,7 +89,7 @@ export default function EntryForm({
             aria-label="おなまえ"
             autoComplete="nickname"
             disabled={isPending}
-            className="ml-2"
+            className="ml-2 min-w-0"
           />
           <span className="ml-2 text-sm whitespace-nowrap">記入してね！</span>
         </div>
@@ -154,7 +157,7 @@ export default function EntryForm({
             <span className="text-sm">こっそり</span>
           </label>
         </div>
-        {/* メール */}
+        {/* メール（おなまえ欄と同じ理由で入力欄に min-w-0） */}
         <div className="mb-1 flex items-center">
           <label htmlFor={emailId} className="whitespace-nowrap">
             E-Mail/URL:
@@ -170,7 +173,7 @@ export default function EntryForm({
             placeholder="任意"
             aria-label="E-Mail/URL"
             disabled={isPending}
-            className="ml-2"
+            className="ml-2 min-w-0"
           />
         </div>
         {/* アバター選択（ラジオボタン丸見え + 横一列） */}
