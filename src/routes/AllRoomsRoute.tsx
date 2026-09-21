@@ -1,5 +1,9 @@
 import { useState, lazy, Suspense } from 'react';
-import { useAllRoomsChatLog } from '@features/chat/hooks/useAllRoomsChatLog';
+import {
+  useAllRoomsChatLog,
+  ALL_ROOMS_INITIAL_LIMIT,
+} from '@features/chat/hooks/useAllRoomsChatLog';
+import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useAllRoomsChatHandlers } from '@features/chat/hooks/useAllRoomsChatHandlers';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
@@ -28,6 +32,9 @@ export default function AllRoomsRoute() {
   usePageView(ALL_ROOMS_SEO.title);
 
   const measurement = useConversationMeasurement();
+  const [windowRows, setWindowRows] = useState(30);
+  // 取得件数。「ログ行数」で 200 件より多く選んだら広げる（減らす方向には戻さない）
+  const [logLimit, setLogLimit] = useState(ALL_ROOMS_INITIAL_LIMIT);
   const {
     chatLog,
     isLoading,
@@ -38,7 +45,7 @@ export default function AllRoomsRoute() {
     addOptimistic,
     mergeChat,
     reload,
-  } = useAllRoomsChatLog(measurement.onRealtimeChat);
+  } = useAllRoomsChatLog(measurement.onRealtimeChat, logLimit);
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
 
@@ -49,7 +56,6 @@ export default function AllRoomsRoute() {
   const [email, setEmail] = useStoreBackedState(settings.email ?? '');
   const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
   const [message, setMessage] = useState('');
-  const [windowRows, setWindowRows] = useState(30);
   const [sendError, setSendError] = useState('');
 
   const { handleEnter, handleExit, handleSend } = useAllRoomsChatHandlers({
@@ -117,7 +123,11 @@ export default function AllRoomsRoute() {
                 message={message}
                 setMessage={setMessage}
                 windowRows={windowRows}
-                setWindowRows={setWindowRows}
+                setWindowRows={(rows) => {
+                  setWindowRows(rows);
+                  setLogLimit((current) => Math.max(current, rows));
+                }}
+                windowRowOptions={getWindowRowOptions('all')}
                 onExit={handleExit}
                 onSend={wrappedHandleSend}
                 onReload={reload}

@@ -119,10 +119,12 @@ export function useChatLog(
   const reload = () => setReloadKey((k) => k + 1);
 
   /**
-   * 取得件数を全件へ広げる。入室時に呼ぶ想定。
-   * 既に広げてあるなら何もしない (再取得を誘発しない)。
+   * 取得件数を広げる。入室時は既定の全件 (FULL_CHAT_LOG_LIMIT)、
+   * 「ログ行数」で 100 件より多く選んだときはその件数を渡す。
+   * 件数は増やす方向にだけ動かす。既に足りているなら何もしない (再取得を誘発しない)。
    */
-  const expandChatLog = () => setLogLimit(FULL_CHAT_LOG_LIMIT);
+  const expandChatLog = (limit: number = FULL_CHAT_LOG_LIMIT) =>
+    setLogLimit((current) => Math.max(current, limit));
 
   const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
 
@@ -176,8 +178,10 @@ export function useChatLog(
     // 論理削除された発言や最新 100 件から外れた発言がいつまでも残ってしまう。
     const isExpansion = logLimit > displayedLimitRef.current;
 
+    // ちょうど全件 (100) のときだけ canonical snapshot のキャッシュを使う。
+    // それより少ない初期表示と、それより多い拡張表示は件数指定で直接取得する。
     const fetchLogs =
-      logLimit >= FULL_CHAT_LOG_LIMIT
+      logLimit === FULL_CHAT_LOG_LIMIT
         ? loadChatLogs(roomId, isFirstFetch)
         : loadRecentChatLogs(roomId, logLimit, isFirstFetch);
 

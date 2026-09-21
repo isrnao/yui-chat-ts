@@ -13,12 +13,15 @@ import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
+import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 
 export type ChatRoomProps = {
   message: string;
   setMessage: Dispatch<SetStateAction<string>>;
   windowRows: number;
-  setWindowRows: Dispatch<SetStateAction<number>>;
+  setWindowRows: (rows: number) => void;
+  /** 「ログ行数」の選択肢。部屋によって上限が違う（getWindowRowOptions） */
+  windowRowOptions?: readonly number[];
   onExit: () => void;
   onSend: (msg: string, metadata?: ChatMetadata) => Promise<void>;
   onReload: () => void;
@@ -44,6 +47,7 @@ export default function ChatRoom({
   setMessage,
   windowRows,
   setWindowRows,
+  windowRowOptions = DEFAULT_WINDOW_ROW_OPTIONS,
   onExit,
   onSend,
   onReload,
@@ -233,7 +237,7 @@ export default function ChatRoom({
           aria-label="ログ行数"
           disabled={isPending}
         >
-          {[30, 50, 40, 20, 10, 100].map((v) => (
+          {windowRowOptions.map((v) => (
             <option key={v} value={v}>
               {v}
             </option>

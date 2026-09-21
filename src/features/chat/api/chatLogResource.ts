@@ -208,13 +208,16 @@ const recentInflight = new Map<string, Promise<Chat[]>>();
  * canonical snapshot (MAX_CHAT_LOG 件) のキャッシュは汚さない。少量の結果で
  * キャッシュを上書きすると、後から全件が必要になったときに 10 件しか返せなくなるため。
  * 入室時の全件取得は従来どおり `loadChatLogsSnapshot` が担う。
+ *
+ * MAX_CHAT_LOG を超える件数（管理者チャットの「ログ行数 1000」など）もこの経路で
+ * 直接取得する。大きな結果はキャッシュせず、要求されたときだけ取りに行く。
  */
 export async function loadRecentChatLogs(
   roomId: RoomId = DEFAULT_ROOM_ID,
   limit = 10,
   useInflight = true
 ): Promise<Chat[]> {
-  if (limit >= MAX_CHAT_LOG) {
+  if (limit === MAX_CHAT_LOG) {
     const { data } = await loadChatLogsSnapshot(roomId, useInflight);
     return data;
   }
