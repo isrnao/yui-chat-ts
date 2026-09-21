@@ -92,6 +92,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onBackToChat={() => setShowRanking(false)}
               avatar={avatar}
               userName={name}
+              userColor={color}
             />
           ) : (
             <>

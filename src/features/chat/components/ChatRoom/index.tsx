@@ -36,6 +36,8 @@ export type ChatRoomProps = {
   avatar?: AvatarId;
   /** 表示用のユーザー名（レガシーの「おなまえ:」表示用） */
   userName?: string;
+  /** 入室時に選んだ名前の色。「おなまえ:」の名前をこの色で表示する */
+  userColor?: string;
   /** Chat-All での返信先部屋名（指定時に「〇〇に返信中」として入力欄付近に表示） */
   replyTargetTitle?: string;
   /** 「〇〇に返信中」をクリックしたときに呼ばれるコールバック（全部屋まとめにリセット用） */
@@ -55,6 +57,7 @@ export default function ChatRoom({
   onBackToChat,
   avatar,
   userName,
+  userColor,
   replyTargetTitle,
   onResetReplyTarget,
 }: ChatRoomProps) {
@@ -187,7 +190,13 @@ export default function ChatRoom({
           </Button>
           {userName && (
             <span className="text-sm ml-2">
-              おなまえ:<span className="font-bold text-green-700 ml-1">{userName}</span>
+              おなまえ:
+              <span
+                className={`font-bold ml-1 ${userColor ? '' : 'text-green-700'}`}
+                style={userColor ? { color: userColor } : undefined}
+              >
+                {userName}
+              </span>
             </span>
           )}
           {replyTargetTitle && (
