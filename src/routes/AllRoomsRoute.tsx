@@ -123,6 +123,7 @@ export default function AllRoomsRoute() {
                 onReload={reload}
                 avatar={avatar}
                 userName={name}
+                userColor={color}
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
               />

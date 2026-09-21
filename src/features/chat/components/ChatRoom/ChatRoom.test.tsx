@@ -37,6 +37,11 @@ describe('ChatRoom', () => {
     expect(links).toEqual(['[退室]', '[ランキング]']);
   });
 
+  it('おなまえ欄の名前を入室時に選んだ色で表示する', () => {
+    render(<ChatRoom {...props} userName="かお@塵" userColor="#ff69b4" />);
+    expect(screen.getByText('かお@塵')).toHaveStyle({ color: '#ff69b4' });
+  });
+
   it('calls setMessage when input changes', () => {
     render(<ChatRoom {...props} />);
     const input = screen.getByRole('textbox', { name: '発言' });
