@@ -1,9 +1,21 @@
-import { useChatRanking } from '@features/chat/hooks/useChatRanking';
 import { formatCountTime } from '@shared/utils/format';
-import type { Chat } from '@features/chat/types';
+import type { RankingEntry } from '@features/chat/utils/chatRanking';
 
 type Props = {
-  chatLog: Chat[];
+  /**
+   * 集計済みのランキング。本番は useRoomRanking (chat_ranking ビューの全期間集計) から渡す。
+   * 以前はここで表示用のチャットログ (直近最大 100 件) を数えていたため、
+   * それより前の発言者が載らなかった。
+   */
+  ranking: RankingEntry[] | null;
+  /**
+   * 読み込み中表示を出すか。ranking が null のときだけ使う。
+   * 数 ms で返る取得でチラつかないよう、呼び出し側で遅延させた値を渡す
+   * (useRoomRanking は RANKING_LOADING_DELAY_MS を超えたときだけ true にする)
+   */
+  isLoading?: boolean;
+  /** 取得失敗。表示できる結果が無いときだけ出す */
+  hasError?: boolean;
   /** 見出しに出す部屋名。レガシーは「〇〇チャットの発言ランキング」だった */
   roomTitle?: string;
   /** 部屋名リンクの遷移先。レガシーではここがチャット本体へ戻る導線だった */
@@ -21,8 +33,26 @@ type Props = {
  * Tailwind の preflight が見出し・テーブル・hr の既定値を打ち消すため、
  * ここでは当時のブラウザ既定値を明示的に戻している。
  */
-export default function ChatRanking({ chatLog, roomTitle, onBackToChat }: Props) {
-  const ranking = useChatRanking(chatLog);
+export default function ChatRanking({
+  ranking,
+  isLoading = false,
+  hasError = false,
+  roomTitle,
+  onBackToChat,
+}: Props) {
+  // 結果があれば (前回分でも) それを出す。取り直し中・取り直しの失敗では表示を変えない
+  const rows = ranking ?? [];
+  const statusMessage =
+    ranking !== null
+      ? ranking.length === 0
+        ? 'データなし'
+        : null
+      : hasError
+        ? 'ランキングを読み込めませんでした'
+        : isLoading
+          ? '読み込み中...'
+          : // まだ結果が無く、取得も長引いていない間は何も出さない (すぐ結果に置き換わるため)
+            null;
 
   // 当時のページは font-size を指定しておらず、ブラウザ既定（16px）で描画されていた
   return (
@@ -52,32 +82,37 @@ export default function ChatRanking({ chatLog, roomTitle, onBackToChat }: Props)
             </tr>
           </thead>
           <tbody>
-            {ranking.length === 0 && (
+            {statusMessage !== null && (
               <tr>
-                <td className="p-px text-left" colSpan={4}>
-                  データなし
+                <td
+                  className="p-px text-left"
+                  colSpan={4}
+                  role={ranking === null && hasError ? 'alert' : undefined}
+                >
+                  {statusMessage}
                 </td>
               </tr>
             )}
-            {ranking.map(({ name, count, lastTime, color, host }) => (
-              <tr key={name}>
-                <td className="p-px text-left">
-                  {/* 当時は td.rankingname font { display:block; width:16em; height:1em; overflow:hidden }。
+            {statusMessage === null &&
+              rows.map(({ name, count, lastTime, color, host }) => (
+                <tr key={name}>
+                  <td className="p-px text-left">
+                    {/* 当時は td.rankingname font { display:block; width:16em; height:1em; overflow:hidden }。
                       長い名前でレイアウトを崩さないための1行クリップだが、height:1em をそのまま
                       持ち込むと DotGothic16 では字面が収まらず下が切れる。意図（16em で1行に
                       収める）はそのままに、縦のクリップは nowrap に置き換えている。 */}
-                  <span
-                    className="block w-[16em] overflow-hidden whitespace-nowrap font-bold"
-                    style={{ color }}
-                  >
-                    {name}
-                  </span>
-                </td>
-                <td className="p-px text-left">{count}</td>
-                <td className="p-px text-left">{formatCountTime(lastTime)}</td>
-                <td className="p-px text-left">{host}</td>
-              </tr>
-            ))}
+                    <span
+                      className="block w-[16em] overflow-hidden whitespace-nowrap font-bold"
+                      style={{ color }}
+                    >
+                      {name}
+                    </span>
+                  </td>
+                  <td className="p-px text-left">{count}</td>
+                  <td className="p-px text-left">{formatCountTime(lastTime)}</td>
+                  <td className="p-px text-left">{host}</td>
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>

@@ -84,6 +84,60 @@ describe('chatApi', () => {
     expect(result.hasMore).toBe(false);
   });
 
+  describe('loadChatRanking', () => {
+    function createRankingQueryMock(rows: unknown[]) {
+      const result = { data: rows, error: null };
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        order: vi.fn(() => query),
+        then: (resolve: (value: typeof result) => unknown) => Promise.resolve(result).then(resolve),
+      };
+      return query;
+    }
+
+    it('chat_ranking ビューを部屋で絞って読み、RankingEntry に変換する', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const from = supabase.from as Mock;
+      from.mockReset();
+      const query = createRankingQueryMock([
+        { name: '常連', post_count: 1200, last_time: 50, color: '#f00', host: '203.*.*.9' },
+        { name: '新人', post_count: 3, last_time: 90, color: '#00f', host: null },
+      ]);
+      from.mockReturnValue(query);
+
+      const chatApi = await import('./chatApi');
+      const ranking = await chatApi.loadChatRanking(ROOM_ID);
+
+      // 表示用ログ (chats の直近分) ではなく集計ビューを読む
+      expect(from).toHaveBeenCalledWith('chat_ranking');
+      expect(query.eq).toHaveBeenCalledWith('room_id', ROOM_ID);
+      // deleted では絞らない (論理削除された発言も数える)
+      expect(query.eq).not.toHaveBeenCalledWith('deleted', expect.anything());
+      expect(ranking).toEqual([
+        { name: '常連', count: 1200, lastTime: 50, color: '#f00', host: '203.*.*.9' },
+        { name: '新人', count: 3, lastTime: 90, color: '#00f', host: '' },
+      ]);
+    });
+
+    it('同数なら最終発言が新しい順に並べる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const from = supabase.from as Mock;
+      from.mockReset();
+      from.mockReturnValue(
+        createRankingQueryMock([
+          { name: '古い', post_count: 5, last_time: 10, color: '#000', host: '' },
+          { name: '新しい', post_count: 5, last_time: 20, color: '#000', host: '' },
+        ])
+      );
+
+      const chatApi = await import('./chatApi');
+      const ranking = await chatApi.loadChatRanking(ROOM_ID);
+
+      expect(ranking.map((r) => r.name)).toEqual(['新しい', '古い']);
+    });
+  });
+
   describe('saveChatLogOptimistic', () => {
     it('save-chat Edge Function を呼び、ip / ua をペイロードに含めない', async () => {
       const { supabase } = await import('@shared/supabaseClient');

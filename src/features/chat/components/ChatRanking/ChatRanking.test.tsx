@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import ChatRanking from './index';
+import { aggregateChatRanking } from '@features/chat/utils/chatRanking';
 import { vi, describe, it, expect } from 'vitest';
 
 // formatCountTimeをモック（呼び出し確認もしやすい）
@@ -8,8 +9,8 @@ vi.mock('@shared/utils/format', () => ({
 }));
 
 describe('<ChatRanking />', () => {
-  it('チャット履歴が空の時、「データなし」を表示する', () => {
-    render(<ChatRanking chatLog={[]} />);
+  it('ランキングが空の時、「データなし」を表示する', () => {
+    render(<ChatRanking ranking={[]} />);
     expect(screen.getByText(/データなし/)).toBeInTheDocument();
   });
 
@@ -48,7 +49,7 @@ describe('<ChatRanking />', () => {
       },
     ];
 
-    render(<ChatRanking chatLog={chatLog} />);
+    render(<ChatRanking ranking={aggregateChatRanking(chatLog)} />);
     // 名前が表示される
     expect(screen.getByText('みどり')).toBeInTheDocument();
     expect(screen.getByText('ゆい')).toBeInTheDocument();
@@ -60,7 +61,7 @@ describe('<ChatRanking />', () => {
   });
 
   it('レガシー同様の見出し・区切り線・列構成を持つ', () => {
-    const { container } = render(<ChatRanking chatLog={[]} roomTitle="サッカーチャット" />);
+    const { container } = render(<ChatRanking ranking={[]} roomTitle="サッカーチャット" />);
 
     // <h3>{部屋名}の発言ランキング</h3>
     const h3 = container.querySelector('h3');
@@ -78,7 +79,7 @@ describe('<ChatRanking />', () => {
 
   it('部屋名リンクからチャットへ戻れる', () => {
     const onBackToChat = vi.fn();
-    render(<ChatRanking chatLog={[]} roomTitle="サッカーチャット" onBackToChat={onBackToChat} />);
+    render(<ChatRanking ranking={[]} roomTitle="サッカーチャット" onBackToChat={onBackToChat} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'サッカーチャット' }));
     expect(onBackToChat).toHaveBeenCalled();
@@ -96,7 +97,7 @@ describe('<ChatRanking />', () => {
         ua: '',
       },
     ];
-    const { container } = render(<ChatRanking chatLog={chatLog} />);
+    const { container } = render(<ChatRanking ranking={aggregateChatRanking(chatLog)} />);
 
     expect(screen.getByText('A')).toHaveStyle({ color: '#ff6699' });
     expect(screen.getByText('58.*.*.60')).toBeInTheDocument();
@@ -116,7 +117,54 @@ describe('<ChatRanking />', () => {
         ua: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       },
     ];
-    const { container } = render(<ChatRanking chatLog={chatLog} />);
+    const { container } = render(<ChatRanking ranking={aggregateChatRanking(chatLog)} />);
     expect(container.firstElementChild).toHaveClass('font-yui');
+  });
+
+  it('結果が無く取得が長引いているときは「データなし」ではなく読み込み中を出す', () => {
+    render(<ChatRanking ranking={null} isLoading />);
+    expect(screen.getByText('読み込み中...')).toBeInTheDocument();
+    expect(screen.queryByText('データなし')).not.toBeInTheDocument();
+  });
+
+  // 数 ms で返る取得のたびに文言が一瞬出て消えるチラつきを防ぐ
+  it('結果が無くても、読み込み表示の指示が無い間は何も出さない', () => {
+    const { container } = render(<ChatRanking ranking={null} />);
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+    expect(screen.queryByText('データなし')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('tbody tr')).toHaveLength(0);
+  });
+
+  it('取得に失敗して結果が無ければその旨を出す', () => {
+    render(<ChatRanking ranking={null} hasError />);
+    expect(screen.getByRole('alert')).toHaveTextContent('ランキングを読み込めませんでした');
+    expect(screen.queryByText('データなし')).not.toBeInTheDocument();
+  });
+
+  it('前回の結果があるときは、取り直し中・取り直しの失敗でも結果を出し続ける', () => {
+    const ranking = [{ name: '常連', count: 5, lastTime: 1, color: '#000', host: '' }];
+    const { rerender } = render(<ChatRanking ranking={ranking} isLoading />);
+    expect(screen.getByText('常連')).toBeInTheDocument();
+    expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
+
+    rerender(<ChatRanking ranking={ranking} hasError />);
+    expect(screen.getByText('常連')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('渡された順 (発言回数の多い順) で行を並べる', () => {
+    const { container } = render(
+      <ChatRanking
+        ranking={[
+          { name: '常連', count: 1200, lastTime: 5, color: '#000', host: '' },
+          { name: '新人', count: 3, lastTime: 9, color: '#000', host: '' },
+        ]}
+      />
+    );
+    const names = Array.from(container.querySelectorAll('tbody tr td:first-child')).map(
+      (td) => td.textContent
+    );
+    expect(names).toEqual(['常連', '新人']);
+    expect(screen.getByText('1200')).toBeInTheDocument();
   });
 });
