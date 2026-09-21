@@ -19,9 +19,9 @@ const JEV_ENDPOINT = 'https://okiraku-api.vercel.app/api/v1/evaluate';
 const GITHUB_REPO = 'isrnao/yui-chat-ts';
 
 /** cr の確率がこれ未満なら発火しない（誤検知で Issue を量産しないため） */
-const CR_THRESHOLD = 0.7;
+const CR_THRESHOLD = 0.5;
 /** 直近 1 時間に受け付ける機能要求の上限（スパム対策） */
-const MAX_REQUESTS_PER_HOUR = 5;
+const MAX_REQUESTS_PER_HOUR = 3;
 /** 判定・Issue 化する発言の最大長。これを超える発言は振り分けない */
 const MAX_MESSAGE_LENGTH = 1000;
 
