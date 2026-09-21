@@ -18,6 +18,10 @@
 
 // バージョンは deno.json の import map に集約する（直 URL 重複を避ける）
 import { createClient } from '@supabase/supabase-js';
+import { shouldTriage, triageAdminChat } from './triage.ts';
+
+// Supabase Edge Runtime が提供するグローバル。レスポンス返却後も処理を継続させる。
+declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
 // プリフライトが要求したヘッダ（Access-Control-Request-Headers）をそのまま許可に
 // 反映する。クライアント（supabaseClient.ts）が apikey / authorization に加えて
@@ -127,6 +131,20 @@ Deno.serve(async (req: Request) => {
 
   if (error) {
     return json({ error: `Failed to save chat: ${error.message}` }, 500, cors);
+  }
+
+  // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
+  // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
+  if (shouldTriage(row)) {
+    const task = triageAdminChat(supabase, {
+      uuid: data.uuid,
+      room_id: row.room_id,
+      name: row.name,
+      color: row.color,
+      message: row.message,
+    });
+    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(task);
+    else await task;
   }
 
   return json(data, 200, cors);
