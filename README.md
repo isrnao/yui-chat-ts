@@ -78,12 +78,13 @@ INSERT via RLS is a separate, later step — see
 
 ## 監視・障害通知
 
-公開サイト `https://www.okiraku.chat/` を **HetrixTools Free** で外形監視し、
+公開サイト `https://www.okiraku.chat/` とAPIヘルスチェックを **HetrixTools Free** で外形監視し、
 **PagerDuty Free** を通じて担当者へメール通知する（2026-09-22 設定）。
 設定は各サービスの管理画面に保存されており、アプリ側の環境変数や追加プロセスは不要。
 
 ```text
 https://www.okiraku.chat/
+https://api.okiraku.chat/api/health
   ← HetrixTools が1分間隔でHTTPS GET
   → 障害・復旧イベントをPagerDutyへ送信
   → PagerDutyが担当者へ障害通知メールを送信
@@ -110,6 +111,31 @@ https://www.okiraku.chat/
 再試行や複数拠点での判定、通知処理に時間がかかる場合がある。
 この監視は公開ページのHTTP応答を確認するもので、ブラウザーでの描画、
 チャット送受信、Supabaseや`save-chat` Edge Functionの正常動作までは検証しない。
+
+### APIのヘルスチェックとドメイン構成
+
+- `www.okiraku.chat` は引き続きGitHub Pages（`isrnao.github.io`）で配信する。
+- `api.okiraku.chat` をVercelの `okiraku-api` プロジェクトのProduction環境に接続する。
+  既存の `www` とルートドメインのDNS設定は変更しない。
+- APIのカスタムドメインはVercelの **okiraku-api → Domains** で管理する。
+  `www.okiraku.chat/api` へのパス転送は設定していない。
+- 既存の `okiraku-api.vercel.app` も維持する。今回の監視追加ではクライアントのAPI接続先を変更しない。
+
+| 項目 | API監視の設定 |
+| --- | --- |
+| 監視名 | `okiraku-api health` |
+| URL | `https://api.okiraku.chat/api/health` |
+| 正常な応答 | HTTP `200`、本文に `"status":"ok"` を含む |
+| 通知リスト | Webサイトと同じ `Default Contact`（PagerDuty連携済み） |
+| その他の監視条件 | 上記Webサイト監視と同じ |
+
+期待するレスポンスは `{"status":"ok","service":"okiraku-api"}`。
+キーワード判定はJSON解析ではなく、大文字・小文字を区別する文字列一致なので、
+レスポンスの空白や表記を変更する場合は監視条件も確認する。
+
+この監視はヘルスエンドポイントの応答を確認する。`/api/v1/evaluate` の評価処理や
+外部依存先の正常動作を保証するものではなく、評価APIへの定期リクエストは行わない。
+当初の `vercel.app` URLはHetrixToolsで登録を拒否されたため、独自ドメインを使用した。
 
 ### PagerDuty連携
 
@@ -140,6 +166,8 @@ Integration Keyや通知先メールアドレスは、README・ソースコー�
 
 2026-09-22に4拠点での`Online`、テストイベントの受信、PagerDutyのメール通知履歴を確認済み。
 テストインシデントは手動で解決済み。実際の障害・復旧による自動解決は未テスト。
+同日、API監視も4拠点での`Online`を確認。独自ドメインのヘルスチェックと
+既存の`www`がともにHTTP `200`を返すことを確認した。API専用の障害発生テストは未実施。
 
 ### 無料運用の条件
 
