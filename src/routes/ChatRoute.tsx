@@ -10,6 +10,7 @@ import EntryForm from '@features/chat/components/EntryForm';
 import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
+import { useRoomRanking } from '@features/chat/hooks/useRoomRanking';
 import type { AvatarId } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
@@ -39,6 +40,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
+  // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
+  const roomRanking = useRoomRanking(roomId, showRanking);
   const [email, setEmail] = useStoreBackedState(settings.email ?? '');
   const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
 
@@ -119,7 +122,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
                   （更新・発言ボタンからもチャット表示に戻れる） */}
               <ChatRanking
-                chatLog={chatLog}
+                ranking={roomRanking.ranking}
+                isLoading={roomRanking.isLoading}
+                hasError={roomRanking.hasError}
                 roomTitle={room.title}
                 onBackToChat={() => setShowRanking(false)}
               />

@@ -6,6 +6,11 @@ import { generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import {
+  aggregateChatRanking,
+  compareRankingEntries,
+  type RankingEntry,
+} from '../utils/chatRanking';
+import {
   loadChatLogs as resourceLoadChatLogs,
   loadChatLogsSnapshot as resourceLoadChatLogsSnapshot,
   loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
@@ -18,6 +23,8 @@ import {
 export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
 
 const TABLE = 'chats';
+/** 部屋ごとの発言ランキングを集計するビュー (supabase/migrations/20260921000000) */
+const RANKING_VIEW = 'chat_ranking';
 
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
 async function invokeSaveChat(payload: {
@@ -306,6 +313,57 @@ export function createOptimisticChat(chatData: Omit<Chat, 'uuid' | 'time' | 'opt
     optimistic: true,
     metadata: { ...baseMetadata, optimisticNonce: nonce },
   };
+}
+
+type ChatRankingRow = {
+  name: string;
+  post_count: number;
+  last_time: number;
+  color: string;
+  host: string | null;
+};
+
+/**
+ * 部屋の発言ランキングを全期間で取得する。
+ *
+ * 集計は chat_ranking ビューがサーバー側で行う (system 発言は除外、deleted は問わない)。
+ * 以前は表示用に読み込んだ直近最大 100 件を手元で数えていたため、それより前にしか
+ * 発言していないユーザーが載らず、発言回数も直近分だけになっていた。
+ *
+ * 転送量は発言者数ぶんだけで、総発言数には比例しない。
+ */
+export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise<RankingEntry[]> {
+  return retryApiCall(async () => {
+    // オフライン時は手元のモックデータで数える
+    if (!isOnline()) {
+      return aggregateChatRanking(getOfflineChatData(roomId));
+    }
+
+    const { data, error } = await supabase
+      .from(RANKING_VIEW)
+      .select('name,post_count,last_time,color,host')
+      .eq('room_id', roomId)
+      .order('post_count', { ascending: false })
+      .order('last_time', { ascending: false });
+
+    if (error) {
+      throw new Error(`Supabase ranking query error: ${error.message} (${error.code})`);
+    }
+
+    // 並びはサーバーで付けているが、クライアント集計と同じ比較関数で揃え直しておく
+    // (同数・同時刻の並びをテスト / オフライン時と一致させるため)
+    return ((data ?? []) as ChatRankingRow[])
+      .map(
+        (row): RankingEntry => ({
+          name: row.name,
+          count: row.post_count,
+          lastTime: row.last_time,
+          color: row.color,
+          host: row.host ?? '',
+        })
+      )
+      .sort(compareRankingEntries);
+  });
 }
 
 // キャッシュ状態確認関数

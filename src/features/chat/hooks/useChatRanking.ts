@@ -1,36 +1,16 @@
 import type { Chat } from '@features/chat/types';
+import { aggregateChatRanking, type RankingEntry } from '@features/chat/utils/chatRanking';
 
-export type RankingEntry = {
-  name: string;
-  count: number;
-  lastTime: number;
-  /** 名前の表示色。レガシーは <font color> で発言者の色を付けていた */
-  color: string;
-  /** ホスト情報。レガシーは生 IP を出していたが、こちらはマスク済みの値を使う */
-  host: string;
-};
+export type { RankingEntry };
 
+/**
+ * 手元のチャットログを集計する。
+ *
+ * ランキング画面はサーバー集計 (useRoomRanking → chat_ranking ビュー) に移ったため、
+ * ここは手元のログで数えたい場面 (オフライン時・テスト) 向けに残している。
+ * 手元のログは直近分しか持たないので、全期間のランキングには使えない。
+ */
 // メモ化は React Compiler に任せる（手動の useMemo は不要）
 export function useChatRanking(chatLog: Chat[]): RankingEntry[] {
-  const map = new Map<string, RankingEntry>();
-  chatLog.forEach((c) => {
-    if (!c.system && c.name) {
-      const rec = map.get(c.name) ?? {
-        name: c.name,
-        count: 0,
-        lastTime: 0,
-        color: c.color,
-        host: c.ip_masked,
-      };
-      rec.count += 1;
-      // 色とホストは最終発言のものを採用する
-      if (c.time >= rec.lastTime) {
-        rec.lastTime = c.time;
-        rec.color = c.color;
-        rec.host = c.ip_masked;
-      }
-      map.set(c.name, rec);
-    }
-  });
-  return Array.from(map.values()).sort((a, b) => b.count - a.count || b.lastTime - a.lastTime);
+  return aggregateChatRanking(chatLog);
 }

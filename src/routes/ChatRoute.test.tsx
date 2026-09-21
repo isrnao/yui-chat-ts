@@ -18,6 +18,7 @@ vi.mock('@features/chat/api/chatApi', async (importOriginal) => {
     ...actual,
     loadChatLogs: vi.fn(() => Promise.resolve([])),
     loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
+    loadChatRanking: vi.fn(() => Promise.resolve([])),
     subscribeChatLogs: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
       realtimeListeners.add(callback);
       return {
@@ -45,6 +46,23 @@ describe('ChatRoute のランキング切り替え', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     realtimeListeners.clear();
+  });
+
+  // 表示用のログ (直近分) ではなく、サーバー集計 (全期間) を出す
+  it('ランキングは開いたときにサーバー集計を取得して表示する', async () => {
+    const { loadChatRanking } = await import('@features/chat/api/chatApi');
+    vi.mocked(loadChatRanking).mockResolvedValueOnce([
+      { name: '昔の常連', count: 1234, lastTime: 1, color: '#123456', host: '203.*.*.9' },
+    ]);
+    await enterRoom();
+    // 閉じている間は取得しない
+    expect(loadChatRanking).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('[ランキング]'));
+
+    expect(await screen.findByText('昔の常連')).toBeInTheDocument();
+    expect(screen.getByText('1234')).toBeInTheDocument();
+    expect(loadChatRanking).toHaveBeenCalledWith('superbeginner');
   });
 
   it('[ランキング] でランキングに切り替わり、更新でチャットログへ戻る', async () => {
