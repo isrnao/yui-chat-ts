@@ -136,6 +136,7 @@ export default function RetroSplitter({
   const onMouseUp = useCallback(() => {
     setDragging(false);
     document.body.style.cursor = '';
+    document.body.style.userSelect = '';
   }, []);
 
   // イベントリスナーの追加/解除
@@ -144,10 +145,15 @@ export default function RetroSplitter({
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'row-resize';
+    // ドラッグ中だけテキスト選択を止める (マウスがバーを外れても選択範囲が伸びないよう body に当てる)。
+    // 以前は .splitter-panes に select-none を常時付けており、チャットログ・入室フォームを含む
+    // 全チャット欄で文字が選択できず、右クリックからのコピーも効かなかった
+    document.body.style.userSelect = 'none';
     return () => {
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
+      document.body.style.userSelect = '';
     };
   }, [dragging, onMouseMove, onMouseUp]);
 
@@ -191,7 +197,7 @@ export default function RetroSplitter({
   return (
     <div
       ref={containerRef}
-      className="splitter-panes flex flex-1 flex-col bg-transparent select-none min-h-0 h-full"
+      className="splitter-panes flex flex-1 flex-col bg-transparent min-h-0 h-full"
       style={
         {
           '--splitter-top-base': `${topHeightVars.base}%`,
