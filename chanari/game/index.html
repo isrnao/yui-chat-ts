@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Performance optimizations -->
+    <!-- Supabase への接続を先に張る。ホストは VITE_SUPABASE_URL から生成する
+         (Vite の HTML env 置換)。直書きするとプロジェクト差し替え時に置き去りになり、
+         実接続先と違うホストへ preconnect して逆に無駄な DNS/TLS を張ることになる。 -->
+    <link rel="dns-prefetch" href="https://jkknbvrylkykdqpsrnwq.supabase.co" />
+    <link rel="preconnect" href="https://jkknbvrylkykdqpsrnwq.supabase.co" crossorigin />
+
+    <!-- Retro pixel font (2000s vibe): セルフホスト woff2。@font-face は src/styles/fonts.css。
+         unicode-range で分割してあり、描画に必要なサブセットだけをブラウザが取得する。
+         UI テキスト用サブセット (89KB) だけ preload する。preload しないと
+         swap のタイミングで文字幅が変わりレイアウトシフトになるため。
+         分割前は単一 480KB を preload しており、critical path で帯域を奪っていた。 -->
+    <link
+      rel="preload"
+      href="/fonts/dotgothic16/ui.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+
+    <meta name="author" content="お気楽チャットTS" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Japanese" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" sizes="any" />
+    <link rel="alternate icon" href="/favicon.ico" />
+
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="msapplication-TileColor" content="#ffffff" />
+
+    <!-- ページ固有メタ (title / description / canonical / OGP / Twitter Card)。
+         scripts/prerender-rooms.ts が page-seo:start〜end の範囲を部屋固有の値に
+         丸ごと差し替えて dist/chat/<id>/index.html を生成する。
+         マーカーを消したり範囲外にページ固有タグを足したりしないこと。 -->
+    <!-- page-seo:start -->
+    <title>ゲームチャット（なりきり） | お気楽チャットTS</title>
+    <meta name="title" content="ゲームチャット（なりきり） | お気楽チャットTS" />
+    <meta name="description" content="ジャンルを問わずゲームの話題を楽しむ部屋です。家庭用からスマホゲームまで、いま遊んでいる作品の話や攻略情報をゲーマー同士で気軽に共有できます。" />
+    <link rel="canonical" href="https://www.okiraku.chat/chat/game" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="お気楽チャットTS" />
+    <meta property="og:title" content="ゲームチャット（なりきり） | お気楽チャットTS" />
+    <meta property="og:description" content="ジャンルを問わずゲームの話題を楽しむ部屋です。家庭用からスマホゲームまで、いま遊んでいる作品の話や攻略情報をゲーマー同士で気軽に共有できます。" />
+    <meta property="og:url" content="https://www.okiraku.chat/chat/game" />
+    <meta property="og:image" content="https://www.okiraku.chat/ogp.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="ゲームチャット（なりきり） | お気楽チャットTS" />
+    <meta property="og:locale" content="ja_JP" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="ゲームチャット（なりきり） | お気楽チャットTS" />
+    <meta name="twitter:description" content="ジャンルを問わずゲームの話題を楽しむ部屋です。家庭用からスマホゲームまで、いま遊んでいる作品の話や攻略情報をゲーマー同士で気軽に共有できます。" />
+    <meta name="twitter:image" content="https://www.okiraku.chat/ogp.png" />
+    <meta name="twitter:image:alt" content="ゲームチャット（なりきり） | お気楽チャットTS" />
+    <!-- page-seo:end -->
+
+    <!-- Structured Data: WebSite / Organization / SoftwareApplication をグラフでまとめて宣言。
+         WebSite は検索エンジンが知る一次定義、Organization は発行者、
+         SoftwareApplication はアプリ種別（無料コミュニケーションアプリ）として登録する。 -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://www.okiraku.chat/#website",
+            "name": "お気楽チャットTS",
+            "alternateName": ["お気楽チャット", "ゆいちゃっとTS"],
+            "url": "https://www.okiraku.chat/",
+            "inLanguage": "ja-JP",
+            "description": "お気楽チャットは、無料で気軽に参加できるチャットサービスです。初心者、学生、年代別、趣味、ゲーム、アニメ、なりきりなど目的別の部屋で友達探しや仲間作りを楽しめます。",
+            "about": "このサイトは、2000年代に毎日のように過ごした思い出のチャットを再現した、私的な非公式個人サイトです。当時ここで出会った人たちも、今では大人になり、それぞれの人生を歩んでいると思います。それでも、ふとした時にあの頃の「お気楽チャット」を思い出し、懐かしい名前を探したり、誰かに一言を残したくなることがあります。そんな人たちがもう一度立ち寄れる、思い出の待ち合わせ場所になれば嬉しいです。",
+            "publisher": { "@id": "https://www.okiraku.chat/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://www.okiraku.chat/#organization",
+            "name": "お気楽チャットTS",
+            "url": "https://www.okiraku.chat/",
+            "logo": "https://www.okiraku.chat/ogp.png",
+            "sameAs": ["https://twitter.com/chat_a"]
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.okiraku.chat/#app",
+            "name": "お気楽チャットTS",
+            "description": "お気楽チャットは、無料で気軽に参加できるチャットサービスです。初心者、学生、年代別、趣味、ゲーム、アニメ、なりきりなど目的別の部屋で友達探しや仲間作りを楽しめます。",
+            "url": "https://www.okiraku.chat/",
+            "applicationCategory": "CommunicationApplication",
+            "operatingSystem": "Any",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "JPY" },
+            "publisher": { "@id": "https://www.okiraku.chat/#organization" },
+            "keywords": "お気楽チャット,無料チャット,ブラウザチャット,友達探し,仲間作り,なりきりチャット",
+            "inLanguage": "ja-JP"
+          }
+        ]
+      }
+    </script>
+
+    <!-- Google tag (gtag.js)
+         本体は初回描画の後に読み込む。実測で 172.7KB あり、critical path で
+         帯域とメインスレッドを奪っていた (トップの転送量 574KB 中 303KB が
+         サードパーティで、自前の資産より大きかった)。
+         下の inline snippet が window.gtag を先に定義して dataLayer へ
+         キューするので、読み込み前に発生したイベントも取りこぼさない。 -->
+    <script>
+      (function (l) {
+        if (l.search.length > 1 && l.search[1] === '/') {
+          var decoded = l.search
+            .slice(1)
+            .split('&')
+            .map(function (s) {
+              return s.replace(/~and~/g, '&');
+            })
+            .join('?');
+
+          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+        }
+      })(window.location);
+
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+
+      gtag('config', 'G-S3LCSTZBES', { send_page_view: false });
+
+      // gtag.js 本体の読み込み。初期描画と競合させないよう load 後に回すが、
+      // load は画像も待つため回線が細いと数秒遅れる。その前に離脱されると
+      // キュー済みのイベントごと失われるので、タイムアウトでも打ち切る。
+      (function () {
+        // LCP 目標 (2.5s) より後に倒れる値。これより短いと帯域を奪い合う
+        var TIMEOUT_MS = 3000;
+        var requested = false;
+        function loadGtag() {
+          if (requested) return;
+          requested = true;
+          var script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=G-S3LCSTZBES';
+          document.head.appendChild(script);
+        }
+        setTimeout(loadGtag, TIMEOUT_MS);
+        if (document.readyState === 'complete') {
+          loadGtag();
+        } else {
+          window.addEventListener('load', loadGtag, { once: true });
+        }
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-YJsP_t5V.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-DAjN9S5C.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-_MUSjSE3.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-wb-kLTWN.css">
+  <link rel="modulePreload" crossorigin href="/assets/ChanariRoute-B1T6fOIi.js" /><link rel="stylesheet" crossorigin href="/assets/ChanariRoute-DuVaZswF.css" /><link rel="modulePreload" crossorigin href="/assets/useConversationMeasurement-DXgOwN0P.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-supabase-BafTf89s.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-iceberg-js-DhKlva01.js" /><link rel="modulePreload" crossorigin href="/assets/useLookSound-Cw6o1eO5.js" /></head>
+  <body>
+    <div id="root" data-ssg="1"><!--$--><main class="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main"><div class="splitter-panes flex flex-1 flex-col bg-transparent min-h-0 h-full" style="--splitter-top-base:30%;--splitter-top-desktop:30%"><div class="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]" style="height:var(--splitter-top-h);min-height:100px"><div class="chanari-scope"><div id="chat-topheader"><div id="chat-topheader-left"><a href="/">お気楽チャットトップへ</a><span>ヽ(。д。)ﾉ常連さん募集中～！</span></div></div><div id="header"><p id="desc">ジャンルを問わずゲームの話題を楽しむ部屋です。家庭用からスマホゲームまで、いま遊んでいる作品の話や攻略情報をゲーマー同士で気軽に共有できます。</p><h1 id="ctitle">ゲームチャット</h1></div><form name="f4" id="main2"><input type="hidden" name="sid" value=""/><div class="chanari-form-row">おなまえ<input type="text" size="10" maxLength="20" value=""/> <!-- -->名前色<!-- --> <input type="text" size="7" value="#ff69b4"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="名前色カラーピッカー" value="#ff69b4"/></label> <!-- -->発言色<!-- --> <input type="text" size="7" value="#000000"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="発言色カラーピッカー" value="#000000"/></label></div><div><input type="submit" value="チャットに参加する"/></div></form></div></div><div role="separator" aria-label="上下の領域を分割するバー" aria-description="上下の境界です。矢印キーで調整できます" aria-orientation="horizontal" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" tabindex="0" class="bleed-x cursor-row-resize outline-none"><hr class="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full"/></div><div class="overflow-y-auto min-h-0" style="height:calc(100% - var(--splitter-top-h));min-height:100px"><!--$--><div class="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div><!--/$--></div></div></main><!--/$--></div>
+  </body>
+</html>
