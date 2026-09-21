@@ -135,6 +135,13 @@ caching/paging). Key details:
   from request headers, so those columns are tamper-proof server observations rather than
   client-reported values. RLS restricts INSERT on `chats` to `service_role`
   (migration `20250619000000_lock_insert_to_service_role.sql`); SELECT/UPDATE stay open.
+- **Admin-chat triage**: after saving a non-system message in `com_sb` (管理者チャット),
+  `save-chat` runs `triage.ts` in the background (`EdgeRuntime.waitUntil`). It classifies the
+  message with JEV (okiraku-api `choice-v1`: bug / question / cr / chat) and switches on the
+  result; only `cr` (feature request, probability ≥ 0.7, max 5/hour) opens a GitHub Issue on
+  `isrnao/yui-chat-ts` and inserts a 管理人 reply 「機能要求を受け付けました（Issue #N）」.
+  Requires the Supabase secrets `JEV_API_TOKEN` and `GITHUB_TOKEN`; if either is missing, triage
+  is skipped and saving still works.
 - **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`.
 - **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages; a broadcast channel
   for look/unlook events. See the "Real-time delivery" section above.
