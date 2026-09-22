@@ -115,13 +115,13 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
         到達しないモジュールが 0 であることを確かめる
     - _Requirements: 5.1_
 
-- [ ] 6. 型情報を使う lint を入れる（Requirement 11、PR6）
-  - [ ] 6.1 `eslint.config.js` に typescript-eslint の `no-floating-promises` / `no-misused-promises` /
+- [x] 6. 型情報を使う lint を入れる（Requirement 11、PR6）
+  - [x] 6.1 `eslint.config.js` に typescript-eslint の `no-floating-promises` / `no-misused-promises` /
         `no-explicit-any` を、型情報つき（`projectService`）で `src/` の本番コードに error として追加する
     - _Requirements: 11.1, 11.3_
-  - [ ] 6.2 残っている違反を直すか、理由のコメント付きで抑制する
+  - [x] 6.2 残っている違反を直すか、理由のコメント付きで抑制する
     - _Requirements: 11.2, 4.5_
-  - [ ] 6.3 CI の lint の所要時間を PR 本文に記録する
+  - [x] 6.3 CI の lint の所要時間を PR 本文に記録する
     - _Requirements: 11.3_
 
 - [ ] 7. Room_Log_Store を入れる（段階 1: 内部の置き換え）（Requirement 6、PR7）
