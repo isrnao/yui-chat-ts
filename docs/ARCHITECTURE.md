@@ -66,9 +66,7 @@ src/
 │   │   │   ├── useChatHandlers.ts   # 入室 / 退室 / 送信 / リロード
 │   │   │   ├── useParticipants.ts   # useDeferredValue（メモ化は React Compiler）
 │   │   │   ├── useNowMinute.ts      # 1 分境界で再評価する現在時刻
-│   │   │   ├── useChatRanking.ts
 │   │   │   ├── useLookSound.ts      # look/unlook 通知音
-│   │   │   ├── usePreloadChatLogs.ts
 │   │   │   └── useSettings.ts
 │   │   ├── utils/                   # validation / fortune / urlLinker / settingsStore / fallback など
 │   │   ├── rooms.ts                 # 全 RoomId 列挙 + メタ情報
@@ -112,7 +110,6 @@ src/
 │   ├── utils/                       # format / uuid / seo / clientInfo
 │   └── supabaseClient.ts
 ├── pages/                           # ページレベルの単機能 view
-│   ├── ChatLogPage.tsx
 │   └── NotFoundPage.tsx
 ├── styles/                          # グローバルスタイル
 │   ├── theme.css                    # デザイントークン
@@ -674,7 +671,6 @@ chatLogResource.test.ts   ← 同一ディレクトリ
 - `src/features/chat/api/chatLogResource.test.ts`: snapshot / paging dedupe / cache TTL
 - `src/features/chat/components/ChatLogList/ChatLogList.test.tsx`: memo による不要再計算抑制
 - `src/features/chat/hooks/useChatLog.test.ts`: 楽観的更新 + temp/saved dedup
-- `src/features/chat/hooks/usePreloadChatLogs.test.ts`: preload / 初回 paging の失敗時に cache entry を削除し、次回 retry できること
 - `src/features/chanari-chat/utils/*.test.ts`: 文字数 / 色コード / localStorage draft / リロード間隔
 
 ---

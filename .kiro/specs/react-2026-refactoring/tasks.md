@@ -94,7 +94,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
 - [ ] 5. デッドコードと重複ユーティリティを削除する（Requirement 5、PR5）
   - [x] 5.1 Q1（利用規約モーダル）と Q2（架空の発言のフォールバック）の回答をもらい、requirements.md に記録する
     - _Requirements: 5.5, 5.6_
-  - [ ] 5.2 本番から到達しないモジュールと、そのテスト・stories を削除する: ChatLogPage、usePreloadChatLogs、
+  - [x] 5.2 本番から到達しないモジュールと、そのテスト・stories を削除する: ChatLogPage、usePreloadChatLogs、
         useChatRanking、Loader、barrel の `index.ts` 群（Q1 の回答により TermsModal / Modal / `content/terms.mdx` /
         `@mdx-js/*` / vite.config の `mdx()` も）
     - _Requirements: 5.1, 5.5_
@@ -109,9 +109,9 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 5.4_
   - [x] 5.6 Q2 の回答により `mockChatData` の経路は残す（変更なし）
     - _Requirements: 5.6_
-  - [ ] 5.7 Compiler_Check の許可リストから ChatLogPage を外す
+  - [x] 5.7 Compiler_Check の許可リストから ChatLogPage を外す
     - _Requirements: 1.2_
-  - [ ] 5.8 到達しないモジュールを CI で検出する仕組み（knip など）の導入を検討し、
+  - [x] 5.8 到達しないモジュールを CI で検出する仕組み（knip など）の導入を検討し、
         到達しないモジュールが 0 であることを確かめる
     - _Requirements: 5.1_
 

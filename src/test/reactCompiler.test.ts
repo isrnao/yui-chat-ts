@@ -16,10 +16,7 @@ import { expect, test } from 'vitest';
  * 意図してコンパイル対象から外す関数（`path:line`）。
  * 載せる関数には 'use no memo' と、外す理由のコメントを付ける。
  */
-const ALLOWLIST: readonly string[] = [
-  // 本番から到達しない。デッドコードの削除（Task 5）でファイルごと消す
-  'src/pages/ChatLogPage.tsx:68',
-];
+const ALLOWLIST: readonly string[] = [];
 
 const EXCLUDE = /\.(test|stories)\.|^src\/test\/|^src\/storybook\/|\.d\.ts$/;
 

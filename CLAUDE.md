@@ -74,7 +74,7 @@ This is a React + TypeScript chat application with feature-based architecture:
   - `chanari-chat/` - alternate "ちゃなり" chat UI variant
   - `top/` - top/landing page with room listing
 - **Shared**: Common utilities in `src/shared/` including components, hooks, and utilities
-- **Pages**: Top-level page components in `src/pages/` (e.g., `ChatLogPage`, `NotFoundPage`)
+- **Pages**: Top-level page components in `src/pages/` (e.g., `NotFoundPage`)
 - **Routes**: Route wrappers in `src/routes/` (`ChatRoute`, `ChanariRoute`, `TopRoute`, `NotFoundRoute`)
 
 **Multiple Rooms**: The chat supports many rooms (organized by category) defined in
@@ -86,7 +86,7 @@ and `getRoomMeta(roomId)` resolves room metadata (e.g., title).
 **Feature-Based Organization**: The chat feature is self-contained with its own:
 
 - Components (ChatRoom, ChatMessage, ChatLogList, ParticipantsList, ChatRanking, etc.)
-- Custom hooks (useChatLog, useParticipants, useChatHandlers, useChatRanking, useLookSound, etc.)
+- Custom hooks (useChatLog, useParticipants, useChatHandlers, useRoomRanking, useLookSound, etc.)
 - API layer (`api/chatApi.ts` public surface + `api/chatLogResource.ts` for caching/paging)
 - Type definitions (Chat, Participant, ChatMetadata, etc.)
 

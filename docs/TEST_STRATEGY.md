@@ -103,7 +103,6 @@ src/features/chat/api/
 | `useParticipants` は同一 `chatLog` 参照では再計算しない                 | `useParticipants.test.ts`                          |
 | `ChatLogList` は同一 `chatLog` 参照では `sort/slice` を再実行しない     | `ChatLogList.test.tsx`                             |
 | `useNowMinute` は 1 分境界で更新される                                  | `useNowMinute.test.ts`                             |
-| preload / 初回 paging の一時失敗は cache に固定されず次回 retry できる  | `usePreloadChatLogs.test.ts`                       |
 | `/chat/:roomId` / `/chanari/:roomId` / unknown が正しく解決される       | `routing.test.ts` / `chanari-chat/routing.test.ts` |
 | 各ルートが即時描画される（ローディング fallback を挟まない）            | `App.test.tsx`                                     |
 | Supabase 未設定でもトップが破綻しない                                   | `roomCountsApi.test.ts` / `TopPage.test.tsx`       |
