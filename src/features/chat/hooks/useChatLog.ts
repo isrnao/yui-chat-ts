@@ -65,6 +65,8 @@ export function useChatLog(
 ) {
   const [chatLog, setChatLog] = useState<Chat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // 直近の取得がリトライの後も失敗したか。「発言がない部屋」と区別して表示するために持つ
+  const [loadError, setLoadError] = useState(false);
   // 「更新」ごとにインクリメントして取得 effect を再実行させる
   const [reloadKey, setReloadKey] = useState(0);
   // 初期表示は少量。入室時に expandChatLog() で全件へ広げる
@@ -76,6 +78,7 @@ export function useChatLog(
   useResetOnChange(roomId, () => {
     setChatLog([]);
     setIsLoading(true);
+    setLoadError(false);
     setReloadKey(0);
     setRealtimeStatus('connecting');
     setLogLimit(INITIAL_CHAT_LOG_LIMIT);
@@ -189,12 +192,17 @@ export function useChatLog(
       .then((logs) => {
         if (ignore) return;
         displayedLimitRef.current = logLimit;
+        setLoadError(false);
         // 取得中に届いた発言は取得結果に含まれないことがあるので必ず足す
         setChatLog((previous) =>
           isExpansion
             ? mergeChatLogByUuid(logs, [...previous, ...buffer])
             : mergeChatLogByUuid(logs, buffer)
         );
+      })
+      .catch(() => {
+        // 表示中のログは残す。「まだ発言はありません。」と区別できるよう失敗を記録する
+        if (!ignore) setLoadError(true);
       })
       .finally(() => {
         stopBuffering();
@@ -210,6 +218,7 @@ export function useChatLog(
   return {
     chatLog: optimisticLog,
     isLoading,
+    loadError,
     realtimeStatus,
     setChatLog,
     addOptimistic,

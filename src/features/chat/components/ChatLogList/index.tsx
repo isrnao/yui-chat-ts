@@ -13,6 +13,10 @@ type Props = {
   showRoomName?: boolean;
   onRoomClick?: (roomId: RoomId) => void;
   hideParticipants?: boolean;
+  /** 直近の取得が失敗したか。true のとき失敗の表示と再読み込みの導線を出す */
+  loadError?: boolean;
+  /** 失敗の表示から取り直す */
+  onRetry?: () => void;
 };
 
 function ChatLogList({
@@ -22,6 +26,8 @@ function ChatLogList({
   showRoomName,
   onRoomClick,
   hideParticipants,
+  loadError = false,
+  onRetry,
 }: Props) {
   // 並べ替え結果のメモ化は React Compiler に任せる
   const chats = sortChatsByTime(chatLog).slice(0, windowRows);
@@ -37,7 +43,20 @@ function ChatLogList({
     >
       {!hideParticipants && <ParticipantsList chatLog={chatLog} />}
       <Divider />
-      {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
+      {loadError && (
+        // 非同期に現れるため role="alert" でスクリーンリーダーへ通知する
+        <div role="alert" className="text-red-600 text-sm py-3">
+          チャットログの読み込みに失敗しました。
+          {onRetry && (
+            <button type="button" className="ml-2 underline text-blue-700" onClick={onRetry}>
+              再読み込み
+            </button>
+          )}
+        </div>
+      )}
+      {chats.length === 0 && !loadError && (
+        <div className="text-gray-400 py-3">まだ発言はありません。</div>
+      )}
       {chats.map((c) => (
         <Fragment key={c.uuid}>
           <ChatMessage chat={c} showRoomName={showRoomName} onRoomClick={onRoomClick} />
