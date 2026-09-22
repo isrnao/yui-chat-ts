@@ -115,7 +115,7 @@ def collect_static_text() -> set[str]:
     chars: set[str] = set(chr(c) for c in range(0x20, 0x7F))
     files: list[Path] = []
     for directory in SRC_DIRS:
-        for pattern in ("*.ts", "*.tsx", "*.mdx"):
+        for pattern in ("*.ts", "*.tsx"):
             files += [
                 p
                 for p in directory.rglob(pattern)

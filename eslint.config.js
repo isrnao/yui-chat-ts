@@ -17,7 +17,6 @@ export default [
       'docs',
       'storybook-static',
       'supabase/functions',
-      '**/*.mdx',
       '**/*.md',
       'README.md',
       'package.json',

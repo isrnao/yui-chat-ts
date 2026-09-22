@@ -107,7 +107,7 @@ src/
 │           ├── Footer/              # フッター + story
 │           └── shared/              # resolveCount / tones など top 内部共通ロジック
 ├── shared/                          # 機能横断の共通モジュール
-│   ├── components/                  # Button / Input / Loader / Modal / TermsModal
+│   ├── components/                  # Button / Input / ErrorBoundary
 │   ├── hooks/                       # useSEO / useResetOnChange
 │   ├── utils/                       # format / uuid / seo / clientInfo
 │   └── supabaseClient.ts
@@ -119,7 +119,6 @@ src/
 │   ├── utilities.css
 │   ├── okiraku-header.css           # 通常チャット用テーマ
 │   └── chanari-header.css           # Chanari 用テーマ
-├── content/terms.mdx                # 利用規約
 ├── storybook/                       # Storybook 用モックデータ
 ├── test/setup.ts                    # vitest 共通セットアップ
 ├── App.tsx                          # ルートマッチ + Route コンポーネントへの分岐

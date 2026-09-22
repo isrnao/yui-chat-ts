@@ -1,14 +1,13 @@
 import { defineConfig } from 'vitest/config';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
-import mdx from '@mdx-js/rollup';
 
 export default defineConfig({
   base: '/',
   // React Compiler は @vitejs/plugin-react v6 では babel オプションではなく
   // @rolldown/plugin-babel + reactCompilerPreset() で組み込む（公式手順）。
   // https://react.dev/learn/react-compiler/installation
-  plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
+  plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   build: {
     target: 'es2022',
     // プリレンダ時に「その URL が使うルートチャンク」を modulePreload するために必要。

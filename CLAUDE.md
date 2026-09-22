@@ -35,7 +35,7 @@ React Compiler 1.0 is **enabled** for the app build and for tests. It is wired u
 (`@babel/core` is a required peer dependency of that plugin):
 
 ```ts
-plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
+plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
 ```
 
 **`@babel/core` is pinned to `~7.29.7` on purpose.** `babel-plugin-react-compiler@1.0.0` cannot
@@ -57,8 +57,7 @@ compiler. What is deliberately **kept**:
 
 - `useCallback` whose identity actually appears in a `useEffect` dependency array:
   `useChatLog.mergeChat` and `useAllRoomsChatLog.mergeChat` (both gate the realtime subscription —
-  a new identity tears down and recreates the channel), `RetroSplitter`'s drag handlers, and
-  `TermsModal`'s effect callbacks. Each carries a comment saying why. Nothing else qualifies:
+  a new identity tears down and recreates the channel) and `RetroSplitter`'s drag handlers. Each carries a comment saying why. Nothing else qualifies:
   `reload` / `addOptimistic` are plain functions, since only `reloadKey` is a dependency.
 - `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
 
