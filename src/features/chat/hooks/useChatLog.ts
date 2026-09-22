@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useOptimistic } from 'react';
-import { loadChatLogs, loadRecentChatLogs, subscribeChatLogs } from '@features/chat/api/chatApi';
-import type { RealtimeStatus } from '@features/chat/api/chatApi';
-import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
-import { useResetOnChange } from '@shared/hooks/useResetOnChange';
+import { useEffect, useEffectEvent, useOptimistic, useSyncExternalStore } from 'react';
+import type { Dispatch, SetStateAction } from 'react';
+import {
+  getRoomLogStore,
+  FULL_CHAT_LOG_LIMIT,
+  INITIAL_CHAT_LOG_LIMIT,
+  type RoomLogStore,
+} from '@features/chat/api/roomLogStore';
 import type { Chat } from '@features/chat/types';
 import { DEFAULT_ROOM_ID, type RoomId } from '@features/chat/rooms';
 
@@ -54,176 +57,53 @@ export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
  * 初期表示で取得する件数。LCP を縮めるため少量にとどめ、入室時に全件へ広げる。
  * (.kiro/specs/top-and-transition-performance Requirement 6)
  */
-export const INITIAL_CHAT_LOG_LIMIT = 10;
+export { INITIAL_CHAT_LOG_LIMIT, FULL_CHAT_LOG_LIMIT };
 
-/** 入室後に取得する件数。canonical snapshot と同じ。 */
-export const FULL_CHAT_LOG_LIMIT = 100;
+/**
+ * store の確定行を `setState` と同じ形で書き換える関数を作る（clear コマンドの表示への反映など）。
+ * 呼び出し側の API を保つための互換レイヤー。
+ */
+export function createLogSetter(store: RoomLogStore): Dispatch<SetStateAction<Chat[]>> {
+  return (action) => {
+    store.update((previous) => (typeof action === 'function' ? action(previous) : action));
+  };
+}
 
+/**
+ * 部屋のログ。取得・Realtime の購読・取り直しの規則は Room_Log_Store が持ち、
+ * ここは useSyncExternalStore で読んで useOptimistic を重ねるだけにする
+ * （.kiro/specs/react-2026-refactoring Requirement 6）。
+ */
 export function useChatLog(
   roomId: RoomId = DEFAULT_ROOM_ID,
   onRealtimeChat?: (chat: Chat) => void
 ) {
-  const [chatLog, setChatLog] = useState<Chat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  // 直近の取得がリトライの後も失敗したか。「発言がない部屋」と区別して表示するために持つ
-  const [loadError, setLoadError] = useState(false);
-  // 「更新」ごとにインクリメントして取得 effect を再実行させる
-  const [reloadKey, setReloadKey] = useState(0);
-  // 初期表示は少量。入室時に expandChatLog() で全件へ広げる
-  const [logLimit, setLogLimit] = useState(INITIAL_CHAT_LOG_LIMIT);
-  // Realtime の接続状態。push が届かない間のフォールバック判断に使う
-  const [realtimeStatus, setRealtimeStatus] = useState<RealtimeStatus>('connecting');
+  const store = getRoomLogStore(roomId);
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
+  const [optimisticLog, addOptimistic] = useOptimistic(state.chats, reduceOptimisticChat);
 
-  // roomId 変更時は reload 開始状態へ巻き戻す (useResetOnChange = 公式推奨「前回値検知」パターン)
-  useResetOnChange(roomId, () => {
-    setChatLog([]);
-    setIsLoading(true);
-    setLoadError(false);
-    setReloadKey(0);
-    setRealtimeStatus('connecting');
-    setLogLimit(INITIAL_CHAT_LOG_LIMIT);
-  });
-
-  // mergeChat / handleRealtimeStatus は下の購読 effect の依存に入る。React Compiler も
-  // 同等にメモ化するが、同一性が変わると channel を張り直すことになるため、
-  // 要件を明示して useCallback を残す。
-  const mergeChat = useCallback((chat: Chat) => {
-    setChatLog((prev) => mergeChatLogByUuid(prev, chat));
-  }, []);
-
-  // 直前の接続状態。connected への「遷移」だけを検知するために保持する
-  const lastRealtimeStatusRef = useRef<RealtimeStatus>('connecting');
-
-  const handleRealtimeStatus = useCallback((status: RealtimeStatus) => {
-    const previous = lastRealtimeStatusRef.current;
-    lastRealtimeStatusRef.current = status;
-    setRealtimeStatus(status);
-
-    // 接続が確立した時点で一度だけ取り直して、push が届いていなかった間の穴を塞ぐ。
-    //
-    // subscribeChatLogs は SUBSCRIBED を待たずに返るため、初回は
-    // 「snapshot がサーバーで確定した時刻」から「SUBSCRIBED 到達」までに INSERT された
-    // 発言が snapshot にもバッファにも入らない。再接続時も同様に、切れていた間の発言が
-    // push されない (Postgres Changes は再購読時に取りこぼしを配送しない)。
-    //
-    // 取得の開始自体は SUBSCRIBED を待たない。待たせると毎回のマウントで初回描画が
-    // websocket のハンドシェイク待ちになるため、描画は従来どおり即時に始め、
-    // 接続確立後の取り直しで穴を埋める。
-    if (status === 'connected' && previous !== 'connected') {
-      setReloadKey((k) => k + 1);
-    }
-  }, []);
-
-  /**
-   * 明示的な再読み込み。TTL キャッシュを迂回してサーバーから取り直す。
-   * 他ユーザーの発言は Realtime でしか届かず resource キャッシュには反映されないため、
-   * キャッシュ付きで取り直すと直近の発言がログから消えてしまう。
-   */
-  const reload = () => setReloadKey((k) => k + 1);
-
-  /**
-   * 取得件数を広げる。入室時は既定の全件 (FULL_CHAT_LOG_LIMIT)、
-   * 「ログ行数」で 100 件より多く選んだときはその件数を渡す。
-   * 件数は増やす方向にだけ動かす。既に足りているなら何もしない (再取得を誘発しない)。
-   */
-  const expandChatLog = (limit: number = FULL_CHAT_LOG_LIMIT) =>
-    setLogLimit((current) => Math.max(current, limit));
-
-  const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
-
-  // 取得中に Realtime で届いた発言を退避するバッファ。取得結果でそのまま置換すると
-  // 先着した新着発言が消えるため、取得の完了時にマージする。
-  // 購読 effect と取得 effect にまたがるので ref で共有する。
-  const arrivedDuringLoadRef = useRef<Chat[] | null>(null);
-
-  // 現在表示しているログが何件要求の結果か。10 → 100 の拡張を検知するために持つ。
-  const displayedLimitRef = useRef(INITIAL_CHAT_LOG_LIMIT);
-
-  // 購読は roomId 単位で張りっぱなしにする。reloadKey を依存に入れて取得と同じ
-  // effect にまとめると、更新のたびに（ちゃなりの定期更新では既定 7 秒ごとに）
-  // room で共有している唯一の channel を破棄・再作成することになる。
-  // subscribeChatLogs は SUBSCRIBED を待たずに返るため、その再接続中に INSERT
-  // された発言は snapshot にもバッファにも入らず取りこぼす。
-  useEffect(() => {
-    // ref は「この購読における直前の状態」なので、購読を張り直すたびに初期化する
-    lastRealtimeStatusRef.current = 'connecting';
-
-    const channel = subscribeChatLogs(
-      roomId,
-      (chat) => {
-        onRealtimeChat?.(chat);
-        arrivedDuringLoadRef.current?.push(chat);
-        mergeChat(chat);
-      },
-      handleRealtimeStatus
-    );
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [handleRealtimeStatus, mergeChat, onRealtimeChat, roomId]);
-
-  // 取得のみ reloadKey で再実行する。購読 effect より後に宣言することで、
-  // マウント時・roomId 変更時は必ず購読の確立を先に始める。
-  useEffect(() => {
-    let ignore = false;
-    const buffer: Chat[] = [];
-    arrivedDuringLoadRef.current = buffer;
-
-    const stopBuffering = () => {
-      if (arrivedDuringLoadRef.current === buffer) arrivedDuringLoadRef.current = null;
-    };
-
-    // 初回取得以外 (更新 / 接続確立時の取り直し) は実取得する。
-    // 進行中のリクエストを共有すると、取り直しの意味が無くなる。
-    const isFirstFetch = reloadKey === 0;
-    // 10 件 → 全件へ広げる回だけは、既に表示している発言を残す必要がある。
-    // それ以外は取得結果を canonical として置き換える。そうしないと、別クライアントで
-    // 論理削除された発言や最新 100 件から外れた発言がいつまでも残ってしまう。
-    const isExpansion = logLimit > displayedLimitRef.current;
-
-    // ちょうど全件 (100) のときだけ canonical snapshot のキャッシュを使う。
-    // それより少ない初期表示と、それより多い拡張表示は件数指定で直接取得する。
-    const fetchLogs =
-      logLimit === FULL_CHAT_LOG_LIMIT
-        ? loadChatLogs(roomId, isFirstFetch)
-        : loadRecentChatLogs(roomId, logLimit, isFirstFetch);
-
-    fetchLogs
-      .then((logs) => {
-        if (ignore) return;
-        displayedLimitRef.current = logLimit;
-        setLoadError(false);
-        // 取得中に届いた発言は取得結果に含まれないことがあるので必ず足す
-        setChatLog((previous) =>
-          isExpansion
-            ? mergeChatLogByUuid(logs, [...previous, ...buffer])
-            : mergeChatLogByUuid(logs, buffer)
-        );
-      })
-      .catch(() => {
-        // 表示中のログは残す。「まだ発言はありません。」と区別できるよう失敗を記録する
-        if (!ignore) setLoadError(true);
-      })
-      .finally(() => {
-        stopBuffering();
-        if (!ignore) setIsLoading(false);
-      });
-
-    return () => {
-      ignore = true;
-      stopBuffering();
-    };
-  }, [roomId, reloadKey, logLimit]);
+  // 計測のコールバックは同一性が変わっても登録し直さない
+  const handleRealtimeChat = useEffectEvent((chat: Chat) => onRealtimeChat?.(chat));
+  useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);
 
   return {
     chatLog: optimisticLog,
-    isLoading,
-    loadError,
-    realtimeStatus,
-    setChatLog,
+    isLoading: state.status === 'loading',
+    loadError: state.status === 'error',
+    realtimeStatus: state.realtime,
+    setChatLog: createLogSetter(store),
     addOptimistic,
-    mergeChat,
-    reload,
-    expandChatLog,
+    mergeChat: store.applySaved,
+    /**
+     * 明示的な再読み込み。TTL キャッシュを迂回してサーバーから取り直す。
+     * 他ユーザーの発言は Realtime でしか届かず resource キャッシュには反映されないため、
+     * キャッシュ付きで取り直すと直近の発言がログから消えてしまう。
+     */
+    reload: store.reload,
+    /**
+     * 取得件数を広げる。入室時は既定の全件 (FULL_CHAT_LOG_LIMIT)、
+     * 「ログ行数」で 100 件より多く選んだときはその件数を渡す。減らす方向には動かさない。
+     */
+    expandChatLog: (limit: number = FULL_CHAT_LOG_LIMIT) => store.expand(limit),
   };
 }

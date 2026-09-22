@@ -1,14 +1,22 @@
-import { useCallback, useEffect, useRef, useState, useOptimistic, startTransition } from 'react';
-import { loadAllRoomsChatLogs, subscribeAllRoomsChatLogs } from '@features/chat/api/chatAllApi';
-import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
-import { reduceOptimisticChat } from './useChatLog';
-import type { Chat } from '@features/chat/types';
+import {
+  useEffect,
+  useEffectEvent,
+  useOptimistic,
+  useSyncExternalStore,
+  startTransition,
+} from 'react';
 import type { Dispatch, SetStateAction } from 'react';
+import { getAllRoomsLogStore, ALL_ROOMS_INITIAL_LIMIT } from '@features/chat/api/roomLogStore';
+import { createLogSetter, reduceOptimisticChat } from './useChatLog';
+import type { Chat } from '@features/chat/types';
 
 /** 全部屋まとめで最初に取得する件数 */
-export const ALL_ROOMS_INITIAL_LIMIT = 200;
+export { ALL_ROOMS_INITIAL_LIMIT };
 
 /**
+ * 全部屋まとめのログ。部屋単位のログと同じ Room_Log_Store の実装を使う
+ * （接続確立時の取り直しも部屋単位と同じ規則で行う）。
+ *
  * @param limit 取得件数。「ログ行数」で 200 件より多く選ばれたときに呼び出し元が広げる。
  */
 export function useAllRoomsChatLog(
@@ -25,90 +33,34 @@ export function useAllRoomsChatLog(
   mergeChat: (chat: Chat) => void;
   reload: () => void;
 } {
-  const [baseLog, setBaseLog] = useState<Chat[]>([]);
-  // 初期値 true: マウント直後は読み込み中
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
-  const [subscribeError, setSubscribeError] = useState(false);
-  // reload ごとにインクリメントして effect を再実行させる
-  const [reloadKey, setReloadKey] = useState(0);
-  const reload = () => setReloadKey((k) => k + 1);
-  // effect が再実行されたとき同期 setState を避けるため ref で管理する
-  const effectRunRef = useRef(0);
+  const store = getAllRoomsLogStore();
+  const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
+  const [chatLog, addOptimisticInternal] = useOptimistic(state.chats, reduceOptimisticChat);
 
-  // mergeChat は下の購読 effect の依存に入る。React Compiler も同等にメモ化するが、
-  // 同一性が変わると channel を張り直すことになるため、要件を明示して useCallback を残す。
-  const mergeChat = useCallback((chat: Chat) => {
-    setBaseLog((prev) => mergeChatLogByUuid(prev, chat));
-  }, []);
+  const handleRealtimeChat = useEffectEvent((chat: Chat) => onRealtimeChat?.(chat));
+  useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);
 
-  const [chatLog, addOptimisticInternal] = useOptimistic(baseLog, reduceOptimisticChat);
-
-  const addOptimistic = (chat: Chat) => {
-    startTransition(() => {
-      addOptimisticInternal(chat);
-    });
-  };
-
+  // 取得件数は増やす方向にだけ広げる（store.expand が小さい値を無視する）
   useEffect(() => {
-    let ignore = false;
-    const run = ++effectRunRef.current;
+    store.expand(limit);
+  }, [store, limit]);
 
-    // 再実行時のみリセット（初回は useState の初期値のまま）
-    if (run > 1) {
-      setIsLoading(true);
-      setLoadError(false);
-    }
-
-    loadAllRoomsChatLogs(limit)
-      .then((logs) => {
-        // realtime で先着した新着を丸ごと上書きしないよう merge する
-        if (!ignore) setBaseLog((prev) => mergeChatLogByUuid(logs, prev));
-      })
-      .catch(() => {
-        if (!ignore) setLoadError(true);
-      })
-      .finally(() => {
-        if (!ignore) setIsLoading(false);
-      });
-
-    let sub: ReturnType<typeof subscribeAllRoomsChatLogs> | null = null;
-    try {
-      sub = subscribeAllRoomsChatLogs(
-        (chat) => {
-          if (!ignore) {
-            onRealtimeChat?.(chat);
-            mergeChat(chat);
-          }
-        },
-        () => {
-          // CHANNEL_ERROR / TIMED_OUT / CLOSED: 同期 setState を避けるため非同期で更新
-          void Promise.resolve().then(() => {
-            if (!ignore) setSubscribeError(true);
-          });
-        }
-      );
-    } catch {
-      void Promise.resolve().then(() => {
-        if (!ignore) setSubscribeError(true);
-      });
-    }
-
-    return () => {
-      ignore = true;
-      sub?.unsubscribe();
-    };
-  }, [mergeChat, onRealtimeChat, reloadKey, limit]);
+  const isLoading = state.status === 'loading';
+  const loadError = state.status === 'error';
 
   return {
     chatLog,
     isLoading,
     loadError,
-    subscribeError,
-    isEmpty: !isLoading && !loadError && baseLog.length === 0,
-    setChatLog: setBaseLog,
-    addOptimistic,
-    mergeChat,
-    reload,
+    subscribeError: state.realtime === 'disconnected',
+    isEmpty: !isLoading && !loadError && state.chats.length === 0,
+    setChatLog: createLogSetter(store),
+    addOptimistic: (chat: Chat) => {
+      startTransition(() => {
+        addOptimisticInternal(chat);
+      });
+    },
+    mergeChat: store.applySaved,
+    reload: store.reload,
   };
 }

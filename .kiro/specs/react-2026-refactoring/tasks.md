@@ -124,19 +124,19 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 6.3 CI の lint の所要時間を PR 本文に記録する
     - _Requirements: 11.3_
 
-- [ ] 7. Room_Log_Store を入れる（段階 1: 内部の置き換え）（Requirement 6、PR7）
-  - [ ] 7.1 `features/chat/api/roomLogStore.ts` を作る（design.md §6 のインターフェースと状態遷移表）
+- [x] 7. Room_Log_Store を入れる（段階 1: 内部の置き換え）（Requirement 6、PR7）
+  - [x] 7.1 `features/chat/api/roomLogStore.ts` を作る（design.md §6 のインターフェースと状態遷移表）
     - target ごとのアダプタ（部屋 / 全部屋まとめ）で、取得・Realtime・列の違いを吸収する
     - 最後の購読解除では 1 タスク遅らせて channel を外す
     - _Requirements: 6.1, 6.3, 6.4, 6.7_
-  - [ ]\* 7.2 状態遷移表の各行をテストする（偽のアダプタを使う）。特に「取得中に届いた発言が残る」「SUBSCRIBED で
+  - [x]\* 7.2 状態遷移表の各行をテストする（偽のアダプタを使う）。特に「取得中に届いた発言が残る」「SUBSCRIBED で
     取り直す」「拡張で既存を残す」「取り直しで論理削除が消える」「StrictMode の購読 → 解除 → 再購読で channel を
     張り直さない」「全部屋まとめも接続時に取り直す」
     - _Requirements: 6.3, 6.4, 6.5_
-  - [ ] 7.3 `useChatLog` と `useAllRoomsChatLog` の中身を store + `useSyncExternalStore` + `useOptimistic` に
+  - [x] 7.3 `useChatLog` と `useAllRoomsChatLog` の中身を store + `useSyncExternalStore` + `useOptimistic` に
         置き換える。返り値の形は変えない（ルートは触らない）
     - _Requirements: 6.2, 6.6_
-  - [ ] 7.4 既存の `useChatLog.test.ts` / `useAllRoomsChatLog` 関連のテストが、書き換えずに通ることを確かめる
+  - [x] 7.4 既存の `useChatLog.test.ts` / `useAllRoomsChatLog` 関連のテストが、書き換えずに通ることを確かめる
     - _Requirements: 6.5_
 
 - [ ] 8. `useRoomLog`、Chat_Identity、Chat_Session に移す（段階 2）（Requirement 6 / 7、PR8）
