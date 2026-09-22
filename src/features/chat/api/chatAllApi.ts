@@ -1,6 +1,7 @@
 import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { normalizeChat } from '../utils/normalizeMetadata';
+import type { RealtimeStatus } from './chatApi';
 
 const TABLE = 'chats';
 // email / ua は全部屋ビューで deleted=true 行も表示するため、個人情報露出防止で除外する。
@@ -27,12 +28,12 @@ export async function loadAllRoomsChatLogs(limit = 200): Promise<Chat[]> {
 
 /**
  * 横断購読: room_id フィルタなしの単一 channel で全 INSERT を受ける。
- * 既存の subscribeChatLogs は一切変更しない。
- * onError は CHANNEL_ERROR / TIMED_OUT / CLOSED 時に呼ばれる。
+ * onStatusChange には部屋単位の購読（subscribeChatLogs）と同じ形で接続状態を伝える。
+ * SUBSCRIBED で connected、CHANNEL_ERROR / TIMED_OUT / CLOSED で disconnected。
  */
 export function subscribeAllRoomsChatLogs(
   callback: (chat: Chat) => void,
-  onError?: () => void
+  onStatusChange?: (status: RealtimeStatus) => void
 ): {
   unsubscribe: () => void;
 } {
@@ -45,8 +46,10 @@ export function subscribeAllRoomsChatLogs(
       callback({ ...normalizeChat(payload.new), email: undefined, ua: '' });
     })
     .subscribe((status) => {
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-        onError?.();
+      if (status === 'SUBSCRIBED') {
+        onStatusChange?.('connected');
+      } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        onStatusChange?.('disconnected');
       }
     });
 

@@ -48,3 +48,34 @@ describe('chatAllApi', () => {
     expect(received[0].ip_masked).toBe('203.0.113.*');
   });
 });
+
+describe('subscribeAllRoomsChatLogs の接続状態', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  it('SUBSCRIBED を connected、エラーを disconnected として伝える', async () => {
+    const { supabase } = await import('@shared/supabaseClient');
+    let statusCallback: ((status: string) => void) | undefined;
+    const channel = {
+      on: vi.fn(() => channel),
+      subscribe: vi.fn((cb: (status: string) => void) => {
+        statusCallback = cb;
+        return channel;
+      }),
+    };
+    (supabase.channel as Mock).mockReturnValue(channel);
+
+    const { subscribeAllRoomsChatLogs } = await import('./chatAllApi');
+    const statuses: string[] = [];
+    subscribeAllRoomsChatLogs(
+      () => {},
+      (status) => statuses.push(status)
+    );
+
+    statusCallback?.('SUBSCRIBED');
+    statusCallback?.('CHANNEL_ERROR');
+    expect(statuses).toEqual(['connected', 'disconnected']);
+  });
+});
