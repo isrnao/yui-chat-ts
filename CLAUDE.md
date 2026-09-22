@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Core Commands
 
 - `pnpm dev` - Start development server
-- `pnpm build` - Build for production (includes TypeScript compilation)
-- `pnpm preview` - Preview production build
-- `pnpm deploy` - Deploy to GitHub Pages
+- `pnpm build` - Build client assets (includes TypeScript compilation)
+- `pnpm build:prod` - Generate sitemap, build client and SSR bundles, then prerender all room URLs
+- `pnpm preview` - Preview client build
+- `pnpm deploy` - Run `build:prod` and deploy `dist` to GitHub Pages
 
 ### Code Quality
 
@@ -23,7 +24,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm test` - Run all tests once
 - `pnpm watch:test` - Run tests in watch mode
 - `pnpm test:ui` - Run tests with UI interface
-- Tests include coverage reporting with 70% minimum threshold
+- Tests include coverage reporting with 50% minimum threshold
 - Test files are located alongside source files (e.g., `Component.test.tsx`)
 
 ## React Compiler
@@ -132,8 +133,8 @@ caching/paging). Key details:
   etc.).
 - **Inserts go through the `save-chat` Edge Function** (`supabase/functions/save-chat`), executed
   with `service_role`. It derives `ip` (`x-forwarded-for` → `x-real-ip`) and `ua` (`user-agent`)
-  from request headers, so those columns are tamper-proof server observations rather than
-  client-reported values. RLS restricts INSERT on `chats` to `service_role`
+  from request headers, so those columns are server observations that cannot be supplied in the
+  client payload. Their trust boundary still depends on Supabase Edge proxy header handling. RLS restricts INSERT on `chats` to `service_role`
   (migration `20250619000000_lock_insert_to_service_role.sql`); SELECT/UPDATE stay open.
 - **Admin-chat triage**: after saving a non-system message in `com_sb` (管理者チャット),
   `save-chat` runs `triage.ts` in the background (`EdgeRuntime.waitUntil`). It classifies the
@@ -153,7 +154,7 @@ Tests follow Japanese naming conventions and user-centric approach:
 - Component tests focus on user interactions and rendering
 - Unit tests for utilities and pure functions
 - Integration tests for feature workflows
-- Coverage threshold: 70% minimum for lines, functions, branches, and statements
+- Coverage threshold: 50% minimum for lines, functions, branches, and statements
 - Tests use Testing Library with jsdom environment
 
 ## Conversation Guidelines

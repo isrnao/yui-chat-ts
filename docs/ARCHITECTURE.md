@@ -2,20 +2,20 @@
 
 ## 1. プロジェクト概要
 
-ゆいちゃっとTSは「放課後学生タウン」の雰囲気を再現した、ブラウザベースのリアルタイムチャットアプリケーションです。React + TypeScript で構築された SPA で、バックエンドに Supabase（PostgreSQL + Realtime）を採用しています。
+ゆいちゃっとTSは「放課後学生タウン」の雰囲気を再現した、ブラウザベースのリアルタイムチャットアプリケーションです。React + TypeScriptで構築し、バックエンドにSupabase（PostgreSQL + Realtime + Edge Functions）を採用しています。公開ビルドでは全対象URLを事前レンダリングし、ブラウザでhydrateします。
 
 ### 主な特徴
 
-- 複数ルーム対応（`room_id` で分離された独立タイムライン）
+- 複数ルーム対応（`room_id`で分離された独立タイムライン）
 - 旧お気楽チャット風の段組トップページ + ルーム別参加人数
-- Chanari なりきりチャット（独立 UI / 設定 / 下書き保存）
-- リアルタイムチャット（Supabase Realtime による即時反映）
+- Chanariなりきりチャット（独立UI／設定／下書き保存）
+- Supabase RealtimeのPostgres Changesによる新着配信
+- Supabase Realtime broadcastによるlook／unlook通知
 - 楽観的更新（Optimistic UI）による高速な操作体験
-- クロスタブ同期（BroadcastChannel API）
-- オフライン / 認証失敗時のフォールバック
-- レトロ UI デザイン（IE 風のウィンドウスタイル、テキストベースのタブヘッダー）
-- GitHub Pages の project site 構成から独自ドメイン直下への移行に対応
-- GitHub Pages へのデプロイ（404.html による deep link 復元）
+- オフライン／認証失敗時のfallback
+- レトロUIデザイン（IE風のwindow style、text baseのtab header）
+- route単位のcode splittingとSSRを使った静的事前レンダリング
+- GitHub Pagesの独自ドメイン配信と`404.html`によるdeep link復元
 
 ---
 
@@ -213,7 +213,7 @@ type ChanariRouteMatch =
 | `/chanari/:roomId` (有効) | `ChanariRoute`                                       |
 | 上記以外                  | `NotFoundRoute`                                      |
 
-App.tsx は `popstate` 監視と `redirect` 種別の自動再評価を担当します。各ルートコンポーネントは**静的 import** で読み込まれ（route 単位の `React.lazy` は導入していません）、`ChatLogList` のみ `ChatRoute` 内で `React.lazy` 化されています。
+`App.tsx`は`popstate`監視と`redirect`種別の自動再評価を担当します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてからhydrateし、完成済みHTMLを保持します。
 
 ### 4.3 レイヤー構成
 
@@ -234,29 +234,33 @@ App.tsx は `popstate` 監視と `redirect` 種別の自動再評価を担当し
 ユーザー入力
     │
     ▼
-useChatHandlers.handleSend()
+useChatSender.saveUserMessage() / useChatHandlers
     │
     ├─ 1. createOptimisticChat()
     │     uuid: "temp-{timestamp}-{random}"
     │     client_time: Date.now()
+    │     metadata.optimisticNonce: random UUID
     │     optimistic: true
     │
     ├─ 2. startTransition(() => addOptimistic(chat))
-    │     → useOptimistic の reduceOptimisticChat reducer 経由で即座に UI 反映
-    │     → temp UUID と (client_time + name + message + ...) が一致する
-    │        savedChat が既に base state にあれば「重複表示」を防ぐため return state
+    │     → useOptimisticのreduceOptimisticChat reducer経由で即時UI反映
+    │     → optimisticNonceを優先してRealtime echoとの重複を防止
     │
-    ├─ 3. クライアント情報取得（IP, UA）を並列実行
+    ├─ 3. saveChatLogOptimistic(roomId, chat, { operationId })
+    │     → supabase.functions.invoke('save-chat')
+    │     → client payloadにip／uaは含めない
+    │     → Edge Functionがrequest headerからip／uaを観測
+    │     → service_roleでchatsへINSERT
+    │     → UUID v7、time、ip_masked、uaを返却
+    │     → 指数backoffで最大3回retry（operationIdは共通、attemptだけ増加）
     │
-    ├─ 4. saveChatLogOptimistic(roomId, chat) → Supabase INSERT
-    │     → サーバー側で UUID v7 と time を生成
-    │     → 最小限の select('uuid,room_id,time') で応答
-    │     → 成功時に chatLogResource.invalidateCache(roomId) を非同期発火
-    │
-    └─ 5. startTransition(() => mergeChat(savedChat))
-          → 一時 UUID をサーバー UUID v7 に置換
-          → optimistic: false に更新
+    └─ 4. startTransition(() => mergeChat(savedChat))
+          → 一時UUIDをserver UUID v7へ置換
+          → server確定値を反映してoptimistic: falseへ更新
+          → chatLogResource.invalidateCache(roomId)
 ```
+
+INSERT後の管理者チャット（`com_sb`）は、response返却後に`EdgeRuntime.waitUntil`でtriageします。非system・1000文字以下の発言をOkiraku APIへ送り、`cr`確率0.5以上かつ1時間3件未満の場合だけGitHub Issueを作成し、管理人の受付発言を追加します。triage失敗は元の発言保存に影響させません。
 
 ### 5.2 リアルタイム受信フロー
 
@@ -425,8 +429,8 @@ const mergeChat = useCallback((chat: Chat) => {
 
 | 関数                         | 用途                   | 特徴                                                                              |
 | ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
-| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `select('uuid,room_id,time')` で最小応答 + 非同期 invalidate                      |
-| `saveChatLog()`              | 従来互換の保存         | 全カラム select                                                                   |
+| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `save-chat`を呼び、server確定値をmerge後に非同期invalidate                                 |
+| `saveChatLog()`              | 従来互換の保存         | 同じ`save-chat`経路を使い、成功時に同期invalidate                                           |
 | `clearChatLogs(roomId)`      | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
 | `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
 | `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
@@ -582,7 +586,7 @@ type Chat = {
 
 | 最適化                | 実装                                                                                                                            |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 遅延読み込み          | `ChatLogList` を `React.lazy()` で分割（route 単位の lazy は未導入）                                                            |
+| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                              |
 | 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
 | トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
 | 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                       |
@@ -590,7 +594,7 @@ type Chat = {
 | 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
 | API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                                                                      |
 | キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止                                                      |
-| Supabase 帯域削減     | 取得 SELECT から `ip` / `ua` を除外、書き込みは `select('uuid,room_id,time')` のみ                                              |
+| Supabase帯域削減 | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                               |
 | Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
 | パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                          |
 
@@ -630,14 +634,16 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 
 ## 12. セキュリティ
 
-| 項目               | 対応                                                      |
-| ------------------ | --------------------------------------------------------- |
-| 認証               | Supabase Anonymous Auth（セッション非永続化）             |
-| API キー           | 環境変数（`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`） |
-| UUID プライバシー  | クライアント側 UUID v7 にランダムオフセット（最大 30 秒） |
-| Prototype 汚染対策 | `isRoomId` は `Object.prototype.hasOwnProperty` で判定    |
-| 入力バリデーション | 名前: 必須、24 文字以内                                   |
-| 本番ビルド         | `console.log` 削除、ソースマップ無効化                    |
+| 項目 | 対応 |
+| --- | --- |
+| ブラウザ接続 | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続 |
+| INSERT境界 | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行 |
+| Edge Function | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持 |
+| IP／UA | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開 |
+| 秘密値 | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない |
+| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定 |
+| 入力validation | 名前必須・24文字以内などをEdgeでも検証 |
+| 本番build | `console.log`削除、source map無効化 |
 
 ---
 
@@ -720,11 +726,13 @@ jobs:
 ### 14.3 デプロイ
 
 ```bash
-pnpm build:prod    # tsc -b + vite build + optimize:seo
-pnpm deploy        # gh-pages -d dist で GitHub Pages にデプロイ
+pnpm build:prod    # sitemap → client build → SSR build → 全対象URLのprerender
+pnpm deploy        # predeployでbuild:prodを実行後、gh-pages -d dist
 ```
 
 デプロイ先: `https://www.okiraku.chat/`
+
+フロントエンドのGitHub Pages公開workflowはなく、現在は`pnpm deploy`によるデプロイです。`dist-ssr/`はprerender処理のserver bundleで、公開対象は`dist/`です。
 
 ### 14.4 ドメイン移行の背景
 
@@ -745,12 +753,22 @@ pnpm deploy        # gh-pages -d dist で GitHub Pages にデプロイ
 
 ### 15.1 必要な環境変数
 
+`.env.example`を`.env`へコピーします。全変数の用途、配置先、必須／任意、公開区分は[READMEの「環境変数とSecrets」](../README.md#環境変数とsecrets)を正とします。
+
 ```env
+# Browserへ公開されるlive接続設定
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=public-anon-key
+
+# Browser New Relicは5項目すべて揃った場合だけ有効
+VITE_NEW_RELIC_ACCOUNT_ID=
+VITE_NEW_RELIC_TRUST_KEY=
+VITE_NEW_RELIC_AGENT_ID=
+VITE_NEW_RELIC_BROWSER_KEY=
+VITE_NEW_RELIC_APP_ID=
 ```
 
-未設定でもアプリは起動するが、トップの参加人数は `0人` 固定、チャットは `mockChatData` フォールバックで読み取り専用相当になります。
+`VITE_*`はclient bundleへ埋め込まれるため秘密値を置きません。`JEV_API_TOKEN`、`GITHUB_TOKEN`、`NEW_RELIC_LICENSE_KEY`などはSupabase Secretsへ別途登録します。Supabase設定がない場合もfallback表示はできますが、liveの保存、Realtime、参加人数取得は利用できません。
 
 ### 15.2 主要コマンド
 
@@ -759,7 +777,7 @@ VITE_SUPABASE_ANON_KEY=public-anon-key
 | `pnpm dev`              | 開発サーバー起動                                     |
 | `pnpm build`            | プロダクションビルド                                 |
 | `pnpm generate:sitemap` | `CHAT_ROOM_IDS` から `public/sitemap.xml` を生成     |
-| `pnpm build:prod`       | sitemap 生成 → tsc → vite build → SEO 確認の一気通貫 |
+| `pnpm build:prod`       | sitemap生成 → client build → SSR build → 全対象URLのprerender |
 | `pnpm preview`          | ビルド成果物のローカル確認                           |
 | `pnpm test`             | テスト実行（1 回）                                   |
 | `pnpm watch:test`       | テスト監視モード                                     |
