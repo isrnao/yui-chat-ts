@@ -46,10 +46,11 @@ export function useAllRoomsChatHandlers({
   mergeChat: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const { showOptimistic, saveAndMerge, sendChat, sendFortuneIfCommand } = useChatSender({
-    addOptimistic,
-    mergeChat,
-  });
+  const { showOptimistic, saveAndMerge, saveUserMessage, sendChat, sendFortuneIfCommand } =
+    useChatSender({
+      addOptimistic,
+      mergeChat,
+    });
 
   const handleEnter = async ({
     name: entryName,
@@ -181,7 +182,7 @@ export function useAllRoomsChatHandlers({
     showOptimistic(optimistic);
     setMessage('');
 
-    const savedChat = await saveAndMerge(replyTarget, optimistic);
+    const savedChat = await saveUserMessage(replyTarget, optimistic);
     if (trackedCommand) {
       trackEvent('command_used', { room_id: replyTarget, command: trackedCommand });
     } else {

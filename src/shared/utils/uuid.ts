@@ -125,3 +125,12 @@ export function benchmarkUUIDGeneration(iterations = 10000) {
   }
   console.timeEnd('UUID v4 generation');
 }
+
+/**
+ * 送信操作の ID（save-chat の x-chat-operation-id / Browser の send-chat に使う）。
+ * uuid の v4 は crypto.randomUUID がない環境（http の検証環境や古い WebView）でも
+ * crypto.getRandomValues で生成できるため、送信経路をこの API の有無に依存させない。
+ */
+export function generateOperationId(): string {
+  return uuidv4();
+}

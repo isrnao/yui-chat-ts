@@ -222,6 +222,73 @@ describe('chatApi', () => {
       expect(saved.ua).toBe('existing-ua');
     });
 
+    it('送信操作の ID と試行番号をヘッダーで送る（ID は渡された値、省略時は発行）', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 1 },
+        error: null,
+      });
+
+      const chatApi = await import('./chatApi');
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1), { operationId: 'op-from-hook' });
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(2));
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(3));
+
+      const [given, first, second] = invoke.mock.calls.map(([, options]) => options.headers);
+      // フック（useChatSender.saveUserMessage）が発行した ID をそのまま送る
+      expect(given['x-chat-operation-id']).toBe('op-from-hook');
+      expect(given['x-chat-attempt']).toBe('1');
+      // 省略時は UUID を発行し、送信ごとに別の ID になる
+      expect(first['x-chat-operation-id']).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
+      expect(second['x-chat-operation-id']).not.toBe(first['x-chat-operation-id']);
+    });
+
+    it('crypto.randomUUID がない環境でも送信できる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 1 },
+        error: null,
+      });
+      const original = crypto.randomUUID;
+      // http で開いた検証環境や古い WebView を再現する
+      Object.defineProperty(crypto, 'randomUUID', { value: undefined, configurable: true });
+      try {
+        const chatApi = await import('./chatApi');
+        const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+        expect(saved.uuid).toBe('server-uuid');
+        const [, options] = invoke.mock.calls[0];
+        expect(options.headers['x-chat-operation-id']).toMatch(/^[0-9a-f-]{36}$/);
+      } finally {
+        Object.defineProperty(crypto, 'randomUUID', { value: original, configurable: true });
+      }
+    });
+
+    it('再試行しても操作 ID は同じで、試行番号だけが増える', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke
+        .mockResolvedValueOnce({ data: null, error: { message: 'temporary' } })
+        .mockResolvedValueOnce({
+          data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 1 },
+          error: null,
+        });
+
+      const chatApi = await import('./chatApi');
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+
+      const headers = invoke.mock.calls.map(([, options]) => options.headers);
+      expect(headers).toHaveLength(2);
+      expect(headers[1]['x-chat-operation-id']).toBe(headers[0]['x-chat-operation-id']);
+      expect(headers.map((h) => h['x-chat-attempt'])).toEqual(['1', '2']);
+    });
+
     it('Edge Function がエラーを返したら例外を投げる', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;

@@ -54,10 +54,11 @@ export function useChatHandlers({
   mergeChat: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const { showOptimistic, saveAndMerge, sendChat, sendFortuneIfCommand } = useChatSender({
-    addOptimistic,
-    mergeChat,
-  });
+  const { showOptimistic, saveAndMerge, saveUserMessage, sendChat, sendFortuneIfCommand } =
+    useChatSender({
+      addOptimistic,
+      mergeChat,
+    });
   const roomTitle = getRoomMeta(roomId).title;
 
   // 入室（silent: こっそり入室対応）
@@ -177,7 +178,7 @@ export function useChatHandlers({
     setMessage('');
     setShowRanking(false);
 
-    const savedChat = await saveAndMerge(roomId, optimistic);
+    const savedChat = await saveUserMessage(roomId, optimistic);
     if (trackedCommand) {
       trackEvent('command_used', { room_id: roomId, command: trackedCommand });
     } else {

@@ -576,6 +576,50 @@ export function runTriage(
 - **確認**：ローカルから、両方のサービスのログが New Relic の `Log` に `trace.id` / `span.id` 付きで届いた。
 - **C7**：上の確認のあとに作成した（`FROM Log WHERE event = 'triage.failed'`、60 分に 1 件以上）。
 
+## Phase 2：Browser 監視（2026-09-23）
+
+- **実装**：
+  - `src/shared/observability/newRelic.ts`：`@newrelic/browser-agent@1.322.0` の `Agent` に、使う機能だけ（Ajax / JSErrors / SoftNav / GenericEvents / PageViewEvent / PageViewTiming）を渡して読み込む。Session Replay・Session Trace・Logging は読み込まない。
+  - `main.tsx`：初回描画のあと、`requestIdleCallback` で動的 import する。`VITE_NEW_RELIC_*` がそろっていないとき（CI・Storybook）と、テスト環境・SSR では何もしない。
+  - 分散トレーシング：`allowed_origins` は Supabase のオリジンだけ。W3C の traceparent / tracestate だけを使い、`newrelic` ヘッダーは付けない。
+  - `chatApi.ts`：送信操作ごとに `crypto.randomUUID()` で Operation_Id を発行する。`retryApiCall` が試行番号を渡し、`x-chat-operation-id` / `x-chat-attempt` を save-chat に送る。同じ ID を `send-chat` インタラクションの属性 `chatOperationId` にも付ける。
+- **R1.5（supabase-js の fetch）**：supabase-js 2.105 の `resolveFetch` と functions-js は、呼び出しのたびにグローバルの `fetch` を参照する（`(...args) => fetch(...args)`）。そのため、エージェントが後から `fetch` を差し替えてもそれが使われる。**`global.fetch` の付け替えは不要**。
+- **CORS（R5.3）**：エージェントが差し替えた `fetch` から、Supabase の REST（`/rest/v1/chats`）と save-chat への通信が成功した。REST へのキーなしのリクエストでも 401 の応答を受け取れたので、`traceparent` 付きの事前確認（プリフライト）は拒否されていない。
+- **バンドル（R5.6）**：
+  - エージェントは別のチャンク `vendor-newrelic-browser-agent`（gzip 後 50KB）に入り、アイドル時にだけ読み込まれる。エントリのチャンクは gzip 後 22.5KB で、変更の前後で同じ。
+  - **注意点**：Vite の `preload-helper` が Rolldown によってエージェントのチャンクに入れられ、エントリがそれを静的に import したため、エージェントのチャンクが `modulepreload` されていた。`manualChunks` で `vite/preload-helper` を専用のチャンク（gzip 後 771 バイト）に分けて解消した。
+  - SSR ビルドと事前レンダリング（部屋 82 件、chanari 81 件）も成功した。
+- **検証環境の制約**：
+  - Claude の内蔵ブラウザは `bam.nr-data.net` への接続だけを止める（`net::ERR_CONNECTION_RESET`。GA と Supabase は通る。curl からは接続できる）。そのため、この環境では Browser のデータが New Relic に届くかを確認できない。本番へのデプロイ後に、通常のブラウザで確認する。
+  - `vite preview` は `/chat/<id>`（末尾のスラッシュなし）にトップページの HTML を返すため、ハイドレーションの不一致（React #418）が出る。本番（GitHub Pages）と同じく `/chat/<id>/` の事前レンダリングした HTML を返す静的サーバーでは、#418 は出なかった（main のビルドでも同じ）。今回の変更によるものではない。
+- **テスト**：Vitest で chatApi・useChatSender・newRelic.ts のテストを追加した（詳細はコードレビュー対応を参照）。
+
+### コードレビュー対応とパフォーマンスの再確認（2026-09-23）
+
+- **send-chat の記録の場所**：データ層（chatApi）で記録していたため、入退室の管理人メッセージや巫女メッセージの保存でも send-chat として記録され、おみくじでは利用者の操作 ID が巫女の ID で上書きされていた。
+  - `useChatSender.saveUserMessage` を追加し、**利用者の発言のときだけ**操作 ID を発行して `recordSendChat` する。
+  - chatApi は監視のモジュールに依存しない。`saveChatLogOptimistic(roomId, chat, { operationId })` で ID を受け取り、省略時だけ自分で発行する。
+  - 重複していた `saveChatLogOptimistic` / `saveChatLog` は、共通の `saveChatWithRetry` にまとめた。
+- **`crypto.randomUUID` への依存**：送信経路で必ず呼んでいたため、http の検証環境や古い WebView では保存の前に例外になっていた。`generateOperationId`（`uuid` パッケージの v4。`crypto.getRandomValues` で動く）に変えた。
+- **`main.tsx` の動的 import**：`.catch` を付けた（デプロイ前から開いていたタブで、古いチャンクが見つからない場合など）。
+- **newRelic.test**：エージェントをモックし、`vi.stubEnv('MODE', 'production')` で次を確かめる形にした。
+  - 本番では 1 回だけ作り、使う機能と設定を渡すこと
+  - テスト環境と設定が欠けているときは作らないこと
+  - 初期化に失敗しても例外が外に出ないこと
+  - テスト環境の判定を消すと、テストが失敗することも確認した。
+- **読み込むタイミング（パフォーマンス）**：Lighthouse（モバイル、ローカルの静的サーバー、圧縮なし）の LCP の中央値で比べた。
+
+  | 読み込むタイミング                 | LCP         | TBT      | 計測の間にエージェントを取得した回数 |
+  | ---------------------------------- | ----------- | -------- | ------------------------------------ |
+  | main（エージェントなし、6 回）     | 7,394ms     | 36ms     | —                                    |
+  | 最初のアイドル時                   | 8,158ms     | 27ms     | 3/3                                  |
+  | `load` のあとのアイドル時          | 9,133ms     | 22ms     | 3/3                                  |
+  | **最初の操作か `load` の 10 秒後** | **7,498ms** | **13ms** | **0/3**                              |
+  - アイドル時や `load` 直後に読むと、LCP の前にエージェントがフォントのサブセットと回線を取り合った。事前レンダリング済みのページは `load` がすぐに発火するため、`load` を待つだけでは効果がない。
+  - そこで、最初の操作（pointerdown / keydown / touchstart）か `load` の 10 秒後のどちらか早いほうで読み込むようにした。LCP は main と誤差の範囲になった。
+  - 発言するには名前の入力などの操作が先に必要なので、送信の時点では読み込みが終わっている。
+  - ブラウザでも確認した：開いてすぐクリックすると 472ms で読み込みが始まり、操作しない場合は 10.15 秒で読み込まれた。REST は 200 で、コンソールにエラーはなかった。
+
 ## 未決事項
 
 - New Relic アカウントのリージョン（US / EU）

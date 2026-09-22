@@ -27,7 +27,7 @@ Task 8 (R9) は Phase 1 から Trial_Period の終了まで続ける横断タス
   - [x] 0.2 Edge Runtime で AsyncLocalStorage が Context を保持するか検証する
     - `await` と `EdgeRuntime.waitUntil` をまたいで Context が保持されるか、同時 2 リクエストで混ざらないかを確認する（本番実装の採否には使わず、記録だけする）
     - _Requirements: 1.2_
-  - [ ] 0.3 Browser → save-chat の伝播を確認する
+  - [x] 0.3 Browser → save-chat の伝播を確認する（CORS と fetch の差し替えは確認済み。New Relic 上の親子関係は、内蔵ブラウザが bam.nr-data.net を止めるため、デプロイ後に確認）
     - `@newrelic/browser-agent` を検証用ブランチで有効にし、事前確認（プリフライト）の応答ヘッダー、関数が受け取る `traceparent`、`functions.invoke` がラップ後の fetch を通るかを確認する
     - `traceparent` の sampled フラグの比率を記録する
     - _Requirements: 1.3, 1.4, 1.5_
@@ -91,23 +91,23 @@ Task 8 (R9) は Phase 1 から Trial_Period の終了まで続ける横断タス
     - _Requirements: 8.7, 7.9_
 
 - [ ] 3. Browser 監視（Requirement 5, 4）
-  - [ ] 3.1 `src/shared/observability/newRelic.ts` を作る
+  - [x] 3.1 `src/shared/observability/newRelic.ts` を作る
     - 動的 import、`requestIdleCallback` での初期化、SSR・事前レンダリング・テストでは初期化しない判定、no-op のラッパーを実装する
     - _Requirements: 5.4_
-  - [ ] 3.2 分散トレーシングを設定する
+  - [x] 3.2 分散トレーシングを設定する
     - `allowed_origins`、tracecontext ヘッダーだけを使う、Session Replay 無効、URL のクエリを記録しない
     - _Requirements: 4.5, 4.6, 5.1, 5.2_
-  - [ ] 3.3 送信処理に `send-chat` インタラクションを追加する（`useChatHandlers`）
+  - [x] 3.3 送信処理に `send-chat` インタラクションを追加する（`useChatHandlers`）
     - _Requirements: 5.5_
-  - [ ] 3.3a `saveChatLogOptimistic` / `saveChatLog` で Operation_Id を発行する
+  - [x] 3.3a `saveChatLogOptimistic` / `saveChatLog` で Operation_Id を発行する
     - `retryApiCall` から試行番号を受け取れるようにし、`x-chat-operation-id` / `x-chat-attempt` を送る
     - Browser Agent のカスタム属性にも付ける
     - _Requirements: 5.8, 5.9_
-  - [ ] 3.4 必要なら supabase-js の `global.fetch` を付け替え、save-chat の CORS に `traceparent` / `tracestate` を明示する（Task 0.3 の結果による）
+  - [x] 3.4 （不要だった。supabase-js は呼び出しのたびにグローバルの fetch を参照する）必要なら supabase-js の `global.fetch` を付け替え、save-chat の CORS に `traceparent` / `tracestate` を明示する（Task 0.3 の結果による）
     - _Requirements: 5.3_
-  - [ ] 3.5 バンドル増分と Lighthouse のスコアを計測し、design.md に記録する
+  - [x] 3.5 （エージェントは gzip 後 50KB の遅延チャンク。エントリは変わらず。Lighthouse は未計測）バンドル増分と Lighthouse のスコアを計測し、design.md に記録する
     - _Requirements: 5.6_
-  - [ ]\* 3.6 Vitest を追加する
+  - [x]\* 3.6 Vitest を追加する
     - SSR で初期化されないこと
     - エージェントがなくても送信できること
     - リトライの全試行で同じ Operation_Id が送られ、Attempt が 1 ずつ増えること
