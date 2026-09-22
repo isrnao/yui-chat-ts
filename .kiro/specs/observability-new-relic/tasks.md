@@ -113,11 +113,11 @@ Task 8 (R9) は Phase 1 から Trial_Period の終了まで続ける横断タス
     - リトライの全試行で同じ Operation_Id が送られ、Attempt が 1 ずつ増えること
     - _Requirements: 5.4, 5.8_
 
-- [ ] 4. E2E トレース検証（Requirement 8, 4.7）— マイルストーンの判定
-  - [ ] 4.1 `scripts/verify-trace.ts` を作る
+- [x] 4. E2E トレース検証（Requirement 8, 4.7）— マイルストーンの判定
+  - [x] 4.1 `scripts/verify-trace.ts` を作る
     - NerdGraph で trace ID のスパンを取得し、`id` と `parent.id` から木を組み立てて、期待する木と照合する
     - _Requirements: 8.1, 8.2, 8.3, 8.6_
-  - [ ] 4.2 シナリオを実行する
+  - [x] 4.2 シナリオを実行する（本番では成功系と sampled=00・操作 ID を実施。失敗系・同時・再試行は故障注入が本番で無効なため deno test / node --test で確認。design.md「Task 4」参照）
     - 成功（通常ルーム / com_sb）
     - DB 保存失敗
     - /evaluate タイムアウト
@@ -126,9 +126,9 @@ Task 8 (R9) は Phase 1 から Trial_Period の終了まで続ける横断タス
     - **初回失敗 → 再試行で成功**（Operation_Id で束ねて判定）
     - **`sampled=00`**
     - _Requirements: 8.4, 8.5, 8.7, 8.8_
-  - [ ] 4.3 New Relic に届いた全属性を NRQL で一覧化し、PII がないことを確認して PR に記載する
+  - [x] 4.3 New Relic に届いた全属性を NRQL で一覧化し、PII がないことを確認して PR に記載する
     - _Requirements: 4.7_
-  - [ ] 4.4 マイルストーンを判定する：追えたか、データ量、性能を見て、Phase 3 以降に進むか判断する
+  - [x] 4.4 マイルストーンを判定する：追えたか、データ量、性能を見て、Phase 3 以降に進むか判断する（合格。バックエンド区間は本番で追える。月の見積もり約 1MB）
 
 - [ ] 5. アラートと PagerDuty（Requirement 7）
   - [ ] 5.1 PagerDuty サービス `okiraku.chat` に New Relic 連携を追加し、Dynamic Notifications を設定する
