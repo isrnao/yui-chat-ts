@@ -12,140 +12,37 @@
 // - 永続化は service_role で行い RLS をバイパスする（anon の直 INSERT は別途封鎖）。
 // - uuid / time / deleted は DB 既定値に委ねる。metadata はクライアント値をそのまま保存
 //   （optimisticNonce の echo を維持し、クライアントの楽観的更新突合を壊さないため）。
+// - トレース: NEW_RELIC_LICENSE_KEY が設定されていれば New Relic へ送る（telemetry.ts）。
+//
+// 処理本体は handler.ts。ここでは依存を組み立てて Deno.serve に渡すだけにする。
 //
 // デプロイ: supabase functions deploy save-chat
 // 設定: config.toml で verify_jwt = false（匿名チャットのため）
 
 // バージョンは deno.json の import map に集約する（直 URL 重複を避ける）
 import { createClient } from '@supabase/supabase-js';
-import { shouldTriage, triageAdminChat } from './triage.ts';
+import { createHandler } from './handler.ts';
+import { detectEnvironment, Tracer } from './telemetry.ts';
 
 // Supabase Edge Runtime が提供するグローバル。レスポンス返却後も処理を継続させる。
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void } | undefined;
 
-// プリフライトが要求したヘッダ（Access-Control-Request-Headers）をそのまま許可に
-// 反映する。クライアント（supabaseClient.ts）が apikey / authorization に加えて
-// x-my-custom-header 等のグローバルヘッダを付けても弾かれないようにするため。
-function buildCorsHeaders(req: Request): Record<string, string> {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers':
-      req.headers.get('access-control-request-headers') ??
-      'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-}
+const environment = detectEnvironment(Deno.env.get('SUPABASE_URL'));
 
-function json(body: unknown, status: number, cors: Record<string, string>): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, 'Content-Type': 'application/json' },
-  });
-}
-
-// x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
-function resolveClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get('x-real-ip')?.trim() || '';
-}
-
-// クライアントが詐称・上書きできないよう、永続化するフィールドを限定する。
-// uuid / time / deleted / ip / ua はここで受け付けない。
-interface SaveChatBody {
-  room_id?: unknown;
-  name?: unknown;
-  color?: unknown;
-  message?: unknown;
-  system?: unknown;
-  email?: unknown;
-  metadata?: unknown;
-}
-
-function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.length > 0;
-}
-
-Deno.serve(async (req: Request) => {
-  const cors = buildCorsHeaders(req);
-
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: cors });
-  }
-  if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405, cors);
-  }
-
-  let body: SaveChatBody;
-  try {
-    body = await req.json();
-  } catch {
-    return json({ error: 'Invalid JSON body' }, 400, cors);
-  }
-
-  // 最低限のバリデーション（name / message / room_id 必須）。
-  if (!isNonEmptyString(body.room_id)) {
-    return json({ error: 'room_id is required' }, 400, cors);
-  }
-  if (!isNonEmptyString(body.name)) {
-    return json({ error: 'name is required' }, 400, cors);
-  }
-  if (typeof body.message !== 'string' || body.message.trim().length === 0) {
-    return json({ error: 'message is required' }, 400, cors);
-  }
-
-  const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  if (!supabaseUrl || !serviceRoleKey) {
-    return json({ error: 'Server misconfigured' }, 500, cors);
-  }
-
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
-  // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
-  const row = {
-    room_id: body.room_id,
-    name: body.name,
-    color: typeof body.color === 'string' ? body.color : '',
-    message: body.message,
-    system: typeof body.system === 'boolean' ? body.system : false,
-    email: typeof body.email === 'string' ? body.email : null,
-    metadata: body.metadata ?? null,
-    ip: resolveClientIp(req),
-    ua: req.headers.get('user-agent') ?? '',
-  };
-
-  const { data, error } = await supabase
-    .from('chats')
-    .insert(row)
-    // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
-    // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
-    .select('uuid,room_id,time,ip_masked,ua')
-    .single();
-
-  if (error) {
-    return json({ error: `Failed to save chat: ${error.message}` }, 500, cors);
-  }
-
-  // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
-  // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
-  if (shouldTriage(row)) {
-    const task = triageAdminChat(supabase, {
-      uuid: data.uuid,
-      room_id: row.room_id,
-      name: row.name,
-      color: row.color,
-      message: row.message,
-    });
-    if (typeof EdgeRuntime !== 'undefined') EdgeRuntime.waitUntil(task);
-    else await task;
-  }
-
-  return json(data, 200, cors);
-});
+Deno.serve(
+  createHandler({
+    tracer: new Tracer({
+      serviceName: 'save-chat',
+      environment,
+      licenseKey: Deno.env.get('NEW_RELIC_LICENSE_KEY'),
+    }),
+    env: (key) => Deno.env.get(key),
+    createSupabase: (url, serviceRoleKey) =>
+      createClient(url, serviceRoleKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      }),
+    waitUntil:
+      typeof EdgeRuntime !== 'undefined' ? (task) => EdgeRuntime.waitUntil(task) : undefined,
+    environment,
+  })
+);
