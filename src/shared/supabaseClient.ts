@@ -22,13 +22,13 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     schema: 'public',
   },
   global: {
-    // 認証ヘッダーを確実に設定
+    // 認証ヘッダーを確実に設定する。
+    // 以前は Accept-Encoding（ブラウザが設定を許さないヘッダなので無視される）、使っていない
+    // X-My-Custom-Header、Content-Type（PostgREST / Functions のクライアントがリクエストごとに付ける）
+    // も全リクエストに付けていたが、どれも効果がないので外した。
     headers: {
       apikey: supabaseAnonKey,
       Authorization: `Bearer ${supabaseAnonKey}`,
-      'X-My-Custom-Header': 'yui-chat',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Content-Type': 'application/json',
     },
   },
   realtime: {
