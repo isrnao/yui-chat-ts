@@ -192,6 +192,91 @@ Integration Keyや通知先メールアドレスは、README・ソースコー�
 [無料アカウントの継続条件](https://docs.hetrixtools.com/free-accounts-inactivity/)、
 [PagerDuty料金表](https://www.pagerduty.com/pricing/incident-management/)。
 
+### New Relic（トレース・ログ・アラート）
+
+外形監視（HetrixTools）に加えて、**送信処理の中身**を New Relic で監視する（2026-09-22 導入）。
+設計と検証の記録は `.kiro/specs/observability-new-relic/`（design.md）にある。
+
+```text
+save-chat（Supabase Edge Function）─ OTLP/HTTP ─┐
+  POST save-chat → db insert chats              │
+  └ triage → POST /api/v1/evaluate ─ traceparent ┼→ New Relic（トレース・ログ）
+okiraku-api（Vercel）─ OTLP/HTTP ────────────────┘      │
+  POST /api/v1/evaluate → evaluation.run                 └ C1 → PagerDuty（okiraku.chat）
+```
+
+- **トレース**
+  - save-chat は依存なしの自前トレーサー（`supabase/functions/save-chat/telemetry.ts`）。本番の Edge Runtime はリクエストごとに新しいワーカーを起動するので、OTel SDK は使わない（読み込みで +144ms かかるため）。
+  - okiraku-api は OTel SDK を使う。
+  - どちらも、受け取った `traceparent` を引き継ぎ、全件記録する。
+- **ログ**
+  - save-chat は JSON の構造化ログ。`save_chat.db_insert_failed` と `triage.failed` を出す。
+  - okiraku-api は pino。リクエストごとに `evaluation` を 1 件出す。
+  - どちらも標準出力に書き、OTLP logs として New Relic にも送る。ログには `trace_id` / `span_id` が付く。
+- **送らないもの**：発言本文・名前・IP・UA・metadata。
+- **キー**
+  - `NEW_RELIC_LICENSE_KEY` は、Supabase Secrets と Vercel（Production）に登録してある。未設定なら何も送らない。
+  - ローカルで使う User キー・Browser キー・PagerDuty の連携キーは `.env` にだけ置く。
+
+#### アラート
+
+定義は `scripts/newrelic-alerts.ts` で管理する。変更したら次のコマンドで反映する。
+
+```bash
+node --experimental-strip-types --env-file=.env scripts/newrelic-alerts.ts --apply
+```
+
+| ID  | 条件                                             | 通知先                    |
+| --- | ------------------------------------------------ | ------------------------- |
+| C1  | 保存に失敗した送信操作が 5 分間に 2 件以上       | **PagerDuty**（critical） |
+| C2  | save-chat の 5xx（C1 以外）が 10 分間に 3 件以上 | New Relic のみ            |
+| C4  | 評価 API の 502 / 504 が 15 分間に 3 件以上      | New Relic のみ（※）       |
+| C5  | save-chat の 2 秒超が 5% 超（最低 5 件、15 分）  | New Relic のみ            |
+| C6  | 評価処理の 6 秒超が 5% 超（最低 5 件、15 分）    | New Relic のみ            |
+| C7  | `triage.failed` のログが 60 分間に 1 件以上      | New Relic のみ            |
+
+※ New Relic は PagerDuty に送る severity を指定できず、警告の条件は優先度 HIGH になる。PagerDuty でどの緊急度になるかを確かめるまでは、C4 を PagerDuty に送らない。
+
+#### runbook（C1：保存の失敗）
+
+1. **状況を見る**：New Relic で次の NRQL を実行し、PostgREST のエラーコードとメッセージを見る。
+
+   ```text
+   SELECT count(*) FROM Span WHERE service.name = 'save-chat' AND name = 'db insert chats' AND otel.status_code = 'ERROR' FACET db.response.status_code, error.message SINCE 30 minutes ago
+   ```
+
+2. **自動クローズの扱い**：インシデントの自動クローズは、**失敗が観測されなくなったこと（Observed_Clear）**を意味するだけで、復旧したことではない。
+   - アクセスがある時間帯は、しきい値を下回った時点で閉じる。
+   - アクセスがない時間帯は、Loss of Signal（最後のデータから 15 分）で閉じる。本番テストでは、失敗から約 17 分でクローズと Resolve が行われた。
+3. **復旧の確認（Verified_Recovery）**：**本番で**、最後の失敗より後に保存が成功していることを確かめる。staging やローカルでの成功は根拠にしない。
+   - 利用者の送信がない場合は、運用者が本番の画面から送信して確かめる。
+   - 確かめられないうちは、PagerDuty のインシデントに「Recovery_Unverified」と書いておく。
+
+   ```text
+   SELECT latest(timestamp) FROM Span WHERE service.name = 'save-chat' AND name = 'db insert chats' AND otel.status_code != 'ERROR' AND deployment.environment.name = 'production' SINCE 1 hour ago
+   ```
+
+4. **トレースで経路を確かめる**：送信の trace ID がわかれば、次のコマンドで保存から AI の呼び出しまでの親子関係を表示できる。
+
+   ```bash
+   node --experimental-strip-types --env-file=.env scripts/verify-trace.ts --trace <traceId> --expect admin
+   ```
+
+#### save-chat のデプロイ手順
+
+Deno CLI と Supabase Edge Runtime では使える API が違い、2026-09-22 にはこの違いで約 6 分間の障害が起きた。デプロイ前に、必ず Edge Runtime での起動を確かめる。
+
+1. `deno test --allow-env --allow-read supabase/functions/save-chat/`
+2. `bash scripts/smoke-save-chat-edge.sh`（Docker を使い、本番と同じ Edge Runtime v1.76.0 で起動する）
+3. `supabase functions deploy save-chat`
+4. 本番で名前のない POST を送り、`400 {"error":"name is required"}` が返ることを確かめる。ほかの応答なら、すぐに直前のバージョンを再デプロイする。
+
+#### うまくいかないとき
+
+- **OTLP で 403 が返る**（応答の本文は `{}` だけ）：New Relic の API keys で「INGEST - LICENSE」のキーを発行し直す（Key type が User や Browser だと送れない）。
+- **トレースがつながらない**：okiraku-api のスパンの `okiraku.traceparent_received` に、受け取った値が残っている。Supabase Edge Runtime は送信時に自分の `traceparent` を足すので、`"<save-chat の値>, <ランタイムの値>"` の形で届く。okiraku-api は先頭の値を使う。
+- **NerdGraph で ECONNRESET**：改行を含む mutation に NRQL などがそろうと、接続を切られることがある。`scripts/newrelic-alerts.ts` は送る前にクエリの空白をまとめてから送る。
+
 ## Styling Notes
 
 - The root `main` element owns the viewport height via `min-h-dvh`; descendant panes should rely on flex sizing plus `overflow-y-auto` instead of duplicating `min-height` styles.

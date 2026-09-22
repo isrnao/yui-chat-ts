@@ -143,6 +143,11 @@ export class Span {
     return this.error;
   }
 
+  get errorCode(): string | undefined {
+    const code = this.attributes['error.code'];
+    return typeof code === 'string' ? code : undefined;
+  }
+
   end(): void {
     if (this.ended) return;
     this.ended = true;
@@ -165,6 +170,18 @@ export class Span {
   }
 }
 
+export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
+const SEVERITY_NUMBER: Record<LogLevel, number> = { INFO: 9, WARN: 13, ERROR: 17 };
+
+export interface FinishedLog {
+  time: bigint;
+  level: LogLevel;
+  event: string;
+  traceId?: string;
+  spanId?: string;
+  attributes: Record<string, AttributeValue>;
+}
+
 export type Send = (url: string, init: RequestInit) => Promise<Response>;
 
 export interface TracerOptions {
@@ -179,6 +196,7 @@ export interface TracerOptions {
 
 export class Tracer {
   private queue: FinishedSpan[] = [];
+  private logQueue: FinishedLog[] = [];
   private readonly send: Send;
 
   constructor(private readonly options: TracerOptions) {
@@ -208,26 +226,81 @@ export class Tracer {
     return this.queue;
   }
 
+  /** テスト用: まだ送っていないログ */
+  pendingLogs(): readonly FinishedLog[] {
+    return this.logQueue;
+  }
+
   /**
-   * 終了済みのスパンを送る。送ったものはキューから外すので、応答時と triage 終了時の
-   * 2 回の flush で同じスパンが重複しない。reject しない。
+   * 構造化ログを 1 行出す（spec R6.5。pino と同じ項目名: level / msg / event / trace_id / span_id）。
+   * 標準出力（Supabase のログ画面）には常に出し、計測が有効なら OTLP logs として New Relic にも送る。
+   * attributes には本文・名前・IP・UA を入れない（spec R4.2）。
+   */
+  log(
+    level: LogLevel,
+    event: string,
+    parent: SpanContext | null,
+    attributes: Attributes = {}
+  ): void {
+    try {
+      const clean: Record<string, AttributeValue> = {};
+      for (const [key, value] of Object.entries(attributes))
+        if (value !== undefined) clean[key] = value;
+      const line = {
+        level: level.toLowerCase(),
+        msg: event,
+        event,
+        ...(parent ? { trace_id: parent.traceId, span_id: parent.spanId } : {}),
+        ...clean,
+      };
+      const write =
+        level === 'ERROR' ? console.error : level === 'WARN' ? console.warn : console.log;
+      write(JSON.stringify(line));
+      if (!this.enabled) return;
+      this.logQueue.push({
+        time: nowUnixNano(),
+        level,
+        event,
+        traceId: parent?.traceId,
+        spanId: parent?.spanId,
+        attributes: { event, ...clean },
+      });
+    } catch (err) {
+      reportInternalError('log', err);
+    }
+  }
+
+  /**
+   * 終了済みのスパンとログを送る。送ったものはキューから外すので、応答時と triage 終了時の
+   * 2 回の flush で重複しない。トレースとログは別々のリクエストで送り、片方が失敗しても
+   * もう片方に影響させない（spec R3.8）。reject しない。
    */
   async flush(): Promise<void> {
-    if (!this.enabled || this.queue.length === 0) return;
-    const batch = this.queue;
+    if (!this.enabled) return;
+    const spans = this.queue;
+    const logs = this.logQueue;
     this.queue = [];
+    this.logQueue = [];
+    await Promise.allSettled([
+      spans.length ? this.post('/v1/traces', encodeSpans(spans, this.options)) : undefined,
+      logs.length ? this.post('/v1/logs', encodeLogs(logs, this.options)) : undefined,
+    ]);
+  }
+
+  private async post(path: string, body: unknown): Promise<void> {
     try {
-      const res = await this.send(`${this.options.endpoint ?? defaultEndpoint()}/v1/traces`, {
+      const res = await this.send(`${this.options.endpoint ?? defaultEndpoint()}${path}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'api-key': this.options.licenseKey ?? '' },
-        body: JSON.stringify(encodeSpans(batch, this.options)),
+        body: JSON.stringify(body),
         signal: AbortSignal.timeout(this.options.timeoutMs ?? 3000),
       });
       // 応答本文は読まない（接続を閉じるだけ）
       await res.body?.cancel();
-      if (!res.ok) console.warn('[telemetry] export rejected', { status: res.status });
+      if (!res.ok) console.warn('[telemetry] export rejected', { path, status: res.status });
     } catch (err) {
       console.warn('[telemetry] export failed', {
+        path,
         type: err instanceof Error ? err.name : 'unknown',
       });
     }
@@ -279,6 +352,36 @@ export function encodeSpans(spans: readonly FinishedSpan[], options: TracerOptio
               endTimeUnixNano: s.end.toString(),
               attributes: encodeAttributes(s.attributes),
               ...(s.error ? { status: { code: STATUS_ERROR } } : {}),
+            })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** OTLP/HTTP JSON（ExportLogsServiceRequest）へ変換する */
+export function encodeLogs(logs: readonly FinishedLog[], options: TracerOptions) {
+  return {
+    resourceLogs: [
+      {
+        resource: {
+          attributes: encodeAttributes({
+            'service.name': options.serviceName,
+            'deployment.environment.name': options.environment,
+          }),
+        },
+        scopeLogs: [
+          {
+            scope: { name: 'save-chat' },
+            logRecords: logs.map((l) => ({
+              timeUnixNano: l.time.toString(),
+              severityNumber: SEVERITY_NUMBER[l.level],
+              severityText: l.level,
+              body: { stringValue: l.event },
+              attributes: encodeAttributes(l.attributes),
+              ...(l.traceId ? { traceId: l.traceId } : {}),
+              ...(l.spanId ? { spanId: l.spanId } : {}),
             })),
           },
         ],

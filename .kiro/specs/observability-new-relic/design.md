@@ -241,13 +241,23 @@ export function runTriage(
 | C6  | Warning / New Relic のみ                       | Evaluate_Span の p95（C5 と同じく最低 5 件）                                                                                                                                                                          | 15 分 / 6000ms 超が 10 分継続                                                                              | 固定値 0                                                       | 同上                                                         |
 | C7  | Warning / New Relic のみ（**Phase 4 で作成**） | `FROM Log WHERE event='triage.failed'` の件数                                                                                                                                                                         | 60 分 / 1 件以上                                                                                           | 固定値 0                                                       | 1 件未満になったら自動クローズ                               |
 
-- **C1 のタイムラインの例（期待値。Phase 3 で実測して書き換える）**：
-  - 0 分と 4 分に失敗した場合：4 分の時点で集計窓 [−1, 4] の値が 2 になり、発報する。
-  - 5 分を過ぎて 0 分の失敗が集計窓から外れると値が 1 になり、自動クローズする。
-  - このとき 4 分の失敗は集計窓内に残っているので、Recovery_Unverified のままにする。
+- **C1 のタイムライン（Phase 3 の実測、アクセスがない場合）**：
+  - 06:56:37 に失敗を 2 操作送ると、06:59:59 に発報した（+3 分 22 秒）。
+  - PagerDuty への通知は 07:00:08。
+  - その後は新しいデータが来ないので、スライドだけでは値が 0 にならず、**Loss of Signal でクローズした**（07:14:00、+17 分 23 秒）。
+  - PagerDuty への Resolve は 07:14:10。
+  - アクセスがある場合（しきい値を下回ったら閉じる）は、本物の DB が必要なので未実測。
+  - 期待値だった「最後の失敗から約 5 分でクローズ」は、アクセスがある場合の見込みとして残す。
 - **共通の設定**：C2〜C7 の集計方式・スライディング・データなしの扱いは C1 と同じ（Event timer 60 秒、固定値 0、Loss of Signal では新しく発報せず、開いているインシデントを閉じる）。集計窓の長さだけが条件ごとに異なる。
-- C5 / C6 の `if()` の中で集計関数を使えるかは Phase 3 で確認する。使えない場合は、件数条件と組み合わせた別の書き方にする。
-- **C7 の導入時期**：C7 は `triage.failed` ログが New Relic に届くこと（Task 6）を確認してから作成・有効化する。Phase 3 では作らない（R7.12）。
+- **C5 / C6 の書き方（Phase 3 で確定）**：
+  - NRQL の `if()` は、分岐の中に集計関数（`percentile` も `percentage` も）を入れると `null` を返したので使えない。
+  - 代わりに「p95 > X」と同じ意味の「X を超えるリクエストの割合 > 5%」にし、`percentage(count(*), WHERE duration.ms > X) * floor(clamp_max(count(*), 5) / 5)` で、5 件に満たない集計窓を 0 にする。
+- **C4 の通知先（Phase 3 で変更）**：
+  - New Relic の PagerDuty Channel で指定できるのは `summary` と `customDetails` だけで、severity は指定できない。
+  - 警告の条件は優先度 HIGH になり、PagerDuty で高緊急度（`error`）として届くおそれがある。そのため初期版では、PagerDuty に送るのは **C1（CRITICAL）だけ**にした。
+  - Workflow の絞り込みは「paging ポリシー、かつ `priority = CRITICAL`」。
+- **C7 の導入時期**：Phase 4 で、ログが New Relic に届くことを確認してから作成した（R7.12）。
+- **定義の置き場所**：`scripts/newrelic-alerts.ts`（`--apply` で反映、`--pagerduty` で通知経路を作成、`--env alert-test` で試験用）。
 - 重複を防ぐため、初期版で PagerDuty に送るのは C1（高緊急度）と C4（低緊急度）だけにする。C2 と C3 は同じ障害で同時に発報しやすいので、New Relic の画面での確認用に留める。
 - save-chat 自体が起動できない（スパンが出ない）障害は、C1〜C3 では検出できない。初期版は HetrixTools の外形監視と利用者からの報告に頼る。確認用プローブは Phase 5 で検討する。
 
@@ -532,6 +542,39 @@ export function runTriage(
   2. Phase 2（Browser 監視）
 
   理由は、保存の失敗に気づけない状態を先に解消するため。Browser 監視を先にしてもよい。
+
+## Phase 3：アラートと PagerDuty（2026-09-22）
+
+- **作ったもの**：
+  - ポリシー `okiraku-chat (paging)`（C1、C4）と `okiraku-chat (monitor)`（C2、C5、C6、C7）
+  - PagerDuty の Destination「PagerDuty okiraku.chat (New Relic)」
+  - Channel と Workflow「okiraku-chat paging -> PagerDuty」（C1 だけ）
+- **PagerDuty の連携**：PagerDuty 側で `okiraku.chat` サービスに「New Relic」連携を追加し、連携キーを `.env` の `PAGERDUTY_INTEGRATION_KEY` に置いた。Destination の作成でだけ使う。
+- **発報テスト（R7.9）**：ローカルの save-chat（環境名 `alert-test`、故障注入 `attempt1`）から失敗を 2 操作送り、試験用のポリシーと Workflow で確認した。流れは上の「C1 のタイムライン」のとおり。
+  - 発報 → PagerDuty 通知 → Loss of Signal でクローズ → Resolve までを確認した。
+  - 試験用のポリシーと Workflow は削除した。
+- **未確認**：
+  - PagerDuty 側での severity と緊急度（利用者に確認を依頼中）
+  - アクセスがある場合のクローズ
+  - Dynamic Notifications の設定
+  - HetrixTools の通知への影響（R7.8）
+- **NerdGraph の注意点**：
+  - 改行とインデントを含む mutation に、NRQL・名前・説明がそろうと、接続を切られた（ECONNRESET。curl でも同じ）。
+  - 要素を 1 つずつ変えると通るので、本文全体を見た判定と考えられる。
+  - スクリプトでは、送る前にクエリの空白をまとめ、条件の説明（description）は送らないようにした。
+
+## Phase 4：構造化ログ（2026-09-22）
+
+- **okiraku-api**（PR #4、マージ・デプロイ済み）：
+  - pino で標準出力に書き、同じ内容を in-process のストリームで OTel の Logs API に渡す。
+  - pino の transport と `instrumentation-pino` は使わない（R6.2 の代替案）。
+  - `trace_id` / `span_id` があるログはそのトレースに結びつける。評価対象の本文・options・authorization は redact する。
+- **save-chat**：自前のトレーサーにロガーを加えた（`Tracer.log`）。
+  - 項目名は pino と同じ（`level` / `msg` / `event` / `trace_id` / `span_id`、R6.5）。
+  - 標準出力と OTLP logs の両方に出す。トレースとログは別々のリクエストで送る。
+  - 出すイベントは `save_chat.db_insert_failed` と `triage.failed`（失敗・期限切れのどちらも `runTriage` から 1 回だけ）。
+- **確認**：ローカルから、両方のサービスのログが New Relic の `Log` に `trace.id` / `span.id` 付きで届いた。
+- **C7**：上の確認のあとに作成した（`FROM Log WHERE event = 'triage.failed'`、60 分に 1 件以上）。
 
 ## 未決事項
 

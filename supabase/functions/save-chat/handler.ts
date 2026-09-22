@@ -230,6 +230,12 @@ async function saveChat(
   if (error || !data) {
     db.failDb('db_insert_failed', error ?? {});
     db.end();
+    tracer.log('ERROR', 'save_chat.db_insert_failed', db.context, {
+      'chat.operation.id': op.id,
+      'chat.attempt': op.attempt,
+      'db.response.status_code': error?.code,
+      'error.message': error?.message?.slice(0, 500),
+    });
     // C2（save-chat の 5xx）で C1（保存失敗）と重複させないための印
     server.fail('db_insert_failed');
     return {
@@ -300,6 +306,10 @@ export async function runTriage(
     span.failException('triage_failed', err);
   } finally {
     clearTimeout(timer);
+    // C7（triage.failed の件数）が数えるイベント。失敗・期限切れのどちらもここで 1 回だけ出す
+    if (span.failed) {
+      tracer.log('ERROR', 'triage.failed', span.context, { 'error.code': span.errorCode });
+    }
     span.end();
     await tracer.flush();
   }
