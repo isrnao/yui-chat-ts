@@ -1,32 +1,4 @@
-import { v7 as uuidv7, v4 as uuidv4 } from 'uuid';
-
-/**
- * セキュアなUUID v7生成（レガシー用途）
- * プライバシー保護のため、小さなランダムオフセットを追加
- * 注意：Supabase側でUUID v7を生成する場合は使用不要
- */
-export function generateSecureUUIDv7(): string {
-  try {
-    // 実際の時刻に最大30秒のランダムオフセットを追加
-    // これにより正確な投稿時刻の推測を困難にする
-    const offset = Math.random() * 30000; // 0-30秒のランダムオフセット
-    const adjustedTime = Date.now() + offset;
-
-    return uuidv7({ msecs: adjustedTime });
-  } catch (error) {
-    // UUID v7生成に失敗した場合はUUID v4にフォールバック
-    console.warn('UUID v7 generation failed, falling back to v4:', error);
-    return uuidv4();
-  }
-}
-
-/**
- * 高性能チャット用のUUID生成（レガシー用途）
- * 注意：Supabase側でUUID v7を生成する場合は使用不要
- */
-export function generateChatId(): string {
-  return generateSecureUUIDv7();
-}
+// UUID のユーティリティ。発言の UUID（v7）はサーバーが振るので、クライアントは判定と並べ替えだけを行う。
 
 /**
  * UUID v7かどうかを判定
@@ -38,27 +10,6 @@ export function isUUIDv7(id: string): boolean {
 
   // UUID v7のバージョン番号は '7'
   return id.charAt(14) === '7';
-}
-
-/**
- * UUIDから概算の生成時刻を取得（UUID v7のみ）
- * 注意：セキュリティ上のオフセットにより、正確な時刻ではない
- */
-export function extractTimestampFromUUIDv7(id: string): number | null {
-  if (!isUUIDv7(id)) {
-    return null;
-  }
-
-  try {
-    // UUID v7の最初の48ビットがタイムスタンプ
-    const timestampHex = id.replace(/-/g, '').slice(0, 12);
-    const timestamp = parseInt(timestampHex, 16);
-
-    return timestamp;
-  } catch (error) {
-    console.warn('Failed to extract timestamp from UUID v7:', error);
-    return null;
-  }
 }
 
 /**
@@ -77,60 +28,20 @@ export function sortChatsByTime<T extends { uuid: string; time: number }>(chats:
   });
 }
 
-/**
- * 指定時刻以降のチャットを検索するためのUUID v7下限値を生成
- * @param timestamp ミリ秒単位のタイムスタンプ
- * @returns 検索用のUUID v7下限値
- */
-export function generateUUIDv7FromTimestamp(timestamp: number): string {
-  try {
-    return uuidv7({ msecs: timestamp });
-  } catch (error) {
-    console.warn('Failed to generate UUID v7 from timestamp:', error);
-    // フォールバック：現在時刻でUUID v7を生成
-    return uuidv7();
-  }
+/** crypto.randomUUID が使えない環境（安全でないコンテキストなど）向けの UUID v4 */
+function randomUUIDv4Fallback(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 /**
- * 指定時間範囲のチャットを効率的に検索するためのUUID v7範囲を生成
- * @param startTime 開始時刻（ミリ秒）
- * @param endTime 終了時刻（ミリ秒、省略時は現在時刻）
- * @returns {start: string, end: string} 検索範囲のUUID v7
- */
-export function generateUUIDv7Range(
-  startTime: number,
-  endTime?: number
-): { start: string; end: string } {
-  const end = endTime || Date.now();
-  return {
-    start: generateUUIDv7FromTimestamp(startTime),
-    end: generateUUIDv7FromTimestamp(end),
-  };
-}
-
-/**
- * 開発環境用：UUID生成パフォーマンステスト
- */
-export function benchmarkUUIDGeneration(iterations = 10000) {
-  console.time('UUID v7 generation');
-  for (let i = 0; i < iterations; i++) {
-    generateSecureUUIDv7();
-  }
-  console.timeEnd('UUID v7 generation');
-
-  console.time('UUID v4 generation');
-  for (let i = 0; i < iterations; i++) {
-    uuidv4();
-  }
-  console.timeEnd('UUID v4 generation');
-}
-
-/**
- * 送信操作の ID（save-chat の x-chat-operation-id / Browser の send-chat に使う）。
- * uuid の v4 は crypto.randomUUID がない環境（http の検証環境や古い WebView）でも
- * crypto.getRandomValues で生成できるため、送信経路をこの API の有無に依存させない。
+ * 送信操作 1 件の ID（UUID v4）。save-chat の x-chat-operation-id と、Browser の send-chat で共有する。
+ * crypto.randomUUID は安全なコンテキスト（https / localhost）でしか使えないので、代替を持つ。
  */
 export function generateOperationId(): string {
-  return uuidv4();
+  return typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : randomUUIDv4Fallback();
 }

@@ -91,7 +91,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     vitest の `unhandledRejection` の検知で確かめる
     - _Requirements: 4.1, 4.2, 4.4_
 
-- [ ] 5. デッドコードと重複ユーティリティを削除する（Requirement 5、PR5）
+- [x] 5. デッドコードと重複ユーティリティを削除する（Requirement 5、PR5）
   - [x] 5.1 Q1（利用規約モーダル）と Q2（架空の発言のフォールバック）の回答をもらい、requirements.md に記録する
     - _Requirements: 5.5, 5.6_
   - [x] 5.2 本番から到達しないモジュールと、そのテスト・stories を削除する: ChatLogPage、usePreloadChatLogs、
@@ -104,7 +104,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 5.4 `retry.ts` を作り、chatApi と chatLogResource の `retryApiCall` / `measureApiCall` / 遅延計測を
         1 つにする。`perfStartTime` のようなモジュールの可変状態をなくす
     - _Requirements: 5.3_
-  - [ ] 5.5 `generateOperationId` を `crypto.randomUUID()` にし、`uuid.ts` の未使用の関数と、依存の `uuid` /
+  - [x] 5.5 `generateOperationId` を `crypto.randomUUID()` にし、`uuid.ts` の未使用の関数と、依存の `uuid` /
         `@types/uuid` を削除する。`isUUIDv7` と `sortChatsByTime` は残す
     - _Requirements: 5.4_
   - [x] 5.6 Q2 の回答により `mockChatData` の経路は残す（変更なし）
