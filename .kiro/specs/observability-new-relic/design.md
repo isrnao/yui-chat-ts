@@ -425,7 +425,26 @@ export function runTriage(
 - `https://api.okiraku.chat/api/v1/evaluate` に `traceparent` 付きで 401 になるリクエストを送ったところ、約 2 分後に New Relic に `POST /api/v1/evaluate` のスパンが届いた。
   - `deployment.environment.name=production`、`error.code=UNAUTHORIZED`、`http.response.status_code=401` が記録されていた。
   - 親は送った `traceparent` のスパン ID になっていた。
-- **`/functions` の `waitUntil` による応答後の flush は、Vercel の本番でも機能する**（R1.7 のトレース部分）。
+- **`@vercel/functions` の `waitUntil` による応答後の flush は、Vercel の本番でも機能する**（R1.7 のトレース部分）。
+
+## 障害記録：save-chat のデプロイ直後の 500（2026-09-22）
+
+- **期間**：05:56（UTC）に save-chat v13（PR #121）をデプロイしてから、約 6 分後に直前のバージョンへ戻すまで。この間、発言の保存が失敗していたと考えられる。
+- **症状**：すべての POST に対して、Edge Runtime が `Internal Server Error`（500、本文はテキスト）を返した。関数の JSON 応答ではない。
+- **検知**：デプロイ直後に、DB に書き込まない確認用のリクエスト（名前のない POST）を送り、400 ではなく 500 が返ったことで気づいた。
+- **原因**：
+  - Supabase Edge Runtime では `performance.timeOrigin` が**未定義**だった（Deno CLI 2.9 では定義されている）。
+  - `telemetry.ts` の `nowUnixNano()` が `performance.timeOrigin + performance.now()` を使っていたため、値が `NaN` になった。
+  - `BigInt(NaN)` の `RangeError` が、サーバースパンを作る時点、つまりリクエスト処理の最初で発生した。
+  - Spike で使った OTel SDK は別の方法で時刻を計算していたため、Spike では問題が出なかった。
+- **見逃した理由**：`deno test` もローカルの `deno run` も Deno CLI で動かしていて、Edge Runtime での起動確認をデプロイ前に行っていなかった。
+- **対処**：
+  1. 直前のバージョン（f919d19^1 の index.ts / triage.ts）を再デプロイして復旧した。
+  2. 基準時刻を `Date.now() - performance.now()` から求め、`NaN` にならないようにした。
+  3. `Span.end()` の中の例外を握りつぶし、計測がチャット処理を止めないようにした（設計方針 2 をコードで保証）。
+  4. `performance.timeOrigin` を未定義にして障害を再現するテストを追加した（修正前のコードでは同じ `RangeError` で失敗することを確認済み）。
+  5. `scripts/smoke-save-chat-edge.sh` を追加した。Edge Runtime（Docker）で save-chat を起動し、400 と OPTIONS の応答、ログにエラーがないことを確かめる。修正前のコードでは 500 で失敗することを確認済み。
+- **再発防止**：save-chat のデプロイ手順を、`deno test` → `bash scripts/smoke-save-chat-edge.sh` → `supabase functions deploy save-chat` → 本番で確認用のリクエスト（名前のない POST が 400 になること）の順にする。本番の確認で 400 以外が返ったら、直前のバージョンに戻す。
 
 ## 未決事項
 

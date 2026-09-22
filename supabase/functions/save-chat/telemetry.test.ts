@@ -1,4 +1,4 @@
-// deno test --allow-env supabase/functions/save-chat/
+// deno test --allow-env --allow-read supabase/functions/save-chat/
 import { assertEquals } from 'jsr:@std/assert@1';
 import { encodeSpans, formatTraceparent, parseTraceparent, SpanKind, Tracer } from './telemetry.ts';
 
@@ -74,6 +74,31 @@ Deno.test('OTLP JSON: 属性の型・状態・リソースを変換する', () =
   assertEquals(span.status, { code: 2 });
   assertEquals(span.startTimeUnixNano, '1');
   assertEquals('parentSpanId' in span, false);
+});
+
+Deno.test('performance.timeOrigin が未定義（Supabase Edge Runtime）でも時刻を作れる', async () => {
+  // 2026-09-22 の本番障害の再現: timeOrigin が undefined だと NaN になり BigInt で例外が出た。
+  // telemetry.ts はモジュール読み込み時に基準時刻を決めるので、未定義にしてから読み直す。
+  const original = Object.getOwnPropertyDescriptor(Performance.prototype, 'timeOrigin');
+  Object.defineProperty(Performance.prototype, 'timeOrigin', {
+    configurable: true,
+    get: () => undefined,
+  });
+  try {
+    assertEquals(performance.timeOrigin as number | undefined, undefined);
+    const fresh = await import(`./telemetry.ts?no-time-origin=${crypto.randomUUID()}`);
+    const tracer = new fresh.Tracer({ serviceName: 't', environment: 'test', licenseKey: 'k' });
+    const before = BigInt(Date.now()) * 1_000_000n;
+    tracer.startSpan('s', null).end();
+    const [span] = tracer.pending();
+    assertEquals(typeof span.start, 'bigint');
+    // 実時刻（Unix エポック）に近いこと（±5 秒）
+    const drift = span.start - before;
+    assertEquals(drift < 5_000_000_000n && drift > -5_000_000_000n, true);
+    assertEquals(span.end >= span.start, true);
+  } finally {
+    if (original) Object.defineProperty(Performance.prototype, 'timeOrigin', original);
+  }
 });
 
 Deno.test('ライセンスキーがなければ記録も送信もしない', async () => {
