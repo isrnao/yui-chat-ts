@@ -1,4 +1,4 @@
-// deno test --allow-env supabase/functions/save-chat/
+// deno test --allow-env --allow-read supabase/functions/save-chat/
 import { assert, assertEquals } from 'jsr:@std/assert@1';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createHandler, readOperation, runTriage, type HandlerDeps } from './handler.ts';

@@ -30,6 +30,14 @@ const TRACEPARENT = /^00-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$/;
 const ZERO_TRACE = '0'.repeat(32);
 const ZERO_SPAN = '0'.repeat(16);
 
+/** 計測そのものの不具合。種類だけをログに残し、呼び出し元へは伝えない。 */
+function reportInternalError(where: string, err: unknown): void {
+  console.warn('[telemetry] internal error', {
+    where,
+    type: err instanceof Error ? err.name : typeof err,
+  });
+}
+
 function randomHex(bytes: number): string {
   const buf = crypto.getRandomValues(new Uint8Array(bytes));
   return Array.from(buf, (b) => b.toString(16).padStart(2, '0')).join('');
@@ -49,9 +57,23 @@ export function formatTraceparent(ctx: SpanContext): string {
   return `00-${ctx.traceId}-${ctx.spanId}-01`;
 }
 
-function nowUnixNano(): bigint {
-  // performance.timeOrigin + now() でミリ秒未満まで取る（本番で時刻が正しいことを確認済み）
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1e6));
+// Supabase Edge Runtime では performance.timeOrigin が未定義（Deno CLI では定義されている）。
+// そのまま足すと NaN になり、BigInt 変換の例外で save-chat 全体が 500 になった
+// （2026-09-22 の本番障害）。基準時刻は Date.now() から求め、ミリ秒未満だけ
+// performance.now() の差分で補う。どちらかが使えなくても例外にはしない。
+function monotonicMs(): number {
+  try {
+    const value = performance.now();
+    return Number.isFinite(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+const epochOriginMs = Date.now() - monotonicMs();
+
+export function nowUnixNano(): bigint {
+  const ms = epochOriginMs + monotonicMs();
+  return BigInt(Math.round((Number.isFinite(ms) ? ms : Date.now()) * 1e6));
 }
 
 export interface FinishedSpan {
@@ -124,17 +146,22 @@ export class Span {
   end(): void {
     if (this.ended) return;
     this.ended = true;
-    this.tracer.record({
-      name: this.name,
-      kind: this.kind,
-      traceId: this.context.traceId,
-      spanId: this.context.spanId,
-      parentSpanId: this.parent?.spanId,
-      start: this.start,
-      end: nowUnixNano(),
-      attributes: { ...this.attributes },
-      error: this.error,
-    });
+    try {
+      this.tracer.record({
+        name: this.name,
+        kind: this.kind,
+        traceId: this.context.traceId,
+        spanId: this.context.spanId,
+        parentSpanId: this.parent?.spanId,
+        start: this.start,
+        end: nowUnixNano(),
+        attributes: { ...this.attributes },
+        error: this.error,
+      });
+    } catch (err) {
+      // 計測の失敗でチャット処理を止めない（spec 設計方針 2）
+      reportInternalError('span.end', err);
+    }
   }
 }
 

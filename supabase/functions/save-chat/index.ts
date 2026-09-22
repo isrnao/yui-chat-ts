@@ -16,7 +16,7 @@
 //
 // 処理本体は handler.ts。ここでは依存を組み立てて Deno.serve に渡すだけにする。
 //
-// デプロイ: supabase functions deploy save-chat
+// デプロイ: bash scripts/smoke-save-chat-edge.sh（Edge Runtime での起動確認）→ supabase functions deploy save-chat
 // 設定: config.toml で verify_jwt = false（匿名チャットのため）
 
 // バージョンは deno.json の import map に集約する（直 URL 重複を避ける）
