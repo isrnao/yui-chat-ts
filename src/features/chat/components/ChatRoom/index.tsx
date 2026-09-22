@@ -22,7 +22,7 @@ export type ChatRoomProps = {
   setWindowRows: (rows: number) => void;
   /** 「ログ行数」の選択肢。部屋によって上限が違う（getWindowRowOptions） */
   windowRowOptions?: readonly number[];
-  onExit: () => void;
+  onExit: () => void | Promise<void>;
   onSend: (msg: string, metadata?: ChatMetadata) => Promise<void>;
   onReload: () => void;
   onShowRanking?: () => void;
@@ -135,7 +135,8 @@ export default function ChatRoom({
           href="#"
           onClick={(e) => {
             e.preventDefault();
-            onExit();
+            // 退室するとこの部品はアンマウントされる。退室メッセージの保存の失敗は受け取るだけにする
+            void Promise.resolve(onExit()).catch(() => {});
           }}
           className="underline"
         >

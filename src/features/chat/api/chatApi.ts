@@ -391,7 +391,7 @@ export function subscribeChatLogs(
       current.listeners.delete(callback);
       if (onStatusChange) current.statusListeners.delete(onStatusChange);
       if (current.listeners.size === 0) {
-        supabase.removeChannel(current.channel);
+        void supabase.removeChannel(current.channel);
         postgresEntries.delete(roomId);
       }
     },
@@ -413,7 +413,7 @@ function sendBroadcastLookPayload(roomId: RoomId, payload: LookEvent): void {
       const current = broadcastEntries.get(roomId);
       if (!current) return;
       if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
-      supabase.removeChannel(current.channel);
+      void supabase.removeChannel(current.channel);
       broadcastEntries.delete(roomId);
     }
   );
@@ -435,7 +435,7 @@ export function onLookBroadcast(roomId: RoomId, callback: LookListener): () => v
     if (!current) return;
     current.listeners.delete(callback);
     if (current.listeners.size === 0) {
-      supabase.removeChannel(current.channel);
+      void supabase.removeChannel(current.channel);
       broadcastEntries.delete(roomId);
     }
   };

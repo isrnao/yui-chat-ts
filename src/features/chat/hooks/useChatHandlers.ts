@@ -187,7 +187,8 @@ export function useChatHandlers({
 
     // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信
     if (trimmed === 'look') {
-      playNotificationSound();
+      // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
+      void playNotificationSound().catch(() => {});
       broadcastLookEvent(roomId, savedChat.uuid);
     } else if (trimmed === 'unlook') {
       stopNotificationSound();

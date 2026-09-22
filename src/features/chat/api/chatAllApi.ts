@@ -52,7 +52,7 @@ export function subscribeAllRoomsChatLogs(
 
   return {
     unsubscribe() {
-      supabase.removeChannel(channel);
+      void supabase.removeChannel(channel);
     },
   };
 }
