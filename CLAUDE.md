@@ -38,6 +38,16 @@ React Compiler 1.0 is **enabled** for the app build and for tests. It is wired u
 plugins: [react(), babel({ presets: [reactCompilerPreset()] }), mdx()],
 ```
 
+**`@babel/core` is pinned to `~7.29.7` on purpose.** `babel-plugin-react-compiler@1.0.0` cannot
+compile any function with a destructuring default (`({ a = 1 })`) under Babel 8, because Babel 8
+removed `AssignmentPattern` from the `LVal` alias ([react/react#36868](https://github.com/react/react/issues/36868)).
+The compiler skips such functions silently, so the build still passes. Only move `@babel/core` back
+to 8 once a compiler release supports Babel 8 **and** `src/test/reactCompiler.test.ts` passes with it.
+
+`src/test/reactCompiler.test.ts` (Compiler_Check) runs every production file in `src/` through the
+compiler and fails on any `CompileError` that is not in its allowlist. A function may be opted out
+only with `'use no memo'`, a comment saying why, and an allowlist entry.
+
 The compiler rules ship with `eslint-plugin-react-hooks` v7 and are already active through
 `reactHooks.configs.recommended` in `eslint.config.js`.
 

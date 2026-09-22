@@ -35,22 +35,22 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
 
 ## Tasks
 
-- [ ] 1. React Compiler の適用範囲を回復し、回帰を検知する（Requirement 1、PR1）
-  - [ ] 1.1 `package.json` の `@babel/core` を `~7.29.7` に固定し、`pnpm install` でロックファイルを更新する
+- [x] 1. React Compiler の適用範囲を回復し、回帰を検知する（Requirement 1、PR1）
+  - [x] 1.1 `package.json` の `@babel/core` を `~7.29.7` に固定し、`pnpm install` でロックファイルを更新する
     - `@rolldown/plugin-babel` の peerDependencies（`^7.29.0 || ^8.0.0-rc.1`）を満たすことを確かめる
     - _Requirements: 1.1_
-  - [ ] 1.2 `useRoomCounts` の既定引数を `DEFAULT_WINDOW_MS` 定数にする
+  - [x] 1.2 `useRoomCounts` の既定引数を `DEFAULT_WINDOW_MS` 定数にする
     - _Requirements: 1.5_
-  - [ ] 1.3 `src/test/reactCompiler.test.ts`（Compiler_Check）を追加する
+  - [x] 1.3 `src/test/reactCompiler.test.ts`（Compiler_Check）を追加する
     - 対象: `src/**/*.{ts,tsx}` から `*.test.*` / `*.stories.*` / `src/test/` / `src/storybook/` / `*.d.ts` を除く
     - 許可リストは空で始める（ChatLogPage の try/finally は Task 5 で削除するまで一時的に載せる）
     - _Requirements: 1.2, 1.3, 1.4_
-  - [ ] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
+  - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [ ] 1.5 React DevTools の Profiler で、発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準）
+  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Profiler の代わりに Task 9.5 の再レンダー計測テストで前後を比べる）
     - _Requirements: 1.1_
-  - [ ] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
+  - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
 
 - [ ] 2. 楽観的更新を送信側で完結させる（Requirement 2、PR2）
