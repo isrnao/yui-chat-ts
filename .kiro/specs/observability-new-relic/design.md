@@ -446,6 +446,40 @@ export function runTriage(
   5. `scripts/smoke-save-chat-edge.sh` を追加した。Edge Runtime（Docker）で save-chat を起動し、400 と OPTIONS の応答、ログにエラーがないことを確かめる。修正前のコードでは 500 で失敗することを確認済み。
 - **再発防止**：save-chat のデプロイ手順を、`deno test` → `bash scripts/smoke-save-chat-edge.sh` → `supabase functions deploy save-chat` → 本番で確認用のリクエスト（名前のない POST が 400 になること）の順にする。本番の確認で 400 以外が返ったら、直前のバージョンに戻す。
 
+## 本番 E2E（2026-09-22、save-chat v15 / okiraku-api 9523c10）
+
+利用者の許可を得て、本番のチャットに名前「監視テスト」で 2 件投稿した。
+
+| 投稿先                        | 結果                                                                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 通常の部屋（`superbeginner`） | 200。`POST save-chat`（782ms）→ `db insert chats`（777ms）。親は送った `traceparent`、ルートは 1 つ                                                                               |
+| 管理者チャット（`com_sb`）    | 200（97ms）。`POST save-chat` → `db insert chats` と `triage`（1907ms、`triage.outcome=no_action`）→ `POST /api/v1/evaluate`（クライアントスパン、200、`triage.choice=question`） |
+
+**見つかった問題：triage から okiraku-api へのトレースが切れていた**
+
+- okiraku-api のスパン（`POST /api/v1/evaluate` と `evaluation.run`）は届いていたが、親のない別のトレースになっていた。
+- 本番に一時的な関数 `otel-debug` を置いて調べた（確認後に削除）。その結果、次のことがわかった。
+  - **本番の Edge Runtime は v1.76.0（Deno 2.1.4 相当）**で、ローカルで使っていた v1.68.0 より新しい。
+  - `fetch` に Deno 標準の OTel 計測（`TRACING_ENABLED`）が組み込まれている。
+  - この計測が、送信時に**自分の `traceparent` を追加する**。okiraku-api には `"<save-chat の値>, <ランタイムの値>"` という、カンマでつながった値が届いた。
+- W3C の仕様ではこの形の値は無効なので、OTel の propagator が読み取れず、新しいトレースになっていた。
+- ローカルの v1.68.0 ではヘッダーが追加されないので、再現しなかった。
+
+**対処（okiraku-api、main に直接 push してデプロイ）**
+
+- 7ef36dd：受け取った `traceparent` を、サーバースパンの属性 `okiraku.traceparent_received` に残すようにした（調査用に常に記録する）。
+- 9523c10：カンマで区切られた `traceparent` なら先頭の値を使うようにした（`firstTraceparent`）。先頭は、呼び出し元のコードが明示的に付けた値。
+- `otel-debug` から再度呼び、okiraku-api のサーバースパンの親が送った値（`45ab02503d674e58`）になることを確認した。
+
+**そのほかの変更**
+
+- `scripts/smoke-save-chat-edge.sh` の既定のイメージを、本番と同じ v1.76.0 にした。
+- 本番の Edge Runtime のバージョンは Supabase 側の都合で上がるので、大きな変更をデプロイする前には `otel-debug` と同じ方法で本番のバージョンを確かめる。
+
+**未確認**：修正後に、com_sb への投稿から `evaluation.run` までが 1 本になることは、まだ確かめていない（もう 1 件のテスト投稿が必要）。
+
+**気になる点**：com_sb に投稿した約 37 秒後に、`/api/v1/evaluate` の呼び出しがもう 1 件あった（trace `4fc831be…`、診断用の属性を入れる前なので、送り元は不明）。今回の triage は `/evaluate` を 1 回しか呼ばないので、別の呼び出し元の可能性がある。次の E2E で、`okiraku.traceparent_received` を見て確かめる。
+
 ## 未決事項
 
 - New Relic アカウントのリージョン（US / EU）

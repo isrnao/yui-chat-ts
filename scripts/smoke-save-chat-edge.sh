@@ -9,7 +9,8 @@
 # 前提: Docker が起動していること。DB には接続しない（400 / OPTIONS だけを確かめる）。
 set -euo pipefail
 
-IMAGE="${EDGE_RUNTIME_IMAGE:-public.ecr.aws/supabase/edge-runtime:v1.68.0}"
+# 本番と同じバージョンにそろえる（2026-09-22 時点の本番は 1.76.0。otel-debug で確認）
+IMAGE="${EDGE_RUNTIME_IMAGE:-public.ecr.aws/supabase/edge-runtime:v1.76.0}"
 PORT="${SMOKE_PORT:-9299}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d)"
