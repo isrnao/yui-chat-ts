@@ -213,7 +213,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 12.3, 12.4_
 
 - [ ] 13. チャット系ルートの初期 JS を減らす（Requirement 13、PR4 / PR13）
-  - [ ] 13.1 `supabaseClient.ts` のグローバルヘッダから `Accept-Encoding` / `X-My-Custom-Header` /
+  - [x] 13.1 `supabaseClient.ts` のグローバルヘッダから `Accept-Encoding` / `X-My-Custom-Header` /
         `Content-Type` を外す（PR4 で先に出す）
     - _Requirements: 13.2_
   - [ ] 13.2 スパイク: `@supabase/postgrest-js` / `@supabase/realtime-js` / `@supabase/functions-js` だけで最小の
@@ -226,7 +226,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 13.3_
 
 - [ ] 14. トップの参加人数の集計をサーバーに移す（Requirement 14、PR4 / PR14）
-  - [ ] 14.1 `buildRoomCountsUrl` の `select` から `message` を外す（PR4 で先に出す）
+  - [x] 14.1 `buildRoomCountsUrl` の `select` から `message` を外す（PR4 で先に出す）
     - _Requirements: 14.1_
   - [ ] 14.2 `room_participant_counts(since_ms)` の RPC を作るマイグレーションを追加する（`security invoker`）。
         必要なら `time` の部分インデックスを足す

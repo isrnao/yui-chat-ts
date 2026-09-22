@@ -121,7 +121,7 @@ describe('buildRoomCountsUrl', () => {
     expect(params.get('deleted')).toBe('eq.false');
     expect(params.get('order')).toBe('time.asc');
     expect(params.get('limit')).toBe('5000');
-    expect(params.get('select')).toBe('room_id,name,message,system,metadata,time');
+    expect(params.get('select')).toBe('room_id,name,system,metadata,time');
     expect(params.get('room_id')?.startsWith('in.(')).toBe(true);
   });
 });

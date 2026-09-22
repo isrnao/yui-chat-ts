@@ -8,7 +8,7 @@ export type RoomCountMap = Partial<Record<RoomId, number>>;
 type ChatRow = {
   room_id: string | null;
   name: string | null;
-  message: string | null;
+  message?: string | null;
   system: boolean | null;
   metadata: ChatMetadata | null;
   time: number | null;
@@ -45,7 +45,8 @@ function isSupabaseConfigured(): boolean {
 export function buildRoomCountsUrl(baseUrl: string, since: number): string {
   const roomList = getListableRoomIds().join(',');
   const params = new URLSearchParams({
-    select: 'room_id,name,message,system,metadata,time',
+    // 本文（message）は集計に使わないので取得しない。行数ぶん転送量が効く
+    select: 'room_id,name,system,metadata,time',
     time: `gte.${since}`,
     room_id: `in.(${roomList})`,
     deleted: 'eq.false',
