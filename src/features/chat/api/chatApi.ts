@@ -2,7 +2,7 @@ import type { Chat } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
-import { generateOperationId, generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
+import { generateOperationId } from '@shared/utils/uuid';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import {
@@ -12,15 +12,10 @@ import {
 } from '../utils/chatRanking';
 import {
   loadChatLogs as resourceLoadChatLogs,
-  loadChatLogsSnapshot as resourceLoadChatLogsSnapshot,
-  loadChatLogsWithPaging as resourceLoadChatLogsWithPaging,
-  loadInitialChatLogs as resourceLoadInitialChatLogs,
   loadRecentChatLogs as resourceLoadRecentChatLogs,
   invalidateCache as resourceInvalidateCache,
-  getCacheInfo as resourceGetCacheInfo,
-  getPagingHasMore,
 } from './chatLogResource';
-export { prefetchChatLogs, getSnapshotHasMore } from './chatLogResource';
+import { retryWithBackoff, warnIfSlow } from './retry';
 
 const TABLE = 'chats';
 /** 部屋ごとの発言ランキングを集計するビュー (supabase/migrations/20260921000000) */
@@ -83,51 +78,6 @@ async function invokeSaveChat(
   };
 }
 
-// UUID v7最適化設定
-// Supabase側でUUID v7を主キーとして自動生成し、時系列順序性を活用
-
-// 軽量パフォーマンス追跡
-let perfStartTime = 0;
-function startPerf() {
-  perfStartTime = performance.now();
-}
-
-function endPerf(operation: string) {
-  const duration = performance.now() - perfStartTime;
-  // 本番環境でも重大なパフォーマンス問題は警告
-  if (duration > 3000) {
-    console.warn(`Performance issue in ${operation}: ${duration.toFixed(0)}ms`);
-  }
-}
-
-// パフォーマンス測定用のヘルパー関数（開発環境のみ）
-async function measureApiCall<T>(apiCall: () => Promise<T>): Promise<T> {
-  return await apiCall();
-}
-
-// リトライ機能付きのAPI呼び出し
-// apiCall には 1 から始まる試行番号を渡す（save-chat の x-chat-attempt に使う）
-async function retryApiCall<T>(
-  apiCall: (attempt: number) => Promise<T>,
-  maxRetries = 3,
-  delay = 1000
-): Promise<T> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await measureApiCall(() => apiCall(attempt));
-    } catch (error: any) {
-      if (attempt === maxRetries) {
-        throw error;
-      }
-
-      // 指数バックオフで待機
-      const waitTime = delay * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
-
 function getOfflineChatData(roomId: RoomId): Chat[] {
   return mockChatData.map((chat) => ({ ...chat, room_id: roomId }));
 }
@@ -137,40 +87,6 @@ export async function loadChatLogs(
   useCache = true
 ): Promise<Chat[]> {
   return resourceLoadChatLogs(roomId, useCache);
-}
-
-// 増分読み込み用関数を追加
-export async function loadChatLogsWithPaging(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  limit = 50,
-  offset = 0,
-  useCache = true
-): Promise<{ data: Chat[]; hasMore: boolean }> {
-  if (offset === 0) {
-    // hasMore は snapshot 取得と同じ往復で確定した値を使う。
-    // resourceLoadChatLogsSnapshot は { data, hasMore } を返すため、
-    // 取得中に invalidateCache が走って世代が変わっても、この呼び出し固有の
-    // hasMore がロストすることはない (#15 対策)。
-    const { data: snapshot, hasMore: snapshotHasMore } = await resourceLoadChatLogsSnapshot(
-      roomId,
-      useCache
-    );
-    // hasMore は次の 2 条件のいずれかで真:
-    //   (1) 要求 limit より snapshot が長い → snapshot 内に未表示分がある
-    //   (2) snapshot 自体が canonical cap (MAX_CHAT_LOG) に張り付いており、
-    //       テーブルにさらに続きが存在することが分かっている
-    return {
-      data: snapshot.slice(0, limit),
-      hasMore: snapshot.length > limit || snapshotHasMore === true,
-    };
-  }
-
-  const data = await resourceLoadChatLogsWithPaging(roomId, offset, limit, useCache);
-  const exactHasMore = getPagingHasMore(roomId, offset, limit);
-  return {
-    data,
-    hasMore: exactHasMore ?? data.length >= limit,
-  };
 }
 
 /**
@@ -185,18 +101,10 @@ export async function loadRecentChatLogs(
   return resourceLoadRecentChatLogs(roomId, limit, useInflight);
 }
 
-// 初回読み込み時の最適化された関数
-export async function loadInitialChatLogs(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  limit = 100
-): Promise<Chat[]> {
-  return resourceLoadInitialChatLogs(roomId, limit, true);
-}
-
 export interface SaveChatOptions {
   /**
    * 送信操作の ID（spec observability-new-relic R5.8）。利用者の発言では、送信を始めた
-   * フック（useChatSender.saveUserMessage）が発行して Browser の send-chat と共有する。
+   * フック（useChatSender.sendUserMessage）が発行して Browser の send-chat と共有する。
    * 省略時はここで発行する（入退室・巫女などのシステム発言）。
    */
   operationId?: string;
@@ -212,7 +120,7 @@ async function saveChatWithRetry(
   operationId: string,
   onSaved: () => void
 ): Promise<Chat> {
-  return retryApiCall(async (attempt) => {
+  return retryWithBackoff(async (attempt) => {
     const result = await invokeSaveChat(
       {
         room_id: roomId,
@@ -250,39 +158,12 @@ export async function saveChatLogOptimistic(
   chat: Chat,
   { operationId = generateOperationId() }: SaveChatOptions = {}
 ): Promise<Chat> {
-  startPerf();
+  const startTime = performance.now();
   return saveChatWithRetry(roomId, chat, operationId, () => {
     // キャッシュの無効化は応答を返したあとに回し、マージを先に行う
-    Promise.resolve().then(() => invalidateCache(roomId));
-    endPerf('saveChatLogOptimistic');
+    void Promise.resolve().then(() => invalidateCache(roomId));
+    warnIfSlow('saveChatLogOptimistic', startTime);
   });
-}
-
-// 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
-export async function saveChatLog(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  chat: Chat,
-  { operationId = generateOperationId() }: SaveChatOptions = {}
-): Promise<Chat> {
-  startPerf();
-  return saveChatWithRetry(roomId, chat, operationId, () => {
-    invalidateCache(roomId);
-    endPerf('saveChatLog');
-  });
-}
-
-export async function clearChatLogs(roomId: RoomId = DEFAULT_ROOM_ID): Promise<void> {
-  // 論理削除に統一: SELECT 側は .eq('deleted', false) でフィルタしているため、
-  // hard delete ではなく deleted フラグを立てることで clearChatLogsByName と整合する。
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ deleted: true })
-    .eq('room_id', roomId)
-    .eq('deleted', false);
-  if (error) {
-    throw new Error(`Failed to clear chat logs: ${error.message}`);
-  }
-  invalidateCache(roomId);
 }
 
 // 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
@@ -301,18 +182,9 @@ export async function clearChatLogsByName(
   invalidateCache(roomId);
 }
 
-// キャッシュ無効化関数（非同期版も追加）
+// キャッシュ無効化関数
 export function invalidateCache(roomId?: RoomId): void {
   resourceInvalidateCache(roomId);
-}
-
-export async function invalidateCacheAsync(): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      invalidateCache();
-      resolve();
-    }, 0);
-  });
 }
 
 // 楽観的更新用のヘルパー関数
@@ -360,7 +232,7 @@ type ChatRankingRow = {
  * 転送量は発言者数ぶんだけで、総発言数には比例しない。
  */
 export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise<RankingEntry[]> {
-  return retryApiCall(async () => {
+  return retryWithBackoff(async () => {
     // オフライン時は手元のモックデータで数える
     if (!isOnline()) {
       return aggregateChatRanking(getOfflineChatData(roomId));
@@ -390,54 +262,6 @@ export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise
         })
       )
       .sort(compareRankingEntries);
-  });
-}
-
-// キャッシュ状態確認関数
-export function getCacheInfo(roomId: RoomId = DEFAULT_ROOM_ID): { cached: boolean; age?: number } {
-  return resourceGetCacheInfo(roomId);
-}
-
-// 時間範囲でのUUID v7最適化検索
-export async function loadChatLogsByTimeRange(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  startTime: number,
-  endTime?: number,
-  limit = 100
-): Promise<Chat[]> {
-  return retryApiCall(async () => {
-    // オフライン時はモックデータをフィルタリング
-    if (!isOnline()) {
-      const end = endTime || Date.now();
-      return getOfflineChatData(roomId)
-        .filter((chat) => chat.time >= startTime && chat.time <= end)
-        .slice(0, limit);
-    }
-
-    // UUID v7の範囲検索でパフォーマンス最適化
-    const startUUID = generateUUIDv7FromTimestamp(startTime);
-    const endUUID = endTime ? generateUUIDv7FromTimestamp(endTime) : undefined;
-
-    let query = supabase
-      .from(TABLE)
-      .select('uuid,room_id,name,color,message,time,system,email,ip_masked,ua,metadata')
-      .eq('room_id', roomId)
-      .eq('deleted', false)
-      .gte('uuid', startUUID) // UUID v7による効率的な範囲検索
-      .order('uuid', { ascending: false })
-      .limit(limit);
-
-    if (endUUID) {
-      query = query.lte('uuid', endUUID);
-    }
-
-    const { data, error } = await query;
-
-    if (error) {
-      throw new Error(`Supabase time range query error: ${error.message} (${error.code})`);
-    }
-
-    return (data ?? []).map(normalizeChat);
   });
 }
 

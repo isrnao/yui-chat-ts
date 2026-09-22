@@ -3,6 +3,7 @@ import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
+import { retryWithBackoff, warnIfSlow } from './retry';
 
 const TABLE = 'chats';
 // ip_masked / ua はレガシー互換の発言末尾表示（"(01/02(Wed) 20:10 219.107.106.*)"）に使う。
@@ -42,37 +43,6 @@ function startPerf(): number {
   return performance.now();
 }
 
-function endPerf(operation: string, startTime: number): void {
-  const duration = performance.now() - startTime;
-  if (duration > 3000) {
-    console.warn(`Performance issue in ${operation}: ${duration.toFixed(0)}ms`);
-  }
-}
-
-async function measureApiCall<T>(apiCall: () => Promise<T>): Promise<T> {
-  return await apiCall();
-}
-
-async function retryApiCall<T>(
-  apiCall: () => Promise<T>,
-  maxRetries = 3,
-  delay = 1000
-): Promise<T> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      return await measureApiCall(apiCall);
-    } catch (error) {
-      if (attempt === maxRetries) {
-        throw error;
-      }
-
-      const waitTime = delay * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-  }
-  throw new Error('Max retries exceeded');
-}
-
 function getCachedChatLogs(roomId: RoomId): CacheEntry | null {
   return cache.get(roomId) ?? null;
 }
@@ -106,9 +76,9 @@ async function fetchSnapshot(
   generation: number,
   startTime: number
 ): Promise<SnapshotResult> {
-  return retryApiCall(async () => {
+  return retryWithBackoff(async () => {
     if (!isOnline()) {
-      endPerf('loadChatLogs-offline', startTime);
+      warnIfSlow('loadChatLogs-offline', startTime);
       // オフラインフォールバック中は「続きがあるか」を確定できない。
       // 戻り値で undefined を返しつつ、観測 Map も最新 generation なら "未取得" 状態にする。
       if (getCacheGeneration(roomId) === generation) {
@@ -148,7 +118,7 @@ async function fetchSnapshot(
       setCachedChatLogs(roomId, chatData, hasMore);
       snapshotHasMore.set(roomId, hasMore);
     }
-    endPerf('loadChatLogs-network', startTime);
+    warnIfSlow('loadChatLogs-network', startTime);
 
     return { data: chatData, hasMore };
   });
@@ -169,7 +139,7 @@ async function fetchPage(
   key: string,
   generation: number
 ): Promise<Chat[]> {
-  return retryApiCall(async () => {
+  return retryWithBackoff(async () => {
     const { data, count, error } = await supabase
       .from(TABLE)
       .select(SELECT_COLUMNS, { count: 'exact' })
@@ -233,9 +203,9 @@ export async function loadRecentChatLogs(
   }
 
   const startTime = startPerf();
-  const request = retryApiCall(async () => {
+  const request = retryWithBackoff(async () => {
     if (!isOnline()) {
-      endPerf('loadRecentChatLogs-offline', startTime);
+      warnIfSlow('loadRecentChatLogs-offline', startTime);
       return getOfflineChatData(roomId).slice(0, limit);
     }
 
@@ -254,7 +224,7 @@ export async function loadRecentChatLogs(
       throw new Error(`Supabase error: ${error.message} (${error.code})`);
     }
 
-    endPerf('loadRecentChatLogs-network', startTime);
+    warnIfSlow('loadRecentChatLogs-network', startTime);
     return (data ?? []).map(normalizeChat);
   }).finally(() => {
     if (recentInflight.get(key) === request) {
@@ -280,7 +250,7 @@ export async function loadChatLogsSnapshot(
 
   const cached = getCachedChatLogs(roomId);
   if (useCache && cached && isFreshCache(cached)) {
-    endPerf('loadChatLogs-cache', startTime);
+    warnIfSlow('loadChatLogs-cache', startTime);
     return { data: cached.data, hasMore: cached.hasMore };
   }
 

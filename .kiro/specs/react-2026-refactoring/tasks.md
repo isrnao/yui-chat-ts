@@ -98,10 +98,10 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
         useChatRanking、Loader、barrel の `index.ts` 群（Q1 の回答により TermsModal / Modal / `content/terms.mdx` /
         `@mdx-js/*` / vite.config の `mdx()` も）
     - _Requirements: 5.1, 5.5_
-  - [ ] 5.3 chatApi の未使用の関数（design.md §5 の表）と、`chatAllSend.buildAllRoomsSendPayload`、
+  - [x] 5.3 chatApi の未使用の関数（design.md §5 の表）と、`chatAllSend.buildAllRoomsSendPayload`、
         `fallback.monitorNetworkStatus` を削除する
     - _Requirements: 5.2_
-  - [ ] 5.4 `retry.ts` を作り、chatApi と chatLogResource の `retryApiCall` / `measureApiCall` / 遅延計測を
+  - [x] 5.4 `retry.ts` を作り、chatApi と chatLogResource の `retryApiCall` / `measureApiCall` / 遅延計測を
         1 つにする。`perfStartTime` のようなモジュールの可変状態をなくす
     - _Requirements: 5.3_
   - [ ] 5.5 `generateOperationId` を `crypto.randomUUID()` にし、`uuid.ts` の未使用の関数と、依存の `uuid` /
