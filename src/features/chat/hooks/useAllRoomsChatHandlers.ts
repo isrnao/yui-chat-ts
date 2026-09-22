@@ -46,11 +46,10 @@ export function useAllRoomsChatHandlers({
   mergeChat: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const { showOptimistic, saveAndMerge, saveUserMessage, sendChat, sendFortuneIfCommand } =
-    useChatSender({
-      addOptimistic,
-      mergeChat,
-    });
+  const { send, sendUserMessage, sendFortuneIfCommand } = useChatSender({
+    addOptimistic,
+    mergeChat,
+  });
 
   const handleEnter = async ({
     name: entryName,
@@ -83,7 +82,7 @@ export function useAllRoomsChatHandlers({
       // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
       const { visitCount, previousLogin } = getSettingsSnapshot();
 
-      await sendChat(
+      await send(
         'all',
         createAdminChat({
           roomId: 'all',
@@ -116,13 +115,13 @@ export function useAllRoomsChatHandlers({
       userColor: color,
     });
 
+    const saving = send('all', optimistic);
     // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
-    showOptimistic(optimistic);
     setEntered(false);
     setName('');
     setMessage('');
 
-    await saveAndMerge('all', optimistic);
+    await saving;
   };
 
   const handleSend = async (msg: string, metadata?: ChatMetadata) => {
@@ -179,10 +178,10 @@ export function useAllRoomsChatHandlers({
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
 
-    showOptimistic(optimistic);
+    const saving = sendUserMessage(replyTarget, optimistic);
     setMessage('');
 
-    const savedChat = await saveUserMessage(replyTarget, optimistic);
+    const savedChat = await saving;
     if (trackedCommand) {
       trackEvent('command_used', { room_id: replyTarget, command: trackedCommand });
     } else {

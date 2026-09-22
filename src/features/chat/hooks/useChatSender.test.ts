@@ -55,7 +55,7 @@ describe('useChatSender', () => {
     vi.clearAllMocks();
   });
 
-  it('saveUserMessage は操作 ID を 1 つ発行し、send-chat の記録と保存に同じ ID を使う', async () => {
+  it('sendUserMessage は操作 ID を 1 つ発行し、send-chat の記録と保存に同じ ID を使う', async () => {
     const { result, mergeChat } = setup();
     const chat = {
       ...createAdminChat({ roomId: 'superbeginner', message: 'x', userColor: '#000' }),
@@ -63,7 +63,7 @@ describe('useChatSender', () => {
     };
 
     await act(async () => {
-      await result.current.saveUserMessage('superbeginner', chat);
+      await result.current.sendUserMessage('superbeginner', chat);
     });
 
     expect(recordSendChat).toHaveBeenCalledTimes(1);
@@ -75,7 +75,7 @@ describe('useChatSender', () => {
     expect(mergeChat).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'server-uuid' }));
   });
 
-  it('入退室などのシステム発言（sendChat / saveAndMerge）は send-chat として記録しない', async () => {
+  it('入退室などのシステム発言（send）は send-chat として記録しない', async () => {
     const { result } = setup();
     const chat = createAdminChat({
       roomId: 'superbeginner',
@@ -84,8 +84,7 @@ describe('useChatSender', () => {
     });
 
     await act(async () => {
-      await result.current.sendChat('superbeginner', chat);
-      await result.current.saveAndMerge('superbeginner', chat);
+      await result.current.send('superbeginner', chat);
     });
 
     expect(recordSendChat).not.toHaveBeenCalled();
@@ -101,12 +100,12 @@ describe('useChatSender', () => {
     expect(recordSendChat).not.toHaveBeenCalled();
   });
 
-  it('sendChat は楽観表示してから保存結果でマージする', async () => {
+  it('send は楽観表示してから保存結果でマージする', async () => {
     const { result, addOptimistic, mergeChat } = setup();
     const chat = createAdminChat({ roomId: 'superbeginner', message: 'やあ', userColor: '#000' });
 
     await act(async () => {
-      await result.current.sendChat('superbeginner', chat);
+      await result.current.send('superbeginner', chat);
     });
 
     expect(addOptimistic).toHaveBeenCalledWith(chat);

@@ -1,4 +1,4 @@
-import { useTransition } from 'react';
+import { startTransition } from 'react';
 import {
   saveChatLogOptimistic,
   createOptimisticChat,
@@ -49,6 +49,12 @@ export function createAdminChat({
  * 楽観的更新つき送信の共通部分。
  * useChatHandlers（部屋単位）と useAllRoomsChatHandlers（全部屋まとめ）で共有する。
  *
+ * 楽観的な表示から保存の完了までを 1 つの async Transition（Action）の中で行う。
+ * useOptimistic の値は、それを包む Action が pending の間だけ残るため、同期の
+ * startTransition で addOptimistic だけを呼ぶと、保存の完了を待たずに表示が消える。
+ * 以前は呼び出し元が useActionState の中にいる経路（通常チャットの発言）でしか
+ * 楽観的な表示が保たれず、入室・退室・ちゃなりの発言では保存が終わるまで出なかった。
+ *
  * ip / ua は save-chat Edge Function がリクエストヘッダから確定するため、
  * クライアントからは送らない。
  */
@@ -59,40 +65,37 @@ export function useChatSender({
   addOptimistic: (chat: Chat) => void;
   mergeChat: (chat: Chat) => void;
 }) {
-  const [, startTransition] = useTransition();
-
-  /** 楽観的チャットを即座に表示する */
-  const showOptimistic = (chat: Chat) => {
-    startTransition(() => addOptimistic(chat));
-  };
-
-  /** 保存し、サーバーが確定した内容でログをマージする */
-  const saveAndMerge = async (
-    roomId: RoomId,
-    chat: Chat,
-    options?: SaveChatOptions
-  ): Promise<Chat> => {
-    const savedChat = await saveChatLogOptimistic(roomId, chat, options);
-    startTransition(() => mergeChat(savedChat));
-    return savedChat;
-  };
+  /**
+   * 楽観的に表示し、保存し、サーバーが確定した内容でログをマージする。
+   * 表示は同期で反映されるので、呼び出し元は返り値を await する前に入力欄のクリアなどを行える。
+   * 保存に失敗すると楽観的な表示は消え、返り値の Promise が reject する。
+   */
+  const send = (roomId: RoomId, chat: Chat, options?: SaveChatOptions): Promise<Chat> =>
+    new Promise<Chat>((resolve, reject) => {
+      startTransition(async () => {
+        addOptimistic(chat);
+        try {
+          const savedChat = await saveChatLogOptimistic(roomId, chat, options);
+          // await の後は Transition の文脈が切れるので、もう一度包む
+          startTransition(() => mergeChat(savedChat));
+          resolve(savedChat);
+        } catch (error) {
+          // Action の中で投げると最寄りの Error Boundary に届くため、ここで捕まえて返す
+          reject(error instanceof Error ? error : new Error(String(error)));
+        }
+      });
+    });
 
   /**
-   * 利用者自身の発言を保存する。送信操作の ID をここで 1 つ発行し、Browser の send-chat
+   * 利用者自身の発言を送る。送信操作の ID をここで 1 つ発行し、Browser の send-chat
    * インタラクションと save-chat（x-chat-operation-id）で共有する（spec R5.5 / R5.8）。
-   * 入退室の管理人メッセージや巫女メッセージは利用者の操作ではないので saveAndMerge を使い、
+   * 入退室の管理人メッセージや巫女メッセージは利用者の操作ではないので send を使い、
    * send-chat として記録しない。記録は同期的に行い、送信のイベントの中でインタラクションに結びつける。
    */
-  const saveUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
+  const sendUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
     const operationId = generateOperationId();
     recordSendChat(operationId);
-    return saveAndMerge(roomId, chat, { operationId });
-  };
-
-  /** 表示 → 保存 → マージ をまとめて行う */
-  const sendChat = async (roomId: RoomId, chat: Chat): Promise<Chat> => {
-    showOptimistic(chat);
-    return saveAndMerge(roomId, chat);
+    return send(roomId, chat, { operationId });
   };
 
   /**
@@ -103,7 +106,7 @@ export function useChatSender({
     if (!isFortuneCommand(message)) return;
     try {
       const fortune = generateFortune(senderName);
-      await sendChat(
+      await send(
         roomId,
         createOptimisticChat({
           room_id: roomId,
@@ -122,5 +125,5 @@ export function useChatSender({
     }
   };
 
-  return { showOptimistic, saveAndMerge, saveUserMessage, sendChat, sendFortuneIfCommand };
+  return { send, sendUserMessage, sendFortuneIfCommand };
 }
