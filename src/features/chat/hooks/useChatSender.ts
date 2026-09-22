@@ -1,6 +1,12 @@
 import { useTransition } from 'react';
-import { saveChatLogOptimistic, createOptimisticChat } from '@features/chat/api/chatApi';
+import {
+  saveChatLogOptimistic,
+  createOptimisticChat,
+  type SaveChatOptions,
+} from '@features/chat/api/chatApi';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { recordSendChat } from '@shared/observability/newRelic';
+import { generateOperationId } from '@shared/utils/uuid';
 import type { Chat, ChatMetadata } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 
@@ -61,10 +67,26 @@ export function useChatSender({
   };
 
   /** 保存し、サーバーが確定した内容でログをマージする */
-  const saveAndMerge = async (roomId: RoomId, chat: Chat): Promise<Chat> => {
-    const savedChat = await saveChatLogOptimistic(roomId, chat);
+  const saveAndMerge = async (
+    roomId: RoomId,
+    chat: Chat,
+    options?: SaveChatOptions
+  ): Promise<Chat> => {
+    const savedChat = await saveChatLogOptimistic(roomId, chat, options);
     startTransition(() => mergeChat(savedChat));
     return savedChat;
+  };
+
+  /**
+   * 利用者自身の発言を保存する。送信操作の ID をここで 1 つ発行し、Browser の send-chat
+   * インタラクションと save-chat（x-chat-operation-id）で共有する（spec R5.5 / R5.8）。
+   * 入退室の管理人メッセージや巫女メッセージは利用者の操作ではないので saveAndMerge を使い、
+   * send-chat として記録しない。記録は同期的に行い、送信のイベントの中でインタラクションに結びつける。
+   */
+  const saveUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
+    const operationId = generateOperationId();
+    recordSendChat(operationId);
+    return saveAndMerge(roomId, chat, { operationId });
   };
 
   /** 表示 → 保存 → マージ をまとめて行う */
@@ -100,5 +122,5 @@ export function useChatSender({
     }
   };
 
-  return { showOptimistic, saveAndMerge, sendChat, sendFortuneIfCommand };
+  return { showOptimistic, saveAndMerge, saveUserMessage, sendChat, sendFortuneIfCommand };
 }

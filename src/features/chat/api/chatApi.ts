@@ -1,9 +1,8 @@
 import type { Chat } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { recordSendChat } from '@shared/observability/newRelic';
 import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
-import { generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
+import { generateOperationId, generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import {
@@ -194,16 +193,25 @@ export async function loadInitialChatLogs(
   return resourceLoadInitialChatLogs(roomId, limit, true);
 }
 
-// 楽観的更新用の高速バージョン
-// INSERT は save-chat Edge Function 経由（ip/ua をサーバー側で設定し、RLS を通過）
-export async function saveChatLogOptimistic(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  chat: Chat
-): Promise<Chat> {
-  startPerf();
-  const operationId = crypto.randomUUID();
-  recordSendChat(operationId);
+export interface SaveChatOptions {
+  /**
+   * 送信操作の ID（spec observability-new-relic R5.8）。利用者の発言では、送信を始めた
+   * フック（useChatSender.saveUserMessage）が発行して Browser の send-chat と共有する。
+   * 省略時はここで発行する（入退室・巫女などのシステム発言）。
+   */
+  operationId?: string;
+}
 
+/**
+ * save-chat Edge Function で保存する共通処理。リトライの全試行で同じ操作 ID を送り、
+ * 試行番号だけを増やす。保存結果はサーバー確定値（uuid / time / ip_masked / ua）で上書きする。
+ */
+async function saveChatWithRetry(
+  roomId: RoomId,
+  chat: Chat,
+  operationId: string,
+  onSaved: () => void
+): Promise<Chat> {
   return retryApiCall(async (attempt) => {
     const result = await invokeSaveChat(
       {
@@ -218,8 +226,7 @@ export async function saveChatLogOptimistic(
       { id: operationId, attempt }
     );
 
-    Promise.resolve().then(() => invalidateCache(roomId));
-    endPerf('saveChatLogOptimistic');
+    onSaved();
 
     return {
       ...chat,
@@ -236,41 +243,31 @@ export async function saveChatLogOptimistic(
   });
 }
 
-// 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
-export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat): Promise<Chat> {
+// 楽観的更新用の高速バージョン
+// INSERT は save-chat Edge Function 経由（ip/ua をサーバー側で設定し、RLS を通過）
+export async function saveChatLogOptimistic(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  chat: Chat,
+  { operationId = generateOperationId() }: SaveChatOptions = {}
+): Promise<Chat> {
   startPerf();
-  const operationId = crypto.randomUUID();
-  recordSendChat(operationId);
+  return saveChatWithRetry(roomId, chat, operationId, () => {
+    // キャッシュの無効化は応答を返したあとに回し、マージを先に行う
+    Promise.resolve().then(() => invalidateCache(roomId));
+    endPerf('saveChatLogOptimistic');
+  });
+}
 
-  return retryApiCall(async (attempt) => {
-    const result = await invokeSaveChat(
-      {
-        room_id: roomId,
-        name: chat.name,
-        color: chat.color,
-        message: chat.message,
-        system: chat.system,
-        email: chat.email,
-        metadata: chat.metadata ?? null,
-      },
-      { id: operationId, attempt }
-    );
-
+// 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
+export async function saveChatLog(
+  roomId: RoomId = DEFAULT_ROOM_ID,
+  chat: Chat,
+  { operationId = generateOperationId() }: SaveChatOptions = {}
+): Promise<Chat> {
+  startPerf();
+  return saveChatWithRetry(roomId, chat, operationId, () => {
     invalidateCache(roomId);
     endPerf('saveChatLog');
-
-    return {
-      ...chat,
-      uuid: result.uuid,
-      room_id: result.room_id ?? roomId,
-      time: result.time,
-      // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
-      // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
-      // 送信者だけ IP / ブラウザ行が消える。
-      ip_masked: result.ip_masked ?? chat.ip_masked,
-      ua: result.ua ?? chat.ua,
-      optimistic: false,
-    };
   });
 }
 

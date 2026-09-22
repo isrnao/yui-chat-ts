@@ -54,17 +54,53 @@ function loadFallbackFontSubsets(): void {
   void import('./styles/fonts-fallback.css').catch(() => {});
 }
 
-// New Relic Browser 監視も初回描画を妨げないようアイドル時に読み込む（未設定なら何もしない）。
-// 読み込み前の操作は記録されないが、入室してから送信するまでの時間があるため許容する。
-function loadDeferredResources(): void {
-  loadFallbackFontSubsets();
-  void import('@shared/observability/newRelic').then(({ initNewRelicBrowser }) =>
-    initNewRelicBrowser()
-  );
+function onIdle(callback: () => void): void {
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(callback);
+  } else {
+    setTimeout(callback, 0);
+  }
 }
 
-if (typeof requestIdleCallback === 'function') {
-  requestIdleCallback(loadDeferredResources);
+onIdle(loadFallbackFontSubsets);
+
+// New Relic Browser 監視は、最初の操作（pointerdown / keydown / touchstart）か load の 10 秒後の
+// どちらか早いほうで、アイドル時に読み込む（未設定なら何もしない）。
+// 最初のアイドル時や load 直後に読むと、LCP の前にエージェント（gzip 50KB）がフォントの
+// サブセットと回線を取り合い、Lighthouse（モバイル）で LCP が約 0.9 秒遅れた。
+// 発言するには名前の入力などの操作が先に必要なので、送信の時点では読み込みが終わっている。
+// Web Vitals（LCP など）は読み込みが遅れても取得できる。
+const NEW_RELIC_FALLBACK_DELAY_MS = 10_000;
+const FIRST_INTERACTION_EVENTS = ['pointerdown', 'keydown', 'touchstart'] as const;
+
+function loadNewRelic(): void {
+  // チャンクの取得に失敗しても（デプロイ前から開いていたタブで古いチャンクが消えた場合など）
+  // 監視は任意の機能なので握り潰す。void だけでは rejection が未処理のまま残る。
+  import('@shared/observability/newRelic')
+    .then(({ initNewRelicBrowser }) => initNewRelicBrowser())
+    .catch(() => {});
+}
+
+function scheduleNewRelic(): void {
+  let scheduled = false;
+  const listenerOptions = { capture: true, passive: true } as const;
+  const trigger = () => {
+    if (scheduled) return;
+    scheduled = true;
+    clearTimeout(timer);
+    for (const type of FIRST_INTERACTION_EVENTS) {
+      window.removeEventListener(type, trigger, listenerOptions);
+    }
+    onIdle(loadNewRelic);
+  };
+  for (const type of FIRST_INTERACTION_EVENTS) {
+    window.addEventListener(type, trigger, listenerOptions);
+  }
+  const timer = setTimeout(trigger, NEW_RELIC_FALLBACK_DELAY_MS);
+}
+
+if (document.readyState === 'complete') {
+  scheduleNewRelic();
 } else {
-  setTimeout(loadDeferredResources, 0);
+  window.addEventListener('load', scheduleNewRelic, { once: true });
 }
