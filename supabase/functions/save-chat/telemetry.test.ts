@@ -152,3 +152,56 @@ Deno.test('DB エラーは code と message（先頭 500 文字）を残し、�
   assertEquals(ex!.attributes['error.type'], 'TypeError');
   assertEquals(JSON.stringify(ex!.attributes).includes('secret body'), false);
 });
+
+Deno.test('ログ: 構造化ログをトレースに結びつけて OTLP logs で送る', async () => {
+  const sent: Record<string, unknown>[] = [];
+  const tracer = new Tracer({
+    serviceName: 'save-chat',
+    environment: 'test',
+    licenseKey: 'k',
+    send: (url, init) => {
+      sent.push({ url, body: JSON.parse(String(init.body)) });
+      return Promise.resolve(new Response('{}'));
+    },
+  });
+  const span = tracer.startSpan('triage', { traceId: TRACE, spanId: SPAN });
+  tracer.log('ERROR', 'triage.failed', span.context, {
+    'error.code': 'triage_deadline',
+    skip: undefined,
+  });
+  span.end();
+  await tracer.flush();
+  assertEquals(sent.map((s) => String(s.url).split('/v1/')[1]).sort(), ['logs', 'traces']);
+  const logs = sent.find((s) => String(s.url).endsWith('/v1/logs'))!.body as {
+    resourceLogs: { scopeLogs: { logRecords: Record<string, unknown>[] }[] }[];
+  };
+  const record = logs.resourceLogs[0]!.scopeLogs[0]!.logRecords[0]!;
+  assertEquals(record.severityNumber, 17);
+  assertEquals(record.severityText, 'ERROR');
+  assertEquals(record.body, { stringValue: 'triage.failed' });
+  assertEquals(record.traceId, TRACE);
+  assertEquals(record.spanId, span.context.spanId);
+  assertEquals(record.attributes, [
+    { key: 'event', value: { stringValue: 'triage.failed' } },
+    { key: 'error.code', value: { stringValue: 'triage_deadline' } },
+  ]);
+});
+
+Deno.test('ログ: トレースとログは別々に送り、片方が失敗してももう片方は届く', async () => {
+  const delivered: string[] = [];
+  const tracer = new Tracer({
+    serviceName: 't',
+    environment: 'test',
+    licenseKey: 'k',
+    send: (url) => {
+      if (url.endsWith('/v1/traces')) return Promise.reject(new TypeError('traces down'));
+      delivered.push(url);
+      return Promise.resolve(new Response('{}'));
+    },
+  });
+  tracer.startSpan('s', null).end();
+  tracer.log('INFO', 'x', null);
+  await tracer.flush();
+  assertEquals(delivered.length, 1);
+  assertEquals(delivered[0]!.endsWith('/v1/logs'), true);
+});

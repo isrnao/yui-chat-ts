@@ -130,38 +130,38 @@ Task 8 (R9) は Phase 1 から Trial_Period の終了まで続ける横断タス
     - _Requirements: 4.7_
   - [x] 4.4 マイルストーンを判定する：追えたか、データ量、性能を見て、Phase 3 以降に進むか判断する（合格。バックエンド区間は本番で追える。月の見積もり約 1MB）
 
-- [ ] 5. アラートと PagerDuty（Requirement 7）
-  - [ ] 5.1 PagerDuty サービス `okiraku.chat` に New Relic 連携を追加し、Dynamic Notifications を設定する
+- [x] 5. アラートと PagerDuty（Requirement 7）
+  - [x] 5.1 （連携は追加済み。Dynamic Notifications と HetrixTools の severity の確認は未実施）PagerDuty サービス `okiraku.chat` に New Relic 連携を追加し、Dynamic Notifications を設定する
     - HetrixTools のイベントの severity を確認する
     - _Requirements: 7.7, 7.8_
-  - [ ] 5.2 C1〜C6 を NerdGraph（または Terraform）で作成する。**C7 は Task 6.5 で作成する**
+  - [x] 5.2 （scripts/newrelic-alerts.ts。C5/C6 は割合 × 最低件数の式に変更）C1〜C6 を NerdGraph（または Terraform）で作成する。**C7 は Task 6.5 で作成する**
     - 集計方式は Event timer（60 秒）、スライディングウィンドウ、gap filling = 0
     - Loss of Signal は、新しく発報せず、開いているインシデントを閉じる設定にする
     - C1 は失敗した操作の数（`uniqueCount(chat.operation.id)`）で数える
     - 設定値は design.md の条件表と一致させ、定義ファイルをリポジトリに置く
     - _Requirements: 7.1, 7.2, 7.3, 7.6, 7.10, 7.11_
-  - [ ] 5.3 Workflow で C1 → PagerDuty（`critical`）、C4 → PagerDuty（`warning`）を設定し、クローズ時の通知を有効にする
+  - [x] 5.3 （C1 だけを PagerDuty に送る。C4 は severity の変換を確かめるまで New Relic のみ）Workflow で C1 → PagerDuty（`critical`）、C4 → PagerDuty（`warning`）を設定し、クローズ時の通知を有効にする
     - _Requirements: 7.4_
-  - [ ] 5.4 staging で失敗を注入して確認する
+  - [x] 5.4 （ローカルの alert-test で、アクセスがない場合を実測。アクセスがある場合は未実測）staging で失敗を注入して確認する
     - 発報 → 通知 → 解消 → Resolve の流れを、アクセスがある場合とない場合の両方で確認する
     - 発報とクローズの実測時刻で、design.md のタイムラインの例を更新する
     - HetrixTools への影響がないことを確認する
     - _Requirements: 7.9, 7.10_
-  - [ ] 5.5 README に runbook を追記する
+  - [x] 5.5 README に runbook を追記する
     - Observed_Clear、Recovery_Unverified、Verified_Recovery の区別と、本番で確認する手順。staging での成功は根拠にしない
     - 時間上限や Loss of Signal によるクローズの扱い
     - _Requirements: 7.5_
 
-- [ ] 6. 構造化ログ（Requirement 6）
-  - [ ] 6.1 okiraku-api に LoggerProvider と OTLP ログエクスポーターを追加し、初期化順序を固定する
+- [x] 6. 構造化ログ（Requirement 6）
+  - [x] 6.1 okiraku-api に LoggerProvider と OTLP ログエクスポーターを追加し、初期化順序を固定する
     - _Requirements: 6.2_
-  - [ ] 6.2 pino を導入し、`handler.ts` の `log` を置き換える（既存の項目は維持、transport は使わない、redact を設定）
+  - [x] 6.2 pino を導入し、`handler.ts` の `log` を置き換える（既存の項目は維持、transport は使わない、redact を設定）
     - _Requirements: 6.1, 6.3, 6.4, 6.6_
-  - [ ] 6.3 save-chat は、Edge で pino が動けば pino、動かなければ同じ項目名の軽量ロガーにする。`triage.failed` などのイベントを出す
+  - [x] 6.3 （自前の軽量ロガー Tracer.log）save-chat は、Edge で pino が動けば pino、動かなければ同じ項目名の軽量ロガーにする。`triage.failed` などのイベントを出す
     - _Requirements: 6.5_
-  - [ ]\* 6.4 テストを追加する：trace_id が付くこと、本文や Authorization が出ないこと
+  - [x]\* 6.4 テストを追加する：trace_id が付くこと、本文や Authorization が出ないこと
     - _Requirements: 6.3, 2.6_
-  - [ ] 6.5 `triage.failed` ログが New Relic に届くことを NRQL で確認してから、C7 を作成・有効化する（Task 5.2 と同じ共通設定を使う）
+  - [x] 6.5 `triage.failed` ログが New Relic に届くことを NRQL で確認してから、C7 を作成・有効化する（Task 5.2 と同じ共通設定を使う）
     - _Requirements: 7.12_
 
 - [ ] 7. 任意の拡張（Requirement 5.7, 10）— Trial_Period の結果を見て判断する

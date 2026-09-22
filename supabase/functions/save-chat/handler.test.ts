@@ -61,13 +61,28 @@ function setup(
   options: FakeDbOptions & { env?: Record<string, string>; environment?: string } = {}
 ) {
   const exported: FinishedSpan[][] = [];
+  const logs: ExportedLog[] = [];
   const pending: Promise<unknown>[] = [];
   const tracer = new Tracer({
     serviceName: 'save-chat',
     environment: 'test',
     licenseKey: 'test-key',
-    send: (_url, init) => {
+    send: (url, init) => {
       const body = JSON.parse(String(init.body));
+      if (url.endsWith('/v1/logs')) {
+        for (const r of body.resourceLogs[0].scopeLogs[0].logRecords) {
+          logs.push({
+            ...r,
+            attributes: Object.fromEntries(
+              (r.attributes as { key: string; value: Record<string, unknown> }[]).map((a) => [
+                a.key,
+                Object.values(a.value)[0],
+              ])
+            ),
+          });
+        }
+        return Promise.resolve(new Response('{}'));
+      }
       exported.push(
         body.resourceSpans[0].scopeSpans[0].spans.map((s: Record<string, unknown>) => ({
           ...s,
@@ -101,6 +116,7 @@ function setup(
   return {
     handler: createHandler(deps),
     exported,
+    logs,
     pending,
     inserts: db.inserts,
     /** waitUntil に登録された処理が終わるまで待ち、送られたスパンを平らにして返す */
@@ -109,6 +125,14 @@ function setup(
       return exported.flat() as unknown as ExportedSpan[];
     },
   };
+}
+
+interface ExportedLog {
+  severityText: string;
+  body: { stringValue: string };
+  traceId?: string;
+  spanId?: string;
+  attributes: Record<string, unknown>;
 }
 
 interface ExportedSpan {
@@ -361,26 +385,34 @@ Deno.test(
     const triage = byName(spans, 'triage');
     assertEquals(triage.status, { code: 2 });
     assertEquals(triage.attributes['error.code'], 'triage_deadline');
+    // C7 が数える triage.failed が、triage スパンと同じトレースで 1 件だけ出る
+    const failed = t.logs.filter((l) => l.body.stringValue === 'triage.failed');
+    assertEquals(failed.length, 1);
+    assertEquals(failed[0]!.traceId, triage.traceId);
+    assertEquals(failed[0]!.spanId, triage.spanId);
+    assertEquals(failed[0]!.attributes['error.code'], 'triage_deadline');
   })
 );
 
 Deno.test('runTriage: 処理が reject しても triage スパンを閉じて flush する', async () => {
-  const exported: string[] = [];
+  const exported: Record<string, string> = {};
   const tracer = new Tracer({
     serviceName: 't',
     environment: 'test',
     licenseKey: 'k',
-    send: (_u, init) => {
-      exported.push(String(init.body));
+    send: (url, init) => {
+      exported[url.endsWith('/v1/logs') ? 'logs' : 'traces'] = String(init.body);
       return Promise.resolve(new Response('{}'));
     },
   });
   await runTriage(tracer, { traceId: TRACE_A, spanId: PARENT }, 1000, () =>
     Promise.reject(new RangeError('boom'))
   );
-  assertEquals(exported.length, 1);
-  assert(exported[0]!.includes('triage_failed'));
-  assert(exported[0]!.includes('RangeError'));
+  assert(exported.traces!.includes('triage_failed'));
+  assert(exported.traces!.includes('RangeError'));
+  // reject でも C7 が数える triage.failed が出る
+  assert(exported.logs!.includes('triage.failed'));
+  assert(exported.logs!.includes('triage_failed'));
 });
 
 Deno.test(
