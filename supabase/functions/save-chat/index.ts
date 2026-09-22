@@ -130,7 +130,11 @@ Deno.serve(async (req: Request) => {
     .single();
 
   if (error) {
-    return json({ error: `Failed to save chat: ${error.message}` }, 500, cors);
+    // DB のエラー文には保存しようとした値が含まれ得るため、クライアントにもログにも出さない。
+    // 返すのは固定文言と、サーバーログと突き合わせるための requestId だけにする。
+    const requestId = crypto.randomUUID();
+    console.error('[save-chat] insert failed', { requestId, code: error.code ?? 'unknown' });
+    return json({ error: 'Failed to save chat', requestId }, 500, cors);
   }
 
   // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。

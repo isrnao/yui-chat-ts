@@ -66,7 +66,11 @@ export async function classifyMessage(message: string, token: string): Promise<C
   const body = await res.json();
   const result = body?.checks?.choice;
   if (body?.status !== 'completed' || typeof result?.choice !== 'string') {
-    throw new Error(`JEV returned unexpected payload: ${JSON.stringify(body)}`);
+    // 応答本文には判定対象の発言が含まれ得るため、例外文には形の情報だけを残す。
+    const status = typeof body?.status === 'string' ? body.status : typeof body?.status;
+    throw new Error(
+      `JEV returned unexpected payload (status=${status.slice(0, 32)}, hasChoice=${typeof result?.choice === 'string'})`
+    );
   }
   return result as ChoiceResult;
 }
@@ -115,7 +119,8 @@ async function createGithubIssue(
     body: JSON.stringify({ title: buildIssueTitle(target.message), body }),
     signal: AbortSignal.timeout(15_000),
   });
-  if (!res.ok) throw new Error(`GitHub responded ${res.status}: ${await res.text()}`);
+  // 応答本文には送信した Issue 本文（ユーザーの発言）が含まれ得るため、ステータスだけを残す。
+  if (!res.ok) throw new Error(`GitHub responded ${res.status}`);
   return await res.json();
 }
 
@@ -128,7 +133,7 @@ async function isRateLimited(supabase: SupabaseClient): Promise<boolean> {
     .eq('system', true)
     .like('message', `${CR_REPLY_MESSAGE}%`)
     .gte('time', Date.now() - 60 * 60 * 1000);
-  if (error) throw new Error(`Failed to count recent requests: ${error.message}`);
+  if (error) throw new Error(`Failed to count recent requests (code=${error.code ?? 'unknown'})`);
   return (count ?? 0) >= MAX_REQUESTS_PER_HOUR;
 }
 
@@ -150,7 +155,7 @@ async function replyAsAdmin(supabase: SupabaseClient, target: TriageTarget, mess
     ip: '',
     ua: '',
   });
-  if (error) throw new Error(`Failed to insert reply: ${error.message}`);
+  if (error) throw new Error(`Failed to insert reply (code=${error.code ?? 'unknown'})`);
 }
 
 async function handleFeatureRequest(
