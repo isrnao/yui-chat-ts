@@ -1,5 +1,6 @@
 import type { Chat } from '@features/chat/types';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { recordSendChat } from '@shared/observability/newRelic';
 import { supabase } from '@shared/supabaseClient';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
 import { generateUUIDv7FromTimestamp } from '@shared/utils/uuid';
@@ -26,23 +27,41 @@ const TABLE = 'chats';
 /** 部屋ごとの発言ランキングを集計するビュー (supabase/migrations/20260921000000) */
 const RANKING_VIEW = 'chat_ranking';
 
+/**
+ * 送信操作 1 件の ID と試行番号。リトライの全試行で同じ ID を送り、save-chat のトレースを
+ * 操作単位で束ねる（spec observability-new-relic R5.8〜5.9）。試行ごとに trace ID は変わる。
+ */
+interface SaveOperation {
+  id: string;
+  attempt: number;
+}
+
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
-async function invokeSaveChat(payload: {
-  room_id: RoomId;
-  name: string;
-  color: string;
-  message: string;
-  system?: boolean;
-  email?: string | null;
-  metadata?: Chat['metadata'] | null;
-}): Promise<{
+async function invokeSaveChat(
+  payload: {
+    room_id: RoomId;
+    name: string;
+    color: string;
+    message: string;
+    system?: boolean;
+    email?: string | null;
+    metadata?: Chat['metadata'] | null;
+  },
+  operation: SaveOperation
+): Promise<{
   uuid: string;
   room_id: RoomId;
   time: number;
   ip_masked?: string;
   ua?: string;
 }> {
-  const { data, error } = await supabase.functions.invoke('save-chat', { body: payload });
+  const { data, error } = await supabase.functions.invoke('save-chat', {
+    body: payload,
+    headers: {
+      'x-chat-operation-id': operation.id,
+      'x-chat-attempt': String(operation.attempt),
+    },
+  });
   if (error) throw new Error(`Failed to save chat: ${error.message}`);
   const result: unknown = data;
   if (typeof result === 'object' && result !== null && 'error' in result) {
@@ -88,14 +107,15 @@ async function measureApiCall<T>(apiCall: () => Promise<T>): Promise<T> {
 }
 
 // リトライ機能付きのAPI呼び出し
+// apiCall には 1 から始まる試行番号を渡す（save-chat の x-chat-attempt に使う）
 async function retryApiCall<T>(
-  apiCall: () => Promise<T>,
+  apiCall: (attempt: number) => Promise<T>,
   maxRetries = 3,
   delay = 1000
 ): Promise<T> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      return await measureApiCall(apiCall);
+      return await measureApiCall(() => apiCall(attempt));
     } catch (error: any) {
       if (attempt === maxRetries) {
         throw error;
@@ -181,17 +201,22 @@ export async function saveChatLogOptimistic(
   chat: Chat
 ): Promise<Chat> {
   startPerf();
+  const operationId = crypto.randomUUID();
+  recordSendChat(operationId);
 
-  return retryApiCall(async () => {
-    const result = await invokeSaveChat({
-      room_id: roomId,
-      name: chat.name,
-      color: chat.color,
-      message: chat.message,
-      system: chat.system,
-      email: chat.email,
-      metadata: chat.metadata ?? null,
-    });
+  return retryApiCall(async (attempt) => {
+    const result = await invokeSaveChat(
+      {
+        room_id: roomId,
+        name: chat.name,
+        color: chat.color,
+        message: chat.message,
+        system: chat.system,
+        email: chat.email,
+        metadata: chat.metadata ?? null,
+      },
+      { id: operationId, attempt }
+    );
 
     Promise.resolve().then(() => invalidateCache(roomId));
     endPerf('saveChatLogOptimistic');
@@ -214,17 +239,22 @@ export async function saveChatLogOptimistic(
 // 従来の互換性維持版（Edge Function 経由で ip/ua をサーバー確定）
 export async function saveChatLog(roomId: RoomId = DEFAULT_ROOM_ID, chat: Chat): Promise<Chat> {
   startPerf();
+  const operationId = crypto.randomUUID();
+  recordSendChat(operationId);
 
-  return retryApiCall(async () => {
-    const result = await invokeSaveChat({
-      room_id: roomId,
-      name: chat.name,
-      color: chat.color,
-      message: chat.message,
-      system: chat.system,
-      email: chat.email,
-      metadata: chat.metadata ?? null,
-    });
+  return retryApiCall(async (attempt) => {
+    const result = await invokeSaveChat(
+      {
+        room_id: roomId,
+        name: chat.name,
+        color: chat.color,
+        message: chat.message,
+        system: chat.system,
+        email: chat.email,
+        metadata: chat.metadata ?? null,
+      },
+      { id: operationId, attempt }
+    );
 
     invalidateCache(roomId);
     endPerf('saveChatLog');

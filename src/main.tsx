@@ -54,8 +54,17 @@ function loadFallbackFontSubsets(): void {
   void import('./styles/fonts-fallback.css').catch(() => {});
 }
 
+// New Relic Browser 監視も初回描画を妨げないようアイドル時に読み込む（未設定なら何もしない）。
+// 読み込み前の操作は記録されないが、入室してから送信するまでの時間があるため許容する。
+function loadDeferredResources(): void {
+  loadFallbackFontSubsets();
+  void import('@shared/observability/newRelic').then(({ initNewRelicBrowser }) =>
+    initNewRelicBrowser()
+  );
+}
+
 if (typeof requestIdleCallback === 'function') {
-  requestIdleCallback(loadFallbackFontSubsets);
+  requestIdleCallback(loadDeferredResources);
 } else {
-  setTimeout(loadFallbackFontSubsets, 0);
+  setTimeout(loadDeferredResources, 0);
 }

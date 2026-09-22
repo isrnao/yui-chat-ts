@@ -39,6 +39,10 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id) {
+          // 動的 import の補助関数は小さな専用チャンクに置く。振り分けないと Rolldown が
+          // 遅延読み込み用の vendor チャンク（New Relic Browser エージェント）に同居させ、
+          // エントリがそれを静的に import → modulepreload してしまう。
+          if (id.includes('vite/preload-helper')) return 'preload-helper';
           if (!id.includes('node_modules')) return;
 
           const normalized = id.replace(/\\/g, '/');

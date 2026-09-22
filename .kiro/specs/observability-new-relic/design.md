@@ -576,6 +576,24 @@ export function runTriage(
 - **確認**：ローカルから、両方のサービスのログが New Relic の `Log` に `trace.id` / `span.id` 付きで届いた。
 - **C7**：上の確認のあとに作成した（`FROM Log WHERE event = 'triage.failed'`、60 分に 1 件以上）。
 
+## Phase 2：Browser 監視（2026-09-23）
+
+- **実装**：
+  - `src/shared/observability/newRelic.ts`：`@newrelic/browser-agent@1.322.0` の `Agent` に、使う機能だけ（Ajax / JSErrors / SoftNav / GenericEvents / PageViewEvent / PageViewTiming）を渡して読み込む。Session Replay・Session Trace・Logging は読み込まない。
+  - `main.tsx`：初回描画のあと、`requestIdleCallback` で動的 import する。`VITE_NEW_RELIC_*` がそろっていないとき（CI・Storybook）と、テスト環境・SSR では何もしない。
+  - 分散トレーシング：`allowed_origins` は Supabase のオリジンだけ。W3C の traceparent / tracestate だけを使い、`newrelic` ヘッダーは付けない。
+  - `chatApi.ts`：送信操作ごとに `crypto.randomUUID()` で Operation_Id を発行する。`retryApiCall` が試行番号を渡し、`x-chat-operation-id` / `x-chat-attempt` を save-chat に送る。同じ ID を `send-chat` インタラクションの属性 `chatOperationId` にも付ける。
+- **R1.5（supabase-js の fetch）**：supabase-js 2.105 の `resolveFetch` と functions-js は、呼び出しのたびにグローバルの `fetch` を参照する（`(...args) => fetch(...args)`）。そのため、エージェントが後から `fetch` を差し替えてもそれが使われる。**`global.fetch` の付け替えは不要**。
+- **CORS（R5.3）**：エージェントが差し替えた `fetch` から、Supabase の REST（`/rest/v1/chats`）と save-chat への通信が成功した。REST へのキーなしのリクエストでも 401 の応答を受け取れたので、`traceparent` 付きの事前確認（プリフライト）は拒否されていない。
+- **バンドル（R5.6）**：
+  - エージェントは別のチャンク `vendor-newrelic-browser-agent`（gzip 後 50KB）に入り、アイドル時にだけ読み込まれる。エントリのチャンクは gzip 後 22.5KB で、変更の前後で同じ。
+  - **注意点**：Vite の `preload-helper` が Rolldown によってエージェントのチャンクに入れられ、エントリがそれを静的に import したため、エージェントのチャンクが `modulepreload` されていた。`manualChunks` で `vite/preload-helper` を専用のチャンク（gzip 後 771 バイト）に分けて解消した。
+  - SSR ビルドと事前レンダリング（部屋 82 件、chanari 81 件）も成功した。
+- **検証環境の制約**：
+  - Claude の内蔵ブラウザは `bam.nr-data.net` への接続だけを止める（`net::ERR_CONNECTION_RESET`。GA と Supabase は通る。curl からは接続できる）。そのため、この環境では Browser のデータが New Relic に届くかを確認できない。本番へのデプロイ後に、通常のブラウザで確認する。
+  - `vite preview` は `/chat/<id>`（末尾のスラッシュなし）にトップページの HTML を返すため、ハイドレーションの不一致（React #418）が出る。本番（GitHub Pages）と同じく `/chat/<id>/` の事前レンダリングした HTML を返す静的サーバーでは、#418 は出なかった（main のビルドでも同じ）。今回の変更によるものではない。
+- **テスト**：Vitest で chatApi（操作 ID、再試行で ID が同じで試行番号が増えること、`send-chat` への記録）と newRelic.ts（設定がそろわないと無効、分散トレーシングの設定、Session Replay の無効、テスト環境で読み込まないこと、API の例外を握りつぶすこと）の 7 件を追加した。
+
 ## 未決事項
 
 - New Relic アカウントのリージョン（US / EU）

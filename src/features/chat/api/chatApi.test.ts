@@ -222,6 +222,60 @@ describe('chatApi', () => {
       expect(saved.ua).toBe('existing-ua');
     });
 
+    it('送信操作の ID と試行番号をヘッダーで送り、send-chat として記録する', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 1 },
+        error: null,
+      });
+      const interaction = { setName: vi.fn(), setAttribute: vi.fn() };
+      interaction.setName.mockReturnValue(interaction);
+      interaction.setAttribute.mockReturnValue(interaction);
+      const newRelic = await import('@shared/observability/newRelic');
+      newRelic.__resetForTest({ interaction: () => interaction });
+
+      const chatApi = await import('./chatApi');
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(2));
+
+      const [first, second] = invoke.mock.calls.map(([, options]) => options.headers);
+      expect(first['x-chat-operation-id']).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
+      expect(first['x-chat-attempt']).toBe('1');
+      // 送信ごとに別の操作 ID になる
+      expect(second['x-chat-operation-id']).not.toBe(first['x-chat-operation-id']);
+      // Browser のインタラクションにも同じ ID を付ける
+      expect(interaction.setName).toHaveBeenCalledWith('send-chat');
+      expect(interaction.setAttribute).toHaveBeenCalledWith(
+        'chatOperationId',
+        first['x-chat-operation-id']
+      );
+      newRelic.__resetForTest();
+    });
+
+    it('再試行しても操作 ID は同じで、試行番号だけが増える', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke
+        .mockResolvedValueOnce({ data: null, error: { message: 'temporary' } })
+        .mockResolvedValueOnce({
+          data: { uuid: 'server-uuid', room_id: ROOM_ID, time: 1 },
+          error: null,
+        });
+
+      const chatApi = await import('./chatApi');
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+
+      const headers = invoke.mock.calls.map(([, options]) => options.headers);
+      expect(headers).toHaveLength(2);
+      expect(headers[1]['x-chat-operation-id']).toBe(headers[0]['x-chat-operation-id']);
+      expect(headers.map((h) => h['x-chat-attempt'])).toEqual(['1', '2']);
+    });
+
     it('Edge Function がエラーを返したら例外を投げる', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;
