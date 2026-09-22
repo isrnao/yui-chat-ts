@@ -1,13 +1,18 @@
 import { formatTime } from '@shared/utils/format';
 import { useNowMinute } from '@features/chat/hooks/useNowMinute';
-import type { Participant } from '@features/chat/types';
+import { useParticipants } from '@features/chat/hooks/useParticipants';
+import type { Chat } from '@features/chat/types';
 
 type Props = {
-  participants: Participant[];
+  /** 参加者を導出する元のログ。直近 5 分の発言と入退室メッセージから数える */
+  chatLog: Chat[];
 };
 
-export default function ParticipantsList({ participants }: Props) {
+export default function ParticipantsList({ chatLog }: Props) {
+  // 時計の表示と参加者の窓を同じ時刻で揃える。分の境界で再レンダーされるのはこの部品だけにし、
+  // 長いログ一覧（ChatLogList）を巻き込まない
   const now = useNowMinute();
+  const participants = useParticipants(chatLog, now);
   const formattedTime = formatTime(now).slice(0, 5);
 
   return (

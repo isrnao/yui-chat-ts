@@ -5,7 +5,7 @@ import type { Chat } from '@features/chat/types';
 
 describe('getRecentParticipants', () => {
   it('should return empty array for empty chat log', () => {
-    expect(getRecentParticipants([])).toEqual([]);
+    expect(getRecentParticipants([], Date.now())).toEqual([]);
   });
 
   it('should filter out system messages and messages without name/color', () => {
@@ -39,7 +39,7 @@ describe('getRecentParticipants', () => {
         ua: 'test-ua',
       },
     ];
-    expect(getRecentParticipants(chatLog)).toEqual([]);
+    expect(getRecentParticipants(chatLog, Date.now())).toEqual([]);
   });
 
   it('should return recent participants within 5 minutes', () => {
@@ -74,7 +74,7 @@ describe('getRecentParticipants', () => {
       }, // 6分40秒前
     ];
 
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     expect(participants).toHaveLength(2);
     expect(participants).toContainEqual({ uuid: '1', name: 'User1', color: '#ff0000' });
     expect(participants).toContainEqual({ uuid: '2', name: 'User2', color: '#00ff00' });
@@ -112,7 +112,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     expect(participants).toHaveLength(2);
     expect(participants.filter((p) => p.name === 'User1')).toHaveLength(1);
   });
@@ -132,7 +132,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    expect(getRecentParticipants(chatLog)).toEqual([]);
+    expect(getRecentParticipants(chatLog, Date.now())).toEqual([]);
   });
 
   it('should handle edge cases in time filtering', () => {
@@ -170,7 +170,7 @@ describe('getRecentParticipants', () => {
       }, // 1秒前
     ];
 
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     expect(participants).toHaveLength(2); // User1とUser3のみ
     expect(participants.map((p) => p.name)).toContain('User1');
     expect(participants.map((p) => p.name)).toContain('User3');
@@ -209,7 +209,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     expect(participants).toHaveLength(2);
 
     const user1 = participants.find((p) => p.name === 'User1');
@@ -241,7 +241,7 @@ describe('getRecentParticipants', () => {
       }, // 未来の時刻
     ];
 
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     expect(participants).toHaveLength(2);
     expect(participants.map((p) => p.name)).toContain('User1');
     expect(participants.map((p) => p.name)).toContain('User2');
@@ -260,7 +260,7 @@ describe('getRecentParticipants', () => {
     }));
 
     const startTime = performance.now();
-    const participants = getRecentParticipants(chatLog);
+    const participants = getRecentParticipants(chatLog, Date.now());
     const endTime = performance.now();
 
     // パフォーマンステスト：処理時間が合理的であることを確認
@@ -275,6 +275,7 @@ describe('getRecentParticipants', () => {
   });
 
   it('should maintain referential equality when chatLog reference is unchanged', () => {
+    const now = Date.now();
     const chatLog: Chat[] = [
       {
         uuid: '1',
@@ -287,7 +288,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog), {
+    const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog, now), {
       initialProps: { chatLog },
     });
 
@@ -325,7 +326,7 @@ describe('useParticipants', () => {
       },
     ];
 
-    const { result } = renderHook(() => useParticipants(chatLog));
+    const { result } = renderHook(() => useParticipants(chatLog, now));
 
     expect(result.current).toHaveLength(2);
     expect(result.current).toContainEqual({ uuid: '1', name: 'User1', color: '#ff0000' });
@@ -346,7 +347,7 @@ describe('useParticipants', () => {
       },
     ];
 
-    const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog), {
+    const { result, rerender } = renderHook(({ chatLog }) => useParticipants(chatLog, now), {
       initialProps: { chatLog: initialChatLog },
     });
 

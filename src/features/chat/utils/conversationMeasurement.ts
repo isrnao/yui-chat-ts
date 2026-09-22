@@ -89,7 +89,12 @@ export function createConversationMeasurement(
     onOwnMessagePending(chat: Chat) {
       const nonce = chat.metadata?.optimisticNonce;
       if (nonce) state.ownNonces.add(nonce);
-      if (state.entered && state.firstMessageAt === null && !state.activated && isNormalMessage(chat)) {
+      if (
+        state.entered &&
+        state.firstMessageAt === null &&
+        !state.activated &&
+        isNormalMessage(chat)
+      ) {
         state.firstMessagePending = true;
       }
     },

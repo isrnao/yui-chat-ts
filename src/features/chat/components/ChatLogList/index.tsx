@@ -1,7 +1,6 @@
 import { Fragment, memo } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
-import { useParticipants } from '@features/chat/hooks/useParticipants';
 import { sortChatsByTime } from '@shared/utils/uuid';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
@@ -26,7 +25,6 @@ function ChatLogList({
 }: Props) {
   // 並べ替え結果のメモ化は React Compiler に任せる
   const chats = sortChatsByTime(chatLog).slice(0, windowRows);
-  const participants = useParticipants(hideParticipants ? [] : chatLog);
 
   if (isLoading) {
     return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;
@@ -37,7 +35,7 @@ function ChatLogList({
       className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
-      {!hideParticipants && <ParticipantsList participants={participants} />}
+      {!hideParticipants && <ParticipantsList chatLog={chatLog} />}
       <Divider />
       {chats.length === 0 && <div className="text-gray-400 py-3">まだ発言はありません。</div>}
       {chats.map((c) => (

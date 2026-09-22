@@ -53,29 +53,29 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
 
-- [ ] 2. 楽観的更新を送信側で完結させる（Requirement 2、PR2）
-  - [ ]\* 2.1 失敗するテストを先に書く: 実際の `useOptimistic` と `useChatSender` を組み合わせ、Action の外 /
+- [x] 2. 楽観的更新を送信側で完結させる（Requirement 2、PR2）
+  - [x]\* 2.1 失敗するテストを先に書く: 実際の `useOptimistic` と `useChatSender` を組み合わせ、Action の外 /
     `useActionState` 経由 / async Action の中の 3 通りで、保存が解決する前に楽観的なチャットが表示されることを
     確かめる（今は「Action の外」だけ失敗する）
     - _Requirements: 2.4_
-  - [ ] 2.2 `useChatSender` に `sendWithOptimistic` を作り、楽観的な表示 → 保存 → `startTransition(applySaved)` を
+  - [x] 2.2 `useChatSender` に `sendWithOptimistic` を作り、楽観的な表示 → 保存 → `startTransition(applySaved)` を
         1 つの `startTransition(async …)` の中で行う。Action の中の例外は捕まえて Promise の reject で返す
     - _Requirements: 2.1, 2.3_
-  - [ ] 2.3 `showOptimistic` + `saveAndMerge` を別々に呼んでいる箇所（入室、退室、発言、おみくじ）を
+  - [x] 2.3 `showOptimistic` + `saveAndMerge` を別々に呼んでいる箇所（入室、退室、発言、おみくじ）を
         `sendWithOptimistic` に置き換える。退室の「表示を先に戻す」処理は、呼ぶ前に同期で行う
     - _Requirements: 2.2_
-  - [ ]\* 2.4 保存が失敗したときに楽観的なチャットが消え、呼び出し元にエラーが届くテストを追加する
+  - [x]\* 2.4 保存が失敗したときに楽観的なチャットが消え、呼び出し元にエラーが届くテストを追加する
     - _Requirements: 2.3_
 
-- [ ] 3. 参加者リストに時間の経過を反映する（Requirement 3、PR2）
-  - [ ]\* 3.1 失敗するテストを先に書く: 4 分前の発言 → 偽のタイマーで 3 分進める → 「参加者(0)」
+- [x] 3. 参加者リストに時間の経過を反映する（Requirement 3、PR2）
+  - [x]\* 3.1 失敗するテストを先に書く: 4 分前の発言 → 偽のタイマーで 3 分進める → 「参加者(0)」
     - _Requirements: 3.4_
-  - [ ] 3.2 `getRecentParticipants(chatLog, now)` にし、関数の中の `Date.now()` を消す
+  - [x] 3.2 `getRecentParticipants(chatLog, now)` にし、関数の中の `Date.now()` を消す
     - _Requirements: 3.1_
-  - [ ] 3.3 参加者の計算を ChatLogList から ParticipantsList に移し、`useNowMinute()` の `now` を渡す。
+  - [x] 3.3 参加者の計算を ChatLogList から ParticipantsList に移し、`useNowMinute()` の `now` を渡す。
         ParticipantsList の props を `participants` から `chatLog` に変える
     - _Requirements: 3.2, 3.3_
-  - [ ] 3.4 `useParticipants.test.ts` と ParticipantsList / ChatLogList のテスト・stories を新しい引数に合わせる
+  - [x] 3.4 `useParticipants.test.ts` と ParticipantsList / ChatLogList のテスト・stories を新しい引数に合わせる
     - _Requirements: 3.1_
 
 - [ ] 4. 非同期エラーを画面に出す（Requirement 4、PR3）
