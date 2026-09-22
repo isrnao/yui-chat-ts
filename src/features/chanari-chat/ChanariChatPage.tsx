@@ -16,6 +16,7 @@ import { useReloadInterval } from './hooks/useReloadInterval';
 import { useChanariSettings } from './hooks/useChanariSettings';
 import { DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
+import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 import './styles/chanari.css';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
@@ -38,6 +39,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const {
     chatLog,
     isLoading,
+    loadError,
     realtimeStatus,
     setChatLog,
     addOptimistic,
@@ -49,6 +51,8 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   const { settings, updateSettings } = useChanariSettings(roomId);
   const [entered, setEntered] = useState(false);
+  // 入室の失敗は ChanariEntryForm ではなくここで持つ（入室中はフォームがアンマウントされるため）
+  const [entryError, setEntryError] = useState('');
   // SSG/hydration 中は既定値、hydration 後は draft 由来の値に追随する
   const [name, setName] = useStoreBackedState(settings.name ?? '');
   const [nameColor, setNameColor] = useStoreBackedState(settings.nameColor ?? '#ff69b4');
@@ -116,11 +120,18 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 speechColor={speechColor}
                 setSpeechColor={setSpeechColor}
                 sid=""
+                error={entryError}
                 onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
                   updateSettings({ name: n, nameColor: nc, speechColor: sc });
+                  setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
                   expandChatLog();
-                  await handleEnter({ name: n, color: nc, silent: false });
+                  try {
+                    await handleEnter({ name: n, color: nc, silent: false });
+                  } catch (err) {
+                    setEntryError(toEntryErrorMessage(err));
+                    throw err;
+                  }
                 }}
               />
             )}
@@ -132,7 +143,13 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
             }
           >
-            <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
+            <ChatLogList
+              chatLog={chatLog}
+              isLoading={isLoading}
+              windowRows={windowRows}
+              loadError={loadError}
+              onRetry={reload}
+            />
           </Suspense>
         }
       />

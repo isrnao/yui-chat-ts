@@ -16,6 +16,7 @@ import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
+import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -29,12 +30,23 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   usePageView(seo.title);
 
   const measurement = useConversationMeasurement();
-  const { chatLog, isLoading, setChatLog, addOptimistic, mergeChat, reload, expandChatLog } =
-    useChatLog(roomId, measurement.onRealtimeChat);
+  const {
+    chatLog,
+    isLoading,
+    loadError,
+    setChatLog,
+    addOptimistic,
+    mergeChat,
+    reload,
+    expandChatLog,
+  } = useChatLog(roomId, measurement.onRealtimeChat);
   // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す
   // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
   const { settings } = useSettings();
   const [entered, setEntered] = useState(false);
+  // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
+  // 失敗して戻ってきたときには別のインスタンスになるため。
+  const [entryError, setEntryError] = useState('');
   // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
   const [name, setName] = useStoreBackedState(settings.name ?? '');
   const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
@@ -104,11 +116,18 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 setColor={setColor}
                 email={email}
                 setEmail={setEmail}
-                onEnter={({ name: n, color: c, silent, avatar: a }) => {
+                error={entryError}
+                onEnter={async ({ name: n, color: c, silent, avatar: a }) => {
                   setAvatar(a);
+                  setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
                   expandChatLog();
-                  return handleEnter({ name: n, color: c, silent });
+                  try {
+                    await handleEnter({ name: n, color: c, silent });
+                  } catch (err) {
+                    setEntryError(toEntryErrorMessage(err));
+                    throw err;
+                  }
                 }}
               />
               <RoomInfo roomId={roomId} />
@@ -122,7 +141,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
               }
             >
-              <ChatLogList chatLog={chatLog} isLoading={isLoading} windowRows={windowRows} />
+              <ChatLogList
+                chatLog={chatLog}
+                isLoading={isLoading}
+                windowRows={windowRows}
+                loadError={loadError}
+                onRetry={reload}
+              />
             </Suspense>
           ) : (
             <div className="px-[var(--page-gap)] pb-[var(--page-gap)]">

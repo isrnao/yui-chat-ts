@@ -78,16 +78,16 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 3.4 `useParticipants.test.ts` と ParticipantsList / ChatLogList のテスト・stories を新しい引数に合わせる
     - _Requirements: 3.1_
 
-- [ ] 4. 非同期エラーを画面に出す（Requirement 4、PR3）
-  - [ ] 4.1 `useChatLog` の取得に `.catch` を付けて `loadError` を返す。ChatLogList（または呼び出し元）が
+- [x] 4. 非同期エラーを画面に出す（Requirement 4、PR3）
+  - [x] 4.1 `useChatLog` の取得に `.catch` を付けて `loadError` を返す。ChatLogList（または呼び出し元）が
         `loadError` のとき、失敗の表示と「再読み込み」ボタン（`reload`）を出す
     - _Requirements: 4.1_
-  - [ ] 4.2 EntryForm を `useActionState` にする。失敗をフォームの下に出し、pending の間は送信ボタンを無効にする。
+  - [x] 4.2 入室の失敗をルートで持って EntryForm の `error` に渡し、`onSubmit` で Promise の失敗を受け取る。
         `updateSettings` は成功したときだけ呼ぶ
     - _Requirements: 4.2, 4.3, 8.4_
-  - [ ] 4.3 ChanariEntryForm と ChanariChatRoom の送信を `useActionState` にし、失敗を表示する
+  - [x] 4.3 ChanariEntryForm と ChanariChatRoom の送信・ログ消去の失敗を受け取り、表示する
     - _Requirements: 4.4, 8.4_
-  - [ ]\* 4.4 取得の失敗、入室の失敗、ちゃなりの送信の失敗のテストを追加する。未処理の rejection がないことを
+  - [x]\* 4.4 取得の失敗、入室の失敗、ちゃなりの送信の失敗のテストを追加する。未処理の rejection がないことを
     vitest の `unhandledRejection` の検知で確かめる
     - _Requirements: 4.1, 4.2, 4.4_
 

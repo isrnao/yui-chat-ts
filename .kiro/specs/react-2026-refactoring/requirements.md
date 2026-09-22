@@ -109,7 +109,8 @@
    ではなく、読み込みに失敗したことと再試行の導線を表示する。
 2. WHEN 入室（Welcome の保存）が失敗する, THE EntryForm SHALL エラーメッセージを表示し、未処理の Promise
    rejection を出さない。
-3. WHILE 入室の処理が進んでいる, THE EntryForm SHALL 送信ボタンを無効にする。
+3. WHILE 入室の処理が進んでいる, THE ルート SHALL 入室フォームの代わりにチャット画面を表示し、入室の二重送信を
+   できないようにする（現行どおり、入室は保存を待たずに画面を切り替える）。
 4. WHEN ちゃなりの発言の保存が失敗する, THE ChanariChatRoom SHALL エラーメッセージを表示する。
 5. THE UI の props（`onClick` / `onSubmit` など戻り値が `void` のもの）SHALL Promise を返す関数をそのまま
    受け取らない（Requirement 11 の lint で担保する）。
@@ -183,7 +184,9 @@
 2. THE 通常チャットの発言入力 SHALL 値を ChatRoom の中で持ち, THE ChatRoute と AllRoomsRoute SHALL 1 文字の
    入力で再レンダーしない。
 3. WHEN 利用者が発言を送信する, THE 入力欄 SHALL 保存の完了を待たずに空になる（現行の挙動を保つ）。
-4. THE EntryForm、ChanariEntryForm、ChanariChatRoom SHALL `useActionState` で pending とエラーを扱う。
+4. THE EntryForm、ChanariEntryForm、ChanariChatRoom SHALL `useActionState` を使わず、失敗を明示的に受け取って
+   表示する。Action の中の状態更新は Action の終わりにまとめて反映されるため、Action にすると入室の画面切り替えや
+   入力欄のクリアが保存の完了まで遅れる（PR3 の実装で確認）。
 5. THE ちゃなりの発言入力 SHALL 下書きの復元（「復元」ボタン）と、最後の発言の保存を今と同じように行う。
 
 ### Requirement 9: 永続化ストアの書き方を揃える（P1）

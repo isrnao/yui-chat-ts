@@ -167,3 +167,39 @@ describe('ChatRoute の段階的なログ取得', () => {
     await waitFor(() => expect(loadChatLogs).toHaveBeenCalledWith('superbeginner', true));
   });
 });
+
+describe('ChatRoute のエラー表示', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    realtimeListeners.clear();
+  });
+
+  it('ログの取得に失敗すると「発言はありません」ではなく失敗と再読み込みの導線を出す', async () => {
+    const { loadRecentChatLogs } = await import('@features/chat/api/chatApi');
+    vi.mocked(loadRecentChatLogs).mockRejectedValueOnce(new Error('network'));
+
+    render(<ChatRoute roomId="superbeginner" />);
+
+    expect(await screen.findByText('チャットログの読み込みに失敗しました。')).toBeInTheDocument();
+    expect(screen.queryByText('まだ発言はありません。')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '再読み込み' }));
+    await waitFor(() => {
+      expect(screen.queryByText('チャットログの読み込みに失敗しました。')).not.toBeInTheDocument();
+    });
+  });
+
+  it('入室の保存に失敗すると入室フォームに戻り、エラーを表示する', async () => {
+    const { saveChatLogOptimistic } = await import('@features/chat/api/chatApi');
+    vi.mocked(saveChatLogOptimistic).mockRejectedValueOnce(new Error('Failed to save chat: 500'));
+
+    render(<ChatRoute roomId="superbeginner" />);
+    fireEvent.change(screen.getByRole('textbox', { name: 'おなまえ' }), {
+      target: { value: 'ゆい' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'チャットに参加する' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('入室に失敗しました');
+    expect(screen.getByRole('button', { name: 'チャットに参加する' })).toBeInTheDocument();
+  });
+});

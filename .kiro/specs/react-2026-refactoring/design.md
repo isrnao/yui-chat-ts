@@ -197,9 +197,14 @@ R6 のストアより先に出すため、PR2 では最小限の変更にする�
 - `useChatLog`: 取得の Promise に `.catch` を付けて `loadError` を持つ。ChatLogList は `loadError` のとき
   「チャットログの読み込みに失敗しました。」と「再読み込み」ボタン（`reload`）を出す。R6 でストアの
   `status: 'error'` に置き換える
-- EntryForm: `useActionState` にする。入室の失敗はフォームの下にメッセージとして出す。`isPending` の間は
-  送信ボタンを無効にする。localStorage への保存（`updateSettings`）は成功したときだけ行う（現行と同じ）
-- ChanariChatRoom: `onSend` を `useActionState` の action から呼び、失敗をメッセージにする
+- EntryForm: 入室の失敗はルート（ChatRoute / AllRoomsRoute / ChanariChatPage）が持ち、`error` prop で渡す。
+  入室中は EntryForm がアンマウントされ（保存を待たずにチャット画面へ切り替える）、失敗して戻ったときには別の
+  インスタンスになるため、フォームの中には状態を持てない。`onSubmit` は Promise の失敗を必ず受け取る。
+  localStorage への保存（`updateSettings`）は成功したときだけ行う（現行と同じ）
+- ChanariChatRoom: 送信と「ログ消去」の失敗を部品の中の state で受け取り、メッセージにする
+- **`useActionState` を使わない理由:** Action の中の状態更新（`setEntered(true)`、`setMessage('')`）は
+  Action の終わりにまとめて反映される。入室フォームやちゃなりの送信を Action にすると、画面の切り替えや入力欄の
+  クリアが保存の完了まで遅れる
 - R11 の `no-misused-promises` で、async 関数を `onSubmit` などに直接渡すことを禁じる
 
 ### 5. API 層の整理（Requirement 5）
@@ -380,8 +385,8 @@ const [error, formAction, isPending] = useActionState(async (_prev: string, form
 
 - 入力中の値が ChatRoom の中に閉じるので、1 文字ごとの再レンダーは ChatRoom だけになる（R8.2）。R1 で ChatRoom が
   コンパイルされるようになれば、ChatRoom の中でも入力欄以外の要素は再計算されない
-- 入室フォームと、ちゃなりのフォームも同じ形にする（R8.4）。ちゃなりの入力欄は下書きの復元と最後の発言の保存が
-  あるので、値は ChanariChatRoom の中で持ちつつ、Persistent_Store へ保存する
+- 入室フォームと、ちゃなりのフォームは Action にしない（R8.4、§4 の理由）。ちゃなりの入力欄は下書きの復元と
+  最後の発言の保存があるので、今のままページで持つ
 - 今は送信中（`isPending`）に入力欄を無効にしている。保存が遅いと次の発言を打てないが、二重送信を防いでいるので、
   本 spec では変えない（別途検討）
 

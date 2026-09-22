@@ -19,6 +19,7 @@ import RetroSplitter from '@features/chat/components/RetroSplitter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
+import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -50,6 +51,9 @@ export default function AllRoomsRoute() {
   const { settings } = useSettings();
 
   const [entered, setEntered] = useState(false);
+  // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
+  // 失敗して戻ってきたときには別のインスタンスになるため。
+  const [entryError, setEntryError] = useState('');
   // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
   const [name, setName] = useStoreBackedState(settings.name ?? '');
   const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
@@ -147,9 +151,16 @@ export default function AllRoomsRoute() {
                   setColor={setColor}
                   email={email}
                   setEmail={setEmail}
-                  onEnter={({ name: n, color: c, silent, avatar: a }) => {
+                  error={entryError}
+                  onEnter={async ({ name: n, color: c, silent, avatar: a }) => {
                     setAvatar(a);
-                    return handleEnter({ name: n, color: c, silent });
+                    setEntryError('');
+                    try {
+                      await handleEnter({ name: n, color: c, silent });
+                    } catch (err) {
+                      setEntryError(toEntryErrorMessage(err));
+                      throw err;
+                    }
                   }}
                 />
                 {/* /chat/all は ChatRoute でなくここに振り分けられるため、
