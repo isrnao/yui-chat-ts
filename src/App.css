@@ -26,6 +26,26 @@ body {
   overflow-x: hidden;
 }
 
+/* iPhone のフォーカス時の自動ズームを防ぐ。横向きでも適用するため幅では判定しない。 */
+@media (hover: none) and (pointer: coarse) {
+  input:not(
+    [type='checkbox'],
+    [type='radio'],
+    [type='range'],
+    [type='color'],
+    [type='button'],
+    [type='submit'],
+    [type='reset'],
+    [type='hidden'],
+    [type='image']
+  ),
+  textarea,
+  select {
+    /* Tailwind と遅延ロードされる chanari の小さい文字サイズより優先する。 */
+    font-size: 16px !important;
+  }
+}
+
 *,
 ::before,
 ::after {
