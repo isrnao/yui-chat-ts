@@ -499,6 +499,10 @@ import tseslint from 'typescript-eslint';
 
 - ランキングの開閉は `startTransition(() => setShowRanking(…))` で行う。ViewTransition は Transition の更新にだけ
   反応するので、Realtime の受信（通常の更新）ではアニメーションしない（R12.5）
+- **ただし送信・「更新」で閉じるときは Transition にしない。** 発言の送信は Action（非同期の Transition）なので、
+  同じイベントの `startTransition` の更新は Action に束ねられ、保存が終わるまでランキングが閉じない（一時テストで
+  確認: Transition だと保存の解決前は `ranking` のまま、即時の更新なら `log`）。入室フォームとチャット入力の
+  切り替えも、Transition にすると入室の保存まで切り替わらないのでアニメーションしない
 - 非表示の Activity の中では Effect が止まる（ParticipantsList の `useNowMinute` のタイマーも止まる）。更新は
   低優先度で裏で反映される
 - **スクロール位置（R12.2a）**: 今は RetroSplitter の下段の枠がスクロールしている。Activity は DOM を残しても

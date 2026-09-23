@@ -198,16 +198,16 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 12.1 `react` / `react-dom` / `@types/react` / `@types/react-dom` を 19.3 系に上げる。開発環境の SSG ページの
         hydration で Effect が二重に呼ばれても、Realtime の channel が重複しないことを確かめる
     - _Requirements: 12.1_
-  - [ ] 12.2 ChatLogList と ChatRanking にそれぞれのスクロール枠を持たせ、RetroSplitter の下段の枠は
+  - [x] 12.2 ChatLogList と ChatRanking にそれぞれのスクロール枠を持たせ、RetroSplitter の下段の枠は
         `overflow: hidden` にする
     - _Requirements: 12.2a_
-  - [ ] 12.3 ランキングを表示している間、ChatLogList を `<Activity mode="hidden">` で残す。開閉は `startTransition`
+  - [x] 12.3 ランキングを表示している間、ChatLogList を `<Activity mode="hidden">` で残す。開閉は `startTransition`
         で行う
     - _Requirements: 12.2, 12.2a_
-  - [ ] 12.4 ランキングとログの切り替え、入室フォームとチャット入力の切り替えを `<ViewTransition>` で包み、
+  - [x] 12.4 ランキングとログの切り替え、入室フォームとチャット入力の切り替えを `<ViewTransition>` で包み、
         `prefers-reduced-motion: reduce` でアニメーションを止める CSS を入れる
     - _Requirements: 12.3, 12.4, 12.5_
-  - [ ]\* 12.5 ランキングから戻ったときに ChatLogList が再マウントされない（マウントの回数を数える）テストを書く
+  - [x]\* 12.5 ランキングから戻ったときに ChatLogList が再マウントされない（マウントの回数を数える）テストを書く
     - _Requirements: 12.2_
   - [ ] 12.6 Chrome と Safari で、アニメーションと reduced-motion を確かめる
     - _Requirements: 12.3, 12.4_

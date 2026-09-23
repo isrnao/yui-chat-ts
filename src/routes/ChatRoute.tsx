@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { Activity, ViewTransition, startTransition, useState, lazy, Suspense } from 'react';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
@@ -53,6 +53,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const [entryError, setEntryError] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
+  // [ランキング] のリンクと、ランキングの見出しから戻るリンクは Transition で開閉し、
+  // ViewTransition でアニメーションする。発言の送信や「更新」で閉じるときは Transition にしない。
+  // 送信は Action（非同期の Transition）なので、同じイベントの Transition の更新は Action に束ねられ、
+  // 保存が終わるまでランキングが閉じなくなる（テストで確認済み）
+  const openRanking = () => startTransition(() => setShowRanking(true));
+  const closeRankingAnimated = () => startTransition(() => setShowRanking(false));
+  const closeRanking = () => setShowRanking(false);
   // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
   const roomRanking = useRoomRanking(roomId, showRanking);
 
@@ -69,7 +76,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const handleSend = (msg: string, metadata?: ChatMetadata) => {
     // 発言もコマンド（「消す」ボタンの clear を含む）も、送信した時点でログ表示へ戻す
     // （入力欄は ChatRoom が自分で空にする）
-    if (msg.trim()) setShowRanking(false);
+    if (msg.trim()) closeRanking();
     return session.send(msg, metadata);
   };
 
@@ -96,8 +103,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onExit={handleExit}
               onSend={handleSend}
               onReload={reload}
-              onShowRanking={() => setShowRanking(true)}
-              onBackToChat={() => setShowRanking(false)}
+              onShowRanking={openRanking}
+              onBackToChat={closeRanking}
               avatar={avatar}
               userName={name}
               userColor={color}
@@ -131,33 +138,48 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           )
         }
         bottom={
-          !showRanking ? (
-            <Suspense
-              fallback={
-                <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
-              }
-            >
-              <ChatLogList
-                chatLog={chatLog}
-                isLoading={isLoading}
-                windowRows={windowRows}
-                loadError={loadError}
-                onRetry={reload}
-              />
-            </Suspense>
-          ) : (
-            <div className="px-[var(--page-gap)] pb-[var(--page-gap)]">
-              {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
-                  （更新・発言ボタンからもチャット表示に戻れる） */}
-              <ChatRanking
-                ranking={roomRanking.ranking}
-                isLoading={roomRanking.isLoading}
-                hasError={roomRanking.hasError}
-                roomTitle={room.title}
-                onBackToChat={() => setShowRanking(false)}
-              />
-            </div>
-          )
+          <>
+            {/* ランキングを表示している間もログ一覧は Activity で残しておく。戻ったときに
+                再マウントせず（1000 行でも作り直さない）、スクロール位置もそのまま戻る。
+                スクロールは各ビューが自分の枠で持つ（下段の枠を共有すると、ランキングの
+                高さに合わせてスクロール量が変わってしまう） */}
+            <Activity mode={showRanking ? 'hidden' : 'visible'}>
+              <ViewTransition>
+                <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
+                  <Suspense
+                    fallback={
+                      <div className="mt-8 animate-pulse text-gray-400">
+                        チャットログを読み込み中...
+                      </div>
+                    }
+                  >
+                    <ChatLogList
+                      chatLog={chatLog}
+                      isLoading={isLoading}
+                      windowRows={windowRows}
+                      loadError={loadError}
+                      onRetry={reload}
+                    />
+                  </Suspense>
+                </div>
+              </ViewTransition>
+            </Activity>
+            {showRanking && (
+              <ViewTransition>
+                <div className="h-full overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]">
+                  {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
+                      （更新・発言ボタンからもチャット表示に戻れる） */}
+                  <ChatRanking
+                    ranking={roomRanking.ranking}
+                    isLoading={roomRanking.isLoading}
+                    hasError={roomRanking.hasError}
+                    roomTitle={room.title}
+                    onBackToChat={closeRankingAnimated}
+                  />
+                </div>
+              </ViewTransition>
+            )}
+          </>
         }
       />
     </main>

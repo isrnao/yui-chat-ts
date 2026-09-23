@@ -90,3 +90,12 @@ body {
   font-weight: 700;
   text-decoration: none;
 }
+
+/* ViewTransition（ランキングの開閉）のアニメーションは、動きを減らす設定では止める */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
