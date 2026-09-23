@@ -82,8 +82,16 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
   let reloadCount = 0;
   /** 取得の世代。新しい取得が始まったら古い取得の結果は捨てる */
   let generation = 0;
-  /** 進行中の取得の間に届いた発言。取得結果に含まれないことがあるので完了時に足す */
+  /**
+   * 進行中の取得の間に届いた発言（Realtime の INSERT と保存の確定値）。
+   * 取得結果に含まれないことがあるので完了時に足す
+   */
   let arrivedDuringFetch: Chat[] | null = null;
+  /**
+   * 進行中の取得の間に行った確定行の書き換え（clear コマンドの表示への反映など）。
+   * 取得がそれより前のスナップショットを返すと書き換えが巻き戻るので、完了時に取得結果へもう一度適用する
+   */
+  let updatesDuringFetch: Array<(chats: Chat[]) => Chat[]> | null = null;
   let releaseScheduled = false;
 
   const setState = (next: Partial<RoomLogState>) => {
@@ -91,10 +99,17 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     for (const listener of listeners) listener();
   };
 
+  const stopTracking = (buffer: Chat[], updates: Array<(chats: Chat[]) => Chat[]>) => {
+    if (arrivedDuringFetch === buffer) arrivedDuringFetch = null;
+    if (updatesDuringFetch === updates) updatesDuringFetch = null;
+  };
+
   const startFetch = () => {
     const current = ++generation;
     const buffer: Chat[] = [];
+    const updates: Array<(chats: Chat[]) => Chat[]> = [];
     arrivedDuringFetch = buffer;
+    updatesDuringFetch = updates;
     const requested = limit;
     const isExpansion = requested > displayedLimit;
 
@@ -104,15 +119,16 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
         displayedLimit = requested;
         // 拡張のときだけ表示中の発言を残す。それ以外は取得結果を正とする
         // （別クライアントで論理削除された発言や、件数の窓から外れた発言を残さないため）
-        const chats = isExpansion
+        let chats = isExpansion
           ? mergeChatLogByUuid(logs, [...state.chats, ...buffer])
           : mergeChatLogByUuid(logs, buffer);
-        if (arrivedDuringFetch === buffer) arrivedDuringFetch = null;
+        for (const update of updates) chats = update(chats);
+        stopTracking(buffer, updates);
         setState({ status: 'ready', chats });
       },
       () => {
         if (current !== generation) return;
-        if (arrivedDuringFetch === buffer) arrivedDuringFetch = null;
+        stopTracking(buffer, updates);
         setState({ status: 'error' });
       }
     );
@@ -153,6 +169,7 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     realtime = null;
     generation++; // 進行中の取得の結果を捨てる
     arrivedDuringFetch = null;
+    updatesDuringFetch = null;
   };
 
   const store: RoomLogStore = {
@@ -184,9 +201,12 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
       startFetch();
     },
     applySaved(chat) {
+      // 取得中なら到着バッファにも入れる。保存の応答が取得結果より新しいと、取得の完了で消えてしまう
+      arrivedDuringFetch?.push(chat);
       setState({ chats: mergeChatLogByUuid(state.chats, chat) });
     },
     update(updater) {
+      updatesDuringFetch?.push(updater);
       setState({ chats: updater(state.chats) });
     },
     onInsert(listener) {
