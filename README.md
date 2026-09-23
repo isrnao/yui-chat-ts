@@ -29,7 +29,7 @@ save-chat / Okiraku API ── OTLP ── New Relic ── PagerDuty（重大�
 Storybook ── GitHub Actions ── Chromatic
 ```
 
-外部サービスを含む構成図（Mermaid）は[`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)を参照してください。
+外部サービスを含む構成図（サービスのアイコンで描いた SVG）は[`docs/SYSTEM_ARCHITECTURE.md`](docs/SYSTEM_ARCHITECTURE.md)を参照してください。
 
 ### ソースコードのレイヤー
 

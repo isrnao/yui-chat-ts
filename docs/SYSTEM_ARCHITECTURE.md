@@ -1,11 +1,8 @@
 # システム構成図
 
 お気楽チャットTS を構成するサービスと、外部 API・連携サービスとのつながりを図にまとめたものです。
-図は [Mermaid](https://mermaid.js.org/) で書いており、GitHub 上ではそのまま描画されます。
+図は AWS の構成図と同じように、サービスのアイコンとグループ枠で描いた SVG（[`docs/images/`](./images/)）です。
 アプリ内部のレイヤー構成やデータフローの詳細は [ARCHITECTURE.md](./ARCHITECTURE.md) を参照してください。
-
-- 実線の矢印: 常に発生する通信・依存
-- 点線の矢印: 条件付き・非同期・遅延読み込みの通信
 
 Okiraku API は別リポジトリ [`isrnao/okiraku-api`](https://github.com/isrnao/okiraku-api)（コミット `f962a59`
 時点）のコードで確認しています。HetrixTools・PagerDuty の設定と、Vercel のプラン・予算・環境変数は
@@ -20,62 +17,10 @@ Okiraku API は別リポジトリ [`isrnao/okiraku-api`](https://github.com/isrn
 直接通信します。外部 API（Okiraku API・GitHub API）を呼ぶのは Edge Function の `save-chat` だけで、
 ブラウザには秘密値を渡しません。Okiraku API はその先で Vercel AI Gateway 経由の評価モデル Jev を呼びます。
 
-```mermaid
-flowchart TB
-  user(["利用者"])
+![システム構成図（実行時）。ブラウザ、GitHub Pages、Supabase、Vercel（Okiraku API・AI Gateway・Jev）、GitHub API、サードパーティ埋め込みと、処理の流れ 1〜9](./images/system-architecture.svg)
 
-  subgraph pages["GitHub Pages（www.okiraku.chat）"]
-    static["SSG 済み HTML / JS / CSS<br/>404.html で deep link 復元"]
-  end
-
-  subgraph browser["ブラウザ"]
-    spa["React SPA<br/>top / chat / chanari-chat"]
-    apiLayer["API 層<br/>roomLogStore / chatQueries<br/>saveChat / realtime<br/>roomCountsApi"]
-    storage[("localStorage<br/>sessionStorage")]
-    spa --> apiLayer
-    spa --> storage
-  end
-
-  subgraph embeds["サードパーティ（ブラウザから直接・遅延読み込み）"]
-    ga["Google Analytics 4<br/>gtag.js"]
-    nrBrowser["New Relic<br/>Browser Agent"]
-    xWidget["X（Twitter）<br/>widgets.js"]
-    adring["Adring<br/>広告ウィジェット"]
-  end
-
-  subgraph supa["Supabase"]
-    fn["Edge Function<br/>save-chat（Deno）"]
-    rest["PostgREST<br/>/rest/v1"]
-    realtime["Realtime<br/>/realtime/v1（WebSocket）"]
-    subgraph pg["PostgreSQL"]
-      chats[("chats テーブル<br/>INSERT は service_role")]
-      ranking["chat_ranking<br/>（view）"]
-      counts["room_participant_counts<br/>（RPC）"]
-    end
-  end
-
-  subgraph extApi["外部 API（save-chat から呼ぶ）"]
-    okiraku["Okiraku API（Vercel Functions）<br/>api.okiraku.chat<br/>POST /api/v1/evaluate"]
-    github["GitHub REST API<br/>Issues"]
-  end
-
-  gateway["Vercel AI Gateway<br/>モデル: typesafe-ai/jev"]
-
-  user --> spa
-  static -->|"HTML / JS / CSS"| spa
-  spa -.-> embeds
-  apiLayer -->|"functions.invoke<br/>traceparent 付き"| fn
-  apiLayer -->|"SELECT・論理削除・RPC<br/>anon key"| rest
-  apiLayer <-->|"postgres_changes 購読<br/>look / unlook broadcast"| realtime
-  fn -->|"INSERT（service_role）<br/>ip / ua はヘッダから観測"| chats
-  rest --> chats
-  rest --> ranking
-  rest --> counts
-  chats -.->|"INSERT を配信"| realtime
-  fn -.->|"com_sb のみ<br/>応答後に分類"| okiraku
-  fn -.->|"機能要求なら起票"| github
-  okiraku -->|"AI SDK・OIDC 認証<br/>ZDR なし"| gateway
-```
+楽観的更新・再試行・重複の除き方など、送信と受信の細かな流れは
+[ARCHITECTURE.md の「5. データフロー」](./ARCHITECTURE.md#5-データフロー)を参照してください。
 
 | 構成要素               | 役割                                                                                                                                 | 主なコード                                                           |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
@@ -84,97 +29,26 @@ flowchart TB
 | Realtime               | `chats` の INSERT を room ごとに配信。look / unlook は broadcast channel                                                             | `features/chat/api/realtime.ts`、`roomLogStore.ts`                   |
 | save-chat              | 発言の INSERT を担う唯一の経路。管理者チャット（`com_sb`）だけ応答後に triage を行う                                                 | `supabase/functions/save-chat/`                                      |
 | PostgreSQL             | `chats` テーブル、RLS、`ip_masked` 生成列、view、RPC                                                                                 | `supabase/migrations/`                                               |
-| Okiraku API（Vercel）  | 別リポジトリの評価 API。`choice-v1` で発言を bug / question / cr / chat に分類する（§3）                                             | `supabase/functions/save-chat/triage.ts`、okiraku-api                |
+| Okiraku API（Vercel）  | 別リポジトリの評価 API。`choice-v1` で発言を bug / question / cr / chat に分類する（§2）                                             | `supabase/functions/save-chat/triage.ts`、okiraku-api                |
 | Vercel AI Gateway      | Okiraku API からのモデル呼び出しを中継し、Jev（`typesafe-ai/jev`）で評価する                                                         | okiraku-api の `src/providers/jev.ts`                                |
 | GitHub REST API        | `cr`（機能要求）と判定した発言を `isrnao/yui-chat-ts` の Issue にする                                                                | 同上                                                                 |
 | サードパーティ埋め込み | 初回描画を妨げないよう遅延読み込み。GA4 は load か 3 秒後、New Relic は初回操作か load 10 秒後、X・Adring はトップで画面に入ったとき | `index.html`、`shared/observability/newRelic.ts`、`top/components/*` |
 
 ---
 
-## 2. 発言の送信から配信まで
-
-楽観的更新で即時表示し、`save-chat` の確定行で置き換えます。他の参加者へは Realtime の
-`postgres_changes` で届きます。管理者チャットの triage は `EdgeRuntime.waitUntil` で応答後に動くため、
-送信者への応答を遅らせません。
-
-```mermaid
-sequenceDiagram
-  autonumber
-  actor U as 利用者
-  participant B as ブラウザ
-  participant F as save-chat
-  participant DB as PostgreSQL
-  participant RT as Realtime
-  participant O as 他の参加者
-  participant J as Okiraku API
-  participant AG as AI Gateway（Jev）
-  participant G as GitHub API
-  participant NR as New Relic
-
-  U->>B: 発言を送信
-  B->>B: useOptimistic で即時表示（仮 UUID）
-  B->>F: functions.invoke save-chat（traceparent・操作 ID）
-  F->>F: payload を検証し ip / ua をヘッダから取得
-  F->>DB: INSERT（service_role）
-  DB-->>F: UUID v7・time・ip_masked
-  F-->>B: 確定行（失敗時は最大 3 回まで再試行）
-  B->>B: 楽観行を確定行に置き換え
-  DB-->>RT: INSERT を通知
-  RT-->>O: postgres_changes（room_id で絞り込み）
-  RT-->>B: postgres_changes（uuid で重複を除く）
-  opt 管理者チャット com_sb の発言（応答後）
-    F->>J: POST /api/v1/evaluate（choice-v1・Bearer キー）
-    J->>J: API キーと入力スキーマを検証
-    J->>AG: experimental_evaluate（typesafe-ai/jev）
-    AG-->>J: 選んだ選択肢と確率
-    J->>J: 提示した選択肢以外の回答を拒否
-    J-->>F: bug / question / cr / chat
-    J-)NR: OTLP で traces / logs を送信
-    opt cr の確率が 0.5 以上かつ直近 1 時間で 3 件未満
-      F->>G: Issue を作成
-      G-->>F: Issue 番号
-      F->>DB: 管理人の受付発言を INSERT
-    end
-  end
-  F-)NR: OTLP で traces / logs を送信
-```
-
----
-
-## 3. Okiraku API（評価 API）
+## 2. Okiraku API（評価 API）
 
 [`isrnao/okiraku-api`](https://github.com/isrnao/okiraku-api) は Vercel Functions（Node.js 24）で動く
 API 専用のプロジェクトです。AI SDK（`ai` 7.0.105）の `experimental_evaluate` で、Vercel AI Gateway 上の
 評価モデル Jev（`typesafe-ai/jev`）を呼びます。お気楽チャットからは `save-chat` の triage だけが使います。
 
-```mermaid
-flowchart LR
-  caller(["save-chat<br/>（triage）"])
-  hetrix(["HetrixTools"])
+全体構成図の Vercel グループ（Okiraku API → AI Gateway → Jev）にあたります。1 回の評価は次の順に進みます。
 
-  subgraph vercelFn["Vercel Functions（api.okiraku.chat）"]
-    entry["POST /api/v1/evaluate"]
-    auth["auth.ts<br/>Bearer キーを照合"]
-    schema["schema.ts<br/>Zod で入力を検証"]
-    provider["providers/jev.ts<br/>experimental_evaluate<br/>自動リトライなし"]
-    check["Zod で出力を検証<br/>提示した選択肢だけ許可"]
-    finish["span を閉じて<br/>ログを 1 行出力"]
-    health["GET /api/health<br/>稼働確認のみ"]
-    entry --> auth --> schema --> provider --> check --> finish
-  end
-
-  gateway["Vercel AI Gateway<br/>OIDC 認証・プロジェクト予算"]
-  jev["Jev<br/>typesafe-ai/jev"]
-  nr["New Relic<br/>traces / logs"]
-  vlogs["Vercel のログ<br/>本文は redact"]
-
-  caller -->|"Bearer キー・traceparent"| entry
-  hetrix -->|"1 分間隔"| health
-  provider <-->|"ZDR なし（Hobby）"| gateway
-  gateway <--> jev
-  finish -.->|"応答後に flush"| nr
-  finish -.-> vlogs
-```
+1. `api/v1/evaluate.ts` が `POST` を受け、`auth.ts` が Bearer キーを照合する
+2. `schema.ts` が Zod で入力を検証する（未知のフィールドは拒否）
+3. `providers/jev.ts` が `experimental_evaluate` で AI Gateway 経由の Jev に評価させる（自動リトライなし）
+4. 出力を Zod で検証し、提示した選択肢以外の回答を拒否する
+5. 応答を返したあと、span とログを New Relic へ送る（Vercel の `waitUntil`）
 
 | 項目              | 内容                                                                                                                                  |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
@@ -201,89 +75,30 @@ flowchart LR
 
 ---
 
-## 4. 監視・障害通知
+## 3. 監視・障害通知
 
 アプリ内の計測は New Relic に集約し、重大なアラート（C1: 保存の失敗）だけを PagerDuty に送ります。
 外形監視は HetrixTools が Web と API の health を見て、PagerDuty に直接通知します。
 
-```mermaid
-flowchart LR
-  subgraph sources["計測元"]
-    nrAgent["New Relic Browser Agent<br/>（ブラウザ）"]
-    fn["save-chat<br/>自前 tracer"]
-    okiraku["Okiraku API<br/>OTel SDK・pino"]
-  end
-
-  subgraph targets["外形監視の対象"]
-    www["www.okiraku.chat"]
-    health["api.okiraku.chat/api/health"]
-  end
-
-  hetrix["HetrixTools<br/>4 拠点・1 分間隔"]
-  nr["New Relic<br/>traces / logs / Browser<br/>アラート C1・C2・C4〜C7"]
-  pd["PagerDuty<br/>service: okiraku.chat"]
-  oncall(["担当者<br/>メール通知"])
-  ops(["開発者のローカル"])
-
-  nrAgent -->|"Ajax / JSErrors / PageView"| nr
-  fn -->|"OTLP/HTTP JSON"| nr
-  okiraku -->|"OTLP/HTTP<br/>traces・logs"| nr
-  fn -.->|"traceparent"| okiraku
-  hetrix -->|"HTTPS GET"| www
-  hetrix -->|"HTTPS GET"| health
-  hetrix -->|"障害・復旧"| pd
-  nr -->|"C1（CRITICAL）のみ"| pd
-  pd --> oncall
-  ops -->|"newrelic-alerts.ts / verify-trace.ts<br/>NerdGraph API"| nr
-```
+![監視・障害通知。ブラウザ・save-chat・Okiraku API から New Relic へ計測を送り、C1 と HetrixTools の結果を PagerDuty から担当者へメール通知する](./images/observability.svg)
 
 アラート条件の定義は `scripts/newrelic-alerts.ts` にあります（C1: 保存失敗、C2: save-chat の 5xx、
 C4: 評価 API の 502 / 504、C5 / C6: 遅延、C7: triage 失敗ログ）。
 
 ---
 
-## 5. 開発・CI・デプロイ
+## 4. 開発・CI・デプロイ
 
 フロントエンドの公開と Edge Function のデプロイは、どちらも開発者のローカルから手動で行います
 （GitHub Actions からのデプロイはありません）。okiraku-api は別リポジトリで、Vercel に配置します。
 
-```mermaid
-flowchart LR
-  dev(["開発者"])
-
-  subgraph gh["GitHub（isrnao/yui-chat-ts）"]
-    repo["リポジトリ"]
-    ci["Actions: CI<br/>lint・test（PR）"]
-    chromaticWf["Actions: Chromatic<br/>Storybook build<br/>（main / develop）"]
-    ghPagesBranch["gh-pages ブランチ"]
-    pagesSvc["GitHub Pages<br/>www.okiraku.chat"]
-  end
-
-  subgraph ghApi["GitHub（isrnao/okiraku-api）"]
-    apiRepo["リポジトリ<br/>CI なし"]
-  end
-
-  chromatic["Chromatic<br/>ビジュアルリグレッション"]
-  supa["Supabase<br/>Edge Functions / DB"]
-  vercel["Vercel Functions<br/>api.okiraku.chat"]
-
-  dev -->|"commit<br/>lefthook: eslint・typecheck・vitest"| repo
-  repo --> ci
-  repo --> chromaticWf
-  chromaticWf -->|"storybook-static"| chromatic
-  dev -->|"pnpm deploy<br/>build:prod → gh-pages -d dist"| ghPagesBranch
-  ghPagesBranch --> pagesSvc
-  dev -->|"supabase functions deploy save-chat"| supa
-  dev -.->|"supabase/migrations を適用"| supa
-  dev -->|"commit"| apiRepo
-  apiRepo -.->|"デプロイ<br/>build: pnpm typecheck"| vercel
-```
+![開発・CI・デプロイ。開発者のローカルから GitHub、GitHub Pages、Supabase、Vercel へ反映する経路と、GitHub Actions の CI と Chromatic](./images/deployment.svg)
 
 okiraku-api を Vercel へ反映する方法（Git 連携か Vercel CLI か）は、リポジトリからは確認できません。
 
 ---
 
-## 6. 外部サービス一覧
+## 5. 外部サービス一覧
 
 | サービス               | 種別             | 呼び出し元             | 用途                                             | 認証・秘密値の置き場所                                                        | 未設定・障害時の挙動                                                                           |
 | ---------------------- | ---------------- | ---------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
@@ -304,3 +119,12 @@ okiraku-api を Vercel へ反映する方法（Git 連携か Vercel CLI か）�
 | Adring                 | 広告             | ブラウザ（トップ）     | 広告バナー                                       | site ID（公開）                                                               | 画面に入るまで読み込まない                                                                     |
 | Chromatic              | CI               | GitHub Actions         | Storybook のビジュアルリグレッション             | `CHROMATIC_PROJECT_TOKEN`（GitHub Actions Secret）                            | —                                                                                              |
 | Google Search Console  | SEO              | —                      | サイトの所有確認（`public/google*.html`）        | —                                                                             | —                                                                                              |
+
+---
+
+## 図の編集について
+
+図は `docs/images/` の SVG です。テキストエディタや、SVG を読み込めるベクター編集ツールで直接編集できます。
+アイコンは [Simple Icons](https://simpleicons.org/)（CC0 1.0）と [Lucide](https://lucide.dev/)（ISC License）の
+ものを使っています。各サービスのロゴは、それぞれの権利者の商標です。構成を変えたときは、図と表の両方を
+更新してください。
