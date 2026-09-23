@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ChatRoom from './index';
 import type { ChatRoomProps } from './index';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 
 describe('ChatRoom', () => {
   let props: ChatRoomProps;
@@ -112,17 +113,29 @@ describe('ChatRoom', () => {
     // 成功時 setMessage('') が呼ばれる
   });
 
-  it('shows error when onSend rejects', async () => {
+  it('送信に失敗すると、内部のエラー文言ではなく汎用の文言を表示する', async () => {
     props.message = 'error test';
-    const errorMsg = '送信失敗';
-    props.onSend = vi.fn(() => Promise.reject(new Error(errorMsg)));
+    props.onSend = vi.fn(() => Promise.reject(new Error('Failed to save chat: 500')));
     render(<ChatRoom {...props} />);
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: 'error test' } });
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
 
     await waitFor(() => {
-      expect(screen.getByText(errorMsg)).toBeInTheDocument();
+      expect(screen.getByText(/発言を送信できませんでした/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Failed to/)).not.toBeInTheDocument();
+  });
+
+  it('利用者向けのエラー（UserFacingError）は文言をそのまま表示する', async () => {
+    props.message = 'clear';
+    props.onSend = vi.fn(() => Promise.reject(new UserFacingError('削除対象の発言がありません')));
+    render(<ChatRoom {...props} />);
+    fireEvent.change(screen.getByRole('textbox', { name: '発言' }), { target: { value: 'clear' } });
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('削除対象の発言がありません')).toBeInTheDocument();
     });
   });
 

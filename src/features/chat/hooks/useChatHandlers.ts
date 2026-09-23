@@ -5,6 +5,7 @@ import {
   createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
@@ -74,7 +75,7 @@ export function useChatHandlers({
     const err = validateName(entryName);
     if (err) {
       measurement.onJoinFailed(roomId, 'validation');
-      throw new Error(err);
+      throw new UserFacingError(err);
     }
     setEntered(true);
 
@@ -127,14 +128,13 @@ export function useChatHandlers({
       userColor: color,
     });
 
-    const saving = send(roomId, optimistic);
-    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから送る（退室操作は即座に反映させる）
     setEntered(false);
     setShowRanking(false);
     setName('');
     setMessage('');
 
-    await saving;
+    await send(roomId, optimistic);
   };
 
   // メッセージ送信（metadata: フォントスタイル + アバター対応）

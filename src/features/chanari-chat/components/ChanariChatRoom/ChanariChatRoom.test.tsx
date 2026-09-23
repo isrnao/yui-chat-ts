@@ -35,11 +35,15 @@ describe('ChanariChatRoom の失敗表示', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('送信できませんでした');
   });
 
-  it('自分の発言の削除に失敗するとエラーを表示する', async () => {
-    setup({ onClearMyLogs: vi.fn(() => Promise.reject(new Error('削除できませんでした'))) });
+  it('自分の発言の削除に失敗すると、操作に応じた汎用の文言を表示する', async () => {
+    setup({
+      onClearMyLogs: vi.fn(() => Promise.reject(new Error('Failed to clear chat logs: boom'))),
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'ログ消去' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('削除できませんでした');
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('ログを消去できませんでした');
+    expect(alert).not.toHaveTextContent('Failed to');
   });
 });
