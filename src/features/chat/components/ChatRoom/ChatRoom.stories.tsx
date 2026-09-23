@@ -11,7 +11,6 @@ function ChatRoomContainer({
   onReload,
   onShowRanking,
 }: Partial<ChatRoomProps>) {
-  const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(initialWindowRows);
 
   // Storybook controls で initial 値が変わったら state を巻き戻す
@@ -21,8 +20,6 @@ function ChatRoomContainer({
   return (
     <div className="max-w-3xl mx-auto p-4">
       <ChatRoom
-        message={message}
-        setMessage={setMessage}
         windowRows={windowRows}
         setWindowRows={setWindowRows}
         onExit={onExit ?? fn()}
@@ -53,13 +50,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const noopStringDispatch = (() => undefined) as Dispatch<SetStateAction<string>>;
 const noopNumberDispatch = (() => undefined) as Dispatch<SetStateAction<number>>;
 
 export const Default: Story = {
   args: {
-    message: '',
-    setMessage: noopStringDispatch,
     windowRows: 30,
     setWindowRows: noopNumberDispatch,
     onExit: fn(),
@@ -72,8 +66,6 @@ export const Default: Story = {
 
 export const LongerWindow: Story = {
   args: {
-    message: '',
-    setMessage: noopStringDispatch,
     windowRows: 100,
     setWindowRows: noopNumberDispatch,
     onExit: fn(),

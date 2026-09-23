@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { act, render, screen, cleanup } from '@testing-library/react';
 import ParticipantsList from './index';
-import type { Participant } from '@features/chat/types';
+import type { Chat } from '@features/chat/types';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -9,11 +9,20 @@ vi.mock('@shared/utils/format', () => ({
 }));
 
 describe('ParticipantsList', () => {
-  const participants: Participant[] = [
-    { uuid: 'p1', name: 'Alice', color: '#ff0000' },
-    { uuid: 'p2', name: 'Bob', color: '#00ff00' },
-  ];
   const fixedTime = 1680000000000;
+  const chat = (uuid: string, name: string, color: string, time: number): Chat => ({
+    uuid,
+    name,
+    color,
+    message: 'hi',
+    time,
+    ip_masked: '',
+    ua: '',
+  });
+  const chatLog: Chat[] = [
+    chat('p1', 'Alice', '#ff0000', fixedTime - 1000),
+    chat('p2', 'Bob', '#00ff00', fixedTime - 2000),
+  ];
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -26,13 +35,13 @@ describe('ParticipantsList', () => {
   });
 
   it('renders "（なし）" when no participants', () => {
-    render(<ParticipantsList participants={[]} />);
+    render(<ParticipantsList chatLog={[]} />);
     expect(screen.getByText('参加者(0):')).toBeInTheDocument();
     expect(screen.getByText('（なし）')).toBeInTheDocument();
   });
 
   it('renders participants with their colors', () => {
-    render(<ParticipantsList participants={participants} />);
+    render(<ParticipantsList chatLog={chatLog} />);
 
     const alice = screen.getByText('Alice');
     const bob = screen.getByText('Bob');
@@ -42,18 +51,30 @@ describe('ParticipantsList', () => {
   });
 
   it('displays current time in header', () => {
-    render(<ParticipantsList participants={[]} />);
+    render(<ParticipantsList chatLog={[]} />);
 
     const timeElement = screen.getByText(/\[TIME\(/);
     expect(timeElement).toBeInTheDocument();
   });
 
   it('現在時刻は視覚回帰テストの比較対象から外す', () => {
-    const { container } = render(<ParticipantsList participants={[]} />);
+    const { container } = render(<ParticipantsList chatLog={[]} />);
 
     // Chromatic が毎回差分として拾わないよう data-chromatic="ignore" を付けている
     const clock = container.querySelector('[data-chromatic="ignore"]');
     expect(clock).toBeInTheDocument();
     expect(clock?.textContent).toMatch(/^\[.+\]$/);
+  });
+
+  it('新しい発言がなくても、5 分を過ぎた発言者を分の境界で参加者から外す', () => {
+    // 4 分前に発言した人がいる状態から 3 分進めると、窓（5 分）から外れる
+    render(<ParticipantsList chatLog={[chat('p1', 'Alice', '#ff0000', fixedTime - 4 * 60_000)]} />);
+    expect(screen.getByText('参加者(1):')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(3 * 60_000);
+    });
+
+    expect(screen.getByText('参加者(0):')).toBeInTheDocument();
   });
 });

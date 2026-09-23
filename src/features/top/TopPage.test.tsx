@@ -17,7 +17,7 @@ describe('<TopPage />', () => {
     expect(screen.getByText('注目のチャット ピックアップ')).toBeInTheDocument();
 
     const superbeginner = screen.getAllByRole('link', { name: '超初心者チャット' })[0];
-    expect(superbeginner).toHaveAttribute('href', '/chat/superbeginner');
+    expect(superbeginner).toHaveAttribute('href', '/chat/superbeginner/');
     expect(superbeginner).not.toHaveAttribute('target');
     expect(superbeginner).not.toHaveAttribute('rel');
 
@@ -31,13 +31,13 @@ describe('<TopPage />', () => {
     render(<TopPage />);
 
     const cases: Array<[string, string]> = [
-      ['初めましてチャット', '/chat/hajime'],
-      ['みんなのチャット', '/chat/ofall'],
-      ['夢と希望のチャット', '/chat/yume'],
-      ['小学生チャット', '/chat/elementary'],
-      ['関東チャット', '/chat/area_kantoh'],
-      ['バトルチャット', '/chat/battle'],
-      ['初めてチャット', '/chat/hajime-old'],
+      ['初めましてチャット', '/chat/hajime/'],
+      ['みんなのチャット', '/chat/ofall/'],
+      ['夢と希望のチャット', '/chat/yume/'],
+      ['小学生チャット', '/chat/elementary/'],
+      ['関東チャット', '/chat/area_kantoh/'],
+      ['バトルチャット', '/chat/battle/'],
+      ['初めてチャット', '/chat/hajime-old/'],
     ];
 
     for (const [name, expectedHref] of cases) {

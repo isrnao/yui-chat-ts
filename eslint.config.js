@@ -7,6 +7,7 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import prettier from 'eslint-plugin-prettier';
 import parserTypeScript from '@typescript-eslint/parser';
+import tseslint from 'typescript-eslint';
 
 export default [
   {
@@ -17,7 +18,6 @@ export default [
       'docs',
       'storybook-static',
       'supabase/functions',
-      '**/*.mdx',
       '**/*.md',
       'README.md',
       'package.json',
@@ -51,6 +51,28 @@ export default [
       'prettier/prettier': 'warn',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
+    },
+  },
+  {
+    // 型情報を使うルール（.kiro/specs/react-2026-refactoring Requirement 11）。
+    // await し忘れた Promise や、async 関数を onClick / onSubmit へそのまま渡す誤りを
+    // レビューの前に見つける。意図して投げっぱなしにするときは `void` を付け、
+    // 失敗しうるなら `.catch` で受け取る。
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['**/*.test.{ts,tsx}', '**/*.stories.{ts,tsx}', 'src/test/**', 'src/storybook/**'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+    },
+    rules: {
+      '@typescript-eslint/no-floating-promises': 'error',
+      '@typescript-eslint/no-misused-promises': 'error',
+      '@typescript-eslint/no-explicit-any': 'error',
     },
   },
   {

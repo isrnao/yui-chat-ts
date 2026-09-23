@@ -29,7 +29,8 @@ export default function ChanariEntryForm({
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
     if (name.trim() === '') return;
-    onEnter({ name, nameColor, speechColor });
+    // 入室の失敗は呼び出し元が error prop で表示する（入室中はこのフォームがアンマウントされる）
+    Promise.resolve(onEnter({ name, nameColor, speechColor })).catch(() => {});
   };
 
   return (
@@ -72,7 +73,11 @@ export default function ChanariEntryForm({
       <div>
         <input type="submit" value="チャットに参加する" disabled={isPending} />
       </div>
-      {error && <div className="chanari-error">{error}</div>}
+      {error && (
+        <div role="alert" className="chanari-error">
+          {error}
+        </div>
+      )}
     </form>
   );
 }

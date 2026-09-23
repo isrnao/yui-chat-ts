@@ -47,14 +47,3 @@ export const mockChatData: Chat[] = [
 export function isOnline(): boolean {
   return navigator.onLine;
 }
-
-// ネットワーク状態の監視
-export function monitorNetworkStatus(): void {
-  window.addEventListener('online', () => {
-    // ネットワーク復旧時の処理
-  });
-
-  window.addEventListener('offline', () => {
-    // ネットワーク切断時の処理
-  });
-}

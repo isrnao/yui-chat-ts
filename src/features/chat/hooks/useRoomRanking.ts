@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { loadChatRanking } from '@features/chat/api/chatApi';
+import { loadChatRanking } from '@features/chat/api/chatQueries';
 import type { RankingEntry } from '@features/chat/utils/chatRanking';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import type { RoomId } from '@features/chat/rooms';

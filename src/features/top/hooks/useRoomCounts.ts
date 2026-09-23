@@ -8,13 +8,16 @@ export type UseRoomCountsState = {
   error: Error | null;
 };
 
+/** 参加人数を数える期間の既定値（6 時間）。既定引数に式を書くと React Compiler がコンパイルできない */
+const DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000;
+
 /**
  * トップページ用: Supabase から直近 `windowMs` 内のメッセージを取得し、
  * ルームごとのユニーク参加者数を返す。失敗時は空オブジェクトで解決する。
  *
  * デフォルトは 6 時間。
  */
-export function useRoomCounts(windowMs: number = 6 * 60 * 60 * 1000): UseRoomCountsState {
+export function useRoomCounts(windowMs: number = DEFAULT_WINDOW_MS): UseRoomCountsState {
   const [state, setState] = useState<UseRoomCountsState>({
     counts: {},
     isLoading: true,

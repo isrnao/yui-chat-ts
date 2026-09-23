@@ -29,7 +29,7 @@ export function buildChanariRoomPath(roomId: RoomId): string {
     ? import.meta.env.BASE_URL.slice(0, -1)
     : import.meta.env.BASE_URL;
 
-  return `${baseUrl}/chanari/${roomId}`;
+  return `${baseUrl}/chanari/${roomId}/`; // 末尾の / は buildChatRoomPath と同じ理由
 }
 
 export function matchChanariRoute(pathname: string): ChanariRouteMatch | null {

@@ -58,11 +58,16 @@ export default function EntryForm({
     <div className="flex flex-col">
       <header className="mb-1 text-2xl font-bold text-yui-pink font-yui">{roomTitle}</header>
       <form
-        onSubmit={async (e) => {
+        onSubmit={(e) => {
           e.preventDefault();
-          await onEnter({ name, color, email, silent, avatar });
-          // 入室成功後に localStorage を更新（バリデーション失敗時は保存しない）
-          updateSettings({ name, color, email, avatar });
+          // 入室の失敗は呼び出し元が error prop で表示する。入室中はこのフォーム自体が
+          // アンマウントされる（チャット画面へ即座に切り替える）ため、ここでは状態を持てない。
+          // Promise を捨てると未処理の rejection になるので、失敗も必ず受け取る。
+          Promise.resolve(onEnter({ name, color, email, silent, avatar })).then(
+            // 入室成功後に localStorage を更新（失敗時は保存しない）
+            () => updateSettings({ name, color, email, avatar }),
+            () => {}
+          );
         }}
         autoComplete="off"
       >
@@ -203,7 +208,11 @@ export default function EntryForm({
           ))}
         </div>
         {/* エラー表示 */}
-        {error && <div className="text-xs text-red-500 text-left mb-1">{error}</div>}
+        {error && (
+          <div role="alert" className="text-xs text-red-500 text-left mb-1">
+            {error}
+          </div>
+        )}
         <div className="text-xs text-gray-500 text-right mt-1">
           <a href="https://www.cup.com/yui/" target="_blank" rel="noreferrer">
             ゆいちゃっと Pro(Free)

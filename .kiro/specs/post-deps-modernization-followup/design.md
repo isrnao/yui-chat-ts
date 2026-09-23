@@ -144,12 +144,11 @@ export default function RetroSplitter({
 // vite.config.ts (修正後)
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
-import mdx from '@mdx-js/rollup';
 import tsconfigPaths from 'vite-tsconfig-paths';
 
 export default defineConfig({
   base: '/',
-  plugins: [tsconfigPaths(), react(), mdx()],
+  plugins: [tsconfigPaths(), react()],
   // ... (resolve.alias セクションは削除)
 });
 ```
@@ -160,7 +159,7 @@ export default defineConfig({
 
 ##### Storybook 側の挙動
 
-`.storybook/main.ts` の `viteFinal` は `@mdx-js/rollup` plugin を除去する処理を行っている。`vite-tsconfig-paths` plugin は `vite.config.ts` 側で登録されるため、Storybook がそれを継承する。`viteFinal` 内で `tsconfigPaths()` を `filter` で誤って除去しないよう、plugin 名 `'@mdx-js/rollup'` の strict 一致を維持する。
+`vite-tsconfig-paths` plugin は `vite.config.ts` 側で登録されるため、Storybook がそれを継承する。（以前 `.storybook/main.ts` の `viteFinal` にあった `@mdx-js/rollup` の除去処理は、利用規約の MDX を削除した際に不要になり削除した。react-2026-refactoring R5.5）
 
 #### Requirement 3: Vitest 4 + Coverage_Threshold_Strategy + Vite_Override_Cleanup
 

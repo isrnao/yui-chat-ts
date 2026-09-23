@@ -1,7 +1,7 @@
+import { createPersistentStore } from '@shared/utils/persistentStore';
 import type { AvatarId } from '@features/chat/types';
 
 const STORAGE_KEY = 'yui-chat-settings';
-const SETTINGS_CHANGE_EVENT = 'yui-chat-settings-change';
 const SESSION_VISIT_KEY = 'yui-chat-visit-counted';
 
 export type UserSettings = {
@@ -25,22 +25,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   lastLogin: 0,
   previousLogin: 0,
 };
-
-// メモリ内キャッシュ（localStorage が使えない場合のフォールバック兼高速アクセス用）
-let cachedSettings: UserSettings = loadFromStorage();
-
-function loadFromStorage(): UserSettings {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw == null) return { ...DEFAULT_SETTINGS };
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed == null) return { ...DEFAULT_SETTINGS };
-    return mergeWithDefaults(parsed as Record<string, unknown>);
-  } catch {
-    // JSON解析失敗・localStorage無効 → デフォルト値にフォールバック
-    return { ...DEFAULT_SETTINGS };
-  }
-}
 
 function mergeWithDefaults(parsed: Record<string, unknown>): UserSettings {
   return {
@@ -88,54 +72,27 @@ function isValidAvatar(value: unknown): value is AvatarId {
   return valid.includes(value);
 }
 
-function saveToStorage(settings: UserSettings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // QuotaExceededError や localStorage 無効 → サイレントに無視
-  }
-}
+/**
+ * 利用者の設定。localStorage の値を Persistent_Store で読み書きする
+ * （.kiro/specs/react-2026-refactoring Requirement 9）。
+ */
+const store = createPersistentStore<UserSettings>({
+  key: STORAGE_KEY,
+  defaults: DEFAULT_SETTINGS,
+  parse: (value) =>
+    typeof value === 'object' && value !== null
+      ? mergeWithDefaults(value as Record<string, unknown>)
+      : { ...DEFAULT_SETTINGS },
+});
 
 // --- useSyncExternalStore 用インターフェース ---
 
-export function getSnapshot(): UserSettings {
-  return cachedSettings;
-}
-
-export function getServerSnapshot(): UserSettings {
-  return DEFAULT_SETTINGS;
-}
-
-export function subscribe(callback: () => void): () => void {
-  // 同一タブ内のカスタムイベント
-  const handleSettingsChange = () => {
-    cachedSettings = loadFromStorage();
-    callback();
-  };
-
-  // クロスタブの storage イベント
-  const handleStorageChange = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY || e.key === null) {
-      cachedSettings = loadFromStorage();
-      callback();
-    }
-  };
-
-  window.addEventListener(SETTINGS_CHANGE_EVENT, handleSettingsChange);
-  window.addEventListener('storage', handleStorageChange);
-
-  return () => {
-    window.removeEventListener(SETTINGS_CHANGE_EVENT, handleSettingsChange);
-    window.removeEventListener('storage', handleStorageChange);
-  };
-}
+export const getSnapshot = store.getSnapshot;
+export const getServerSnapshot = store.getServerSnapshot;
+export const subscribe = store.subscribe;
 
 export function updateSettings(partial: Partial<UserSettings>): void {
-  const current = loadFromStorage();
-  const next: UserSettings = { ...current, ...partial };
-  saveToStorage(next);
-  cachedSettings = next;
-  window.dispatchEvent(new Event(SETTINGS_CHANGE_EVENT));
+  store.update((current) => ({ ...current, ...partial }));
 }
 
 // --- 訪問カウント（セッション単位で1回のみ） ---
@@ -149,15 +106,11 @@ export function recordVisitOncePerSession(now?: number): void {
     return;
   }
 
-  const current = loadFromStorage();
-  const next: UserSettings = {
+  store.update((current) => ({
     ...current,
     visitCount: current.visitCount + 1,
     // 直前のログイン時刻を退避してから今回の時刻で更新する（LAST LOGIN 表示用）
     previousLogin: current.lastLogin,
     lastLogin: now ?? Date.now(),
-  };
-  saveToStorage(next);
-  cachedSettings = next;
-  window.dispatchEvent(new Event(SETTINGS_CHANGE_EVENT));
+  }));
 }
