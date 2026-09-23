@@ -20,6 +20,7 @@ import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
+import { toUserMessage } from '@features/chat/utils/userFacingError';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -89,7 +90,9 @@ export default function AllRoomsRoute() {
     try {
       await handleSend(msg, metadata);
     } catch (err) {
-      setSendError((err as Error)?.message ?? '送信エラー');
+      setSendError(
+        toUserMessage(err, '発言を送信できませんでした。時間をおいてもう一度お試しください。')
+      );
     }
   };
 

@@ -237,7 +237,7 @@ describe('chatApi', () => {
       await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(3));
 
       const [given, first, second] = invoke.mock.calls.map(([, options]) => options.headers);
-      // フック（useChatSender.saveUserMessage）が発行した ID をそのまま送る
+      // フック（useChatSender.sendUserMessage）が発行した ID をそのまま送る
       expect(given['x-chat-operation-id']).toBe('op-from-hook');
       expect(given['x-chat-attempt']).toBe('1');
       // 省略時は UUID を発行し、送信ごとに別の ID になる

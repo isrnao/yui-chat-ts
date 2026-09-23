@@ -14,6 +14,9 @@ import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
+import { toUserMessage } from '@features/chat/utils/userFacingError';
+
+const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
 export type ChatRoomProps = {
   message: string;
@@ -100,7 +103,7 @@ export default function ChatRoom({
         await onSend(msg, metadata);
         return '';
       } catch (err) {
-        return (err as Error)?.message || '送信エラー';
+        return toUserMessage(err, SEND_FAILED_MESSAGE);
       }
     },
     ''
