@@ -43,10 +43,13 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      # 関数のフォルダの deno.json（import map）を読ませるため、そこで実行する
       - name: Check
-        run: deno check supabase/functions/two-shot/index.ts
+        working-directory: supabase/functions/two-shot
+        run: deno check --no-lock index.ts
       - name: Test
-        run: deno test --allow-env --allow-read supabase/functions/two-shot/
+        working-directory: supabase/functions/two-shot
+        run: deno test --no-lock --allow-env --allow-read .
 
   database:
     name: 実 DB（マイグレーションと pgTAP）
