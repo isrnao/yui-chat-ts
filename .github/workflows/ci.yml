@@ -23,6 +23,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
+      # 型情報を使うルール（no-floating-promises など）を含めて lint する
+      # （.kiro/specs/react-2026-refactoring Requirement 11.3）
+      - name: Lint
+        run: pnpm lint
+
       - name: Run tests
         run: pnpm test
         continue-on-error: true
