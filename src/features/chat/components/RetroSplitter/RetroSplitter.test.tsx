@@ -19,8 +19,67 @@ function getPercentHeight(node: HTMLElement) {
   return Number((adjusted || base).replace('%', ''));
 }
 
+/**
+ * jsdom には PointerEvent と setPointerCapture がないので補う。
+ * キャプチャ中のポインタは要素ごとに持ち、hasPointerCapture で答える。
+ */
+class TestPointerEvent extends MouseEvent {
+  pointerId: number;
+  pointerType: string;
+  constructor(
+    type: string,
+    init: ConstructorParameters<typeof MouseEvent>[1] & {
+      pointerId?: number;
+      pointerType?: string;
+    } = {}
+  ) {
+    super(type, { bubbles: true, cancelable: true, ...init });
+    this.pointerId = init.pointerId ?? 1;
+    this.pointerType = init.pointerType ?? 'mouse';
+  }
+}
+
+const captured = new WeakMap<Element, Set<number>>();
+
+function installPointerPolyfill() {
+  vi.stubGlobal('PointerEvent', TestPointerEvent);
+  HTMLElement.prototype.setPointerCapture = function (id: number) {
+    const set = captured.get(this) ?? new Set<number>();
+    set.add(id);
+    captured.set(this, set);
+  };
+  HTMLElement.prototype.hasPointerCapture = function (id: number) {
+    return captured.get(this)?.has(id) ?? false;
+  };
+  HTMLElement.prototype.releasePointerCapture = function (id: number) {
+    captured.get(this)?.delete(id);
+    this.dispatchEvent(new TestPointerEvent('lostpointercapture', { pointerId: id }));
+  };
+}
+
+function getBar() {
+  return screen
+    .getAllByRole('separator')
+    .find((sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー')!;
+}
+
+function pointer(el: Element, type: string, init: { clientY?: number; pointerType?: string } = {}) {
+  act(() => {
+    el.dispatchEvent(new TestPointerEvent(type, init));
+  });
+}
+
+/** 押す → 動かす → 離す。pointerType で mouse / touch / pen を切り替える */
+function drag(el: HTMLElement, ys: number[], pointerType = 'mouse') {
+  pointer(el, 'pointerdown', { pointerType });
+  for (const clientY of ys) pointer(el, 'pointermove', { clientY, pointerType });
+  act(() => el.releasePointerCapture(1));
+  pointer(el, 'pointerup', { pointerType });
+}
+
 describe('RetroSplitter', () => {
   beforeEach(() => {
+    installPointerPolyfill();
     // JSDOMではgetBoundingClientRectは0になるので、モック
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function () {
       // 高さ500pxのコンテナを想定
@@ -47,6 +106,7 @@ describe('RetroSplitter', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('renders both top and bottom nodes', () => {
@@ -76,21 +136,26 @@ describe('RetroSplitter', () => {
     fireEvent.keyDown(separator!, { key: 'ArrowDown' });
   });
 
-  it('dragging bar updates topHeight', () => {
+  it.each(['mouse', 'touch', 'pen'])(
+    '%s でバーをドラッグすると上側の高さが変わる',
+    (pointerType) => {
+      render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
+      drag(getBar(), [400], pointerType);
+      const topDiv = screen.getByText('TT').parentElement as HTMLElement;
+      expect(getPercentHeight(topDiv)).toBeCloseTo(80, 1);
+    }
+  );
+
+  it('押していないときのポインタの移動では高さを変えない', () => {
     render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
-    const separators = screen.getAllByRole('separator');
-    const separator = separators.find(
-      (sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー'
-    );
-    fireEvent.mouseDown(separator!);
-    act(() => {
-      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 400 }));
-    });
+    pointer(getBar(), 'pointermove', { clientY: 400 });
     const topDiv = screen.getByText('TT').parentElement as HTMLElement;
-    expect(getPercentHeight(topDiv)).toBeCloseTo(80, 1);
-    act(() => {
-      window.dispatchEvent(new MouseEvent('mouseup'));
-    });
+    expect(getPercentHeight(topDiv)).toBe(30);
+  });
+
+  it('指でドラッグしてもページをスクロールさせない（touch-action: none）', () => {
+    render(<RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} />);
+    expect(getBar().style.touchAction).toBe('none');
   });
 
   // select-none を常時付けると、チャットログを含む全チャット欄で文字が選択できず
@@ -109,12 +174,10 @@ describe('RetroSplitter', () => {
       .getAllByRole('separator')
       .find((sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
 
-    fireEvent.mouseDown(separator!);
+    pointer(separator!, 'pointerdown');
     expect(document.body.style.userSelect).toBe('none');
 
-    act(() => {
-      window.dispatchEvent(new MouseEvent('mouseup'));
-    });
+    pointer(separator!, 'pointerup');
     expect(document.body.style.userSelect).toBe('');
   });
 
@@ -124,7 +187,7 @@ describe('RetroSplitter', () => {
       .getAllByRole('separator')
       .find((sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー');
 
-    fireEvent.mouseDown(separator!);
+    pointer(separator!, 'pointerdown');
     expect(document.body.style.userSelect).toBe('none');
 
     unmount();
@@ -139,11 +202,9 @@ describe('RetroSplitter', () => {
     const separator = separators.find(
       (sep) => sep.getAttribute('aria-label') === '上下の領域を分割するバー'
     );
-    fireEvent.mouseDown(separator!);
-    act(() => {
-      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 0 }));
-      window.dispatchEvent(new MouseEvent('mousemove', { clientY: 499 }));
-    });
+    pointer(separator!, 'pointerdown');
+    pointer(separator!, 'pointermove', { clientY: 0 });
+    pointer(separator!, 'pointermove', { clientY: 499 });
     const topDiv = screen.getByText('TT').parentElement as HTMLElement;
     const topPercent = getPercentHeight(topDiv);
     expect(topPercent).toBeGreaterThanOrEqual(20);

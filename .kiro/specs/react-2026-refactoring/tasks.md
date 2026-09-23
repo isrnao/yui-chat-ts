@@ -183,13 +183,13 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 9.2, 9.4_
 
 - [ ] 11. RetroSplitter を Pointer Events にする（Requirement 10、PR11）
-  - [ ] 11.1 分割バーを `pointerdown` + `setPointerCapture` / `pointermove` / `pointerup` / `lostpointercapture` に
+  - [x] 11.1 分割バーを `pointerdown` + `setPointerCapture` / `pointermove` / `pointerup` / `lostpointercapture` に
         し、`touch-action: none` を付ける
     - _Requirements: 10.1, 10.3_
-  - [ ] 11.2 window への `mousemove` / `mouseup` の登録、`onMouseMove` / `onMouseUp` / `calcPercent` の
+  - [x] 11.2 window への `mousemove` / `mouseup` の登録、`onMouseMove` / `onMouseUp` / `calcPercent` の
         `useCallback`、`topHeightRef` の同期 Effect を消す。CLAUDE.md の「残す useCallback」の一覧から外す
     - _Requirements: 10.2, 18.1_
-  - [ ]\* 11.3 ポインタ操作とキーボード操作のテストを書く（jsdom 用に `setPointerCapture` のスタブを用意する）
+  - [x]\* 11.3 ポインタ操作とキーボード操作のテストを書く（jsdom 用に `setPointerCapture` のスタブを用意する）
     - _Requirements: 10.1, 10.4_
   - [ ] 11.4 タッチ端末（または DevTools のエミュレーション）でドラッグできることを確かめる
     - _Requirements: 10.1, 10.3_
