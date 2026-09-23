@@ -115,13 +115,12 @@ export function useAllRoomsChatHandlers({
       userColor: color,
     });
 
-    const saving = send('all', optimistic);
-    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから送る（退室操作は即座に反映させる）
     setEntered(false);
     setName('');
     setMessage('');
 
-    await saving;
+    await send('all', optimistic);
   };
 
   const handleSend = async (msg: string, metadata?: ChatMetadata) => {

@@ -58,7 +58,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     `useActionState` 経由 / async Action の中の 3 通りで、保存が解決する前に楽観的なチャットが表示されることを
     確かめる（今は「Action の外」だけ失敗する）
     - _Requirements: 2.4_
-  - [x] 2.2 `useChatSender` に `sendWithOptimistic` を作り、楽観的な表示 → 保存 → `startTransition(applySaved)` を
+  - [x] 2.2 `useChatSender` の `send` で、楽観的な表示 → 保存 → `startTransition(() => mergeChat(saved))` を
         1 つの `startTransition(async …)` の中で行う。Action の中の例外は捕まえて Promise の reject で返す
     - _Requirements: 2.1, 2.3_
   - [x] 2.3 `showOptimistic` + `saveAndMerge` を別々に呼んでいる箇所（入室、退室、発言、おみくじ）を
