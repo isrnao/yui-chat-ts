@@ -31,17 +31,17 @@ Storybook ── GitHub Actions ── Chromatic
 
 ### ソースコードのレイヤー
 
-| パス | 責務 |
-| --- | --- |
-| `src/routes/` | URL解決後のroute wrapper |
-| `src/features/chat/` | 通常チャット、全部屋、API、Realtime、キャッシュ、設定 |
-| `src/features/chanari-chat/` | Chanari専用UI、設定、ルーム別下書き |
-| `src/features/top/` | トップ、ルーム一覧、参加人数、X埋め込み |
-| `src/pages/` | ページレベルのview |
-| `src/shared/` | 共通UI、hooks、Supabase client、分析・監視 |
-| `supabase/functions/save-chat/` | 保存、サーバー観測値、triage、OTLP telemetry |
-| `supabase/migrations/` | DB schema、RLS、view、生成列 |
-| `scripts/` | sitemap、SSG、New Relic設定、smoke test |
+| パス                            | 責務                                                  |
+| ------------------------------- | ----------------------------------------------------- |
+| `src/routes/`                   | URL解決後のroute wrapper                              |
+| `src/features/chat/`            | 通常チャット、全部屋、API、Realtime、キャッシュ、設定 |
+| `src/features/chanari-chat/`    | Chanari専用UI、設定、ルーム別下書き                   |
+| `src/features/top/`             | トップ、ルーム一覧、参加人数、X埋め込み               |
+| `src/pages/`                    | ページレベルのview                                    |
+| `src/shared/`                   | 共通UI、hooks、Supabase client、分析・監視            |
+| `supabase/functions/save-chat/` | 保存、サーバー観測値、triage、OTLP telemetry          |
+| `supabase/migrations/`          | DB schema、RLS、view、生成列                          |
+| `scripts/`                      | sitemap、SSG、New Relic設定、smoke test               |
 
 詳細は[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)を参照してください。
 
@@ -49,14 +49,14 @@ Storybook ── GitHub Actions ── Chromatic
 
 React Routerには依存せず、`src/routes/resolveRoute.ts`でpathnameを解決します。
 
-| URL | 画面 |
-| --- | --- |
-| `/` | トップ |
-| `/chat` | `/chat/superbeginner`へ置換リダイレクト |
-| `/chat/:roomId` | 通常チャット（`all`は全部屋） |
-| `/chanari` | `/chanari/superbeginner`へ置換リダイレクト |
-| `/chanari/:roomId` | Chanari |
-| その他 | 404 |
+| URL                | 画面                                       |
+| ------------------ | ------------------------------------------ |
+| `/`                | トップ                                     |
+| `/chat`            | `/chat/superbeginner`へ置換リダイレクト    |
+| `/chat/:roomId`    | 通常チャット（`all`は全部屋）              |
+| `/chanari`         | `/chanari/superbeginner`へ置換リダイレクト |
+| `/chanari/:roomId` | Chanari                                    |
+| その他             | 404                                        |
 
 トップだけを静的importし、Chat／AllRooms／Chanari／404をroute単位で`React.lazy`します。公開ビルドはトップと全ルームを事前レンダリングし、`data-ssg="1"`のHTMLをブラウザでhydrateします。GitHub Pagesへのdeep linkは`public/404.html`と`index.html`の復元処理で扱います。
 
@@ -77,7 +77,7 @@ React Routerには依存せず、`src/routes/resolveRoute.ts`でpathnameを解�
 
 ### 取得・Realtime・削除
 
-- snapshot／paging cache、in-flight dedupe、room単位のinvalidateを`chatLogResource.ts`へ集約しています。
+- 取得・Realtime 購読・取り直しは room 単位の外部ストア（`roomLogStore.ts`）が持ち、`useSyncExternalStore` で読みます。画面遷移は全ページ読み込みなので、ページをまたぐキャッシュは持ちません。
 - 新着はroom別Postgres Changes channel、look／unlookはroom別Realtime broadcast channelを使います。同じroomの購読者はchannelを共有します。
 - Realtimeの接続状態を追跡し、切断中は再取得で欠落を補います。
 - オフラインまたは認証系エラー時はmock dataへフォールバックします。
@@ -108,46 +108,46 @@ pnpm dev
 
 `VITE_*`はクライアントbundleへ埋め込まれる**公開設定**です。秘密値を`VITE_*`にしないでください。ルート`.env`、Supabase Secrets、GitHub Actions Secrets、Vercel Environment Variablesは自動同期されないため、対象ごとに登録します。
 
-| 変数 | 配置先 | 必須 | 公開区分・用途 |
-| --- | --- | --- | --- |
-| `VITE_SUPABASE_URL` | `.env`、GitHub Actions | live接続時 | 公開。Supabase URL |
-| `VITE_SUPABASE_ANON_KEY` | `.env`、GitHub Actions | live接続時 | 公開。anon key |
-| `VITE_NEW_RELIC_ACCOUNT_ID` | `.env` | Browser監視時 | 公開。Browser Agent設定 |
-| `VITE_NEW_RELIC_TRUST_KEY` | `.env` | Browser監視時 | 公開。Browser Agent設定 |
-| `VITE_NEW_RELIC_AGENT_ID` | `.env` | Browser監視時 | 公開。Browser Agent設定 |
-| `VITE_NEW_RELIC_BROWSER_KEY` | `.env` | Browser監視時 | 公開用ingest key。server secretではない |
-| `VITE_NEW_RELIC_APP_ID` | `.env` | Browser監視時 | 公開。Browser application ID |
-| `CHROMATIC_PROJECT_TOKEN` | `.env`、GitHub Actions Secret | Chromatic時 | 秘密。Storybook publish |
-| `JEV_API_TOKEN` | Supabase Secret | triage時 | 秘密。Okiraku API Bearer token |
-| `GITHUB_TOKEN` | Supabase Secret | triage時 | 秘密。対象repoのIssues read/write PAT |
-| `NEW_RELIC_LICENSE_KEY` | Supabase Secret、外部APIのVercel環境 | OTLP時 | 秘密。New Relic ingest license |
-| `NEW_RELIC_REGION` | Supabase Secret、Vercel環境 | 任意 | `US`（既定）または`EU` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Supabase Secret、Vercel環境 | 任意 | 既定OTLP endpointの上書き |
-| `DEPLOYMENT_ENVIRONMENT` | Supabase Secret、Vercel環境 | 任意 | telemetryの環境名 |
-| `SAVE_CHAT_FAULT_INJECT` | local／stagingのみ | 任意 | `attempt1`で初回失敗を注入。本番では無視 |
-| `NEW_RELIC_USER_API_KEY` | ローカル`.env` | alert管理時 | 秘密。NerdGraph操作 |
-| `PAGERDUTY_INTEGRATION_KEY` | ローカル`.env` | 初回通知設定時 | 秘密。PagerDuty destination設定 |
+| 変数                          | 配置先                               | 必須           | 公開区分・用途                           |
+| ----------------------------- | ------------------------------------ | -------------- | ---------------------------------------- |
+| `VITE_SUPABASE_URL`           | `.env`、GitHub Actions               | live接続時     | 公開。Supabase URL                       |
+| `VITE_SUPABASE_ANON_KEY`      | `.env`、GitHub Actions               | live接続時     | 公開。anon key                           |
+| `VITE_NEW_RELIC_ACCOUNT_ID`   | `.env`                               | Browser監視時  | 公開。Browser Agent設定                  |
+| `VITE_NEW_RELIC_TRUST_KEY`    | `.env`                               | Browser監視時  | 公開。Browser Agent設定                  |
+| `VITE_NEW_RELIC_AGENT_ID`     | `.env`                               | Browser監視時  | 公開。Browser Agent設定                  |
+| `VITE_NEW_RELIC_BROWSER_KEY`  | `.env`                               | Browser監視時  | 公開用ingest key。server secretではない  |
+| `VITE_NEW_RELIC_APP_ID`       | `.env`                               | Browser監視時  | 公開。Browser application ID             |
+| `CHROMATIC_PROJECT_TOKEN`     | `.env`、GitHub Actions Secret        | Chromatic時    | 秘密。Storybook publish                  |
+| `JEV_API_TOKEN`               | Supabase Secret                      | triage時       | 秘密。Okiraku API Bearer token           |
+| `GITHUB_TOKEN`                | Supabase Secret                      | triage時       | 秘密。対象repoのIssues read/write PAT    |
+| `NEW_RELIC_LICENSE_KEY`       | Supabase Secret、外部APIのVercel環境 | OTLP時         | 秘密。New Relic ingest license           |
+| `NEW_RELIC_REGION`            | Supabase Secret、Vercel環境          | 任意           | `US`（既定）または`EU`                   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Supabase Secret、Vercel環境          | 任意           | 既定OTLP endpointの上書き                |
+| `DEPLOYMENT_ENVIRONMENT`      | Supabase Secret、Vercel環境          | 任意           | telemetryの環境名                        |
+| `SAVE_CHAT_FAULT_INJECT`      | local／stagingのみ                   | 任意           | `attempt1`で初回失敗を注入。本番では無視 |
+| `NEW_RELIC_USER_API_KEY`      | ローカル`.env`                       | alert管理時    | 秘密。NerdGraph操作                      |
+| `PAGERDUTY_INTEGRATION_KEY`   | ローカル`.env`                       | 初回通知設定時 | 秘密。PagerDuty destination設定          |
 
 SupabaseがEdge Functionへ自動提供する`SUPABASE_URL`と`SUPABASE_SERVICE_ROLE_KEY`は`.env.example`に置きません。`JEV_API_TOKEN`または`GITHUB_TOKEN`がない場合、発言保存は継続し、管理者チャットのtriageだけをskipします。New Relic関連がない場合も監視だけが無効になり、チャット機能は継続します。
 
 ## 開発コマンド
 
-| コマンド | 用途 |
-| --- | --- |
-| `pnpm dev` | Vite開発サーバー |
-| `pnpm build` | 型チェックを含むclient build |
-| `pnpm build:prod` | sitemap生成 → client build → SSR build → 全ルームprerender |
-| `pnpm preview` | build成果物の確認 |
-| `pnpm typecheck` | TypeScript型チェック |
-| `pnpm lint` | ESLint |
-| `pnpm format:check` | Prettier確認 |
-| `pnpm test` | Vitestを1回実行（coverage 50% threshold） |
-| `pnpm watch:test` | Vitest watch |
-| `pnpm storybook` | Storybook（port 6006） |
-| `pnpm build-storybook` | Storybook静的build |
-| `pnpm chromatic` | Chromaticへpublish |
-| `pnpm lighthouse:*` | 公開サイトのLighthouse計測 |
-| `pnpm deploy` | `build:prod`後、`gh-pages -d dist`で公開 |
+| コマンド               | 用途                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| `pnpm dev`             | Vite開発サーバー                                           |
+| `pnpm build`           | 型チェックを含むclient build                               |
+| `pnpm build:prod`      | sitemap生成 → client build → SSR build → 全ルームprerender |
+| `pnpm preview`         | build成果物の確認                                          |
+| `pnpm typecheck`       | TypeScript型チェック                                       |
+| `pnpm lint`            | ESLint                                                     |
+| `pnpm format:check`    | Prettier確認                                               |
+| `pnpm test`            | Vitestを1回実行（coverage 50% threshold）                  |
+| `pnpm watch:test`      | Vitest watch                                               |
+| `pnpm storybook`       | Storybook（port 6006）                                     |
+| `pnpm build-storybook` | Storybook静的build                                         |
+| `pnpm chromatic`       | Chromaticへpublish                                         |
+| `pnpm lighthouse:*`    | 公開サイトのLighthouse計測                                 |
+| `pnpm deploy`          | `build:prod`後、`gh-pages -d dist`で公開                   |
 
 ## ビルド・CI・デプロイ
 
@@ -169,18 +169,18 @@ SupabaseがEdge Functionへ自動提供する`SUPABASE_URL`と`SUPABASE_SERVICE_
 
 ## 外部システムと送信データ
 
-| システム | 接続元・目的 | 送信される主なデータ |
-| --- | --- | --- |
-| Supabase | Browser／Edge。DB、Realtime、Function | 発言、名前、色、任意メール、metadata。EdgeがIP／UAを観測 |
-| Okiraku API | `save-chat`の管理者チャットtriage | 管理者チャットの発言本文、分類preset、W3C `traceparent` |
-| GitHub API | 機能要求と判定した発言のIssue化 | 発言本文、投稿者名、発言UUID、判定確率。`@mention`は無効化 |
-| GA4 / GTM | Browser利用計測 | room ID／title、イベント種別、文字数、経過時間等。本文、表示名、メール、任意URLは送らない |
-| New Relic Browser | Browser監視 | Page View、Ajax、JS Error、soft navigation、generic event、操作ID。cookies有効、Session Replay／Session Trace無効 |
-| New Relic OTLP | Edge／外部API監視 | trace、span、構造化ログ。発言本文、名前、IP、UA、metadataは送らない |
-| X | トップのtimeline／共有 | `platform.twitter.com/widgets.js`および`x.com/intent/tweet`へのブラウザ通信 |
-| Chromatic | Storybook visual review | Storybook buildとGit metadata。利用者のproduction chat dataは送らない |
-| HetrixTools | 外形監視 | 公開URLへのHTTPS GET結果 |
-| PagerDuty | 障害通知 | HetrixTools／New Relicの障害・復旧イベント |
+| システム          | 接続元・目的                          | 送信される主なデータ                                                                                              |
+| ----------------- | ------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| Supabase          | Browser／Edge。DB、Realtime、Function | 発言、名前、色、任意メール、metadata。EdgeがIP／UAを観測                                                          |
+| Okiraku API       | `save-chat`の管理者チャットtriage     | 管理者チャットの発言本文、分類preset、W3C `traceparent`                                                           |
+| GitHub API        | 機能要求と判定した発言のIssue化       | 発言本文、投稿者名、発言UUID、判定確率。`@mention`は無効化                                                        |
+| GA4 / GTM         | Browser利用計測                       | room ID／title、イベント種別、文字数、経過時間等。本文、表示名、メール、任意URLは送らない                         |
+| New Relic Browser | Browser監視                           | Page View、Ajax、JS Error、soft navigation、generic event、操作ID。cookies有効、Session Replay／Session Trace無効 |
+| New Relic OTLP    | Edge／外部API監視                     | trace、span、構造化ログ。発言本文、名前、IP、UA、metadataは送らない                                               |
+| X                 | トップのtimeline／共有                | `platform.twitter.com/widgets.js`および`x.com/intent/tweet`へのブラウザ通信                                       |
+| Chromatic         | Storybook visual review               | Storybook buildとGit metadata。利用者のproduction chat dataは送らない                                             |
+| HetrixTools       | 外形監視                              | 公開URLへのHTTPS GET結果                                                                                          |
+| PagerDuty         | 障害通知                              | HetrixTools／New Relicの障害・復旧イベント                                                                        |
 
 管理者チャットのうち、非system・1000文字以下の発言だけを分類します。`cr`確率0.5以上かつ直近1時間に3件未満の場合、GitHub Issueを作り、管理人の受付発言をチャットへ保存します。GitHub Issueの公開範囲と保存期間は対象GitHub repositoryの設定に従います。
 
@@ -202,16 +202,16 @@ https://api.okiraku.chat/api/health
   → PagerDutyが担当者へメール通知
 ```
 
-| 項目 | Web | API |
-| --- | --- | --- |
-| 監視名 | `okiraku.chat` | `okiraku-api health` |
-| URL | `https://www.okiraku.chat/` | `https://api.okiraku.chat/api/health` |
-| 正常条件 | HTTP 200 | HTTP 200かつ本文に`"status":"ok"` |
-| 間隔・方法 | HTTPS GET、1分 | 同左 |
-| 拠点 | 東京、シンガポール、サンフランシスコ、アムステルダム | 同左 |
-| タイムアウト／redirect | 10秒／最大5回 | 同左 |
-| 再試行／判定 | 各拠点3回、4拠点中3拠点の状態変化 | 同左 |
-| 通知 | `Default Contact`のPagerDuty連携 | 同左 |
+| 項目                   | Web                                                  | API                                   |
+| ---------------------- | ---------------------------------------------------- | ------------------------------------- |
+| 監視名                 | `okiraku.chat`                                       | `okiraku-api health`                  |
+| URL                    | `https://www.okiraku.chat/`                          | `https://api.okiraku.chat/api/health` |
+| 正常条件               | HTTP 200                                             | HTTP 200かつ本文に`"status":"ok"`     |
+| 間隔・方法             | HTTPS GET、1分                                       | 同左                                  |
+| 拠点                   | 東京、シンガポール、サンフランシスコ、アムステルダム | 同左                                  |
+| タイムアウト／redirect | 10秒／最大5回                                        | 同左                                  |
+| 再試行／判定           | 各拠点3回、4拠点中3拠点の状態変化                    | 同左                                  |
+| 通知                   | `Default Contact`のPagerDuty連携                     | 同左                                  |
 
 APIの期待responseは`{"status":"ok","service":"okiraku-api"}`です。本文条件はJSON解析ではなく、大文字・小文字を区別する文字列一致です。Web監視はブラウザ描画やチャット送受信を、API health監視は`/api/v1/evaluate`やその依存先を保証しません。
 
@@ -249,14 +249,14 @@ okiraku-api（Vercel）── OTLP/HTTP ─────────────�
 node --experimental-strip-types --env-file=.env scripts/newrelic-alerts.ts --apply
 ```
 
-| ID | 条件 | 通知先 |
-| --- | --- | --- |
-| C1 | 保存に失敗した送信操作が5分間に2件以上 | PagerDuty（critical） |
-| C2 | `save-chat`の5xx（C1以外）が10分間に3件以上 | New Relicのみ |
-| C4 | 評価APIの502／504が15分間に3件以上 | New Relicのみ |
-| C5 | `save-chat`の2秒超が5%超（最低5件、15分） | New Relicのみ |
-| C6 | 評価処理の6秒超が5%超（最低5件、15分） | New Relicのみ |
-| C7 | `triage.failed`が60分間に1件以上 | New Relicのみ |
+| ID  | 条件                                        | 通知先                |
+| --- | ------------------------------------------- | --------------------- |
+| C1  | 保存に失敗した送信操作が5分間に2件以上      | PagerDuty（critical） |
+| C2  | `save-chat`の5xx（C1以外）が10分間に3件以上 | New Relicのみ         |
+| C4  | 評価APIの502／504が15分間に3件以上          | New Relicのみ         |
+| C5  | `save-chat`の2秒超が5%超（最低5件、15分）   | New Relicのみ         |
+| C6  | 評価処理の6秒超が5%超（最低5件、15分）      | New Relicのみ         |
+| C7  | `triage.failed`が60分間に1件以上            | New Relicのみ         |
 
 #### C1 runbook
 

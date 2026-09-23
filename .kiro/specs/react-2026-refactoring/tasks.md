@@ -139,7 +139,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 7.4 既存の `useChatLog.test.ts` / `useAllRoomsChatLog` 関連のテストが、書き換えずに通ることを確かめる
     - _Requirements: 6.5_
 
-- [ ] 8. `useRoomLog`、Chat_Identity、Chat_Session に移す（段階 2）（Requirement 6 / 7、PR8）
+- [x] 8. `useRoomLog`、Chat_Identity、Chat_Session に移す（段階 2）（Requirement 6 / 7、PR8）
   - [x] 8.1 `useRoomLog(target)` を作る。計測のコールバックは `useEffectEvent` で `store.onInsert` に登録する
     - _Requirements: 6.2_
   - [x] 8.2 `useChatIdentity` を作り、ChatRoute / AllRoomsRoute / ChanariChatPage の名前・色・メール・アバター・
@@ -152,7 +152,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 7.5_
   - [x]\* 8.5 3 つのルートで、入室 → 発言 → コマンド → 退室の analytics と計測のイベント列を、移行前の記録と比べる
     - _Requirements: 7.4_
-  - [ ] 8.6 `useChatLog` / `useAllRoomsChatLog` / `useChatHandlers` / `useAllRoomsChatHandlers` / `chatLogResource` /
+  - [x] 8.6 `useChatLog` / `useAllRoomsChatLog` / `useChatHandlers` / `useAllRoomsChatHandlers` / `chatLogResource` /
         `chatApi.ts` を削除し、design.md §5 の構成（`saveChat` / `chatQueries` / `realtime` / `roomLogStore`）に分ける
     - _Requirements: 6.8, 7.1_
 

@@ -10,16 +10,16 @@
 
 ## 2. テストの種類と方針
 
-| 種別             | ファイル例                                                            | 主なカバー範囲                                                          |
-| ---------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ユニット         | `*.test.ts`                                                           | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）   |
-| コンポーネント   | `*.test.tsx`                                                          | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                |
-| カスタムフック   | `*.test.ts`                                                           | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等 |
-| API / リソース層 | `chatLogResource.test.ts`, `chatApi.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                               |
-| ルーティング     | `routing.test.ts`（chat / chanari）                                   | top / chat / chanari / unknown ルート解決                               |
-| 統合             | `src/App.test.tsx`                                                    | 各ルートが即時描画されること                                            |
-| ビジュアル       | Storybook 10 stories + Chromatic                                      | UI のリグレッション                                                     |
-| E2E (将来)       | （未実装）                                                            | Playwright 等                                                           |
+| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）   |
+| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                |
+| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等 |
+| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                               |
+| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                               |
+| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                            |
+| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                     |
+| E2E (将来)     | （未実装）                                                                                                     | Playwright 等                                                           |
 
 - テストは **Testing Library** 中心、ユーザー目線重視
 - 外部 API（Supabase 等）・Web API（`localStorage`, `BroadcastChannel`, `requestIdleCallback`）は必要に応じてモック
@@ -40,10 +40,10 @@
 
 ```
 src/features/chat/api/
-├── chatLogResource.ts
-├── chatLogResource.test.ts
-├── chatApi.ts
-└── chatApi.test.ts
+├── roomLogStore.ts
+├── roomLogStore.test.ts
+├── chatQueries.ts
+└── chatQueries.test.ts
 ```
 
 ---
@@ -84,7 +84,7 @@ src/features/chat/api/
 ## 7. モック・スナップショット指針
 
 - 外部 API や重い UI 部品は `vi.mock` / `vi.stubGlobal` でモック
-- Supabase 呼び出しは `chatLogResource` / `chatApi` モジュールごとモックするか、`supabase.from(...)` のチェイン全体をスタブする
+- Supabase 呼び出しは `chatQueries` / `saveChat` / `realtime` モジュールごとモックするか、`supabase.from(...)` のチェイン全体をスタブする
 - `localStorage` を扱うテストは `beforeEach` で `localStorage.clear()` し、テスト間漏洩を防ぐ
 - スナップショットテストは UI 表示中心にとどめ、ロジックには使わない
 
@@ -94,17 +94,16 @@ src/features/chat/api/
 
 実装と doc がずれやすい挙動は、以下のテストで縛っています。修正時は対応するテストを必ず確認してください。
 
-| 不変条件                                                                | 主な保護テスト                                     |
-| ----------------------------------------------------------------------- | -------------------------------------------------- |
-| 同一 `roomId` への並行 `loadChatLogs` で Supabase は 1 回しか呼ばれない | `chatLogResource.test.ts`                          |
-| `loadChatLogsWithPaging(roomId, 0, n)` は snapshot からスライスする     | 同上                                               |
-| キャッシュは `MAX_CHAT_LOG = 100` 件に trim される                      | 同上                                               |
-| `useOptimistic` の reducer が temp と saved の重複を抑制する            | `optimisticLog.test.ts`                            |
-| `useParticipants` は同一 `chatLog` 参照では再計算しない                 | `useParticipants.test.ts`                          |
-| `ChatLogList` は同一 `chatLog` 参照では `sort/slice` を再実行しない     | `ChatLogList.test.tsx`                             |
-| `useNowMinute` は 1 分境界で更新される                                  | `useNowMinute.test.ts`                             |
-| `/chat/:roomId` / `/chanari/:roomId` / unknown が正しく解決される       | `routing.test.ts` / `chanari-chat/routing.test.ts` |
-| 各ルートが即時描画される（ローディング fallback を挟まない）            | `App.test.tsx`                                     |
-| Supabase 未設定でもトップが破綻しない                                   | `roomCountsApi.test.ts` / `TopPage.test.tsx`       |
+| 不変条件                                                            | 主な保護テスト                                     |
+| ------------------------------------------------------------------- | -------------------------------------------------- |
+| `loadChatLogsWithPaging(roomId, 0, n)` は snapshot からスライスする | 同上                                               |
+| キャッシュは `MAX_CHAT_LOG = 100` 件に trim される                  | 同上                                               |
+| `useOptimistic` の reducer が temp と saved の重複を抑制する        | `optimisticLog.test.ts`                            |
+| `useParticipants` は同一 `chatLog` 参照では再計算しない             | `useParticipants.test.ts`                          |
+| `ChatLogList` は同一 `chatLog` 参照では `sort/slice` を再実行しない | `ChatLogList.test.tsx`                             |
+| `useNowMinute` は 1 分境界で更新される                              | `useNowMinute.test.ts`                             |
+| `/chat/:roomId` / `/chanari/:roomId` / unknown が正しく解決される   | `routing.test.ts` / `chanari-chat/routing.test.ts` |
+| 各ルートが即時描画される（ローディング fallback を挟まない）        | `App.test.tsx`                                     |
+| Supabase 未設定でもトップが破綻しない                               | `roomCountsApi.test.ts` / `TopPage.test.tsx`       |
 
 ---

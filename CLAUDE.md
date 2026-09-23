@@ -88,7 +88,7 @@ and `getRoomMeta(roomId)` resolves room metadata (e.g., title).
 
 - Components (ChatRoom, ChatMessage, ChatLogList, ParticipantsList, ChatRanking, etc.)
 - Custom hooks (useRoomLog, useChatSession, useChatIdentity, useParticipants, useRoomRanking, useLookSound, etc.)
-- API layer (`api/chatApi.ts` public surface + `api/chatLogResource.ts` for caching/paging)
+- API layer (`api/roomLogStore.ts` store, `api/chatQueries.ts` reads, `api/saveChat.ts` writes, `api/realtime.ts` channels)
 - Type definitions (Chat, Participant, ChatMetadata, etc.)
 
 **State Management**: Uses React hooks with:
@@ -102,7 +102,7 @@ and `getRoomMeta(roomId)` resolves room metadata (e.g., title).
 **Real-time delivery (source of truth)**: Cross-user real-time sync is handled by **Supabase
 Realtime**, not BroadcastChannel:
 
-- Message delivery: `subscribeChatLogs` in `chatApi.ts` subscribes to Postgres `postgres_changes`
+- Message delivery: `subscribeChatLogs` in `api/realtime.ts` subscribes to Postgres `postgres_changes`
   (INSERT on the `chats` table, filtered by `room_id`). New messages from any user/device are
   pushed to all clients. `Room_Log_Store` (`api/roomLogStore.ts`) wires this up; `useRoomLog` reads it.
 - look/unlook notifications: Supabase Realtime **broadcast** channel (`broadcastLookEvent` /
@@ -117,11 +117,12 @@ messages. Because the log is Realtime-synced, this reflects cross-user presence.
 
 **Data Flow**:
 
-- Chat messages flow through `useChatSession` → `useChatSender` → `chatApi` → the `save-chat` Edge Function
+- Chat messages flow through `useChatSession` → `useChatSender` → `api/saveChat.ts` → the `save-chat` Edge Function
   (optimistic insert into `chats`). Clients do **not** insert directly anymore; all inserts go
   through `supabase/functions/save-chat`, which sets `ip`/`ua` from request headers server-side.
 - New rows propagate to all clients via the `subscribeChatLogs` Realtime subscription
-- Chat logs are loaded from Supabase on app start (cached/paged via `chatLogResource.ts`)
+- Chat logs are loaded from Supabase by `Room_Log_Store` (`api/chatQueries.ts`, no cache: every
+  navigation is a full page load, so a cross-page cache never hits)
 
 ### Import Aliases
 
@@ -135,8 +136,8 @@ The app uses Supabase for both chat persistence and real-time delivery. Configur
 - `VITE_SUPABASE_URL` environment variable
 - `VITE_SUPABASE_ANON_KEY` environment variable
 
-Chat operations are handled in `src/features/chat/api/chatApi.ts` (with `chatLogResource.ts` for
-caching/paging). Key details:
+Chat operations are handled in `src/features/chat/api/` (`chatQueries.ts` for reads and logical
+deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
 
 - **Table**: `chats`. Primary key is a server-generated UUID v7; `time` (ms) is server-set.
   Columns include `room_id`, `name`, `color`, `message`, `system`, `email`, `ip`, `ua`, and a JSON
