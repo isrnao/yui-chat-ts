@@ -13,19 +13,24 @@ export function isUUIDv7(id: string): boolean {
 }
 
 /**
- * チャットメッセージの効率的なソート
- * UUID v7の特性を活用して高速化（Supabase側でUUID v7が主キーの場合に最適化）
+ * 発言の並び順（新しいものが先）の比較関数。
+ * 両方が UUID v7（サーバーが振った ID）なら UUID の降順、そうでなければ time の降順にする。
+ * UUID は小文字の 16 進と `-` だけなので、localeCompare ではなく文字コードの比較で足りる
+ * （Postgres の uuid の並びとも一致する）。
  */
-export function sortChatsByTime<T extends { uuid: string; time: number }>(chats: T[]): T[] {
-  return [...chats].sort((a, b) => {
-    // UUID v7がサーバー側で生成されている場合、UUIDソートが最も正確
-    if (isUUIDv7(a.uuid) && isUUIDv7(b.uuid)) {
-      return b.uuid.localeCompare(a.uuid); // 降順（新しいものが先）
-    }
+export function compareChatsNewestFirst(
+  a: { uuid: string; time: number },
+  b: { uuid: string; time: number }
+): number {
+  if (isUUIDv7(a.uuid) && isUUIDv7(b.uuid)) {
+    return a.uuid < b.uuid ? 1 : a.uuid > b.uuid ? -1 : 0;
+  }
+  return b.time - a.time;
+}
 
-    // そうでなければ従来通りtimeフィールドで比較
-    return b.time - a.time;
-  });
+/** 発言を新しい順に並べた新しい配列を返す（入力は書き換えない） */
+export function sortChatsByTime<T extends { uuid: string; time: number }>(chats: T[]): T[] {
+  return [...chats].sort(compareChatsNewestFirst);
 }
 
 /** crypto.randomUUID が使えない環境（安全でないコンテキストなど）向けの UUID v4 */

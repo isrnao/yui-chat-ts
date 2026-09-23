@@ -642,6 +642,14 @@ Realtime の再接続の待ちが体感を損なっていると計測で分か�
 - ChatLogList で毎回やっているソートは、入力がソート済みであることを前提にして外す
 - 行数が 200 を超えるとき、各行に `content-visibility: auto; contain-intrinsic-size: auto 1.5em` を当てる
 
+**実装（PR18）:** 比較関数を `compareChatsNewestFirst`（`shared/utils/uuid.ts`）に切り出し、`sortChatsByTime` と
+合流の両方で使う。置き換える発言の並び順が変わる場合（uuid v7 でない行の time が変わったとき）も、以前の
+「Map + 安定ソート」と同じ位置に入るよう、等しい行の範囲 [lower, upper) を探して元の位置で挟む。
+一致は fast-check のプロパティテスト（`aggregatedLog.test.ts`、以前の実装を参照実装として持つ）で確かめた。
+2000 件への合流 1 回は、同じ Node で 0.130 ms → 0.026 ms（残りは uuid の検索と配列の複製）。ChatLogList が
+描画のたびにしていたソート（同じく約 0.13 ms）は無くなった。並び順は Room_Log_Store が保ち、楽観的な発言は
+useOptimistic で先頭に重なる。
+
 ## データフロー
 
 ### 発言の送信（after）

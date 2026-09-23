@@ -262,14 +262,14 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
         CSS に `@view-transition { navigation: auto; }` と reduced-motion の無効化を入れる
     - _Requirements: 16.2, 16.3_
 
-- [ ] 17. 長いログの描画コストを下げる（Requirement 17、PR17、任意）
-  - [ ] 17.1 1 件の合流を二分探索での挿入にし、UUID の比較を `<` にする
+- [x] 17. 長いログの描画コストを下げる（Requirement 17、PR17、任意）
+  - [x] 17.1 1 件の合流を二分探索での挿入にし、UUID の比較を `<` にする
     - _Requirements: 17.1, 17.2_
-  - [ ] 17.2 ChatLogList のソートを外す（入力がソート済みであることを前提にする）
+  - [x] 17.2 ChatLogList のソートを外す（入力がソート済みであることを前提にする）
     - _Requirements: 17.1_
-  - [ ] 17.3 行数が 200 を超えるとき、各行に `content-visibility: auto` を当てる
+  - [x] 17.3 行数が 200 を超えるとき、各行に `content-visibility: auto` を当てる
     - _Requirements: 17.3_
-  - [ ]\* 17.4 合流の結果が今の `mergeChatLogByUuid` と一致することを、fast-check のプロパティテストで確かめる
+  - [x]\* 17.4 合流の結果が今の `mergeChatLogByUuid` と一致することを、fast-check のプロパティテストで確かめる
     - _Requirements: 17.1_
 
 - [ ] 18. ドキュメントの整合と検収（Requirement 18、各 PR 共通）
