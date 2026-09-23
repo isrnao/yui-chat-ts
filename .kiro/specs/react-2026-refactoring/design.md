@@ -612,7 +612,27 @@ Realtime の再接続の待ちが体感を損なっていると計測で分か�
 
 **決定（Q3、2026-09-23）:** A を採る。top-and-transition-performance の Requirement 4（クライアントサイド遷移）は
 本方式で置き換え、Requirement 5（Room_Prefetcher）のうちチャンクと HTML の先読みは Speculation Rules の `prefetch`
-で代替する。
+で代替する。Requirement 5 のうち、ホバー前にチャンクだけを先読みする独自の Room_Prefetcher は作らない
+（Speculation Rules の `prefetch` は HTML を取りにいき、そこから参照されるチャンクは遷移後の通常の読み込みになる。
+チャンクは vendor 単位で長期キャッシュされるので、2 回目以降の遷移ではほぼ取りにいかない）。
+
+**実装（PR17）:**
+
+- `index.html` の `<head>` に `<script type="speculationrules">` を置き、`/chat/*` と `/chanari/*` への
+  リンクを `prefetch`・`eagerness: moderate` にする。ルールは全ページの HTML に入る（SSG はこのテンプレートから
+  各ページを作る）ので、トップの部屋一覧だけでなく、部屋から別の部屋へのリンクにも効く。`prerender` にしないのは、
+  遷移前に JS が動くと Realtime の購読や入室の自動処理がホバーだけで始まってしまうため
+- `App.css` に `@view-transition { navigation: auto; }` を置き、`prefers-reduced-motion: reduce` の中で
+  `navigation: none` に戻す。遷移元と遷移先の両方にこの指定がある同一オリジンの遷移だけが対象になる
+- 非対応のブラウザ（Speculation Rules は Safari / Firefox、ドキュメント間 View Transitions は Firefox）は、
+  `<script type="speculationrules">` と `@view-transition` を無視するので今と同じに動く
+
+**スパイクの結果:** `pnpm build:prod` の成果物を `vite preview` で配り、Chromium 152 でトップの部屋リンクに
+ポインタを乗せてから押すと、遷移先の `PerformanceNavigationTiming.deliveryType` が `navigational-prefetch` に
+なる（先読みした HTML が使われた）ことを確かめた。localhost では回線の待ちがほぼないので、遷移時間の差は測れていない。
+本番の回線での、入室フォームが操作できるまでの時間と Realtime が `SUBSCRIBED` になるまでの時間は、デプロイ後に
+測る（B に進むかどうかはその値で判断する）。Realtime の再接続は今もページ遷移のたびに起きているので、A で悪くなる
+ことはない。
 
 ### 17. 長いログの描画（Requirement 17）
 

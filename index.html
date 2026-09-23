@@ -169,6 +169,20 @@
         }
       })();
     </script>
+    <!-- 部屋へのリンクは、ポインタを乗せた・押し始めた時点で遷移先の HTML を先読みする
+         （Speculation Rules の prefetch、eagerness: moderate）。画面遷移は全ページ読み込みの
+         ままで、非対応のブラウザ（Safari / Firefox）では何も起きない
+         （.kiro/specs/react-2026-refactoring Requirement 16） -->
+    <script type="speculationrules">
+      {
+        "prefetch": [
+          {
+            "where": { "href_matches": ["/chat/*", "/chanari/*"] },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

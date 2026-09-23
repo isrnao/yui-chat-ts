@@ -253,10 +253,12 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
 - [ ] 16. ページ間の遷移方式を決める（Requirement 16、PR16）
   - [ ] 16.1 スパイク: 方式 A（`@view-transition` + Speculation Rules）を試験的に入れ、トップ → 部屋で入室フォームが
         操作できるまでの時間と、Realtime が `SUBSCRIBED` になるまでの時間を測る
+    - localhost で prefetch が使われること（`deliveryType: navigational-prefetch`）までは確認した。
+      本番の回線での時間の計測はデプロイ後に行う（design.md §16「スパイクの結果」）
     - _Requirements: 16.1_
-  - [ ] 16.2 結果と決定（A / B、top-and-transition-performance の R4 / R5 の扱い）を design.md §16 に書く
+  - [x] 16.2 結果と決定（A / B、top-and-transition-performance の R4 / R5 の扱い）を design.md §16 に書く
     - _Requirements: 16.1, 16.4_
-  - [ ] 16.3 A を選んだ場合: トップの部屋リンクに Speculation Rules（`prefetch`、`eagerness: moderate`）を付け、
+  - [x] 16.3 A を選んだ場合: トップの部屋リンクに Speculation Rules（`prefetch`、`eagerness: moderate`）を付け、
         CSS に `@view-transition { navigation: auto; }` と reduced-motion の無効化を入れる
     - _Requirements: 16.2, 16.3_
 
