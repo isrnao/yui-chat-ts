@@ -34,7 +34,7 @@ Storybook ── GitHub Actions ── Chromatic
 | パス                            | 責務                                                  |
 | ------------------------------- | ----------------------------------------------------- |
 | `src/routes/`                   | URL解決後のroute wrapper                              |
-| `src/features/chat/`            | 通常チャット、全部屋、API、Realtime、キャッシュ、設定 |
+| `src/features/chat/`            | 通常チャット、全部屋、API、Realtime、ログストア、設定 |
 | `src/features/chanari-chat/`    | Chanari専用UI、設定、ルーム別下書き                   |
 | `src/features/top/`             | トップ、ルーム一覧、参加人数、X埋め込み               |
 | `src/pages/`                    | ページレベルのview                                    |
