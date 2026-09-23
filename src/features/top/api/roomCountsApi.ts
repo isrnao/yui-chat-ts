@@ -81,6 +81,7 @@ export function toRoomCountMap(rows: readonly RoomCountRow[]): RoomCountMap {
  *
  * RPC がまだ DB に無い（マイグレーションの適用前: 404）ときは、従来どおり発言の行を取得して
  * クライアントで数える。どちらも失敗したら空オブジェクトを返す（左カラムは「0人」で描画を続ける）。
+ * RPC は負荷の上限として 24 時間より前を見ないので、`windowMs` は 24 時間以内で使う。
  */
 export async function fetchRoomParticipantCounts(
   windowMs: number = 6 * 60 * 60 * 1000
