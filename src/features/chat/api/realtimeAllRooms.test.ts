@@ -3,7 +3,7 @@ import type { Chat } from '@features/chat/types';
 
 type PostgresPayload = { new: Record<string, unknown> };
 
-describe('chatAllApi', () => {
+describe('realtime（全部屋まとめの購読）', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -22,7 +22,7 @@ describe('chatAllApi', () => {
     };
     (supabase.channel as Mock).mockReturnValue(channel);
 
-    const { subscribeAllRoomsChatLogs } = await import('./chatAllApi');
+    const { subscribeAllRoomsChatLogs } = await import('./realtime');
     const received: Chat[] = [];
     subscribeAllRoomsChatLogs((chat) => received.push(chat));
 
@@ -67,7 +67,7 @@ describe('subscribeAllRoomsChatLogs の接続状態', () => {
     };
     (supabase.channel as Mock).mockReturnValue(channel);
 
-    const { subscribeAllRoomsChatLogs } = await import('./chatAllApi');
+    const { subscribeAllRoomsChatLogs } = await import('./realtime');
     const statuses: string[] = [];
     subscribeAllRoomsChatLogs(
       () => {},

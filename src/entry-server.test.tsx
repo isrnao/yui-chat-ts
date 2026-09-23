@@ -10,15 +10,15 @@ vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@features/chat/api/chatApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@features/chat/api/chatApi')>();
-  return {
-    ...actual,
-    loadChatLogs: vi.fn(() => Promise.resolve([])),
-    subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
-    onLookBroadcast: vi.fn(() => vi.fn()),
-  };
-});
+vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/chatQueries')>()),
+  loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
+}));
+vi.mock('@features/chat/api/realtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/realtime')>()),
+  subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  onLookBroadcast: vi.fn(() => vi.fn()),
+}));
 
 /** hydration の不一致は console.error で報告される */
 function collectHydrationErrors() {

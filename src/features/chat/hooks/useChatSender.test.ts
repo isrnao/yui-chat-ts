@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { Chat } from '@features/chat/types';
-import { saveChatLogOptimistic } from '@features/chat/api/chatApi';
+import { saveChatLogOptimistic } from '@features/chat/api/saveChat';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { createAdminChat, useChatSender } from './useChatSender';
 
-vi.mock('@features/chat/api/chatApi', () => ({
+vi.mock('@features/chat/api/saveChat', () => ({
   saveChatLogOptimistic: vi.fn((_roomId: string, chat: Chat) =>
     Promise.resolve({ ...chat, uuid: 'server-uuid', optimistic: false })
   ),
@@ -137,7 +137,7 @@ describe('useChatSender', () => {
   });
 
   it('巫女メッセージの保存失敗はサイレントに無視する', async () => {
-    const { saveChatLogOptimistic } = await import('@features/chat/api/chatApi');
+    const { saveChatLogOptimistic } = await import('@features/chat/api/saveChat');
     vi.mocked(saveChatLogOptimistic).mockRejectedValueOnce(new Error('boom'));
 
     const { result } = setup();

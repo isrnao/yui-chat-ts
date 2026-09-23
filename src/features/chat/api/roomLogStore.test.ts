@@ -1,15 +1,14 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Chat } from '@features/chat/types';
-import type { RealtimeStatus } from './chatApi';
+import type { RealtimeStatus } from './realtime';
 import { createRoomLogStore, type LogSource } from './roomLogStore';
 
-vi.mock('./chatApi', () => ({
-  loadChatLogs: vi.fn(),
+vi.mock('./chatQueries', () => ({
   loadRecentChatLogs: vi.fn(),
-  subscribeChatLogs: vi.fn(),
-}));
-vi.mock('./chatAllApi', () => ({
   loadAllRoomsChatLogs: vi.fn(),
+}));
+vi.mock('./realtime', () => ({
+  subscribeChatLogs: vi.fn(),
   subscribeAllRoomsChatLogs: vi.fn(),
 }));
 
@@ -31,7 +30,6 @@ function chat(uuid: string, n: number): Chat {
 function fakeSource(initialLimit = 10) {
   const fetches: Array<{
     limit: number;
-    allowShared: boolean;
     resolve: (chats: Chat[]) => void;
     reject: (error: Error) => void;
   }> = [];
@@ -40,9 +38,9 @@ function fakeSource(initialLimit = 10) {
   const unsubscribe = vi.fn();
   const source: LogSource = {
     initialLimit,
-    fetch: (limit, allowShared) =>
+    fetch: (limit) =>
       new Promise<Chat[]>((resolve, reject) => {
-        fetches.push({ limit, allowShared, resolve, reject });
+        fetches.push({ limit, resolve, reject });
       }),
     subscribe: vi.fn((insert, status) => {
       onInsert = insert;
@@ -71,7 +69,7 @@ describe('Room_Log_Store', () => {
     store.subscribe(() => {});
     expect(fake.source.subscribe).toHaveBeenCalledTimes(1);
     expect(fake.fetches).toHaveLength(1);
-    expect(fake.fetches[0]).toMatchObject({ limit: 10, allowShared: true });
+    expect(fake.fetches[0]).toMatchObject({ limit: 10 });
 
     fake.fetches[0]!.resolve([chat('a', 1)]);
     await flush();
@@ -91,7 +89,7 @@ describe('Room_Log_Store', () => {
     expect(messages(store.getSnapshot().chats)).toEqual(['remote', 'older']);
   });
 
-  it('SUBSCRIBED に遷移したときだけ、共有せずに取り直す', async () => {
+  it('SUBSCRIBED に遷移したときだけ取り直す', async () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);
     store.subscribe(() => {});
@@ -99,7 +97,6 @@ describe('Room_Log_Store', () => {
     fake.status('connected');
     fake.status('connected');
     expect(fake.fetches).toHaveLength(2);
-    expect(fake.fetches[1]).toMatchObject({ allowShared: false });
 
     fake.status('disconnected');
     fake.status('connected');
@@ -115,7 +112,7 @@ describe('Room_Log_Store', () => {
     await flush();
 
     store.expand(100);
-    expect(fake.fetches[1]).toMatchObject({ limit: 100, allowShared: true });
+    expect(fake.fetches[1]).toMatchObject({ limit: 100 });
     fake.fetches[1]!.resolve([chat('old', 1)]);
     await flush();
     expect(messages(store.getSnapshot().chats)).toEqual(['kept', 'deleted-later', 'old']);
@@ -188,7 +185,7 @@ describe('Room_Log_Store', () => {
 
     store.subscribe(() => {});
     expect(store.getSnapshot()).toBe(store.getServerSnapshot());
-    expect(fake.fetches[fake.fetches.length - 1]).toMatchObject({ limit: 10, allowShared: true });
+    expect(fake.fetches[fake.fetches.length - 1]).toMatchObject({ limit: 10 });
   });
 
   it('Realtime の INSERT を onInsert のリスナーへ伝える', () => {

@@ -10,7 +10,6 @@ import type { Chat } from '@features/chat/types';
 
 // APIモック
 const {
-  loadChatLogsMock,
   loadRecentChatLogsMock,
   subscribeChatLogsMock,
   emitRealtime,
@@ -20,7 +19,6 @@ const {
   const listeners = new Set<(chat: Chat) => void>();
   const statusListeners = new Set<(status: 'connecting' | 'connected' | 'disconnected') => void>();
   return {
-    loadChatLogsMock: vi.fn(),
     loadRecentChatLogsMock: vi.fn(),
     subscribeChatLogsMock: vi.fn(
       (
@@ -52,9 +50,10 @@ const {
   };
 });
 
-vi.mock('@features/chat/api/chatApi', () => ({
-  loadChatLogs: loadChatLogsMock,
+vi.mock('@features/chat/api/chatQueries', () => ({
   loadRecentChatLogs: loadRecentChatLogsMock,
+}));
+vi.mock('@features/chat/api/realtime', () => ({
   subscribeChatLogs: subscribeChatLogsMock,
 }));
 
@@ -80,7 +79,6 @@ describe('useRoomLog（部屋単位の store）', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     clearRealtimeListeners();
-    loadChatLogsMock.mockReturnValue(new Promise<never>(() => {}));
     loadRecentChatLogsMock.mockReturnValue(new Promise<never>(() => {}));
   });
 
@@ -127,7 +125,6 @@ describe('useRoomLog（部屋単位の store）', () => {
     // 待たずに返るため、その再接続中に INSERT された発言を取りこぼす
     it('reload しても購読を張り直さない', async () => {
       loadRecentChatLogsMock.mockResolvedValue([]);
-      loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
 
@@ -178,13 +175,13 @@ describe('useRoomLog（部屋単位の store）', () => {
     // subscribeChatLogs は SUBSCRIBED を待たずに返るため、snapshot がサーバーで確定して
     // から接続が確立するまでに INSERT された発言は snapshot にもバッファにも入らない。
     // 接続確立時に一度だけ取り直して塞ぐ (初回描画は待たせない)。
-    it('SUBSCRIBED 到達時にキャッシュを迂回して取り直す', async () => {
+    it('SUBSCRIBED 到達時に取り直す', async () => {
       loadRecentChatLogsMock.mockResolvedValue([]);
 
       renderHook(() => useChatLog('superbeginner'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
       // 初回取得は接続を待たずに始まる
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10, true);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10);
 
       await act(async () => {
         emitStatus('connected');
@@ -240,11 +237,8 @@ describe('useRoomLog（部屋単位の store）', () => {
       expect(subscribeChatLogsMock).toHaveBeenCalledTimes(1);
     });
 
-    // 初期表示は少量取得 (常に実取得) なので、TTL キャッシュの迂回は
-    // 入室後の全件取得の経路で検証する
-    it('入室後の reload は TTL キャッシュを迂回して取り直す', async () => {
+    it('入室後の reload は広げた件数で取り直す', async () => {
       loadRecentChatLogsMock.mockResolvedValue([]);
-      loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
@@ -252,19 +246,21 @@ describe('useRoomLog（部屋単位の store）', () => {
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', true));
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100)
+      );
 
       await act(async () => {
         result.current.reload();
       });
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', false));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(3));
+      expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100);
     });
 
     it('100 件より多く広げると、その件数を直接取得して既存の発言を残す', async () => {
       const existing = makeChat({ uuid: 'old', time: 1 });
-      loadRecentChatLogsMock.mockResolvedValueOnce([existing]);
-      loadChatLogsMock.mockResolvedValue([existing]);
+      loadRecentChatLogsMock.mockResolvedValue([existing]);
 
       const { result } = renderHook(() => useChatLog('com_sb'));
       await waitFor(() => expect(result.current.chatLog).toHaveLength(1));
@@ -272,7 +268,7 @@ describe('useRoomLog（部屋単位の store）', () => {
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 100));
 
       const older = makeChat({ uuid: 'older', time: 0 });
       loadRecentChatLogsMock.mockResolvedValueOnce([existing, older]);
@@ -280,15 +276,12 @@ describe('useRoomLog（部屋単位の store）', () => {
         result.current.expand(1000);
       });
 
-      await waitFor(() =>
-        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 1000, true)
-      );
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 1000));
       await waitFor(() => expect(result.current.chatLog).toHaveLength(2));
     });
 
     it('取得件数は減らす方向には戻さない', async () => {
       loadRecentChatLogsMock.mockResolvedValue([]);
-      loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('com_sb'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
@@ -303,25 +296,23 @@ describe('useRoomLog（部屋単位の store）', () => {
       });
 
       expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2);
-      expect(loadChatLogsMock).not.toHaveBeenCalled();
     });
 
-    // 初回取得が進行中のうちに接続が確立すると、in-flight を共有した場合に
-    // 同じ古い Promise を受け取り、snapshot 確定〜SUBSCRIBED の発言を取りこぼす
-    it('取得中に接続が確立したら in-flight を共有せず実取得する', async () => {
+    // 初回取得が進行中のうちに接続が確立しても、snapshot 確定〜SUBSCRIBED の発言を
+    // 取りこぼさないよう、もう一度サーバーへ問い合わせる
+    it('取得中に接続が確立したら、もう一度取得する', async () => {
       loadRecentChatLogsMock.mockReturnValue(new Promise<Chat[]>(() => {}));
 
       renderHook(() => useChatLog('superbeginner'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10, true);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10);
 
       await act(async () => {
         emitStatus('connected');
       });
 
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
-      // 2 回目は in-flight を迂回する
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(2, 'superbeginner', 10, false);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(2, 'superbeginner', 10);
     });
 
     // 毎回 previous をマージすると、別クライアントで論理削除された発言や
@@ -346,25 +337,23 @@ describe('useRoomLog（部屋単位の store）', () => {
     // 初期表示を軽くするため、入室前は 10 件だけ取得する
     it('初期表示は 10 件、入室で全件へ広げる', async () => {
       loadRecentChatLogsMock.mockResolvedValue([]);
-      loadChatLogsMock.mockResolvedValue([]);
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
 
-      await waitFor(() =>
-        expect(loadRecentChatLogsMock).toHaveBeenCalledWith('superbeginner', 10, true)
-      );
-      expect(loadChatLogsMock).not.toHaveBeenCalled();
+      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledWith('superbeginner', 10));
 
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
 
-      await waitFor(() => expect(loadChatLogsMock).toHaveBeenCalledWith('superbeginner', true));
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100)
+      );
       // 広げたあとに重ねて呼ばれない
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
-      expect(loadChatLogsMock).toHaveBeenCalledTimes(1);
+      expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2);
     });
   });
 });

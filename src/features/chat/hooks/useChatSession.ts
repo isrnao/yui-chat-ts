@@ -1,10 +1,7 @@
 import { useState } from 'react';
-import {
-  broadcastLookEvent,
-  broadcastUnlookEvent,
-  clearChatLogsByName,
-  createOptimisticChat,
-} from '@features/chat/api/chatApi';
+import { broadcastLookEvent, broadcastUnlookEvent } from '@features/chat/api/realtime';
+import { clearChatLogsByName } from '@features/chat/api/chatQueries';
+import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';

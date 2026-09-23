@@ -2,20 +2,23 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
-import { loadRecentChatLogs } from '@features/chat/api/chatApi';
+import { loadRecentChatLogs } from '@features/chat/api/chatQueries';
 import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
 
 // 複雑なSupabase統合部分はモック化
-vi.mock('@features/chat/api/chatApi', () => ({
-  loadChatLogs: vi.fn().mockResolvedValue([]),
+vi.mock('@features/chat/api/chatQueries', () => ({
   loadRecentChatLogs: vi.fn().mockResolvedValue([]),
-  loadInitialChatLogs: vi.fn().mockResolvedValue([]),
-  getCacheInfo: vi.fn().mockReturnValue({ cached: false }),
-  saveChatLog: vi.fn(),
-  saveChatLogOptimistic: vi.fn().mockResolvedValue({ uuid: 'test', time: Date.now() }),
-  clearChatLogs: vi.fn(),
+  loadAllRoomsChatLogs: vi.fn().mockResolvedValue([]),
+  loadChatRanking: vi.fn().mockResolvedValue([]),
   clearChatLogsByName: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@features/chat/api/saveChat', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/saveChat')>()),
+  saveChatLogOptimistic: vi.fn().mockResolvedValue({ uuid: 'test', time: Date.now() }),
+}));
+vi.mock('@features/chat/api/realtime', () => ({
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  subscribeAllRoomsChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
   broadcastLookEvent: vi.fn(),
   broadcastUnlookEvent: vi.fn(),
   onLookBroadcast: vi.fn(() => vi.fn()),
@@ -94,7 +97,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
     });
   });
 
@@ -113,7 +116,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10, true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10);
     });
     await waitFor(() => {
       expect(screen.queryByText('チャットログを読み込み中...')).not.toBeInTheDocument();
@@ -155,9 +158,9 @@ describe('<App />', () => {
       expect(window.location.pathname).toBe('/chat/superbeginner');
     });
 
-    // 確定 roomId で chatApi が呼ばれる
+    // 確定 roomId でログを取得する
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
     });
   });
 

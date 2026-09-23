@@ -12,26 +12,28 @@ function emitRealtimeChat(chat: Chat) {
   });
 }
 
-vi.mock('@features/chat/api/chatApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@features/chat/api/chatApi')>();
-  return {
-    ...actual,
-    loadChatLogs: vi.fn(() => Promise.resolve([])),
-    loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
-    loadChatRanking: vi.fn(() => Promise.resolve([])),
-    subscribeChatLogs: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
-      realtimeListeners.add(callback);
-      return {
-        unsubscribe: () => {
-          realtimeListeners.delete(callback);
-        },
-      };
-    }),
-    saveChatLogOptimistic: vi.fn((_roomId: string, chat: unknown) =>
-      Promise.resolve({ ...(chat as object), uuid: 'server-uuid', optimistic: false })
-    ),
-  };
-});
+vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/chatQueries')>()),
+  loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
+  loadChatRanking: vi.fn(() => Promise.resolve([])),
+}));
+vi.mock('@features/chat/api/realtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/realtime')>()),
+  subscribeChatLogs: vi.fn((_roomId: string, callback: (chat: Chat) => void) => {
+    realtimeListeners.add(callback);
+    return {
+      unsubscribe: () => {
+        realtimeListeners.delete(callback);
+      },
+    };
+  }),
+}));
+vi.mock('@features/chat/api/saveChat', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/saveChat')>()),
+  saveChatLogOptimistic: vi.fn((_roomId: string, chat: unknown) =>
+    Promise.resolve({ ...(chat as object), uuid: 'server-uuid', optimistic: false })
+  ),
+}));
 
 async function enterRoom() {
   render(<ChatRoute roomId="superbeginner" />);
@@ -50,7 +52,7 @@ describe('ChatRoute のランキング切り替え', () => {
 
   // 表示用のログ (直近分) ではなく、サーバー集計 (全期間) を出す
   it('ランキングは開いたときにサーバー集計を取得して表示する', async () => {
-    const { loadChatRanking } = await import('@features/chat/api/chatApi');
+    const { loadChatRanking } = await import('@features/chat/api/chatQueries');
     vi.mocked(loadChatRanking).mockResolvedValueOnce([
       { name: '昔の常連', count: 1234, lastTime: 1, color: '#123456', host: '203.*.*.9' },
     ]);
@@ -151,20 +153,20 @@ describe('ChatRoute の段階的なログ取得', () => {
   });
 
   it('入室前は 10 件だけ取得し、全件取得は行わない', async () => {
-    const { loadChatLogs, loadRecentChatLogs } = await import('@features/chat/api/chatApi');
+    const { loadRecentChatLogs } = await import('@features/chat/api/chatQueries');
 
     render(<ChatRoute roomId="superbeginner" />);
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, true));
-    expect(loadChatLogs).not.toHaveBeenCalled();
+    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10));
+    expect(loadRecentChatLogs).not.toHaveBeenCalledWith('superbeginner', 100);
   });
 
   it('「チャットに参加する」で全件取得へ広げる', async () => {
-    const { loadChatLogs } = await import('@features/chat/api/chatApi');
+    const { loadRecentChatLogs } = await import('@features/chat/api/chatQueries');
 
     await enterRoom();
 
-    await waitFor(() => expect(loadChatLogs).toHaveBeenCalledWith('superbeginner', true));
+    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 100));
   });
 });
 
@@ -175,7 +177,7 @@ describe('ChatRoute のエラー表示', () => {
   });
 
   it('ログの取得に失敗すると「発言はありません」ではなく失敗と再読み込みの導線を出す', async () => {
-    const { loadRecentChatLogs } = await import('@features/chat/api/chatApi');
+    const { loadRecentChatLogs } = await import('@features/chat/api/chatQueries');
     vi.mocked(loadRecentChatLogs).mockRejectedValueOnce(new Error('network'));
 
     render(<ChatRoute roomId="superbeginner" />);
@@ -190,7 +192,7 @@ describe('ChatRoute のエラー表示', () => {
   });
 
   it('入室の保存に失敗すると入室フォームに戻り、エラーを表示する', async () => {
-    const { saveChatLogOptimistic } = await import('@features/chat/api/chatApi');
+    const { saveChatLogOptimistic } = await import('@features/chat/api/saveChat');
     vi.mocked(saveChatLogOptimistic).mockRejectedValueOnce(new Error('Failed to save chat: 500'));
 
     render(<ChatRoute roomId="superbeginner" />);
