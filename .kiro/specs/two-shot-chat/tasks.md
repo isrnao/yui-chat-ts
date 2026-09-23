@@ -2,20 +2,20 @@
 
 ## PR の順序
 
-サーバー → 見た目 → 状態 → 切り替えの順に出す。Task 8（切り替え）をマージするまで、`/chat/2shot` は今の通常の部屋の
+サーバー → 見た目 → 状態 → 切り替えの順に出す。Task 8（切り替え）をマージするまで、`/chat/2shot/` は今の通常の部屋の
 ままで、ほかの PR は利用者から到達しない。
 
-| PR  | Task       | 要件                               | 種別               | 規模   | 備考                                                                                         |
-| --- | ---------- | ---------------------------------- | ------------------ | ------ | -------------------------------------------------------------------------------------------- |
-| PR1 | —          | —                                  | spec               | 小     | 本 spec。Q1〜Q7 は推奨どおり決定（2026-09-24）                                               |
-| —   | Task 0     | R18                                | 準備（PR なし）    | 小     | Oracle と参照スクリーンショット。リポジトリの外に置く                                        |
-| PR2 | Task 1     | R5 / R9 / R10 / R12 / R18          | サーバー（純粋）   | 中     | `rules.ts` と Vitest。デプロイしない                                                         |
-| PR3 | Task 2     | R12 / R14 / R15                    | サーバー + DB + CI | 大     | マイグレーション、Edge Function、`config.toml`。マージ後に DB → Edge の順で反映              |
-| PR4 | Task 3 + 4 | R2 / R3 / R4 / R6 / R7 / R11 / R17 | 見た目             | 大     | 部品とストーリー。Oracle と見比べる。どこからも import しない                                |
-| PR5 | Task 5 + 6 | R8 / R11 / R12 / R13 / R17         | 状態               | 中〜大 | API クライアント、ストア、Action、自動更新                                                   |
-| PR6 | Task 7     | R7.10                              | 見た目（任意）     | 小     | 文字参照の展開（P2）。PR5 の後ならいつでも                                                   |
-| PR7 | Task 8     | R1 / R15 / R16                     | 切り替え           | 中     | `/chat/2shot` を切り替える。**Q4(b) の保存・削除ジョブと監視の検証、現行ルートの確認が前提** |
-| PR8 | Task 9     | R16.3 / R18                        | 検収               | 小     | CLAUDE.md、Oracle との比較の記録、Success Metrics の計測                                     |
+| PR  | Task       | 要件                               | 種別               | 規模   | 備考                                                                                          |
+| --- | ---------- | ---------------------------------- | ------------------ | ------ | --------------------------------------------------------------------------------------------- |
+| PR1 | —          | —                                  | spec               | 小     | 本 spec。Q1〜Q7 は推奨どおり決定（2026-09-24）                                                |
+| —   | Task 0     | R18                                | 準備（PR なし）    | 小     | Oracle と参照スクリーンショット。リポジトリの外に置く                                         |
+| PR2 | Task 1     | R5 / R9 / R10 / R12 / R18          | サーバー（純粋）   | 中     | `rules.ts` と Vitest。デプロイしない                                                          |
+| PR3 | Task 2     | R12 / R14 / R15                    | サーバー + DB + CI | 大     | マイグレーション、Edge Function、`config.toml`。マージ後に DB → Edge の順で反映               |
+| PR4 | Task 3 + 4 | R2 / R3 / R4 / R6 / R7 / R11 / R17 | 見た目             | 大     | 部品とストーリー。Oracle と見比べる。どこからも import しない                                 |
+| PR5 | Task 5 + 6 | R8 / R11 / R12 / R13 / R17         | 状態               | 中〜大 | API クライアント、ストア、Action、自動更新                                                    |
+| PR6 | Task 7     | R7.10                              | 見た目（任意）     | 小     | 文字参照の展開（P2）。PR5 の後ならいつでも                                                    |
+| PR7 | Task 8     | R1 / R15 / R16                     | 切り替え           | 中     | `/chat/2shot/` を切り替える。**Q4(b) の保存・削除ジョブと監視の検証、現行ルートの確認が前提** |
+| PR8 | Task 9     | R16.3 / R18                        | 検収               | 小     | CLAUDE.md、Oracle との比較の記録、Success Metrics の計測                                      |
 
 ## Tasks
 
@@ -175,25 +175,26 @@
     - _Requirements: 7.10_
   - [ ] 7.2 テスト: `&hearts;` `&#9829;` `&#x2665;` が ♥ に、`&lt;b&gt;` が `<b>` の文字になる。未知の参照はそのまま
 
-- [ ] 8. `/chat/2shot` を切り替える（Requirement 1 / 15 / 16、PR7）
+- [ ] 8. `/chat/2shot/` を切り替える（Requirement 1 / 15 / 16、PR7）
   - [ ] 8.1 `routing.ts`（`matchTwoShotRoute`）、`resolveRoute.ts`、`routeLoaders.ts`、`App.tsx`（lazy とシェルの色）、
-        `src/routes/TwoShotRoute.tsx`。`/chanari/2shot` のリダイレクト
+        `src/routes/TwoShotRoute.tsx`。`/chanari/2shot/` から `/chat/2shot/`（`buildChatRoomPath`）へのリダイレクト
     - `rooms.ts` の `'2shot'` の ID・カテゴリ・関連部屋はそのまま残す。`chats` の `room_id = '2shot'` の行には触れない
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 16.2_
   - [ ] 8.2 `prerenderHtml.ts` に `renderTwoShotHtml` を足し、`prerender-rooms.ts` の通常の部屋とちゃなりのループから
-        `'2shot'` を外す。SEO の head を `useSEO` と同じ値にする
-    - _Requirements: 1.5, 1.6_
+        `'2shot'` を外す。SEO の head を `useSEO` と同じ値にする（canonical・og:url は `/chat/2shot/`）
+    - 出力先は `buildOutputRelativePath('2shot')`。SSG は描画エラーを出さない（`renderToHtml` がビルドを止める）
+    - _Requirements: 1.5, 1.6, 1.9_
   - [ ] 8.3 `rooms.ts` の `'2shot'` の紹介文を書き換える（Q4 の決定を反映）
     - _Requirements: 15.4, 15.5_
   - [ ] 8.4 トップの参加人数: 既存の人数 RPC は変更せず、`two_shot_lobby()` を並行取得して合流する
     - RPC 結果変換・404 時の行取得 URL・行集計の全経路から公開 `2shot` を除外する
     - 一方の取得に失敗しても他方の人数を保持する。切り替え PR の revert で旧集計に戻る
     - _Requirements: 15.2, 16.1_
-  - [ ] 8.5 ルーティングとプリレンダのテスト: `/chat/2shot` と `/chat/2shot/` が two-shot、`/chanari/2shot` が
-        リダイレクト（末尾 / と BASE_URL 込み）、似た別パスが一致しないこと
+  - [ ] 8.5 ルーティングとプリレンダのテスト: `/chat/2shot/` と `/chat/2shot` が two-shot、`/chanari/2shot/` と
+        `/chanari/2shot` が `/chat/2shot/` へリダイレクト（BASE_URL 込み）、似た別パスが一致しないこと
     - build 後の静的依存に `vendor-supabase` だけでなく分割済みの Supabase SDK もないこと
     - 人数 RPC の成功 / 404 フォールバック / 部分失敗 / 全失敗を検証する
-    - _Requirements: 1.1, 1.3, 1.5, 17.5_
+    - _Requirements: 1.1, 1.3, 1.5, 1.9, 17.5_
   - [ ] 8.6 ローカルの Supabase とステージングの Edge で、異なる IP または UA の 2 クライアントで状態遷移を確かめ、同じ IP / UA は E2 の拒否用に別途確認する
     - _Requirements: 5.6, 5.8, 18.1_
 

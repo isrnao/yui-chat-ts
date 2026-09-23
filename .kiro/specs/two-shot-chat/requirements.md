@@ -4,7 +4,7 @@
 
 CGI-RESCUE の「2SHOT-CHAT v5.0.1」（Perl CGI、2011 年）を、2026 年の React の設計（React 19 の Actions、外部ストア、
 React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.chat/chat/2shot/` に置く。ちゃなり
-（`/chanari/<id>`）と同じく、既存のチャット UI とは別の画面にする。
+（`/chanari/<id>/`）と同じく、既存のチャット UI とは別の画面にする。
 
 - **見た目は原作と同じにする。** フレームで上下に分かれた画面、表の罫線、色、文言、ボタンの並び、確認ダイアログ、
   「発言したら文字を残して全選択」といった操作の癖まで再現する。正解は原作をローカルで動かした Oracle と比べて決める
@@ -16,7 +16,7 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
   （誰でも読める公開ログ）には書かない。新しい Guest に前の会話は渡さない。Q4(b) を採用したので、
   通報対応用の控えを管理者だけが確認できることを利用者に明示する
 
-`/chat/2shot` には現在、「歴史的チャット」の通常の部屋「２ショットチャット」がある。本 spec でこの URL をツーショット
+`/chat/2shot/` には現在、「歴史的チャット」の通常の部屋「２ショットチャット」がある。本 spec でこの URL をツーショット
 チャットに置き換える。
 
 調査の詳細（画面の構成、文言、状態遷移、原作の不具合）は [research.md](./research.md) にまとめた。本書で
@@ -34,7 +34,7 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 
 - **Legacy_2shot**: 原作の 2SHOT-CHAT v5.0.1
 - **Oracle**: Legacy_2shot をローカルの Perl で動かした参照環境。受け入れ確認の「正解」を出す（research.md §2）
-- **Two_Shot_Page**: 本機能のページ全体（`src/features/two-shot-chat/`）。`/chat/2shot` で表示する
+- **Two_Shot_Page**: 本機能のページ全体（`src/features/two-shot-chat/`）。`/chat/2shot/` で表示する
 - **Frame_Layout**: 原作の `<frameset>` を再現する上下 2 ペインの配置と、その間の境界線（Frame_Border）
 - **Lobby_Screen**: 入室前の画面。上ペインが Entry_Form、下ペインが Room_List（原作の `First`）
 - **Room_Screen**: 入室後の画面。上ペインが Chat_Form、下ペインが Chat_Log_View（原作の `InForm`）
@@ -72,17 +72,22 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 
 #### Acceptance Criteria
 
-1. WHEN `/chat/2shot` または `/chat/2shot/` を開く, THE アプリ SHALL 通常のチャット画面（ChatRoute）ではなく
-   Two_Shot_Page を表示する。
+1. WHEN `/chat/2shot/`（または末尾 `/` のない `/chat/2shot`）を開く, THE アプリ SHALL 通常のチャット画面（ChatRoute）ではなく
+   Two_Shot_Page を表示する。部屋の URL の正は、ほかの部屋と同じく末尾 `/` 付きの形とする（GitHub Pages は
+   `/chat/2shot` を `/chat/2shot/` へ 301 で転送する）。
 2. THE Two_Shot_Page SHALL ちゃなりと同じく独立したルートのチャンク（`React.lazy`）として読み込まれる。
-3. WHEN `/chanari/2shot` を開く, THE アプリ SHALL `/chat/2shot` へリダイレクトする（ちゃなりの見た目で公開ログの
+3. WHEN `/chanari/2shot/`（または `/chanari/2shot`）を開く, THE アプリ SHALL `/chat/2shot/` へリダイレクトする（ちゃなりの見た目で公開ログの
    部屋が開かないようにする）。
-4. THE トップの「２ショットチャット」へのリンク SHALL 今の URL（`/chat/2shot`）のまま Two_Shot_Page を開く。
+4. THE トップの「２ショットチャット」へのリンク SHALL 今の URL（`buildChatRoomPath` が作る `/chat/2shot/`）のまま
+   Two_Shot_Page を開く。
 5. WHEN 本番ビルドをする, THE プリレンダ SHALL `dist/chat/2shot/index.html` に Two_Shot_Page の Lobby_Screen を
    SSG で埋め、Two_Shot_Page のチャンクを modulePreload する（ChatRoute のチャンクや部屋紹介の静的な内容は出さない）。
-6. THE サイトマップ SHALL `/chat/2shot` を今までどおり載せる。THE プリレンダ SHALL `/chanari/2shot` を出力しない。
+6. THE サイトマップ SHALL `/chat/2shot/`（canonical と同じ末尾 `/` 付きの形）を今までどおり載せる。THE プリレンダ SHALL
+   `/chanari/2shot/` を出力しない。
 7. WHILE Two_Shot_Page を表示している, THE ページの背景色と `theme-color` SHALL `#FFFFFF` になる。
 8. THE 既存の `chats` テーブルの `room_id = '2shot'` の行 SHALL 削除も変更もしない（Q7）。
+9. THE Two_Shot_Page の canonical と og:url SHALL ほかの部屋と同じく `https://www.okiraku.chat/chat/2shot/`（`buildRoomSeo`
+   の値）にし、プリレンダした head と hydrate 後の head を一致させる。
 
 ### Requirement 2: フレームの再現（P0）
 
@@ -359,7 +364,7 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 1. THE トップの「２ショットチャット」の参加人数 SHALL `chats` の発言者数ではなく、ツーショットの全部屋で席に着いている
    人数の合計にする（Lobby_View から数える）。既存の参加人数 RPC とその 404 フォールバックのどちらでも
    `chats` の `2shot` を除外する。一方の API が失敗しても他方の人数は保持する。
-2. THE 通常のチャット画面の関連部屋リンク（歴史的チャット）SHALL `/chat/2shot` を指したままにする。
+2. THE 通常のチャット画面の関連部屋リンク（歴史的チャット）SHALL `/chat/2shot/` を指したままにする。
 3. THE CLAUDE.md SHALL 本機能（ディレクトリ、Edge Function、テーブル、ログを公開しない方針）を追記する。
 
 ### Requirement 17: 2026 年の React の設計に合わせる（P0）
@@ -377,7 +382,7 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 4. THE Two_Shot_Page SHALL `useMemo` / `useCallback` / `memo` を新しく書かない。THE Compiler_Check SHALL 本機能の
    ファイルを許可リストなしで通す。
 5. THE Two_Shot_Page のチャンク SHALL `@supabase/supabase-js` と分割済みの functions-js / postgrest-js / realtime-js を読み込まない
-   （`fetch` で Two_Shot_API と Lobby_View を呼ぶ）。`/chat/2shot` の modulePreload に `vendor-supabase` が含まれない。
+   （`fetch` で Two_Shot_API と Lobby_View を呼ぶ）。`/chat/2shot/` の modulePreload に `vendor-supabase` が含まれない。
 6. THE 見た目 SHALL `dangerouslySetInnerHTML` を使わずに作る。表の `border` / `cellPadding` / `cellSpacing`、入力欄の
    `size` / `maxLength` は属性のまま使い、`<font>` / `<center>` / `bgcolor` などの廃止された要素・属性は CSS で置き換える。
 7. THE スタイル SHALL Two_Shot_Page の外に波及させない（スコープを切った CSS）。スコープの中ではサイト共通の
@@ -468,7 +473,7 @@ Oracle はリポジトリの外に置く。
 | Oracle と見比べて違いがある画面の状態（design.md のテスト戦略の一覧）        | 0（フォントの描画差・明示した意図的な差分を除く） |
 | research.md §5.2 / §5.3 の文言のうちテストで確かめたもの                     | E10 と E12 を除く全件                             |
 | 未認証の操作・拒否した入室で正規化以外に部屋やログが変わる経路（O2、O3）     | 0                                                 |
-| `/chat/2shot` の modulePreload に含まれる `vendor-supabase`                  | なし                                              |
+| `/chat/2shot/` の modulePreload に含まれる `vendor-supabase`                 | なし                                              |
 | Two_Shot_Page のルートチャンク（gzip）                                       | 15 kB 以下                                        |
 | React Compiler で未コンパイルの関数（本機能）                                | 0                                                 |
 | 入室から Room_Screen が操作できるまで（Two_Shot_API の p95、東京リージョン） | 1 秒以内                                          |

@@ -12,7 +12,7 @@
    純粋な TypeScript（`rules.ts`）にまとめ、状態の CAS と付随する記録を専用 RPC で原子的に保存する
 2. **画面**: `src/features/two-shot-chat/`。フレームを再現する Frame_Layout と、原作の 6 画面（入室フォーム、一覧、
    入力画面、ログ画面、お知らせ、その組み合わせ）を作る
-3. **既存との接続**: `/chat/2shot` のルーティング、プリレンダ、SEO、トップの参加人数
+3. **既存との接続**: `/chat/2shot/` のルーティング、プリレンダ、SEO、トップの参加人数
 
 requirements.md の Q1〜Q7 は 2026-09-24 に推奨どおり決定した（Q4 は (a) と (b) の両方）。各節の
 「Q の決定で変わるもの」は、将来方針を変える場合の影響範囲として残す。
@@ -47,7 +47,7 @@ requirements.md の Q1〜Q7 は 2026-09-24 に推奨どおり決定した（Q4 �
 
 ```mermaid
 flowchart TB
-  subgraph Browser["ブラウザ（/chat/2shot）"]
+  subgraph Browser["ブラウザ（/chat/2shot/）"]
     APP["App / resolveRoute<br/>{ type: 'two-shot' }"] --> PAGE["TwoShotPage"]
     PAGE --> TOK["sessionStore<br/>useSyncExternalStore<br/>（sessionStorage）"]
     PAGE -->|Session なし / pending| LOBBY["LobbyScreen<br/>useActionState（入室）"]
@@ -117,13 +117,18 @@ export const TWO_SHOT_ROOM_ID = '2shot' satisfies RoomId;
 export type TwoShotRouteMatch = { type: 'two-shot' } | { type: 'redirect'; to: string };
 
 export function matchTwoShotRoute(pathname: string): TwoShotRouteMatch | null;
-// /chat/2shot と /chat/2shot/ → { type: 'two-shot' }
-// /chanari/2shot と末尾 /   → { type: 'redirect', to: buildChatRoomPath('2shot') }
+// /chat/2shot/ と /chat/2shot       → { type: 'two-shot' }
+// /chanari/2shot/ と /chanari/2shot → { type: 'redirect', to: buildChatRoomPath('2shot') }（= /chat/2shot/）
 // それ以外                   → null（既存の matchChanariRoute / matchRoute に任せる）
 ```
 
 - パスの判定は既存ルートと同じく `BASE_URL` を考慮し、末尾 `/` を受け付ける。base はパス区切り単位で除去する。
   `/chat/2shot/extra` や `/chat/2shot-other` は一致させない。
+- 部屋の URL の正は末尾 `/` 付き（`buildChatRoomPath` / `buildRoomPath`）。GitHub Pages が `/chat/2shot` を
+  `/chat/2shot/` へ 301 で転送するので、リンク・canonical・og:url・sitemap はすべて末尾 `/` 付きの形にする
+- ページ間の遷移はサイト共通の MPA に従う。トップから `/chat/2shot/` へのリンクは `index.html` の Speculation Rules
+  （`/chat/*`）で先読みされ、ドキュメント間 View Transitions（`App.css` の `@view-transition`）でつながる。これは
+  サイトの遷移で、原作の画面の一部ではない。入口と入室後の切り替えはページ内の状態の変更なので、遷移のアニメーションは付けない
 - `resolveRoute.ts` は `matchTwoShotRoute` → `matchChanariRoute` → `matchRoute` の順に試す。`ResolvedRoute` に
   `{ type: 'two-shot' }` が加わる
 - `routeLoaders` に `'two-shot': () => import('./TwoShotRoute')` を足す。`preloadRoute` は `route.type` をキーに
@@ -135,10 +140,12 @@ export function matchTwoShotRoute(pathname: string): TwoShotRouteMatch | null;
 **プリレンダ（Requirement 1.5 / 1.6）**
 
 - `scripts/prerender-rooms.ts` の通常の部屋のループは `'2shot'` を ChatRoute として描かない。代わりに
-  `renderTwoShotHtml()`（`prerenderHtml.ts` に追加）で `dist/chat/2shot/index.html` を作る。modulePreload は
+  `renderTwoShotHtml()`（`prerenderHtml.ts` に追加）で `dist/chat/2shot/index.html`（`buildOutputRelativePath('2shot')`）を作る。modulePreload は
   `src/routes/TwoShotRoute.tsx` の manifest から解決する。部屋紹介の静的な内容（`RoomInfo` 相当）は入れない
 - ちゃなりのループからも `'2shot'` を外す
-- `generate-sitemap.ts` は変更しない（`/chat/2shot` は今も載る）
+- `generate-sitemap.ts` は変更しない（`buildRoomPath` の末尾 `/` 付きの形で `/chat/2shot/` が今も載る）
+- `entry-server.tsx` の `renderToHtml` は、描画中のエラー（Suspense の中のものを含む）が 1 件でもあればビルドを失敗させる。
+  TwoShotPage の SSG は `sessionStorage` などのブラウザ API に触れず、外部ストアの `getServerSnapshot` だけで入口を描く
 - 検証: ビルド後の `dist/chat/2shot/index.html` の modulePreload に `vendor-supabase` がないことを
   `prerenderHtml.test.ts` と同じ形のテスト、または build 後のスクリプトで確かめる（Requirement 17.5）
 
@@ -865,7 +872,7 @@ D16 の E2 の本文と D18 の Guest 入室前ログの消去、Q3 / Q4 の承�
 
 ### ビルドの検証
 
-- `pnpm build:prod` の後、`dist/chat/2shot/index.html` に Lobby_Screen の SSG があり、modulePreload に
+- `pnpm build:prod` の後、`dist/chat/2shot/index.html` に Lobby_Screen の SSG があり、canonical が `/chat/2shot/` で、modulePreload に
   `vendor-supabase` と分割済みの Supabase SDK の静的依存がないこと
 - Compiler_Check が本機能のファイルを許可リストなしで通すこと
 
@@ -881,8 +888,8 @@ D16 の E2 の本文と D18 の Guest 入室前ログの消去、Q3 / Q4 の承�
 
 1. **DB**: マイグレーションを適用する。既存の表や画面には影響しない
 2. **Edge Function**: 専用 CI とローカル DB テストを通し、入室記録・監査・削除ジョブの準備を確認してから `supabase functions deploy two-shot`（save-chat と同じく、先に Edge Runtime での起動を確かめる）
-3. **画面**: `/chat/2shot` の切り替え（Task 8 の PR）をマージしてデプロイする。戻すときはこの PR を revert すれば、
-   `/chat/2shot` は元の通常の部屋に戻る
+3. **画面**: `/chat/2shot/` の切り替え（Task 8 の PR）をマージしてデプロイする。戻すときはこの PR を revert すれば、
+   `/chat/2shot/` は元の通常の部屋に戻る
 
 画面の PR（見た目・状態）は、切り替えの PR まではどこからも到達しない。Storybook とテストだけで確かめる。
 
@@ -890,18 +897,23 @@ D16 の E2 の本文と D18 の Guest 入室前ログの消去、Q3 / Q4 の承�
 
 | 指標                                       | 目標                                     |
 | ------------------------------------------ | ---------------------------------------- |
-| `/chat/2shot` のルートチャンク（gzip）     | 15 kB 以下                               |
-| `/chat/2shot` の modulePreload             | `vendor-supabase` を含まない             |
+| `/chat/2shot/` のルートチャンク（gzip）    | 15 kB 以下                               |
+| `/chat/2shot/` の modulePreload            | `vendor-supabase` を含まない             |
 | 一覧の応答                                 | 10 行、2 kB 以下                         |
 | Two_Shot_API（`read`）の p95               | 300 ms 以内                              |
 | 入室中の通信（自動更新 20 秒、タブ表示中） | 1 人あたり 3 回 / 分。非表示のタブでは 0 |
 
 ## 既存 spec との関係と着手の順序
 
-- 2026-09-23 の関連実装確認では、`src/shared/utils/persistentStore.ts`（R9）、RetroSplitter の Pointer Events（R10）、
-  `room_participant_counts` とクライアントの 404 フォールバック（R14）が既にある。未実装時の代替案を残さず、これらを前提にする。
-- ルートは `src/routes/resolveRoute.ts` / `routeLoaders.ts`、`src/App.tsx` の現在の構造に接続する。
-  Task 8 の着手時に対象の main にこれらがあることを確認し、過去のブランチ名・PR番号を固定の前提にしない。
+- 2026-09-24 に、react-2026-refactoring が main（`3e307ea`、#153）に入ったことを確認した。本 spec のブランチは main から切り、
+  次の実装を前提にする（未実装時の代替案は持たない）。
+  - `src/shared/utils/persistentStore.ts` と `useStoreBackedState`（R9）
+  - RetroSplitter の Pointer Events（R10）
+  - `room_participant_counts(since_ms)` とクライアントの 404 フォールバック（R14）。RPC は 24 時間より前を見ない
+  - SSG の `prerenderToNodeStream` と、描画エラーでビルドを止める `renderToHtml`（R15）
+  - MPA のままの遷移: 末尾 `/` 付きの部屋の URL、Speculation Rules の先読み、ドキュメント間 View Transitions（R16）
+- ルートは `src/routes/resolveRoute.ts` / `routeLoaders.ts`、`src/App.tsx` の現在の構造に接続する。過去のブランチ名・PR 番号を
+  固定の前提にせず、各タスクの着手時に main の構造を確認する。
 - `roomLogStore.ts` の snapshot 安定化・generation・購読解除の扱いを参考にするが、公開ログ向けの Realtime は持ち込まない。
 - `package.json` は既に `@supabase/functions-js` / `postgrest-js` / `realtime-js` の個別パッケージに分割済み。
   旧 `vendor-supabase` というチャンク名の不在だけでは検証が弱いため、本ルートの静的依存グラフにこれらも
