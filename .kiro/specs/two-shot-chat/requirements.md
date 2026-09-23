@@ -383,8 +383,9 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
    ファイルを許可リストなしで通す。
 5. THE Two_Shot_Page のチャンク SHALL `@supabase/supabase-js` と分割済みの functions-js / postgrest-js / realtime-js を読み込まない
    （`fetch` で Two_Shot_API と Lobby_View を呼ぶ）。`/chat/2shot/` の modulePreload に `vendor-supabase` が含まれない。
-6. THE 見た目 SHALL `dangerouslySetInnerHTML` を使わずに作る。表の `border` / `cellPadding` / `cellSpacing`、入力欄の
-   `size` / `maxLength` は属性のまま使い、`<font>` / `<center>` / `bgcolor` などの廃止された要素・属性は CSS で置き換える。
+6. THE 見た目 SHALL `dangerouslySetInnerHTML` を使わずに作る。入力欄の `size` / `maxLength` は属性のまま使う。
+   表の `border` / `cellpadding` / `cellspacing` と、`<font>` / `<center>` / `bgcolor` などの廃止された要素・属性は、
+   ブラウザが描く値と同じ CSS で置き換える（表の属性の効果はスコープのリセットで消えるため。design.md §5）。
 7. THE スタイル SHALL Two_Shot_Page の外に波及させない（スコープを切った CSS）。スコープの中ではサイト共通の
    リセット（Tailwind の preflight）を打ち消し、原作と同じブラウザ既定の見た目に戻す。
 8. THE Two_Shot_Page SHALL 型情報を使う lint（`no-floating-promises` など）を違反なしで通す。

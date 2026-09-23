@@ -249,9 +249,9 @@ export const TWO_SHOT_CONFIG = {
 - CSS grid（`grid-template-rows: <上> 5px 1fr`、高さ `100dvh`）。上下のペインは `overflow: auto` で独立して
   スクロールし、ページは `overflow: hidden`
 - 初期の比率は props から CSS 変数に入れるだけなので、SSG と hydration で一致する
-- 境界線（5px）の描き方は Oracle を Chromium で描いたスクリーンショットから決める。Chromium の frameset の境界は、
-  `bordercolor` の塗りの両端に明るい線と暗い線を 1px ずつ描く実装になっているはずなので、`border-top` /
-  `border-bottom` と背景色で作る想定（Task 0 で確かめる）
+- 境界線（5px）は、Oracle を Chromium で描いた画素から決めた。上から 1px `#aaaaaa`・3px `#555555`（bordercolor）・
+  1px `#000000` で、`border-top` / `border-bottom` と背景色で作る。行の高さは Chromium と同じく 1px 単位で切り捨てる
+  （800px なら 30% は 238px。`round(down, …, 1px)`、非対応のブラウザは `calc` のまま）
 - ドラッグは Pointer Events と `setPointerCapture`。`role="separator"`、`aria-orientation="horizontal"`、
   `aria-valuenow`（上ペインの %）、`tabIndex={0}` にし、上下の矢印キーで 1% ずつ動かす。上下とも最小 40px
 - 既存 RetroSplitter は Pointer Events 化済みだが、見た目（プリセットの高さ、グリップ）が違うので部品ごとは使わない。
@@ -261,43 +261,34 @@ export const TWO_SHOT_CONFIG = {
 
 ### 5. スタイル（Requirement 17.6 / 17.7）
 
-```css
-/* styles/two-shot.css（概略） */
-@layer base {
-  /* サイト共通の preflight（@layer base）を、スコープの中だけブラウザ既定に戻す */
-  .two-shot-scope,
-  .two-shot-scope * {
-    all: revert;
-  }
-}
+`styles/two-shot.css`。値は Oracle と Storybook を同じ条件（ヘッドレス Chrome、1280×800）で撮り、画素で比べて決めた。
 
-/* 以下はレイヤーの外に書き、上の revert より優先させる */
-.two-shot-scope {
-  font-family: initial; /* 原作はフォントを指定していない = ブラウザ既定 */
-  font-size: initial;
-  color: #000000;
-  background: #ffffff;
-}
-.two-shot-scope a:link,
-.two-shot-scope .ts-link {
-  color: #f55550;
-}
-.two-shot-scope a:visited {
-  color: #ff5555;
-}
-.two-shot-scope .ts-small {
-  font-size: small;
-} /* <font size=-1> */
-```
+- **リセットはレイヤーの外に書く。** サイト共通の CSS には Tailwind の preflight（`@layer base`）のほかに、レイヤーの外の
+  `*, ::before, ::after { box-sizing: border-box }`（App.css）がある。`.two-shot-scope, .two-shot-scope *` に
+  `all: revert` をレイヤーの外で書き（クラス 1 つの詳細度で `*` に勝つ）、それ以降の独自のルールはクラス 2 つ以上か、
+  同じ詳細度で後に書く。スコープの根では `font-family: initial; font-size: initial`（原作はフォントを指定していない）
+- **表の属性の効果は CSS で明示する。** `border` / `cellpadding` などの属性の効果（Presentational hints）は、
+  `all: revert` でブラウザ既定の値に戻ると一緒に消える。罫線のある表は `.ts-grid`（表は `outset`、セルは 1px の
+  `inset`、`cellpadding=2`）で、色は文字色（黒）にする。Chromium は黒の `outset` / `inset` を明るい側 `#a8a8a8`・
+  暗い側 `#545454` で描き、Oracle の画素と一致した。属性のない表のセルの既定の余白（1px）も明示する
+- **Quirks モードの差を再現する。** 原作のページは DOCTYPE がないので Quirks モードで描かれる。見た目に出た差は 3 つ
+  - `p`・見出し・リストの余白は Quirks 専用の単位（`__qem`）で、body（ペイン）の先頭と表のセルの先頭・末尾では
+    無視される。`form` の下の余白（1em）は無視されない
+  - `<p>` は `<table>` で閉じない（表が段落の中に入る）。React では `<p>` に表を入れられないので、同じ余白の
+    `<div class="ts-p">` で包む
+  - 行の高さに親のブロックの文字の大きさ（strut）を含めない。小さい文字だけの段落（入力画面の注意書き）は、
+    段落自体を小さい文字にする
+- リンクは `a:link` を `#f55550`（原作の `#f5555` をブラウザが解釈した色）、`a:visited` を `#ff5555`。一覧の
+  〔手動更新〕などは URL を持たない操作なので `<button class="ts-link">` にし、リンクと同じ見た目にする
+- `<font color>` → `<span style={{ color }}>`、`<font size=-1>` → `font-size: small`、`<center>` / `align=center` →
+  `text-align: center`、`<table align=center width=70%>` → `width: 70%; margin-inline: auto`、`<th nowrap>` →
+  `white-space: nowrap`、`bgcolor` → `background-color`
+- どのセレクタも `.two-shot-scope` の下に限るので、Two_Shot_Page の外の要素には当たらない
 
-- 表の罫線と余白はブラウザ既定の描画を使うため、`<table border={3} cellPadding={2} cellSpacing={2}>` のように
-  **属性のまま**書く（React は小文字の未知の属性をそのまま出す。`cellPadding` / `cellSpacing` は React が知っている）
-- `<font color>` → `<span style={{ color }}>`、`<center>` → `text-align: center`、`bgcolor` → `background-color`、
-  `<th nowrap>` → `white-space: nowrap`、`<table align=center>` → `margin-inline: auto`
-- 一覧の `〔手動更新〕` などリンクの形をした操作は `<button type="button" className="ts-link">` にし、リンクと同じ
-  見た目にする（URL を持たない操作のため）
-- リセット（`all: revert`）だけを `base` レイヤーに入れ、それ以外はレイヤーの外に書く。どのセレクタも
-  `.two-shot-scope` の下に限るので、Two_Shot_Page の外の要素には当たらない
+**Oracle との比較の結果（Task 0 / 4.7）:** ページ全体のお知らせ（E1）は画素単位で一致。入室後の画面は、入力欄の
+カーソルと、Quirks モードの行の高さの計算による注意書きの 1px の差だけ（差分 0.7%）。ログは一致（`&hearts;` などの
+文字参照は Task 7 で展開する）。一覧は、注意書き（Q4(a)）の分だけ表が下がる以外は一致。意図した差分（D16 の E2、
+D18 の入室前のログの消去、Q3 のクレジット、Q4(a) の注意書き）は比較から除く
 
 ### 6. サーバー: `rules.ts`（Requirement 5 / 9 / 10 / 12）
 

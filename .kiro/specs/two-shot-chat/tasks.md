@@ -19,15 +19,15 @@
 
 ## Tasks
 
-- [ ] 0. Oracle を用意する（Requirement 18、PR なし）
-  - [ ] 0.1 `2shot_5.0.1.gz` をリポジトリの外に展開し、`jcode.pl` の `do convf(*_);` を `&convf(*_);` に直す
+- [x] 0. Oracle を用意する（Requirement 18、PR なし）
+  - [x] 0.1 `2shot_5.0.1.gz` をリポジトリの外に展開し、`jcode.pl` の `do convf(*_);` を `&convf(*_);` に直す
     - `$URL` を相対パス（`2shot.cgi`）にする
     - _Requirements: 18.1_
-  - [ ] 0.2 design.md「テスト戦略」の S1〜S11 の状態を Oracle で作り、各画面の HTML を保存するスクリプトを書く
+  - [x] 0.2 design.md「テスト戦略」の S1〜S11 の状態を Oracle で作り、各画面の HTML を保存するスクリプトを書く
     - 入室後の画面は `entry` の応答から認証コードを取り出して `ChatForm` / `Chat` を呼ぶ
     - フレームの `src` を保存した HTML に差し替えた静的なページを作る
     - _Requirements: 18.1_
-  - [ ] 0.3 静的なページをアプリ内ブラウザ（Chromium）で 1280×800 と 375×812 で開き、スクリーンショットを撮る
+  - [x] 0.3 静的なページをアプリ内ブラウザ（Chromium）で 1280×800 と 375×812 で開き、スクリーンショットを撮る
     - Frame_Border の描き方（色と幅）と、既定のフォント・文字の大きさをここで確かめ、design.md §4 / §5 に書き足す
     - _Requirements: 2.4, 18.1_
 
@@ -99,36 +99,36 @@
     - 既存 CI の `continue-on-error` に依存しない。失敗を許容せず、再現手順を PR に記録する
     - _Requirements: 18.2, 18.3, 18.6_
 
-- [ ] 3. フレームとスタイルを作る（Requirement 2 / 17、PR4）
-  - [ ] 3.1 `config.ts`（design.md §3。表示用の数値は `rules.ts` から import）と、部屋の ID が `rules.ts` と一致することの
+- [x] 3. フレームとスタイルを作る（Requirement 2 / 17、PR4）
+  - [x] 3.1 `config.ts`（design.md §3。表示用の数値は `rules.ts` から import）と、部屋の ID が `rules.ts` と一致することの
         テスト
     - _Requirements: 3.2, 14.4_
-  - [ ] 3.2 `styles/two-shot.css`: `base` レイヤーでの `all: revert`、スコープのフォントと色、リンクの色（`#f55550` /
+  - [x] 3.2 `styles/two-shot.css`: `base` レイヤーでの `all: revert`、スコープのフォントと色、リンクの色（`#f55550` /
         `#ff5555`）、小さい文字
     - _Requirements: 17.6, 17.7_
-  - [ ] 3.3 `FrameLayout`: grid、5px の Frame_Border（Task 0.3 の結果に合わせる）、各ペインのスクロール、Pointer Events と
+  - [x] 3.3 `FrameLayout`: grid、5px の Frame_Border（Task 0.3 の結果に合わせる）、各ペインのスクロール、Pointer Events と
         キーボードでの移動、`role="separator"` と `aria-valuenow`、最小 40px
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 17.9_
-  - [ ] 3.4 FrameLayout のテスト: 初期の比率、矢印キーで 1% 動く、最小の高さで止まる
+  - [x] 3.4 FrameLayout のテスト: 初期の比率、矢印キーで 1% 動く、最小の高さで止まる
 
-- [ ] 4. 画面の部品を作る（Requirement 3 / 4 / 6 / 7 / 11、PR4）
-  - [ ] 4.1 `SexLabel` と `utils/noticeText.ts`（N1〜N10、E1〜E12。E2 / E12 の明示した差分を反映し、それ以外は原作と一致させる）
+- [x] 4. 画面の部品を作る（Requirement 3 / 4 / 6 / 7 / 11、PR4）
+  - [x] 4.1 `SexLabel` と `utils/noticeText.ts`（N1〜N10、E1〜E12。E2 / E12 の明示した差分を反映し、それ以外は原作と一致させる）
     - _Requirements: 7.3, 11.1_
-  - [ ] 4.2 `EntryForm`（research.md §3.1）。入力欄は `size` / `maxLength` の属性で幅と上限を合わせる
+  - [x] 4.2 `EntryForm`（research.md §3.1）。入力欄は `size` / `maxLength` の属性で幅と上限を合わせる
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 17.6_
-  - [ ] 4.3 `RoomList`（research.md §3.2）: 更新の切り替え、見出し行、状態の色、待機中だけの Owner の情報、取得前の空欄、
+  - [x] 4.3 `RoomList`（research.md §3.2）: 更新の切り替え、見出し行、状態の色、待機中だけの Owner の情報、取得前の空欄、
         `異常(2)`、`ホームページへ戻る`、著作表示（Q3: 文字のクレジット）、Q4 (a) の注意書き
     - _Requirements: 4.1, 4.2, 4.6, 4.7, 4.8, 4.9_
-  - [ ] 4.4 `ChatForm`（research.md §3.3）: Owner / Guest のボタン、自動更新のラジオ、注意書き 2 行
+  - [x] 4.4 `ChatForm`（research.md §3.3）: Owner / Guest のボタン、自動更新のラジオ、注意書き 2 行
     - _Requirements: 6.1, 6.2_
-  - [ ] 4.5 `ChatLog`（research.md §3.4）: 新しい順と `<hr>`、自分の行の色、お知らせの行、フッターの 3 つの表示、
+  - [x] 4.5 `ChatLog`（research.md §3.4）: 新しい順と `<hr>`、自分の行の色、お知らせの行、フッターの 3 つの表示、
         Owner の `画面クリア`。`utils/formatTime.ts`
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.9_
-  - [ ] 4.6 `NoticePage`（research.md §3.5）: ページ全体版と下ペイン版
+  - [x] 4.6 `NoticePage`（research.md §3.5）: ページ全体版と下ペイン版
     - _Requirements: 11.1_
-  - [ ] 4.7 各部品と、S1〜S11 の組み合わせのストーリーを書き、Task 0.3 のスクリーンショットと並べて比べる。違いを直す
+  - [x] 4.7 各部品と、S1〜S11 の組み合わせのストーリーを書き、Task 0.3 のスクリーンショットと並べて比べる。違いを直す
     - _Requirements: 18.1, 18.4_
-  - [ ] 4.8 部品のテスト（日本語の名前）: 文言、属性（`size` / `maxLength` / `border`）、状態ごとの出し分け
+  - [x] 4.8 部品のテスト（日本語の名前）: 文言、属性（`size` / `maxLength` / `border`）、状態ごとの出し分け
     - _Requirements: 18.5_
 
 - [ ] 5. API クライアントとストアを作る（Requirement 4 / 8 / 12 / 13 / 17、PR5）
@@ -181,6 +181,7 @@
   - [ ] 8.1 `routing.ts`（`matchTwoShotRoute`）、`resolveRoute.ts`、`routeLoaders.ts`、`App.tsx`（lazy とシェルの色）、
         `src/routes/TwoShotRoute.tsx`。`/chanari/2shot/` から `/chat/2shot/`（`buildChatRoomPath`）へのリダイレクト
     - `rooms.ts` の `'2shot'` の ID・カテゴリ・関連部屋はそのまま残す。`chats` の `room_id = '2shot'` の行には触れない
+    - `src/test/reachability.test.ts` の一時的な例外（`NOT_YET_ROUTED`）を消す
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 16.2_
   - [ ] 8.2 `prerenderHtml.ts` に `renderTwoShotHtml` を足し、`prerender-rooms.ts` の通常の部屋とちゃなりのループから
         `'2shot'` を外す。SEO の head を `useSEO` と同じ値にする（canonical・og:url は `/chat/2shot/`）
