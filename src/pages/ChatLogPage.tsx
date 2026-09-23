@@ -66,6 +66,8 @@ export default function ChatLogPage() {
 }
 
 function ChatLogContent({ windowRows, reloadKey }: { windowRows: number; reloadKey: number }) {
+  // 本番から到達しないページで、try/finally を React Compiler が扱えない。削除するまで対象から外す
+  'use no memo';
   // Suspense 境界で待機: preload + 初回 paging が完了するまで fallback 表示。
   // 旧 useEffect + setIsLoading(true/false) 手動管理を Suspense + use() に置き換え。
   const initial = use(

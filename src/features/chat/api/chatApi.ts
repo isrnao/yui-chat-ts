@@ -196,7 +196,7 @@ export async function loadInitialChatLogs(
 export interface SaveChatOptions {
   /**
    * 送信操作の ID（spec observability-new-relic R5.8）。利用者の発言では、送信を始めた
-   * フック（useChatSender.saveUserMessage）が発行して Browser の send-chat と共有する。
+   * フック（useChatSender.sendUserMessage）が発行して Browser の send-chat と共有する。
    * 省略時はここで発行する（入退室・巫女などのシステム発言）。
    */
   operationId?: string;
