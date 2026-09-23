@@ -203,4 +203,49 @@ describe('Room_Log_Store', () => {
     fake.insert(chat('y', 2));
     expect(listener).toHaveBeenCalledTimes(1);
   });
+
+  it('取得中に合流した保存の確定値は、古い取得結果で消さない', async () => {
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    store.reload();
+
+    // 取得（1 件目の reload）の途中で自分の発言の保存が終わる
+    store.applySaved(chat('mine', 5));
+    // 取得結果は保存より前のスナップショット
+    fake.fetches[1]!.resolve([chat('older', 1)]);
+    await flush();
+
+    expect(messages(store.getSnapshot().chats)).toEqual(['mine', 'older']);
+  });
+
+  it('取得中に行った書き換え（clear の反映）は、古い取得結果で巻き戻さない', async () => {
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    fake.fetches[0]!.resolve([chat('mine', 2), chat('other', 1)]);
+    await flush();
+
+    store.reload();
+    store.update((chats) => chats.filter((c) => c.message !== 'mine'));
+    // 取得結果は削除より前のスナップショットで、消した発言を含んでいる
+    fake.fetches[1]!.resolve([chat('mine', 2), chat('other', 1)]);
+    await flush();
+
+    expect(messages(store.getSnapshot().chats)).toEqual(['other']);
+  });
+
+  it('取得が終わった後の書き換えは、次の取得結果には適用しない', async () => {
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    fake.fetches[0]!.resolve([chat('a', 1)]);
+    await flush();
+    store.update((chats) => chats.filter((c) => c.message !== 'a'));
+
+    store.reload();
+    fake.fetches[1]!.resolve([chat('a', 1)]);
+    await flush();
+    expect(messages(store.getSnapshot().chats)).toEqual(['a']);
+  });
 });

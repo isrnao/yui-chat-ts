@@ -1,9 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { toEntryErrorMessage } from './entryError';
+import { UserFacingError } from './userFacingError';
 
 describe('toEntryErrorMessage', () => {
   it('検証エラーの文言はそのまま出す', () => {
-    expect(toEntryErrorMessage(new Error('おなまえは24文字以内'))).toBe('おなまえは24文字以内');
+    expect(toEntryErrorMessage(new UserFacingError('おなまえは24文字以内'))).toBe(
+      'おなまえは24文字以内'
+    );
   });
 
   it('保存の失敗（API の内部メッセージ）は汎用の文言にする', () => {

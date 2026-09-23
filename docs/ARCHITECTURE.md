@@ -232,7 +232,7 @@ type ChanariRouteMatch =
 ユーザー入力
     │
     ▼
-useChatSession.send() → useChatSender.sendUserMessage()
+useChatSession.send() → useChatSender.sendUserMessage()（操作 ID を発行して send へ）
     │
     ├─ 1. createOptimisticChat()
     │     uuid: "temp-{timestamp}-{random}"
@@ -240,23 +240,29 @@ useChatSession.send() → useChatSender.sendUserMessage()
     │     metadata.optimisticNonce: random UUID
     │     optimistic: true
     │
-    ├─ 2. startTransition(async () => { addOptimistic(chat); … })
-    │     → 表示から保存の完了までを 1 つの async Action にする（楽観的な値は Action の間だけ残る）
-    │     → useOptimisticのreduceOptimisticChat reducer経由で即時UI反映
-    │     → optimisticNonceを優先してRealtime echoとの重複を防止
-    │
-    ├─ 3. saveChatLogOptimistic(roomId, chat, { operationId })
-    │     → supabase.functions.invoke('save-chat')
-    │     → client payloadにip／uaは含めない
-    │     → Edge Functionがrequest headerからip／uaを観測
-    │     → service_roleでchatsへINSERT
-    │     → UUID v7、time、ip_masked、uaを返却
-    │     → 指数backoffで最大3回retry（operationIdは共通、attemptだけ増加）
-    │
-    └─ 4. startTransition(() => mergeChat(savedChat))
-          → 一時UUIDをserver UUID v7へ置換
-          → server確定値を反映してoptimistic: falseへ更新
-          → chatLogResource.invalidateCache(roomId)
+    └─ 2. useChatSender.send(): startTransition(async () => { … }) の 1 つの Action の中で
+          │  （楽観的な値は、それを包む Action が pending の間だけ残る。以前は同期の
+          │   startTransition で addOptimistic だけを呼んでいたため、Action の外から呼ぶ
+          │   入室・退室・ちゃなりの発言では保存完了前に表示が消えていた）
+          │
+          ├─ 2a. addOptimistic(chat)
+          │     → useOptimisticのreduceOptimisticChat reducer経由で即時UI反映
+          │     → optimisticNonceを優先してRealtime echoとの重複を防止
+          │
+          ├─ 2b. await saveChatLogOptimistic(roomId, chat, { operationId })
+          │     → supabase.functions.invoke('save-chat')
+          │     → client payloadにip／uaは含めない
+          │     → Edge Functionがrequest headerからip／uaを観測
+          │     → service_roleでchatsへINSERT
+          │     → UUID v7、time、ip_masked、uaを返却
+          │     → 指数backoffで最大3回retry（operationIdは共通、attemptだけ増加）
+          │
+          ├─ 2c. startTransition(() => mergeChat(savedChat))
+          │     → await の後は Transition の文脈が切れるので包み直す
+          │     → 一時UUIDをserver UUID v7へ置換、optimistic: falseへ更新
+          │     → chatLogResource.invalidateCache(roomId)
+          │
+          └─ 保存に失敗したら Action の中で捕まえて reject（楽観的な表示は Action の終わりに消える）
 ```
 
 INSERT後の管理者チャット（`com_sb`）は、response返却後に`EdgeRuntime.waitUntil`でtriageします。非system・1000文字以下の発言をOkiraku APIへ送り、`cr`確率0.5以上かつ1時間3件未満の場合だけGitHub Issueを作成し、管理人の受付発言を追加します。triage失敗は元の発言保存に影響させません。
