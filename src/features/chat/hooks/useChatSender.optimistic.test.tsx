@@ -3,12 +3,12 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { startTransition, useActionState, useOptimistic, useState } from 'react';
 import type { Chat } from '@features/chat/types';
 import { useChatSender } from './useChatSender';
-import { reduceOptimisticChat } from './useChatLog';
+import { reduceOptimisticChat } from '@features/chat/utils/optimisticLog';
 
 // 保存の完了をテストから制御する。解決するまで楽観的なチャットが見えていることを確かめる
 let settleSave: { resolve: () => void; reject: (error: Error) => void } | null = null;
 
-vi.mock('@features/chat/api/chatApi', () => ({
+vi.mock('@features/chat/api/saveChat', () => ({
   saveChatLogOptimistic: vi.fn(
     (_roomId: string, chat: Chat) =>
       new Promise<Chat>((resolve, reject) => {

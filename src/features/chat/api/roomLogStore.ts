@@ -1,13 +1,8 @@
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
-import {
-  loadChatLogs,
-  loadRecentChatLogs,
-  subscribeChatLogs,
-  type RealtimeStatus,
-} from './chatApi';
-import { loadAllRoomsChatLogs, subscribeAllRoomsChatLogs } from './chatAllApi';
+import { loadAllRoomsChatLogs, loadRecentChatLogs } from './chatQueries';
+import { subscribeAllRoomsChatLogs, subscribeChatLogs, type RealtimeStatus } from './realtime';
 
 /**
  * Room_Log_Store（.kiro/specs/react-2026-refactoring Requirement 6）。
@@ -31,11 +26,8 @@ export type RoomLogState = {
 export interface LogSource {
   /** 初期表示で取得する件数 */
   initialLimit: number;
-  /**
-   * @param allowShared true なら進行中のリクエストやキャッシュを共有してよい
-   *   （購読を始めてから一度も取り直していないとき）。取り直しでは必ず実取得する
-   */
-  fetch(limit: number, allowShared: boolean): Promise<Chat[]>;
+  /** 直近 `limit` 件を取得する。キャッシュは持たず、呼ぶたびにサーバーへ問い合わせる */
+  fetch(limit: number): Promise<Chat[]>;
   subscribe(
     onInsert: (chat: Chat) => void,
     onStatus: (status: RealtimeStatus) => void
@@ -49,7 +41,7 @@ export interface RoomLogStore {
   getSnapshot(): RoomLogState;
   /** SSG / hydration 用。最初の getSnapshot と同じ参照 */
   getServerSnapshot(): RoomLogState;
-  /** キャッシュや進行中のリクエストを使わずに取り直す */
+  /** サーバーから取り直す */
   reload(): void;
   /** 取得件数を増やす（減らさない）。既に足りていれば何もしない */
   expand(limit: number): void;
@@ -78,8 +70,6 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
   let limit = source.initialLimit;
   /** 画面に出しているログが何件要求の結果か。拡張（既存を残す取得）かどうかの判定に使う */
   let displayedLimit = source.initialLimit;
-  /** 取り直しの回数。0 の間だけ進行中のリクエストやキャッシュを共有してよい */
-  let reloadCount = 0;
   /** 取得の世代。新しい取得が始まったら古い取得の結果は捨てる */
   let generation = 0;
   /**
@@ -113,7 +103,7 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     const requested = limit;
     const isExpansion = requested > displayedLimit;
 
-    source.fetch(requested, reloadCount === 0).then(
+    source.fetch(requested).then(
       (logs) => {
         if (current !== generation) return;
         displayedLimit = requested;
@@ -157,7 +147,6 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     state = initialState;
     limit = source.initialLimit;
     displayedLimit = source.initialLimit;
-    reloadCount = 0;
     lastStatus = 'connecting';
     // 購読の確立を先に始めてから取得する
     realtime = source.subscribe(handleInsert, handleStatus);
@@ -192,7 +181,6 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     getSnapshot: () => state,
     getServerSnapshot: () => initialState,
     reload() {
-      reloadCount++;
       startFetch();
     },
     expand(next) {
@@ -222,11 +210,7 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
 function roomSource(roomId: RoomId): LogSource {
   return {
     initialLimit: INITIAL_CHAT_LOG_LIMIT,
-    // ちょうど全件（100）のときだけ canonical snapshot（キャッシュあり）を使う
-    fetch: (limit, allowShared) =>
-      limit === FULL_CHAT_LOG_LIMIT
-        ? loadChatLogs(roomId, allowShared)
-        : loadRecentChatLogs(roomId, limit, allowShared),
+    fetch: (limit) => loadRecentChatLogs(roomId, limit),
     subscribe: (onInsert, onStatus) => subscribeChatLogs(roomId, onInsert, onStatus),
   };
 }

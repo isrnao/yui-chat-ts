@@ -1,14 +1,4 @@
-import {
-  useId,
-  useRef,
-  useEffect,
-  useState,
-  useActionState,
-  startTransition,
-  type ChangeEvent,
-  type Dispatch,
-  type SetStateAction,
-} from 'react';
+import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
@@ -19,8 +9,6 @@ import { toUserMessage } from '@features/chat/utils/userFacingError';
 const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
 export type ChatRoomProps = {
-  message: string;
-  setMessage: Dispatch<SetStateAction<string>>;
   windowRows: number;
   setWindowRows: (rows: number) => void;
   /** 「ログ行数」の選択肢。部屋によって上限が違う（getWindowRowOptions） */
@@ -48,8 +36,6 @@ export type ChatRoomProps = {
 };
 
 export default function ChatRoom({
-  message,
-  setMessage,
   windowRows,
   setWindowRows,
   windowRowOptions = DEFAULT_WINDOW_ROW_OPTIONS,
@@ -65,6 +51,9 @@ export default function ChatRoom({
   onResetReplyTarget,
 }: ChatRoomProps) {
   const messageId = useId();
+  // 発言欄の値はこの部品の中だけで持つ。ルートで持つと 1 文字ごとにルート全体
+  // （RetroSplitter や入室者の状態を含む）が再レンダーされていた（spec R8.2）
+  const [message, setMessage] = useState('');
   const rowsId = useId();
   const fontSizeId = useId();
   const fontColorId = useId();
@@ -94,7 +83,7 @@ export default function ChatRoom({
     return meta;
   }
 
-  const [error, dispatch, isPending] = useActionState(
+  const [error, formAction, isPending] = useActionState(
     async (_prev: unknown, formData: FormData) => {
       const msg = formData.get('message')?.toString() ?? '';
       if (!msg.trim()) return;
@@ -126,7 +115,8 @@ export default function ChatRoom({
   }, [isPending]);
 
   const handleClear = () => {
-    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信
+    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）
+    setMessage('');
     void onSend('clear').catch(() => {});
   };
 
@@ -161,15 +151,14 @@ export default function ChatRoom({
 
       {/* 2行目: [更新] [発言] ボタン + [消す] + おなまえ表示 */}
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
+        action={formAction}
+        // onSubmit は action より先に同じイベントの中で呼ばれる。ここで入力欄を空にすると、
+        // 保存を待たずに空になる（action の中で空にすると Action の終わりまで反映されない）。
+        // action に渡る FormData は、この更新が画面に反映される前の値で作られる。
+        onSubmit={() => {
           // 送信可否に関わらずチャット表示へ戻す（空入力でも「戻る」操作として機能させる）
           onBackToChat?.();
-          const formData = new FormData(e.currentTarget);
           setMessage('');
-          startTransition(() => {
-            dispatch(formData);
-          });
         }}
         className="mb-1 font-yui"
         autoComplete="off"

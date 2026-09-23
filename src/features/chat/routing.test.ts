@@ -12,6 +12,22 @@ describe('chat routing', () => {
     });
   });
 
+  it('末尾の / が付いた部屋の URL も同じ部屋として扱う', async () => {
+    const { matchRoute } = await import('./routing');
+
+    expect(matchRoute('/chat/superbeginner/')).toEqual({
+      type: 'chat-room',
+      roomId: 'superbeginner',
+    });
+  });
+
+  it('部屋へのパスは末尾の / まで付ける（GitHub Pages の 301 の転送を挟まない）', async () => {
+    const { buildChatRoomPath, matchRoute } = await import('./routing');
+
+    expect(buildChatRoomPath('hajime')).toBe('/chat/hajime/');
+    expect(matchRoute('/chat')).toEqual({ type: 'redirect', to: '/chat/superbeginner/' });
+  });
+
   it('matches other registered rooms', async () => {
     const { matchRoute } = await import('./routing');
 

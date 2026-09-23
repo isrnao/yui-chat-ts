@@ -3,14 +3,14 @@ import { buildRoomSeo, buildRoomPath, buildChanariRoomSeo, buildChanariPath } fr
 import { SITE_NAME } from './seo';
 
 describe('buildRoomPath', () => {
-  it('/chat/<id> 形式のパスを返す', () => {
-    expect(buildRoomPath('anime')).toBe('/chat/anime');
+  it('/chat/<id>/ 形式のパスを返す（GitHub Pages が転送する前の形にしない）', () => {
+    expect(buildRoomPath('anime')).toBe('/chat/anime/');
   });
 });
 
 describe('buildChanariPath', () => {
-  it('/chanari/<id> 形式のパスを返す', () => {
-    expect(buildChanariPath('durarara')).toBe('/chanari/durarara');
+  it('/chanari/<id>/ 形式のパスを返す', () => {
+    expect(buildChanariPath('durarara')).toBe('/chanari/durarara/');
   });
 });
 
@@ -25,7 +25,7 @@ describe('buildChanariRoomSeo', () => {
 
   it('canonical は /chat/<id> を指す (内容が重複するため評価を集約する)', () => {
     expect(buildChanariRoomSeo('durarara').canonical).toBe(
-      'https://www.okiraku.chat/chat/durarara'
+      'https://www.okiraku.chat/chat/durarara/'
     );
     expect(buildChanariRoomSeo('durarara').canonical).toBe(buildRoomSeo('durarara').canonical);
   });
@@ -47,7 +47,7 @@ describe('buildRoomSeo', () => {
 
   it('canonical は自ページの絶対 URL になる', () => {
     const seo = buildRoomSeo('anime');
-    expect(seo.canonical).toBe('https://www.okiraku.chat/chat/anime');
+    expect(seo.canonical).toBe('https://www.okiraku.chat/chat/anime/');
   });
 
   it('description は部屋の紹介文を使い、overrides で差し替えられる', () => {

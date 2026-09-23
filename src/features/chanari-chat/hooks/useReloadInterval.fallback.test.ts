@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { Chat } from '@features/chat/types';
-import type { RealtimeStatus } from '@features/chat/api/chatApi';
-import { useChatLog } from '@features/chat/hooks/useChatLog';
+import type { RealtimeStatus } from '@features/chat/api/realtime';
+import { getRoomLogStore } from '@features/chat/api/roomLogStore';
+import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useReloadInterval } from './useReloadInterval';
 
 // ChanariChatPage と同じ配線を再現し、実際の取得回数を数える。
@@ -27,15 +28,16 @@ const { loadChatLogsMock, subscribeChatLogsMock, emitStatus } = vi.hoisted(() =>
   };
 });
 
-vi.mock('@features/chat/api/chatApi', () => ({
-  loadChatLogs: loadChatLogsMock,
+vi.mock('@features/chat/api/chatQueries', () => ({
   loadRecentChatLogs: loadChatLogsMock,
+}));
+vi.mock('@features/chat/api/realtime', () => ({
   subscribeChatLogs: subscribeChatLogsMock,
 }));
 
 /** ChanariChatPage の配線: 切断中だけ定期更新を回す */
 function useChanariWiring(seconds: number) {
-  const { realtimeStatus, reload } = useChatLog('durarara');
+  const { realtimeStatus, reload } = useRoomLog(getRoomLogStore('durarara'));
   useReloadInterval(seconds, reload, realtimeStatus === 'disconnected');
   return realtimeStatus;
 }
@@ -78,7 +80,7 @@ describe('ちゃなりの定期更新フォールバック', () => {
     // 接続確立時の取り直しが 1 回入る (初回ロード + resync)
     await flush();
     expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
-    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', 10, true);
+    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', 10);
 
     await advance(63);
 

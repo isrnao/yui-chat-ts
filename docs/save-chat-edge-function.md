@@ -50,7 +50,7 @@ useChatHandlers
 ### 移行後
 
 ```
-useChatHandlers
+useChatSession（旧 useChatHandlers）
   → saveChatLogOptimistic(chat)          // ip/ua を送らない
   → supabase.functions.invoke('save-chat', { body })
       Edge: ip = x-forwarded-for（先頭ホップ）→ x-real-ip

@@ -1,17 +1,15 @@
 import { useState, lazy, Suspense } from 'react';
-import {
-  useAllRoomsChatLog,
-  ALL_ROOMS_INITIAL_LIMIT,
-} from '@features/chat/hooks/useAllRoomsChatLog';
+import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
-import { useAllRoomsChatHandlers } from '@features/chat/hooks/useAllRoomsChatHandlers';
+import { useRoomLog } from '@features/chat/hooks/useRoomLog';
+import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
-import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import { getRoomMeta } from '@features/chat/rooms';
 import type { RoomId } from '@features/chat/rooms';
-import type { AvatarId } from '@features/chat/types';
+import type { ChatMetadata } from '@features/chat/types';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RoomInfo from '@features/chat/components/RoomInfo';
@@ -35,49 +33,33 @@ export default function AllRoomsRoute() {
 
   const measurement = useConversationMeasurement();
   const [windowRows, setWindowRows] = useState(30);
-  // 取得件数。「ログ行数」で 200 件より多く選んだら広げる（減らす方向には戻さない）
-  const [logLimit, setLogLimit] = useState(ALL_ROOMS_INITIAL_LIMIT);
-  const {
-    chatLog,
-    isLoading,
-    loadError,
-    subscribeError,
-    isEmpty,
-    setChatLog,
-    addOptimistic,
-    mergeChat,
-    reload,
-  } = useAllRoomsChatLog(measurement.onRealtimeChat, logLimit);
+  const store = getAllRoomsLogStore();
+  const { chatLog, isLoading, loadError, isEmpty, realtimeStatus, addOptimistic, reload, expand } =
+    useRoomLog(store, measurement.onRealtimeChat);
+  const subscribeError = realtimeStatus === 'disconnected';
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
-
-  const [entered, setEntered] = useState(false);
+  const identity = useChatIdentity(settings);
+  const { name, setName, color, setColor, email, setEmail, avatar, setAvatar } = identity;
+  const session = useChatSession({
+    target: { kind: 'all', replyTo: replyTarget },
+    identity,
+    store,
+    addOptimistic,
+    measurement,
+  });
+  const { entered } = session;
   // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
-  // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
-  const [name, setName] = useStoreBackedState(settings.name ?? '');
-  const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
-  const [email, setEmail] = useStoreBackedState(settings.email ?? '');
-  const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
-  const [message, setMessage] = useState('');
   const [sendError, setSendError] = useState('');
 
-  const { handleEnter, handleExit, handleSend } = useAllRoomsChatHandlers({
-    replyTarget,
-    name,
-    color,
-    email,
-    avatar,
-    chatLog,
-    setEntered,
-    setChatLog,
-    setName,
-    setMessage,
-    addOptimistic,
-    mergeChat,
-    measurement,
-  });
+  const handleExit = () => {
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
+    // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
+    setName('');
+    return session.exit();
+  };
 
   const replyTargetTitle = getRoomMeta(replyTarget).title;
 
@@ -85,10 +67,10 @@ export default function AllRoomsRoute() {
     setReplyTarget(roomId);
   };
 
-  const wrappedHandleSend = async (msg: string, metadata?: Parameters<typeof handleSend>[1]) => {
+  const wrappedHandleSend = async (msg: string, metadata?: ChatMetadata) => {
     setSendError('');
     try {
-      await handleSend(msg, metadata);
+      await session.send(msg, metadata);
     } catch (err) {
       setSendError(
         toUserMessage(err, '発言を送信できませんでした。時間をおいてもう一度お試しください。')
@@ -127,12 +109,11 @@ export default function AllRoomsRoute() {
           top={
             entered ? (
               <ChatRoom
-                message={message}
-                setMessage={setMessage}
                 windowRows={windowRows}
                 setWindowRows={(rows) => {
                   setWindowRows(rows);
-                  setLogLimit((current) => Math.max(current, rows));
+                  // 取得件数（既定 200）より多い行数を選んだら、その件数まで取得を広げる
+                  expand(rows);
                 }}
                 windowRowOptions={getWindowRowOptions('all')}
                 onExit={handleExit}
@@ -159,7 +140,7 @@ export default function AllRoomsRoute() {
                     setAvatar(a);
                     setEntryError('');
                     try {
-                      await handleEnter({ name: n, color: c, silent });
+                      await session.enter({ name: n, color: c, silent });
                     } catch (err) {
                       setEntryError(toEntryErrorMessage(err));
                       throw err;

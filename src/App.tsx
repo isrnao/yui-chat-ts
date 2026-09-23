@@ -109,9 +109,9 @@ export default function App({ initialPathname }: { initialPathname?: string } = 
       {route.type === 'chat-room' &&
         (route.roomId === 'all' ? <AllRoomsRoute /> : <ChatRoute roomId={route.roomId} />)}
       {/*
-        key={roomId}: ChanariChatPage は useState(settings.X) で入力 state を初期化するため
-        roomId 変化時に remount しないと別 room の入力 / 下書きが残ってしまう。
-        useChanariSettings 側にも useEffect の再 hydrate を入れているが、ここで remount を強制することが根本対策。
+        key={roomId}: ChanariChatPage の入力 state（名前・色・入力中の発言）は部屋ごとの下書きを
+        既定値にしているので、roomId が変わったら remount して別 room の入力を持ち越さない。
+        下書き自体は useChanariSettings が roomId ごとにストアから読む。
       */}
       {route.type === 'chanari-room' && <ChanariRoute key={route.roomId} roomId={route.roomId} />}
       {route.type === 'not-found' && <NotFoundRoute />}

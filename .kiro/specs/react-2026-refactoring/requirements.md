@@ -240,8 +240,10 @@
 2. WHEN 利用者がランキングからログ表示に戻る, THE ChatRoute SHALL ログ一覧を再マウントせずに表示する
    （ランキングを表示している間は `<Activity mode="hidden">` で残しておく）。
    2a. THE ログ一覧のスクロール位置 SHALL ランキングを開く前と同じに戻る。
-3. WHERE ブラウザが View Transition API に対応している, THE ランキングとログの切り替え、入室フォームとチャット
-   入力の切り替え SHALL `<ViewTransition>` でアニメーションする。
+3. WHERE ブラウザが View Transition API に対応している, THE ランキングの [ランキング] リンクと見出しのリンクによる
+   開閉 SHALL `<ViewTransition>` でアニメーションする。発言の送信・「更新」で閉じるときと、入室フォームとチャット入力の
+   切り替えはアニメーションしない（Transition にすると送信・入室の Action に束ねられ、保存が終わるまで画面が
+   切り替わらなくなるため。PR13 の実装で確認）。
 4. WHERE `prefers-reduced-motion: reduce` が有効, THE 切り替え SHALL アニメーションしない。
 5. WHEN Realtime で発言が届く, THE ログ表示 SHALL アニメーションしない。
 
