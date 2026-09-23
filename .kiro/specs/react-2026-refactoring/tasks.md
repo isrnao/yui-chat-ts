@@ -48,7 +48,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Profiler の代わりに Task 9.5 の再レンダー計測テストで前後を比べる）
+  - [ ] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Task 9.5 の再レンダー計測テストで前後を記録するまで未完了）
     - _Requirements: 1.1_
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
