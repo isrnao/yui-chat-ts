@@ -85,6 +85,26 @@ describe('SSG + hydrateRoot', () => {
     expect(warnings).toEqual([]);
   });
 
+  // React 19.3 では hydration のときも Strict Mode が Effect を二重に呼ぶ（react#35961）。
+  // Room_Log_Store は購読の解除をマイクロタスクまで遅らせるので、channel を張り直さない
+  it('Strict Mode の hydration でも Realtime の購読を 1 つしか張らない', async () => {
+    const { subscribeChatLogs } = await import('@features/chat/api/realtime');
+    vi.mocked(subscribeChatLogs).mockClear();
+
+    // 他のテストで hydrate したルートが購読を続けていない部屋を使う
+    await ssgThenHydrate('/chat/durarara');
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(subscribeChatLogs).toHaveBeenCalledTimes(1);
+    expect(subscribeChatLogs).toHaveBeenCalledWith(
+      'durarara',
+      expect.any(Function),
+      expect.any(Function)
+    );
+  });
+
   // 「前回の名前を覚えている」機能が SSG 化で壊れないことの回帰テスト。
   // 入力 state を useState でコピーすると、SSG 時の既定値 (空) を握ったままになり、
   // hydration 後にストアが実値へ切り替わっても追随しない。

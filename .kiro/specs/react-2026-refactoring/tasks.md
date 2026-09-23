@@ -195,7 +195,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 10.1, 10.3_
 
 - [ ] 12. React 19.3 に上げて Activity と ViewTransition を使う（Requirement 12、PR12）
-  - [ ] 12.1 `react` / `react-dom` / `@types/react` / `@types/react-dom` を 19.3 系に上げる。開発環境の SSG ページの
+  - [x] 12.1 `react` / `react-dom` / `@types/react` / `@types/react-dom` を 19.3 系に上げる。開発環境の SSG ページの
         hydration で Effect が二重に呼ばれても、Realtime の channel が重複しないことを確かめる
     - _Requirements: 12.1_
   - [ ] 12.2 ChatLogList と ChatRanking にそれぞれのスクロール枠を持たせ、RetroSplitter の下段の枠は
