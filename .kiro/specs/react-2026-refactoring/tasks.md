@@ -170,15 +170,15 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 9.5 Task 1.5 と同じ手順で再レンダーの範囲を記録し、ChatRoom の中だけになったことを確かめる
     - _Requirements: 8.2_
 
-- [ ] 10. 永続化ストアの書き方を揃える（Requirement 9、PR10）
-  - [ ] 10.1 `shared/utils/persistentStore.ts` を作る（生の文字列が同じなら同じ参照を返す）
+- [x] 10. 永続化ストアの書き方を揃える（Requirement 9、PR10）
+  - [x] 10.1 `shared/utils/persistentStore.ts` を作る（生の文字列が同じなら同じ参照を返す）
     - _Requirements: 9.1_
-  - [ ] 10.2 settingsStore をその上に作り直す（公開している関数の形は変えない）
+  - [x] 10.2 settingsStore をその上に作り直す（公開している関数の形は変えない）
     - _Requirements: 9.1, 9.4_
-  - [ ] 10.3 ちゃなりの draftStore をその上に作り直し、`useChanariSettings` を `useSyncExternalStore` で読む形にする。
+  - [x] 10.3 ちゃなりの draftStore をその上に作り直し、`useChanariSettings` を `useSyncExternalStore` で読む形にする。
         roomId で読み直す Effect と ref を同期する Effect を消す
     - _Requirements: 9.2, 9.3, 9.4_
-  - [ ]\* 10.4 参照の安定、別タブの追随、壊れた JSON のテストを書く。下書きを保存した状態で SSG 済み HTML を
+  - [x]\* 10.4 参照の安定、別タブの追随、壊れた JSON のテストを書く。下書きを保存した状態で SSG 済み HTML を
     hydrate しても不一致が出ないテストを残す
     - _Requirements: 9.2, 9.4_
 

@@ -89,8 +89,7 @@ describe('SSG + hydrateRoot', () => {
   // 入力 state を useState でコピーすると、SSG 時の既定値 (空) を握ったままになり、
   // hydration 後にストアが実値へ切り替わっても追随しない。
   it('hydration 後にストア由来のおなまえが入力欄へ反映される', async () => {
-    // settingsStore はモジュール読み込み時に localStorage を読むため、
-    // 後から localStorage を書いても反映されない。公開 API で更新する。
+    // 公開 API で更新する（同じタブの変更として購読者へ通知される）
     const settingsStore = await import('@features/chat/utils/settingsStore');
     settingsStore.updateSettings({ name: 'ゆい' });
 
@@ -114,6 +113,19 @@ describe('SSG + hydrateRoot', () => {
     ).filter((el) => el.checked);
 
     expect(checked.map((el) => el.value)).toContain('hoshi1');
+    expect(warnings).toEqual([]);
+  });
+
+  // ちゃなりの下書きは useSyncExternalStore で読む。SSG と hydration 中は空の既定値で描画し、
+  // hydration 後に下書きへ追随する（useState の初期化で localStorage を読むと不一致の元になる）
+  it('ちゃなりの下書きを保存した状態でも、不一致なく hydrate して下書きの名前を出す', async () => {
+    const { saveDraft } = await import('@features/chanari-chat/utils/draftStore');
+    saveDraft({ roomId: 'durarara', name: 'たろう' });
+
+    const { container, warnings } = await ssgThenHydrate('/chanari/durarara');
+
+    const values = Array.from(container.querySelectorAll('input')).map((el) => el.value);
+    expect(values).toContain('たろう');
     expect(warnings).toEqual([]);
   });
 });
