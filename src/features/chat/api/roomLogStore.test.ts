@@ -246,6 +246,55 @@ describe('Room_Log_Store', () => {
     expect(messages(store.getSnapshot().chats)).toEqual(['other']);
   });
 
+  describe.each(['reload', 'expand'] as const)('%s 中の削除と新着', (fetchKind) => {
+    it.each(['saved', 'realtime'] as const)(
+      '削除前の発言は戻さず、削除後に %s で届いた同じ名前の発言は残す',
+      async (arrival) => {
+        const fake = fakeSource();
+        const store = createRoomLogStore(fake.source);
+        store.subscribe(() => {});
+        const old = chat('old', 1);
+        const other = { ...chat('other', 2), name: 'たろう' };
+        fake.fetches[0]!.resolve([other, old]);
+        await flush();
+
+        if (fetchKind === 'expand') store.expand(100);
+        else store.reload();
+        const deliver = arrival === 'saved' ? store.applySaved : fake.insert;
+        deliver(chat('before-clear', 3));
+        // useChatSession の clear と同じく、同じ名前の発言を削除する
+        store.update((chats) => chats.filter((c) => c.name !== old.name));
+        deliver(chat('after-clear', 4));
+        expect(messages(store.getSnapshot().chats)).toEqual(['after-clear', 'other']);
+
+        // 削除前のスナップショットが遅れて届いても、削除後の新着を消さない
+        fake.fetches[1]!.resolve([other, old]);
+        await flush();
+        expect(messages(store.getSnapshot().chats)).toEqual(['after-clear', 'other']);
+      }
+    );
+  });
+
+  it('同じ取得中に削除と新着が繰り返されても、最後の削除後の発言だけ残す', async () => {
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    const old = chat('old', 1);
+    fake.fetches[0]!.resolve([old]);
+    await flush();
+
+    store.reload();
+    const clear = (chats: Chat[]) => chats.filter((c) => c.name !== old.name);
+    store.update(clear);
+    store.applySaved(chat('between-clears', 2));
+    store.update(clear);
+    fake.insert(chat('after-last-clear', 3));
+    fake.fetches[1]!.resolve([old]);
+    await flush();
+
+    expect(messages(store.getSnapshot().chats)).toEqual(['after-last-clear']);
+  });
+
   it('取得が終わった後の書き換えは、次の取得結果には適用しない', async () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);
