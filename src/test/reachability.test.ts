@@ -6,12 +6,25 @@
  *
  * テストと stories だけから参照されるモジュールも「使われていない」とみなす。
  */
-import { existsSync, globSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { expect, test } from 'vitest';
 
 const ROOT = process.cwd();
-const ENTRIES = ['src/main.tsx', 'src/entry-server.tsx', ...globSync('scripts/*.ts')];
+/**
+ * dir の下のファイルを `dir/…` の相対パスで列挙する（Node 20 には fs.globSync がないので readdirSync を使う）
+ */
+function listFiles(dir: string, recursive: boolean): string[] {
+  return readdirSync(dir, { recursive, encoding: 'utf8' }).map(
+    (file) => `${dir}/${file.split('\\').join('/')}`
+  );
+}
+
+const ENTRIES = [
+  'src/main.tsx',
+  'src/entry-server.tsx',
+  ...listFiles('scripts', false).filter((file) => file.endsWith('.ts')),
+];
 const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
 const IMPORT_PATTERN =
   /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)|^import\s+['"]([^'"]+)['"]/gm;
@@ -49,8 +62,8 @@ function collectReachable(): Set<string> {
 
 test('本番のエントリから到達しない src のモジュールがない', () => {
   const reachable = collectReachable();
-  const unreachable = globSync('src/**/*.{ts,tsx}')
-    .filter((file) => !EXCLUDE.test(file))
+  const unreachable = listFiles('src', true)
+    .filter((file) => /\.tsx?$/.test(file) && !EXCLUDE.test(file))
     .filter((file) => !reachable.has(join(ROOT, file)))
     .map((file) => relative(ROOT, join(ROOT, file)));
   expect(unreachable).toEqual([]);
