@@ -480,6 +480,11 @@ E1 / E2 / E4 等の業務上のお知らせは HTTP 200 で返す。
 - `save-chat` の `resolveClientIp` は `x-forwarded-for` の先頭を無条件に読む。この部分は認証相当の根拠として流用しない。
   デプロイ先でプロキシがどの値を上書き・追記するかを確認したうえで、信頼境界を設定した resolver を注入する。
   確定できない IP は null。UA は受信値だが利用者が変更できるため、認可・重複試行の識別には使わない。
+  実装（`createIpResolver`）は環境変数 `TWO_SHOT_TRUSTED_IP_HEADER` で設定する。`<ヘッダ名>`（プロキシが上書きする
+  ヘッダ、例 `x-real-ip`）か `x-forwarded-for:<n>`（末尾から n 番目。プロキシが追記した値）。未設定・不正なら常に null で、
+  重複入室の判定をしない（デプロイ時に本番のヘッダを確かめてから設定する）
+- テレメトリは save-chat の `telemetry.ts` を相対 import で共有する（save-chat は変更しない）。保存先（DB）は
+  リクエストごとに作り、DB のスパンをサーバースパンの子にする
 - New Relic は `two_shot.room` / `two_shot.op` / 結果 / CAS 試行回数だけを記録する。
   トークン、要求・応答本文、IP、UA、入力値をログに出さない。全応答に `Cache-Control: no-store`。
 - `read` も期限切れを正規化する場合は保存 RPC を使う。状態が変わらず入室記録も不要なら SELECT の結果で返す。
@@ -567,6 +572,12 @@ grant execute on function public.two_shot_lobby() to anon, authenticated;
   公開関数の 5 列、empty / waiting / full と匿名化を確認する。
 - `two_shot_admissions(attempt_at)` に削除用インデックスを付け、毎時の pg_cron ジョブで 24 時間以上の記録を消す。
   ジョブが遅れても再送判定は保持期限を越えた記録を新規入室の許可には使わない。
+- 削除ジョブの監視は `two_shot_maintenance_health()`（service_role 専用）で行う。2 つのジョブの直近の実行が
+  2 時間以内に成功していれば `healthy`。外部の監視（New Relic の定期チェックなど）から service_role で呼び、
+  false が続いたら通知する。監視の設定は本番の鍵を扱うので、切り替え（Task 8）の前提としてデプロイ時に行う
+- 管理者の確認は `two_shot_audit_recent`（30 日以内だけを見せる security_invoker のビュー。service_role 専用）で行う
+- Edge とクライアントが共有するフィクスチャ（`supabase/functions/two-shot/fixtures/*.json`）は handler の実際の出力から
+  作り、Deno のテストで一致を確かめる（意図して変えるときは `UPDATE_FIXTURES=1` で書き直す）
 
 **Q2 の決定で変わるもの:** Realtime を採用する場合は非公開ログの認可を別途設計する。
 この設計ではポーリングだけを使い、既存の公開チャット向け Realtime 購読は再利用しない。

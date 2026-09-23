@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "screen": "room",
+  "room": {
+    "roomId": "01",
+    "seat": 1,
+    "me": {
+      "name": "匿名2",
+      "sex": "-"
+    },
+    "lines": [
+      {
+        "at": 1790218802000,
+        "kind": "message",
+        "mine": false,
+        "name": "alice",
+        "text": "&hearts; <b>hi</b>"
+      },
+      {
+        "at": 1790218801000,
+        "kind": "notice",
+        "code": "N5",
+        "params": {}
+      },
+      {
+        "at": 1790218801000,
+        "kind": "notice",
+        "code": "N3",
+        "params": {
+          "name": "匿名2",
+          "sex": "-"
+        }
+      }
+    ],
+    "idleSeconds": 2
+  }
+}
