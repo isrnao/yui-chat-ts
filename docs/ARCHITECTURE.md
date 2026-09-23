@@ -700,6 +700,7 @@ pnpm deploy        # predeployでbuild:prodを実行後、gh-pages -d dist
 - Vite の `base` を `/` に変更し、ビルド成果物のアセット参照を独自ドメイン直下に統一
 - `matchRoute` / `matchChanariRoute` が参照する `BASE_URL` を root 前提で扱い、ルーターに追加の basename を持ち込まない構成を維持
 - `canonical` / OGP / Twitter Card / JSON-LD / sitemap / robots.txt の公開 URL を独自ドメインへ統一し、SEO シグナルを分散させない
+- 部屋の URL は末尾の `/` まで付けた `/chat/<id>/`・`/chanari/<id>/` を正とする。GitHub Pages は `/chat/<id>` を `/chat/<id>/` へ 301 で転送するので、アプリ内のリンク・canonical・og:url・JSON-LD・sitemap をすべて転送先の形にそろえ、移動のたびの転送と「転送があるページ」を canonical / sitemap に載せることを避ける（`buildChatRoomPath` / `buildRoomPath`）
 - `public/404.html` の deep link 復元設定を root 配信向けに調整し、`/chat/:roomId` と `/chanari/:roomId` の直アクセスを従来どおり復元
 
 要するに、今回のドメイン移行は単なる表記変更ではなく、「公開 URL を独自ドメインに固定しつつ、SPA の deep link と SEO メタデータを壊さずに運用基盤だけを差し替えられる状態」にするための整理です。

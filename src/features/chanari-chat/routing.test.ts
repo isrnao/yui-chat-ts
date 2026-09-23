@@ -10,7 +10,7 @@ describe('matchChanariRoute', () => {
   it('/chanari はデフォルト部屋へリダイレクトする', () => {
     expect(matchChanariRoute('/chanari')).toEqual({
       type: 'redirect',
-      to: '/chanari/superbeginner',
+      to: '/chanari/superbeginner/',
     });
   });
 
@@ -22,7 +22,7 @@ describe('matchChanariRoute', () => {
   });
 
   it('/chanari/all は集約ビュー /chat/all へリダイレクトする (単一 room 表示の重複ページを生やさない)', () => {
-    expect(matchChanariRoute('/chanari/all')).toEqual({ type: 'redirect', to: '/chat/all' });
+    expect(matchChanariRoute('/chanari/all')).toEqual({ type: 'redirect', to: '/chat/all/' });
   });
 
   it('未知の部屋 ID は null を返す', () => {

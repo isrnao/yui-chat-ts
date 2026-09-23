@@ -104,10 +104,10 @@ describe('renderChanariRoomHtml', () => {
     const html = renderChanariRoomHtml(TEMPLATE, 'durarara');
 
     expect(html).toContain(
-      '<link rel="canonical" href="https://www.okiraku.chat/chat/durarara" />'
+      '<link rel="canonical" href="https://www.okiraku.chat/chat/durarara/" />'
     );
     expect(html).toContain(
-      '<meta property="og:url" content="https://www.okiraku.chat/chat/durarara" />'
+      '<meta property="og:url" content="https://www.okiraku.chat/chat/durarara/" />'
     );
     // トップ用の canonical は残らない
     expect(html).not.toContain('href="https://www.okiraku.chat/" />');

@@ -153,9 +153,9 @@ describe('<App />', () => {
     // chat 用 chrome 色が適用される
     expect(document.body.style.backgroundColor).toBe('rgb(193, 252, 146)');
 
-    // commit 後 effect で URL が /chat/superbeginner に書き換わる
+    // commit 後 effect で URL が /chat/superbeginner/ に書き換わる
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/chat/superbeginner');
+      expect(window.location.pathname).toBe('/chat/superbeginner/');
     });
 
     // 確定 roomId でログを取得する
@@ -177,9 +177,9 @@ describe('<App />', () => {
     // chanari 用 chrome 色が適用される
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 221)');
 
-    // commit 後 effect で URL が /chanari/superbeginner に書き換わる
+    // commit 後 effect で URL が /chanari/superbeginner/ に書き換わる
     await waitFor(() => {
-      expect(window.location.pathname).toBe('/chanari/superbeginner');
+      expect(window.location.pathname).toBe('/chanari/superbeginner/');
     });
   });
 });

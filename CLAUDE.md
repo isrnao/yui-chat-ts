@@ -130,7 +130,9 @@ messages. Because the log is Realtime-synced, this reflects cross-user presence.
   slices, so anything feeding it must already be in that order.
 
 **Page navigation**: there is no client-side router; moving between pages is a full page load
-(MPA). Room links (`/chat/*`, `/chanari/*`) are prefetched by the Speculation Rules script in
+(MPA). Room URLs end with a slash (`/chat/<id>/`, `/chanari/<id>/`): GitHub Pages 301-redirects
+`/chat/<id>` to `/chat/<id>/`, so links, canonical, og:url and the sitemap all use the slash form
+(`buildChatRoomPath` / `buildRoomPath`). Room links (`/chat/*`, `/chanari/*`) are prefetched by the Speculation Rules script in
 `index.html`, and pages are joined by cross-document View Transitions (`@view-transition` in
 `App.css`, off under `prefers-reduced-motion`). Browsers without support just navigate normally.
 
