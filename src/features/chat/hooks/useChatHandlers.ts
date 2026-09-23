@@ -5,6 +5,7 @@ import {
   createOptimisticChat,
 } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
@@ -74,7 +75,7 @@ export function useChatHandlers({
     const err = validateName(entryName);
     if (err) {
       measurement.onJoinFailed(roomId, 'validation');
-      throw new Error(err);
+      throw new UserFacingError(err);
     }
     setEntered(true);
 
