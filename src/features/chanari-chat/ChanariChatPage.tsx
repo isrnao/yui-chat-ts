@@ -1,8 +1,10 @@
 import { useState, lazy, Suspense } from 'react';
 import type { RoomId } from '@features/chat/rooms';
 import { getRoomMeta } from '@features/chat/rooms';
-import { useChatLog } from '@features/chat/hooks/useChatLog';
-import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
+import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
+import { useRoomLog } from '@features/chat/hooks/useRoomLog';
+import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
@@ -36,45 +38,44 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   usePageView(pageTitle);
 
   const measurement = useConversationMeasurement();
-  const {
-    chatLog,
-    isLoading,
-    loadError,
-    realtimeStatus,
-    setChatLog,
-    addOptimistic,
-    mergeChat,
-    reload,
-    expandChatLog,
-  } = useChatLog(roomId, measurement.onRealtimeChat);
+  const store = getRoomLogStore(roomId);
+  const { chatLog, isLoading, loadError, realtimeStatus, addOptimistic, reload, expand } =
+    useRoomLog(store, measurement.onRealtimeChat);
   useLookSound(roomId);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
-  const [entered, setEntered] = useState(false);
   // 入室の失敗は ChanariEntryForm ではなくここで持つ（入室中はフォームがアンマウントされるため）
   const [entryError, setEntryError] = useState('');
   // SSG/hydration 中は既定値、hydration 後は draft 由来の値に追随する
-  const [name, setName] = useStoreBackedState(settings.name ?? '');
-  const [nameColor, setNameColor] = useStoreBackedState(settings.nameColor ?? '#ff69b4');
+  const identity = useChatIdentity({ name: settings.name, color: settings.nameColor });
+  const { name, setName, color: nameColor, setColor: setNameColor } = identity;
   const [speechColor, setSpeechColor] = useStoreBackedState(settings.speechColor ?? '#000000');
   const [message, setMessage] = useStoreBackedState(settings.lastMessage ?? '');
   const [windowRows] = useState(30);
   const [reloadSeconds, setReloadSeconds] = useState<number>(DEFAULT_RELOAD_SECONDS);
 
-  const { handleEnter, handleExit, handleSend } = useChatHandlers({
-    roomId,
-    name,
-    color: nameColor,
-    email: '',
-    setEntered,
-    setChatLog,
-    setShowRanking: () => {},
-    setName,
-    setMessage,
+  const session = useChatSession({
+    target: { kind: 'room', roomId },
+    identity: { name, color: nameColor, email: '' },
+    store,
     addOptimistic,
-    mergeChat,
     measurement,
   });
+  const { entered } = session;
+
+  const handleExit = () => {
+    const saving = session.exit();
+    // 保存を待つ前に入力欄を戻す（退室操作は即座に反映させる）
+    setName('');
+    setMessage('');
+    return saving;
+  };
+
+  // 発言もログ消去（clear）も、送信した時点で入力欄を空にする
+  const handleSend = (msg: string) => {
+    if (msg.trim()) setMessage('');
+    return session.send(msg);
+  };
 
   // レガシー互換の定期更新は Realtime が切れている間のフォールバックとしてのみ動かす。
   // 接続中は push で新着が届くため、ポーリングしても取得済みの内容を取り直すだけになる
@@ -125,9 +126,9 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                   updateSettings({ name: n, nameColor: nc, speechColor: sc });
                   setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
-                  expandChatLog();
+                  expand(FULL_CHAT_LOG_LIMIT);
                   try {
-                    await handleEnter({ name: n, color: nc, silent: false });
+                    await session.enter({ name: n, color: nc, silent: false });
                   } catch (err) {
                     setEntryError(toEntryErrorMessage(err));
                     throw err;

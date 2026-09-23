@@ -2,7 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import type { Chat } from '@features/chat/types';
 import type { RealtimeStatus } from '@features/chat/api/chatApi';
-import { useChatLog } from '@features/chat/hooks/useChatLog';
+import { getRoomLogStore } from '@features/chat/api/roomLogStore';
+import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useReloadInterval } from './useReloadInterval';
 
 // ChanariChatPage と同じ配線を再現し、実際の取得回数を数える。
@@ -35,7 +36,7 @@ vi.mock('@features/chat/api/chatApi', () => ({
 
 /** ChanariChatPage の配線: 切断中だけ定期更新を回す */
 function useChanariWiring(seconds: number) {
-  const { realtimeStatus, reload } = useChatLog('durarara');
+  const { realtimeStatus, reload } = useRoomLog(getRoomLogStore('durarara'));
   useReloadInterval(seconds, reload, realtimeStatus === 'disconnected');
   return realtimeStatus;
 }

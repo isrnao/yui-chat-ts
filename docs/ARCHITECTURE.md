@@ -62,8 +62,10 @@ src/
 │   │   │   ├── RetroSplitter/       # リサイズ可能なペイン分割
 │   │   │   └── shared/              # 機能内共通 UI
 │   │   ├── hooks/
-│   │   │   ├── useChatLog.ts        # 楽観的更新 + temp/saved dedup reducer
-│   │   │   ├── useChatHandlers.ts   # 入室 / 退室 / 送信 / リロード
+│   │   │   ├── useRoomLog.ts        # Room_Log_Store を読み useOptimistic を重ねる
+│   │   │   ├── useChatSession.ts    # 入室 / 退室 / 送信 / コマンド（部屋単位・全部屋まとめ共通）
+│   │   │   ├── useChatIdentity.ts   # 名前・色・メール・アバター
+│   │   │   ├── useChatSender.ts     # 楽観的表示 → 保存 → 確定値のマージ（1 つの async Action）
 │   │   │   ├── useParticipants.ts   # useDeferredValue（メモ化は React Compiler）
 │   │   │   ├── useNowMinute.ts      # 1 分境界で再評価する現在時刻
 │   │   │   ├── useLookSound.ts      # look/unlook 通知音
@@ -170,7 +172,7 @@ Feature-Based Architecture を採用し、機能単位でコード（コンポ�
 │                                                            │
 ├────────────────────────────────────────────────────────────┤
 │                       Hooks 層                             │
-│  useChatLog / useChatHandlers / useParticipants            │
+│  useRoomLog / useChatSession / useParticipants             │
 │  useNowMinute / useRoomCounts / useChanariSettings ...     │
 ├────────────────────────────────────────────────────────────┤
 │                       API 層                               │
@@ -230,7 +232,7 @@ type ChanariRouteMatch =
 ユーザー入力
     │
     ▼
-useChatSender.saveUserMessage() / useChatHandlers
+useChatSession.send() → useChatSender.sendUserMessage()
     │
     ├─ 1. createOptimisticChat()
     │     uuid: "temp-{timestamp}-{random}"
@@ -238,7 +240,8 @@ useChatSender.saveUserMessage() / useChatHandlers
     │     metadata.optimisticNonce: random UUID
     │     optimistic: true
     │
-    ├─ 2. startTransition(() => addOptimistic(chat))
+    ├─ 2. startTransition(async () => { addOptimistic(chat); … })
+    │     → 表示から保存の完了までを 1 つの async Action にする（楽観的な値は Action の間だけ残る）
     │     → useOptimisticのreduceOptimisticChat reducer経由で即時UI反映
     │     → optimisticNonceを優先してRealtime echoとの重複を防止
     │
@@ -281,7 +284,8 @@ mergeChat(newChat)
 ChatRoute マウント
     │
     ▼
-useChatLog(roomId) → useEffect
+useRoomLog(getRoomLogStore(roomId)) → useSyncExternalStore が store を購読
+    │  （最初の購読で Realtime を張ってから取得。最後の解除で止める）
     │
     ├─ chatLogResource.loadChatLogs(roomId)
     │   ├─ 5 分以内のキャッシュ → そのまま返却
@@ -327,52 +331,35 @@ fetchRoomParticipantCounts()
 
 外部状態管理ライブラリ（Redux, Zustand 等）は使用せず、React 組み込みの Hooks で完結しています。
 
-| フック                | 用途                                                                                                                                              | React API                                                           |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| `useChatLog`          | チャットログ全体の管理 + 楽観的更新                                                                                                               | `useState`, `useOptimistic` (`reduceOptimisticChat`), `useCallback` |
-| `useChatHandlers`     | 入室・退室・送信・リロード                                                                                                                        | `useCallback`, `useTransition`                                      |
-| `useParticipants`     | 参加者リスト導出                                                                                                                                  | `useDeferredValue`（メモ化は React Compiler）                       |
-| `useNowMinute`        | 1 分境界で再評価する現在時刻                                                                                                                      | `useState`, `useEffect` (`setTimeout` + `setInterval`)              |
-| `useRoomCounts`       | トップ用ルーム別参加人数                                                                                                                          | `useState`, `useEffect`                                             |
-| `useChanariSettings`  | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                            |
-| `useReloadInterval`   | Chanari のリロード間隔タイマー                                                                                                                    | `useEffect`                                                         |
-| `useSEO`              | メタ・OGP・Twitter Card・canonical の動的更新 (title / description / og:image を変更すると og:_ / twitter:_ / canonical / structured data も追従) | `useEffect`                                                         |
+| フック               | 用途                                                                                                                                              | React API                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `useRoomLog`         | Room_Log_Store（取得・購読・取り直し）を読み、楽観的更新を重ねる                                                                                  | `useSyncExternalStore`, `useOptimistic`, `useEffectEvent` |
+| `useChatSession`     | 入室・退室・送信・コマンド（部屋単位・全部屋まとめ共通）                                                                                          | `useState`（入室状態のみ）                                |
+| `useChatIdentity`    | 名前・色・メール・アバター（永続化ストアの値を既定にする）                                                                                        | `useStoreBackedState`                                     |
+| `useParticipants`    | 参加者リスト導出                                                                                                                                  | `useDeferredValue`（メモ化は React Compiler）             |
+| `useNowMinute`       | 1 分境界で再評価する現在時刻                                                                                                                      | `useState`, `useEffect` (`setTimeout` + `setInterval`)    |
+| `useRoomCounts`      | トップ用ルーム別参加人数                                                                                                                          | `useState`, `useEffect`                                   |
+| `useChanariSettings` | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                  |
+| `useReloadInterval`  | Chanari のリロード間隔タイマー                                                                                                                    | `useEffect`                                               |
+| `useSEO`             | メタ・OGP・Twitter Card・canonical の動的更新 (title / description / og:image を変更すると og:_ / twitter:_ / canonical / structured data も追従) | `useEffect`                                               |
 
-### 6.2 useChatLog の内部構造
+### 6.2 Room_Log_Store（`features/chat/api/roomLogStore.ts`）
 
-```typescript
-// base state（サーバー由来の UUID のみを保持）
-const [chatLog, setChatLog] = useState<Chat[]>([]);
-const [isLoading, setIsLoading] = useState(true);
+部屋（`getRoomLogStore(roomId)`）と全部屋まとめ（`getAllRoomsLogStore()`）ごとに 1 つの外部ストアを持ち、
+次の規則をまとめて扱います。コンポーネントは `useRoomLog` で `useSyncExternalStore` から読み、取得や購読を
+Effect の依存配列では制御しません。
 
-// 楽観的更新（React 19 useOptimistic）
-const [optimisticLog, addOptimistic] = useOptimistic(chatLog, reduceOptimisticChat);
+| 契機                 | 処理                                                                                      |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| 最初の購読           | Realtime を張ってから取得（初期 10 件、全部屋まとめは 200 件）                            |
+| Realtime の INSERT   | 確定行に uuid で合流。取得中ならバッファにも入れる                                        |
+| 取得の完了           | 拡張なら表示中の行を残して合流、それ以外は取得結果 + バッファを正とする（論理削除を反映） |
+| `connected` への遷移 | キャッシュを使わずに取り直す（SUBSCRIBED までと切断中の取りこぼしを埋める）               |
+| `expand(n)`          | 件数を増やして取得（減らさない）                                                          |
+| 最後の購読解除       | マイクロタスク後にまだ誰もいなければ止める（StrictMode の再購読で張り直さない）           |
 
-// reducer は temp UUID と saved chat の重複を判定し、
-// 同一 (client_time + name + message + room_id + color + system) が既に
-// base state にある場合は prepend をスキップする
-export function reduceOptimisticChat(state: Chat[], chat: Chat): Chat[] {
-  if (chat.uuid.startsWith('temp-') && typeof chat.client_time === 'number') {
-    const duplicate = state.some((c) => isSavedMatchForTemp(c, chat));
-    if (duplicate) return state;
-  }
-  // UUID 一致 → 上書き / 新規 → prepend、いずれも 2000 件に trim
-  ...
-}
-
-// realtime / save 後の合流点（UUID ベースの重複排除）
-const mergeChat = useCallback((chat: Chat) => {
-  setChatLog((prev) => {
-    const idx = prev.findIndex((c) => c.uuid === chat.uuid);
-    if (idx !== -1) {
-      const next = [...prev];
-      next[idx] = chat;
-      return next.slice(0, 2000);
-    }
-    return [chat, ...prev].slice(0, 2000);
-  });
-}, []);
-```
+store はサーバーで確定した行だけを持ち、楽観的な表示は `useRoomLog` の `useOptimistic`
+（`utils/optimisticLog.ts` の `reduceOptimisticChat`）で重ねます。
 
 ### 6.3 派生値の最適化
 
@@ -423,15 +410,15 @@ const mergeChat = useCallback((chat: Chat) => {
 
 `loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` / `getSnapshotHasMore` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。`loadChatLogsWithPaging(offset===0)` は `loadChatLogsSnapshot` を直接呼び、`hasMore` を **取得結果と同じ往復で確定した値** から組み立てるため、取得中に `invalidateCache` が走って generation が更新されても hasMore がロストしません。
 
-| 関数                         | 用途                   | 特徴                                                                              |
-| ---------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
-| `saveChatLogOptimistic()`    | 楽観的更新用保存       | `save-chat`を呼び、server確定値をmerge後に非同期invalidate                                 |
-| `saveChatLog()`              | 従来互換の保存         | 同じ`save-chat`経路を使い、成功時に同期invalidate                                           |
-| `clearChatLogs(roomId)`      | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
-| `clearChatLogsByName()`      | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
-| `loadChatLogsByTimeRange()`  | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
-| `subscribeChatLogs()`        | リアルタイム購読       | room ごとに 1 channel を共有                                                      |
-| `broadcastLookEvent()` 等    | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                                               |
+| 関数                        | 用途                   | 特徴                                                                              |
+| --------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
+| `saveChatLogOptimistic()`   | 楽観的更新用保存       | `save-chat`を呼び、server確定値をmerge後に非同期invalidate                        |
+| `saveChatLog()`             | 従来互換の保存         | 同じ`save-chat`経路を使い、成功時に同期invalidate                                 |
+| `clearChatLogs(roomId)`     | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
+| `clearChatLogsByName()`     | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
+| `loadChatLogsByTimeRange()` | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
+| `subscribeChatLogs()`       | リアルタイム購読       | room ごとに 1 channel を共有                                                      |
+| `broadcastLookEvent()` 等   | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                                               |
 
 ### 7.3 features/top/api/roomCountsApi.ts
 
@@ -582,7 +569,7 @@ type Chat = {
 
 | 最適化                | 実装                                                                                                                            |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                              |
+| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                      |
 | 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
 | トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
 | 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                       |
@@ -590,7 +577,7 @@ type Chat = {
 | 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
 | API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                                                                      |
 | キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止                                                      |
-| Supabase帯域削減 | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                               |
+| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                      |
 | Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
 | パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                          |
 
@@ -603,7 +590,7 @@ type Chat = {
 ```
 navigator.onLine === false
     → chatLogResource.loadChatLogs が mockChatData（room_id 付与）を返す
-    → ネットワーク復旧時に自動再取得（次回 useChatLog 起動 / cache TTL 切れ時）
+    → ネットワーク復旧時に自動再取得（Realtime の再接続で Room_Log_Store が取り直す）
 ```
 
 ### 11.2 認証エラー対応
@@ -630,16 +617,16 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 
 ## 12. セキュリティ
 
-| 項目 | 対応 |
-| --- | --- |
-| ブラウザ接続 | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続 |
-| INSERT境界 | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行 |
-| Edge Function | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持 |
-| IP／UA | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開 |
-| 秘密値 | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない |
-| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定 |
-| 入力validation | 名前必須・24文字以内などをEdgeでも検証 |
-| 本番build | `console.log`削除、source map無効化 |
+| 項目              | 対応                                                                                          |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| ブラウザ接続      | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続                       |
+| INSERT境界        | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行                               |
+| Edge Function     | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持 |
+| IP／UA            | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開     |
+| 秘密値            | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない         |
+| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定                                           |
+| 入力validation    | 名前必須・24文字以内などをEdgeでも検証                                                        |
+| 本番build         | `console.log`削除、source map無効化                                                           |
 
 ---
 
@@ -670,7 +657,8 @@ chatLogResource.test.ts   ← 同一ディレクトリ
 - `src/features/top/TopPage.test.tsx` / `roomCountsApi.test.ts`: 旧トップ + 参加人数集計
 - `src/features/chat/api/chatLogResource.test.ts`: snapshot / paging dedupe / cache TTL
 - `src/features/chat/components/ChatLogList/ChatLogList.test.tsx`: memo による不要再計算抑制
-- `src/features/chat/hooks/useChatLog.test.ts`: 楽観的更新 + temp/saved dedup
+- `src/features/chat/hooks/useRoomLog.test.ts` / `api/roomLogStore.test.ts`: 取得と Realtime の整合性
+- `src/features/chat/utils/optimisticLog.test.ts`: 楽観的更新の temp/saved dedup
 - `src/features/chanari-chat/utils/*.test.ts`: 文字数 / 色コード / localStorage draft / リロード間隔
 
 ---
@@ -767,22 +755,22 @@ VITE_NEW_RELIC_APP_ID=
 
 ### 15.2 主要コマンド
 
-| コマンド                | 用途                                                 |
-| ----------------------- | ---------------------------------------------------- |
-| `pnpm dev`              | 開発サーバー起動                                     |
-| `pnpm build`            | プロダクションビルド                                 |
-| `pnpm generate:sitemap` | `CHAT_ROOM_IDS` から `public/sitemap.xml` を生成     |
+| コマンド                | 用途                                                          |
+| ----------------------- | ------------------------------------------------------------- |
+| `pnpm dev`              | 開発サーバー起動                                              |
+| `pnpm build`            | プロダクションビルド                                          |
+| `pnpm generate:sitemap` | `CHAT_ROOM_IDS` から `public/sitemap.xml` を生成              |
 | `pnpm build:prod`       | sitemap生成 → client build → SSR build → 全対象URLのprerender |
-| `pnpm preview`          | ビルド成果物のローカル確認                           |
-| `pnpm test`             | テスト実行（1 回）                                   |
-| `pnpm watch:test`       | テスト監視モード                                     |
-| `pnpm test:ui`          | Vitest UI                                            |
-| `pnpm lint`             | ESLint チェック                                      |
-| `pnpm format`           | Prettier フォーマット                                |
-| `pnpm typecheck`        | TypeScript 型チェック                                |
-| `pnpm storybook`        | Storybook 起動（port 6006）                          |
-| `pnpm lighthouse`       | Lighthouse パフォーマンス監査                        |
-| `pnpm deploy`           | GitHub Pages デプロイ                                |
+| `pnpm preview`          | ビルド成果物のローカル確認                                    |
+| `pnpm test`             | テスト実行（1 回）                                            |
+| `pnpm watch:test`       | テスト監視モード                                              |
+| `pnpm test:ui`          | Vitest UI                                                     |
+| `pnpm lint`             | ESLint チェック                                               |
+| `pnpm format`           | Prettier フォーマット                                         |
+| `pnpm typecheck`        | TypeScript 型チェック                                         |
+| `pnpm storybook`        | Storybook 起動（port 6006）                                   |
+| `pnpm lighthouse`       | Lighthouse パフォーマンス監査                                 |
+| `pnpm deploy`           | GitHub Pages デプロイ                                         |
 
 ### 15.3 コード品質ツール
 

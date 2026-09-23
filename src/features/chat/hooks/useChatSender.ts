@@ -47,7 +47,7 @@ export function createAdminChat({
 
 /**
  * 楽観的更新つき送信の共通部分。
- * useChatHandlers（部屋単位）と useAllRoomsChatHandlers（全部屋まとめ）で共有する。
+ * Chat_Session（useChatSession）が使う。
  *
  * 楽観的な表示から保存の完了までを 1 つの async Transition（Action）の中で行う。
  * useOptimistic の値は、それを包む Action が pending の間だけ残るため、同期の

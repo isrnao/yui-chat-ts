@@ -140,17 +140,17 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 6.5_
 
 - [ ] 8. `useRoomLog`、Chat_Identity、Chat_Session に移す（段階 2）（Requirement 6 / 7、PR8）
-  - [ ] 8.1 `useRoomLog(target)` を作る。計測のコールバックは `useEffectEvent` で `store.onInsert` に登録する
+  - [x] 8.1 `useRoomLog(target)` を作る。計測のコールバックは `useEffectEvent` で `store.onInsert` に登録する
     - _Requirements: 6.2_
-  - [ ] 8.2 `useChatIdentity` を作り、ChatRoute / AllRoomsRoute / ChanariChatPage の名前・色・メール・アバター・
+  - [x] 8.2 `useChatIdentity` を作り、ChatRoute / AllRoomsRoute / ChanariChatPage の名前・色・メール・アバター・
         入室状態をそこに移す
     - _Requirements: 7.2_
-  - [ ] 8.3 `useChatSession(target)` を作り、`useChatHandlers` と `useAllRoomsChatHandlers` を統合する。
+  - [x] 8.3 `useChatSession(target)` を作り、`useChatHandlers` と `useAllRoomsChatHandlers` を統合する。
         design.md §7 の「部屋と全部屋まとめで違う点」の表を、そのままテストケースにする
     - _Requirements: 7.1, 7.3_
-  - [ ] 8.4 clear コマンドの表示への反映を `store.removeOwn` にし、`setChatLog` の公開をやめる
+  - [x] 8.4 clear コマンドの表示への反映を `store.removeOwn` にし、`setChatLog` の公開をやめる
     - _Requirements: 7.5_
-  - [ ]\* 8.5 3 つのルートで、入室 → 発言 → コマンド → 退室の analytics と計測のイベント列を、移行前の記録と比べる
+  - [x]\* 8.5 3 つのルートで、入室 → 発言 → コマンド → 退室の analytics と計測のイベント列を、移行前の記録と比べる
     - _Requirements: 7.4_
   - [ ] 8.6 `useChatLog` / `useAllRoomsChatLog` / `useChatHandlers` / `useAllRoomsChatHandlers` / `chatLogResource` /
         `chatApi.ts` を削除し、design.md §5 の構成（`saveChat` / `chatQueries` / `realtime` / `roomLogStore`）に分ける

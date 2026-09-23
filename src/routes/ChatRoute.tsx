@@ -1,9 +1,10 @@
 import { useState, lazy, Suspense } from 'react';
-import { useChatLog } from '@features/chat/hooks/useChatLog';
-import { useChatHandlers } from '@features/chat/hooks/useChatHandlers';
+import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
+import { useRoomLog } from '@features/chat/hooks/useRoomLog';
+import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
-import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
 import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
@@ -11,7 +12,7 @@ import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
 import { useRoomRanking } from '@features/chat/hooks/useRoomRanking';
-import type { AvatarId } from '@features/chat/types';
+import type { ChatMetadata } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
@@ -30,50 +31,51 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   usePageView(seo.title);
 
   const measurement = useConversationMeasurement();
-  const {
-    chatLog,
-    isLoading,
-    loadError,
-    setChatLog,
-    addOptimistic,
-    mergeChat,
-    reload,
-    expandChatLog,
-  } = useChatLog(roomId, measurement.onRealtimeChat);
-  // localStorage に保存された前回入室時の設定をマウント時の初期値として読み出す
-  // （以前は EntryForm 内 useEffect で sync していたが、effect 内 setState を避けるため初期化に移した）
+  const store = getRoomLogStore(roomId);
+  const { chatLog, isLoading, loadError, addOptimistic, reload, expand } = useRoomLog(
+    store,
+    measurement.onRealtimeChat
+  );
+  // localStorage に保存された前回入室時の設定を、入室者の状態の既定値にする
   const { settings } = useSettings();
-  const [entered, setEntered] = useState(false);
+  const identity = useChatIdentity(settings);
+  const { name, setName, color, setColor, email, setEmail, avatar, setAvatar } = identity;
+  const session = useChatSession({
+    target: { kind: 'room', roomId },
+    identity,
+    store,
+    addOptimistic,
+    measurement,
+  });
+  const { entered } = session;
   // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
-  // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する
-  const [name, setName] = useStoreBackedState(settings.name ?? '');
-  const [color, setColor] = useStoreBackedState(settings.color || '#ff69b4');
   const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
   // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
   const roomRanking = useRoomRanking(roomId, showRanking);
-  const [email, setEmail] = useStoreBackedState(settings.email ?? '');
-  const [avatar, setAvatar] = useState<AvatarId>(() => settings.avatar ?? 'none');
 
   useLookSound(roomId);
 
-  const { handleEnter, handleExit, handleSend } = useChatHandlers({
-    roomId,
-    name,
-    color,
-    email,
-    setEntered,
-    setChatLog,
-    setShowRanking,
-    setName,
-    setMessage,
-    addOptimistic,
-    mergeChat,
-    measurement,
-  });
+  const handleExit = () => {
+    const saving = session.exit();
+    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    setShowRanking(false);
+    setName('');
+    setMessage('');
+    return saving;
+  };
+
+  const handleSend = (msg: string, metadata?: ChatMetadata) => {
+    // 発言もコマンド（「消す」ボタンの clear を含む）も、送信した時点で入力欄を空にしてログ表示へ戻す
+    if (msg.trim()) {
+      setMessage('');
+      setShowRanking(false);
+    }
+    return session.send(msg, metadata);
+  };
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden bg-yui-green" role="main">
@@ -94,11 +96,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               setWindowRows={(rows) => {
                 setWindowRows(rows);
                 // 100 件を超える行数を選んだら、その件数まで取得を広げる
-                expandChatLog(rows);
+                expand(rows);
               }}
               windowRowOptions={getWindowRowOptions(roomId)}
               onExit={handleExit}
-              onSend={(msg, metadata) => handleSend(msg, metadata)}
+              onSend={handleSend}
               onReload={reload}
               onShowRanking={() => setShowRanking(true)}
               onBackToChat={() => setShowRanking(false)}
@@ -121,9 +123,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                   setAvatar(a);
                   setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
-                  expandChatLog();
+                  expand(FULL_CHAT_LOG_LIMIT);
                   try {
-                    await handleEnter({ name: n, color: c, silent });
+                    await session.enter({ name: n, color: c, silent });
                   } catch (err) {
                     setEntryError(toEntryErrorMessage(err));
                     throw err;
