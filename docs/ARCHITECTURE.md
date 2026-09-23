@@ -531,13 +531,13 @@ type Chat = {
 
 ### 10.1 ビルド最適化
 
-| 最適化       | 設定                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| コード分割   | Vite の `manualChunks` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
-| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示         |
-| 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                    |
-| CSS 圧縮     | Lightning CSS                                                                               |
-| ターゲット   | ES2022                                                                                      |
+| 最適化       | 設定                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------- |
+| コード分割   | Rolldown の `codeSplitting.groups` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
+| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示                     |
+| 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                                |
+| CSS 圧縮     | Lightning CSS                                                                                           |
+| ターゲット   | ES2022                                                                                                  |
 
 ### 10.2 ランタイム最適化
 

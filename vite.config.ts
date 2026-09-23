@@ -2,6 +2,37 @@ import { defineConfig } from 'vitest/config';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import babel from '@rolldown/plugin-babel';
 
+/**
+ * モジュールの ID から振り分け先のチャンク名を決める。
+ * - 動的 import の補助関数は小さな専用チャンクに置く。振り分けないと Rolldown が遅延読み込み用の
+ *   vendor チャンク（New Relic Browser エージェント）に同居させ、エントリがそれを静的に
+ *   import → modulepreload してしまう
+ * - node_modules はパッケージ単位の vendor チャンクにする（@supabase/* はまとめて vendor-supabase、
+ *   react / react-dom / scheduler は vendor-react）
+ */
+function vendorChunkName(id: string): string | null {
+  if (id.includes('vite/preload-helper')) return 'preload-helper';
+  if (!id.includes('node_modules')) return null;
+
+  const normalized = id.replace(/\\/g, '/');
+  let remainder = normalized.split('node_modules/').pop();
+  if (!remainder) return null;
+
+  while (remainder.startsWith('.pnpm/')) {
+    const nextIndex = remainder.indexOf('node_modules/');
+    if (nextIndex === -1) return null;
+    remainder = remainder.slice(nextIndex + 'node_modules/'.length);
+  }
+
+  const [first, second] = remainder.split('/').filter(Boolean);
+  if (!first) return null;
+  const baseName = first.startsWith('@') && second ? `${first.slice(1)}-${second}` : first;
+
+  if (first === '@supabase' && second) return 'vendor-supabase';
+  if (['react', 'react-dom', 'scheduler'].includes(baseName)) return 'vendor-react';
+  return `vendor-${baseName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+}
+
 export default defineConfig({
   base: '/',
   // React Compiler は @vitejs/plugin-react v6 では babel オプションではなく
@@ -17,7 +48,7 @@ export default defineConfig({
       polyfill: false,
     },
     // SEO最適化のためのビルド設定
-    rollupOptions: {
+    rolldownOptions: {
       // Vite 8 (rolldown) は文字列プリセット ('recommended' 等) を型で受け付けないため、
       // Rollup 'recommended' プリセット相当をオブジェクト形式で明示する:
       //   - moduleSideEffects: true                (Rollup default)
@@ -37,39 +68,16 @@ export default defineConfig({
         entryFileNames: 'assets/[name]-[hash].js',
         chunkFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        manualChunks(id) {
-          // 動的 import の補助関数は小さな専用チャンクに置く。振り分けないと Rolldown が
-          // 遅延読み込み用の vendor チャンク（New Relic Browser エージェント）に同居させ、
-          // エントリがそれを静的に import → modulepreload してしまう。
-          if (id.includes('vite/preload-helper')) return 'preload-helper';
-          if (!id.includes('node_modules')) return;
-
-          const normalized = id.replace(/\\/g, '/');
-          const segments = normalized.split('node_modules/');
-          let remainder = segments.pop();
-          if (!remainder) return;
-
-          while (remainder.startsWith('.pnpm/')) {
-            const nextIndex = remainder.indexOf('node_modules/');
-            if (nextIndex === -1) return;
-            remainder = remainder.slice(nextIndex + 'node_modules/'.length);
-          }
-
-          const parts = remainder.split('/').filter(Boolean);
-          if (parts.length === 0) return;
-          const [first, second] = parts;
-
-          const baseName = first.startsWith('@') && second ? `${first.slice(1)}-${second}` : first;
-
-          if (first === '@supabase' && second) {
-            return 'vendor-supabase';
-          }
-
-          if (['react', 'react-dom', 'scheduler'].includes(baseName)) {
-            return 'vendor-react';
-          }
-
-          return `vendor-${baseName.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
+        // チャンクの振り分け。Vite 8（Rolldown）で非推奨になった関数形式の manualChunks の代わりに
+        // codeSplitting.groups を使う。name に関数を渡すと、戻り値ごとに別のチャンクになる
+        // （null を返したモジュールはこのグループに入れず、自動の分割に任せる）
+        codeSplitting: {
+          groups: [{ name: vendorChunkName }],
+        },
+        // 本番では console.* の呼び出しと debugger を削除し、トップレベルの名前も短縮する
+        minify: {
+          compress: { dropConsole: true, dropDebugger: true },
+          mangle: { toplevel: true },
         },
       },
     },
@@ -80,21 +88,10 @@ export default defineConfig({
     sourcemap: false,
     // チャンクサイズ警告を500KBに設定
     chunkSizeWarningLimit: 500,
-    // 最小化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true, // console.logを本番環境では削除
-        drop_debugger: true,
-        // 未使用コードの除去
-        dead_code: true,
-        unused: true,
-      },
-      mangle: {
-        // 変数名の短縮（パフォーマンス向上）
-        toplevel: true,
-      },
-    },
+    // 最小化は Vite 8 の既定の Oxc で行う（console / debugger の削除と toplevel の mangle は
+    // rolldownOptions.output.minify で指定）。terser と比べて gzip の合計は −0.13%、
+    // ビルドは 3.5 秒 → 2.0 秒だった（.kiro/specs/react-2026-refactoring Task 15.5）
+    minify: 'oxc',
   },
   // パフォーマンス最適化
   optimizeDeps: {
