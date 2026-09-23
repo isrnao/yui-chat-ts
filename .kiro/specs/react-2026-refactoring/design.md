@@ -564,6 +564,10 @@ $$;
 
 - 一覧に出す部屋だけに絞る処理（`getListableRoomIds`）はクライアントに残す
 - `security invoker` なので、呼び出しは anon の SELECT の RLS の範囲に収まる（R14.4）
+- `since_ms` は anon が自由に渡せるので、24 時間前より古い値は 24 時間前に切り上げる（0 を渡されても全期間を
+  集計しない。以前の行取得は 5000 行で打ち切られていたので、それに代わる上限）。トップが使う窓は 6 時間
+- 本番に適用するときは、`idx_chats_recent_speakers` の作成中（`CONCURRENTLY` なし）に `chats` への書き込みが
+  止まる。件数が多いときは、先に SQL Editor で `create index concurrently` を流してからマイグレーションを適用する
 - 集計が今の `aggregateCountsFromRows` と一致することを、同じ入力データで比べるテストを書く。`chat_ranking`
   ビュー（20260921000000）と同じく、必要なら `time` の部分インデックスを足す
 
