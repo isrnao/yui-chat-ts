@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { onLookBroadcast } from '@features/chat/api/chatApi';
+import { onLookBroadcast } from '@features/chat/api/realtime';
 import {
   playNotificationSound,
   stopNotificationSound,

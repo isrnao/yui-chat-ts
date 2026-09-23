@@ -21,18 +21,18 @@
 
 ## 2. 技術スタック
 
-| カテゴリ               | 技術                     | バージョン |
-| ---------------------- | ------------------------ | ---------- |
-| フレームワーク         | React                    | 19.2.6     |
-| 言語                   | TypeScript               | 6.0.3      |
-| ビルドツール           | Vite                     | 8.0.13     |
-| CSS                    | Tailwind CSS             | 4.1.8      |
-| バックエンド           | Supabase (PostgreSQL)    | 2.105.4    |
-| テスト                 | Vitest + Testing Library | 3.2.4      |
-| コンポーネントカタログ | Storybook                | 10.4.0     |
-| パッケージマネージャ   | pnpm 10                  | -          |
-| 実行環境（CI / 推奨）  | Node.js 24               | -          |
-| デプロイ               | GitHub Pages (gh-pages)  | -          |
+| カテゴリ               | 技術                     | バージョン                                                      |
+| ---------------------- | ------------------------ | --------------------------------------------------------------- |
+| フレームワーク         | React                    | 19.3.0                                                          |
+| 言語                   | TypeScript               | 6.0.3                                                           |
+| ビルドツール           | Vite                     | 8.0.13                                                          |
+| CSS                    | Tailwind CSS             | 4.1.8                                                           |
+| バックエンド           | Supabase (PostgreSQL)    | 2.105.4（postgrest-js / realtime-js / functions-js を直接使う） |
+| テスト                 | Vitest + Testing Library | 3.2.4                                                           |
+| コンポーネントカタログ | Storybook                | 10.4.0                                                          |
+| パッケージマネージャ   | pnpm 10                  | -                                                               |
+| 実行環境（CI / 推奨）  | Node.js 24               | -                                                               |
+| デプロイ               | GitHub Pages (gh-pages)  | -                                                               |
 
 ---
 
@@ -48,10 +48,11 @@ src/
 ├── features/                        # 機能モジュール（Feature-Based Architecture）
 │   ├── chat/                        # 通常チャット機能
 │   │   ├── api/
-│   │   │   ├── chatLogResource.ts   # ログ取得・キャッシュ・in-flight dedupe の集約
-│   │   │   ├── chatLogResource.test.ts
-│   │   │   ├── chatApi.ts           # 書き込み / Realtime / Look broadcast / 旧 API 互換ラッパー
-│   │   │   └── chatApi.test.ts
+│   │   │   ├── roomLogStore.ts      # Room_Log_Store（取得・購読・取り直しをまとめた外部ストア）
+│   │   │   ├── chatQueries.ts       # chats の読み取り（部屋・全部屋・ランキング）と論理削除
+│   │   │   ├── saveChat.ts          # save-chat Edge Function での保存・楽観的チャットの生成
+│   │   │   ├── realtime.ts          # Postgres Changes / look Broadcast の channel registry
+│   │   │   └── retry.ts             # 指数バックオフと遅延の警告
 │   │   ├── components/              # UI コンポーネント
 │   │   │   ├── ChatRoom/            # メッセージ入力・送信
 │   │   │   ├── ChatMessage/         # 個別メッセージ表示（React.memo）
@@ -176,8 +177,8 @@ Feature-Based Architecture を採用し、機能単位でコード（コンポ�
 │  useNowMinute / useRoomCounts / useChanariSettings ...     │
 ├────────────────────────────────────────────────────────────┤
 │                       API 層                               │
-│  chatLogResource (取得 / キャッシュ / dedupe)              │
-│  chatApi         (書き込み / Realtime / Look broadcast)    │
+│  roomLogStore (取得 / 購読 / 取り直し)                     │
+│  chatQueries / saveChat / realtime                         │
 │  roomCountsApi   (トップ向け集計クエリ)                    │
 │                          │                                 │
 ├──────────────────────────┼─────────────────────────────────┤
@@ -215,12 +216,12 @@ type ChanariRouteMatch =
 
 ### 4.3 レイヤー構成
 
-| レイヤー          | 責務                       | 主要ファイル                                                                     |
-| ----------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| UI コンポーネント | 描画・ユーザー操作         | `features/*/components/`、`shared/components/`                                   |
-| カスタムフック    | 状態管理・ビジネスロジック | `features/*/hooks/`、`shared/hooks/`                                             |
-| API 層            | データ取得・永続化・通信   | `features/chat/api/chatLogResource.ts`、`chatApi.ts`、`top/api/roomCountsApi.ts` |
-| Supabase Client   | DB 接続・認証              | `shared/supabaseClient.ts`                                                       |
+| レイヤー          | 責務                       | 主要ファイル                                                                                                    |
+| ----------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| UI コンポーネント | 描画・ユーザー操作         | `features/*/components/`、`shared/components/`                                                                  |
+| カスタムフック    | 状態管理・ビジネスロジック | `features/*/hooks/`、`shared/hooks/`                                                                            |
+| API 層            | データ取得・永続化・通信   | `features/chat/api/roomLogStore.ts`、`chatQueries.ts`、`saveChat.ts`、`realtime.ts`、`top/api/roomCountsApi.ts` |
+| Supabase Client   | DB 接続・認証              | `shared/supabaseClient.ts`                                                                                      |
 
 ---
 
@@ -260,7 +261,6 @@ useChatSession.send() → useChatSender.sendUserMessage()（操作 ID を発行�
           ├─ 2c. startTransition(() => mergeChat(savedChat))
           │     → await の後は Transition の文脈が切れるので包み直す
           │     → 一時UUIDをserver UUID v7へ置換、optimistic: falseへ更新
-          │     → chatLogResource.invalidateCache(roomId)
           │
           └─ 保存に失敗したら Action の中で捕まえて reject（楽観的な表示は Action の終わりに消える）
 ```
@@ -282,7 +282,7 @@ mergeChat(newChat)
     └─ 新規 → 先頭に追加（最大 2000 件保持）
 ```
 
-`chatApi.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) と `broadcastEntries` (`chats-broadcast-${roomId}`) の refcount registry を持ち、Postgres Changes と Broadcast はそれぞれ room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄され、send-only 利用（listener 0 での `broadcastLookEvent` / `broadcastUnlookEvent`）も送信完了後に同様に破棄されます。
+`realtime.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) と `broadcastEntries` (`chats-broadcast-${roomId}`) の refcount registry を持ち、Postgres Changes と Broadcast はそれぞれ room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄され、send-only 利用（listener 0 での `broadcastLookEvent` / `broadcastUnlookEvent`）も送信完了後に同様に破棄されます。
 
 ### 5.3 初期読み込みフロー
 
@@ -293,22 +293,20 @@ ChatRoute マウント
 useRoomLog(getRoomLogStore(roomId)) → useSyncExternalStore が store を購読
     │  （最初の購読で Realtime を張ってから取得。最後の解除で止める）
     │
-    ├─ chatLogResource.loadChatLogs(roomId)
-    │   ├─ 5 分以内のキャッシュ → そのまま返却
-    │   ├─ snapshotInflight.get(roomId) → 同一 room 並行呼び出しを共有
-    │   ├─ オフライン → mockChatData (room_id を付与) を返却
-    │   ├─ 401 / JWT エラー → mockChatData にフォールバック
-    │   └─ Supabase SELECT
-    │        - 列: uuid, room_id, name, color, message, time, system, email, metadata
-    │          (ip / ua は転送から除外)
-    │        - WHERE room_id = ? AND deleted = false
-    │        - ORDER BY uuid DESC LIMIT 100 (= MAX_CHAT_LOG)
+    ├─ subscribeChatLogs(roomId, …)（realtime.ts）
+    │   → 既存 channel があれば共有、なければ生成
     │
-    └─ subscribeChatLogs(roomId, mergeChat)
-        → 既存 channel があれば共有、なければ生成
+    └─ loadRecentChatLogs(roomId, limit)（chatQueries.ts。キャッシュは持たない）
+        ├─ オフライン → mockChatData (room_id を付与) を返却
+        ├─ 401 / JWT エラー → mockChatData にフォールバック
+        └─ Supabase SELECT
+             - 列: uuid, room_id, name, color, message, time, system, email, ip_masked, ua, metadata
+               (ip の生値は転送から除外)
+             - WHERE room_id = ? AND deleted = false
+             - ORDER BY uuid DESC LIMIT limit（初期 10、入室で 100、行数の選択で最大 1000）
 ```
 
-`/chat/:roomId` 直訪問時はトップを経由しないため、現状は事前 prefetch を呼んでいません（以前あった `earlyDataFetch` / `preloadCriticalResources` は削除済み）。トップから遷移する設計が必要になった場合は `chatLogResource.prefetchChatLogs(roomId)` を idle 時に発火することで実現できます。
+`/chat/:roomId` 直訪問時はトップを経由しないため、現状は事前 prefetch を呼んでいません（以前あった `earlyDataFetch` / `preloadCriticalResources` は削除済み）。画面遷移は全ページ読み込みなので、ページをまたぐキャッシュは持ちません。代わりに、部屋へのリンク（`/chat/*`、`/chanari/*`）は Speculation Rules（`index.html`、`prefetch`・`eagerness: moderate`）で遷移先の HTML を先読みし、遷移はドキュメント間 View Transitions（`App.css` の `@view-transition`、`prefers-reduced-motion: reduce` では無効）でつなぎます（`.kiro/specs/react-2026-refactoring` Requirement 16）（以前の `chatLogResource` の 5 分 TTL キャッシュは、1 ページの表示中にしか効かず Realtime の発言も入らないため削除しました）。
 
 ### 5.4 トップページの参加人数集計
 
@@ -322,9 +320,12 @@ useRoomCounts(windowMs = 6h)
 fetchRoomParticipantCounts()
     │
     ├─ Supabase 未設定 → {} を返す（左カラムは "0人" で安全に描画）
-    └─ chats SELECT (room_id, name, message, system, metadata, time)
-        WHERE time >= (now - windowMs) AND deleted = false
-        → クライアント側で room_id × ユニーク発言者を集計
+    ├─ POST /rest/v1/rpc/room_participant_counts { since_ms }
+    │   → サーバーで room_id × ユニーク発言者を集計し、部屋の数ぶんの行だけ返す
+    │     （論理削除・system 発言・管理人の発言・空の名前を除く）
+    └─ RPC がまだ無い（404: マイグレーション適用前）
+        → chats SELECT (room_id, name, system, metadata, time) を最大 5000 行取得して
+          クライアント側で集計する（従来の方法）
 ```
 
 初期表示はすべて `0人` で即時描画し、Supabase レスポンスで上書きする方針です。
@@ -358,19 +359,19 @@ Effect の依存配列では制御しません。
 | 契機                 | 処理                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | 最初の購読           | Realtime を張ってから取得（初期 10 件、全部屋まとめは 200 件）                            |
-| Realtime の INSERT   | 確定行に uuid で合流。取得中ならバッファにも入れる                                        |
+| Realtime の INSERT   | 確定行に uuid で合流（二分探索で挿入位置だけを探す）。取得中ならバッファにも入れる        |
 | 取得の完了           | 拡張なら表示中の行を残して合流、それ以外は取得結果 + バッファを正とする（論理削除を反映） |
 | `connected` への遷移 | キャッシュを使わずに取り直す（SUBSCRIBED までと切断中の取りこぼしを埋める）               |
 | `expand(n)`          | 件数を増やして取得（減らさない）                                                          |
 | 最後の購読解除       | マイクロタスク後にまだ誰もいなければ止める（StrictMode の再購読で張り直さない）           |
 
-store はサーバーで確定した行だけを持ち、楽観的な表示は `useRoomLog` の `useOptimistic`
+store はサーバーで確定した行だけを新しい順（uuid v7 の降順）に並べて持ち、楽観的な表示は `useRoomLog` の `useOptimistic`
 （`utils/optimisticLog.ts` の `reduceOptimisticChat`）で重ねます。
 
 ### 6.3 派生値の最適化
 
 - `useParticipants` は `useDeferredValue(chatLog)` で入力側を遅延化したうえで `getRecentParticipants` を呼ぶ。メモ化は React Compiler が行うため手動の `useMemo` は置かない。
-- `ChatLogList` は `React.memo` でラップする。内部の `sortChatsByTime` → `slice(0, windowRows)` のメモ化は React Compiler に任せる。
+- `ChatLogList` は `React.memo` でラップする。入力は新しい順に並んでいる前提で、`slice(0, windowRows)` するだけにする（発言が届くたびに全体を並べ直さない）。表示する行が 200 を超えるときは、各行に `content-visibility: auto` を当てて画面外の描画を省く。
 - `ChatMessage` も `React.memo` 化（shallow compare で十分）。
 - `ParticipantsList` は `useNowMinute()` を内製しており、親に `currentTime` プロップを渡させない。1 分に 1 度だけ再描画する。
 
@@ -378,57 +379,24 @@ store はサーバーで確定した行だけを持ち、楽観的な表示は `
 
 ## 7. API 層設計
 
-### 7.1 chatLogResource.ts（取得・キャッシュ・dedupe の集約）
+### 7.1 features/chat/api の構成
 
-| エクスポート                                               | 用途                                                                                |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `loadChatLogsSnapshot(roomId, useCache?)`                  | canonical snapshot を `{ data, hasMore }` shape で取得（取得結果に hasMore を同梱） |
-| `loadChatLogs(roomId, useCache?)`                          | `loadChatLogsSnapshot` の `data` のみを返す後方互換 API                             |
-| `loadChatLogsWithPaging(roomId, offset, limit, useCache?)` | `offset===0` は snapshot を slice。`offset>0` は独立クエリ                          |
-| `loadInitialChatLogs(roomId, limit?)`                      | `loadChatLogsWithPaging(_, 0, limit)` のエイリアス                                  |
-| `prefetchChatLogs(roomId)`                                 | 結果を捨てつつキャッシュ充填する best-effort                                        |
-| `invalidateCache(roomId?)`                                 | room 指定 or 全体クリア、in-flight も解除                                           |
-| `getCacheInfo(roomId?)`                                    | キャッシュ有無 / age を返す                                                         |
-| `getPagingHasMore(roomId, offset, limit)`                  | 直近の paging クエリの `count` 由来判定                                             |
-| `getSnapshotHasMore(roomId)`                               | 観測用: 直近 snapshot 取得時の hasMore（未取得 / オフライン中は undefined）         |
-| `chatLogResource`                                          | 上記をまとめたオブジェクト                                                          |
+| モジュール        | 主なエクスポート                                                                             | 役割                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                          | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                 |
+| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearChatLogsByName`    | chats の読み取りと論理削除。キャッシュは持たない。オフライン・401 時は mockChatData を返す   |
+| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                             | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成 |
+| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs` / `broadcastLookEvent` / `onLookBroadcast` | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                    |
+| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                            | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                       |
 
-主要な内部状態:
+以前は `chatLogResource.ts`（5 分の TTL キャッシュ、進行中のリクエストの共有、paging、世代管理）と
+`chatApi.ts`（保存・削除・ランキング・Realtime・互換ラッパー）に分かれていましたが、画面遷移が全ページ読み込み
+であるためキャッシュはほとんど効かず、責務も混ざっていたので上の構成に分けました
+（`.kiro/specs/react-2026-refactoring` Requirement 5 / 6）。
 
-- `cache: Map<RoomId, CacheEntry>` — TTL 5 分 / 保存時に `MAX_CHAT_LOG=100` 件へ trim
-- `snapshotInflight: Map<RoomId, Promise<Chat[]>>` — canonical snapshot の dedupe
-- `pagingInflight: Map<string, Promise<Chat[]>>` — `${roomId}|${offset}|${limit}` 単位の dedupe
-- `pagingHasMore: Map<string, boolean>` — `count: 'exact'` レスポンスの再利用
-- `cacheGeneration: Map<RoomId, number>` — `invalidateCache` で世代を進め、競合 fetch のキャッシュ書き戻しを抑止
-- `SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,email,metadata'` — `ip` / `ua` は転送から除外
+### 7.2 features/top/api/roomCountsApi.ts
 
-リトライ戦略:
-
-```
-試行 1 → 失敗 → 1秒待機
-試行 2 → 失敗 → 2秒待機（指数バックオフ）
-試行 3 → 失敗 → エラー throw
-```
-
-3 秒超の API 呼び出しは `console.warn` で警告します。
-
-### 7.2 chatApi.ts（書き込み / Realtime / 互換ラッパー）
-
-`loadChatLogs` / `loadChatLogsWithPaging` / `loadInitialChatLogs` / `invalidateCache` / `getCacheInfo` / `prefetchChatLogs` / `getSnapshotHasMore` は `chatLogResource` への薄いラッパーとして再 export されています。書き込み系・Realtime 系は引き続き `chatApi.ts` に存在します。`loadChatLogsWithPaging(offset===0)` は `loadChatLogsSnapshot` を直接呼び、`hasMore` を **取得結果と同じ往復で確定した値** から組み立てるため、取得中に `invalidateCache` が走って generation が更新されても hasMore がロストしません。
-
-| 関数                        | 用途                   | 特徴                                                                              |
-| --------------------------- | ---------------------- | --------------------------------------------------------------------------------- |
-| `saveChatLogOptimistic()`   | 楽観的更新用保存       | `save-chat`を呼び、server確定値をmerge後に非同期invalidate                        |
-| `saveChatLog()`             | 従来互換の保存         | 同じ`save-chat`経路を使い、成功時に同期invalidate                                 |
-| `clearChatLogs(roomId)`     | room 単位の論理削除    | `update({ deleted: true })` で SELECT 側 `.eq('deleted', false)` と整合、復旧可能 |
-| `clearChatLogsByName()`     | 指定ユーザーの論理削除 | `update({ deleted: true })`                                                       |
-| `loadChatLogsByTimeRange()` | 時間範囲検索           | UUID v7 範囲クエリ最適化                                                          |
-| `subscribeChatLogs()`       | リアルタイム購読       | room ごとに 1 channel を共有                                                      |
-| `broadcastLookEvent()` 等   | look/unlook 通知の同報 | Realtime broadcast チャネルを再利用                                               |
-
-### 7.3 features/top/api/roomCountsApi.ts
-
-トップページ用に直近 `windowMs`（既定 6 時間）以内の発言を取得し、`room_id × ユニーク発言者` を集計します。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
+トップページ用に、直近 `windowMs`（既定 6 時間）以内の `room_id × ユニーク発言者` を RPC `room_participant_counts`（`supabase/migrations/20260923000000_room_participant_counts.sql`）でサーバー集計します。RPC が DB にまだ無いときは、従来どおり発言の行を取得してクライアントで数えます。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
 
 ---
 
@@ -525,7 +493,7 @@ type Chat = {
 | `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                                   |
 | `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                                           |
 | `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                                           |
-| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ                           |
+| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。新しい順の入力を `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ                                             |
 | `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                                       |
 | `ChatRanking`                | 発言数ランキング表示                                                                                                                       |
 | `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                                         |
@@ -563,29 +531,30 @@ type Chat = {
 
 ### 10.1 ビルド最適化
 
-| 最適化       | 設定                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| コード分割   | Vite の `manualChunks` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
-| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示         |
-| 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                    |
-| CSS 圧縮     | Lightning CSS                                                                               |
-| ターゲット   | ES2022                                                                                      |
+| 最適化       | 設定                                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| コード分割   | Rolldown の `codeSplitting.groups` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`）     |
+| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示                         |
+| 圧縮         | Oxc（Vite 8 の既定。`console` / `debugger` の削除と toplevel の mangle は `rolldownOptions.output.minify`） |
+| CSS 圧縮     | Lightning CSS                                                                                               |
+| ターゲット   | ES2022                                                                                                      |
 
 ### 10.2 ランタイム最適化
 
-| 最適化                | 実装                                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                      |
-| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
-| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
-| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                       |
-| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                    |
-| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
-| API 取得 dedupe       | `chatLogResource` の `snapshotInflight` / `pagingInflight`                                                                      |
-| キャッシュ            | room 単位 5 分 TTL、保存時に 100 件へ trim、世代カウンタで競合書き戻し抑止                                                      |
-| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                      |
-| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
-| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                          |
+| 最適化                | 実装                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                         |
+| ページ間の遷移        | 全ページ読み込みのまま、Speculation Rules の `prefetch` と `@view-transition { navigation: auto; }` で待ちと切り替えを滑らかにする |
+| ログの合流            | 1 件の合流は二分探索で挿入し、UUID は文字コードで比べる。`ChatLogList` は並べ直さない                                              |
+| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                                 |
+| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                                 |
+| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                          |
+| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                       |
+| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                               |
+| 取得の共有            | 同じ部屋の取得と購読は Room_Log_Store が 1 つにまとめ、世代番号で古い取得の結果を捨てる                                            |
+| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                         |
+| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry)    |
+| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                             |
 
 ---
 
@@ -595,7 +564,7 @@ type Chat = {
 
 ```
 navigator.onLine === false
-    → chatLogResource.loadChatLogs が mockChatData（room_id 付与）を返す
+    → loadRecentChatLogs が mockChatData（room_id 付与）を返す
     → ネットワーク復旧時に自動再取得（Realtime の再接続で Room_Log_Store が取り直す）
 ```
 
@@ -615,9 +584,8 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 
 ### 11.4 リトライ
 
-- 取得系（`chatLogResource`）と書き込み系（`chatApi`）に共通の指数バックオフ（最大 3 回）
+- 取得系（`chatQueries`）と書き込み系（`saveChat`）に共通の指数バックオフ（`retry.ts`、最大 3 回）
 - 最終失敗時のみエラー throw
-- in-flight Promise は成否どちらでも `Map` から除去される
 
 ---
 
@@ -652,8 +620,8 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 テストファイルはソースファイルと同じディレクトリに配置（コロケーション）。
 
 ```
-chatLogResource.ts
-chatLogResource.test.ts   ← 同一ディレクトリ
+roomLogStore.ts
+roomLogStore.test.ts   ← 同一ディレクトリ
 ```
 
 ### 注目すべきテスト
@@ -661,7 +629,7 @@ chatLogResource.test.ts   ← 同一ディレクトリ
 - `src/App.test.tsx`: 各ルートが即時描画されること（top / chat / chanari / 404）
 - `src/features/chat/routing.test.ts` / `src/features/chanari-chat/routing.test.ts`: ルート解決
 - `src/features/top/TopPage.test.tsx` / `roomCountsApi.test.ts`: 旧トップ + 参加人数集計
-- `src/features/chat/api/chatLogResource.test.ts`: snapshot / paging dedupe / cache TTL
+- `src/features/chat/api/chatQueries.test.ts` / `saveChat.test.ts` / `realtime.test.ts`: API 層
 - `src/features/chat/components/ChatLogList/ChatLogList.test.tsx`: memo による不要再計算抑制
 - `src/features/chat/hooks/useRoomLog.test.ts` / `api/roomLogStore.test.ts`: 取得と Realtime の整合性
 - `src/features/chat/utils/optimisticLog.test.ts`: 楽観的更新の temp/saved dedup
@@ -715,7 +683,7 @@ jobs:
 ### 14.3 デプロイ
 
 ```bash
-pnpm build:prod    # sitemap → client build → SSR build → 全対象URLのprerender
+pnpm build:prod    # sitemap → client build → SSR build → 全対象URLのprerender（react-dom/static の prerenderToNodeStream）
 pnpm deploy        # predeployでbuild:prodを実行後、gh-pages -d dist
 ```
 
@@ -732,6 +700,7 @@ pnpm deploy        # predeployでbuild:prodを実行後、gh-pages -d dist
 - Vite の `base` を `/` に変更し、ビルド成果物のアセット参照を独自ドメイン直下に統一
 - `matchRoute` / `matchChanariRoute` が参照する `BASE_URL` を root 前提で扱い、ルーターに追加の basename を持ち込まない構成を維持
 - `canonical` / OGP / Twitter Card / JSON-LD / sitemap / robots.txt の公開 URL を独自ドメインへ統一し、SEO シグナルを分散させない
+- 部屋の URL は末尾の `/` まで付けた `/chat/<id>/`・`/chanari/<id>/` を正とする。GitHub Pages は `/chat/<id>` を `/chat/<id>/` へ 301 で転送するので、アプリ内のリンク・canonical・og:url・JSON-LD・sitemap をすべて転送先の形にそろえ、移動のたびの転送と「転送があるページ」を canonical / sitemap に載せることを避ける（`buildChatRoomPath` / `buildRoomPath`）
 - `public/404.html` の deep link 復元設定を root 配信向けに調整し、`/chat/:roomId` と `/chanari/:roomId` の直アクセスを従来どおり復元
 
 要するに、今回のドメイン移行は単なる表記変更ではなく、「公開 URL を独自ドメインに固定しつつ、SPA の deep link と SEO メタデータを壊さずに運用基盤だけを差し替えられる状態」にするための整理です。

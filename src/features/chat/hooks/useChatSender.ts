@@ -3,7 +3,7 @@ import {
   saveChatLogOptimistic,
   createOptimisticChat,
   type SaveChatOptions,
-} from '@features/chat/api/chatApi';
+} from '@features/chat/api/saveChat';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { generateOperationId } from '@shared/utils/uuid';

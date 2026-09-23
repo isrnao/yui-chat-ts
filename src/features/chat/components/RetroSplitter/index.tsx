@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
-import type { ReactNode, KeyboardEvent, CSSProperties } from 'react';
+import { useRef, useState, useEffect, useLayoutEffect } from 'react';
+import type { ReactNode, KeyboardEvent, PointerEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 /**
@@ -63,11 +63,6 @@ export default function RetroSplitter({
   const rafRef = useRef<number | null>(null);
   const metricsRef = useRef({ height: 0, top: 0 });
   const [metrics, setMetrics] = useState({ height: 0, top: 0 });
-  const topHeightRef = useRef(topHeight);
-
-  useEffect(() => {
-    topHeightRef.current = topHeight;
-  }, [topHeight]);
 
   // 親要素のジオメトリ変化をバッチで検知
   useLayoutEffect(() => {
@@ -105,57 +100,49 @@ export default function RetroSplitter({
     };
   }, []);
 
-  // パーセント計算ロジック分離
-  const calcPercent = useCallback(
-    (clientY: number) => {
-      const { height, top } = metricsRef.current;
-      if (!height) return topHeightRef.current;
-      let percent = ((clientY - top) / height) * 100;
-      percent = Math.max((minTop / height) * 100, percent);
-      percent = Math.min(100 - (minBottom / height) * 100, percent);
-      return percent;
-    },
-    [minTop, minBottom]
-  );
+  // ポインタの位置を上側の高さ(%)に変換する（最小の高さで上下を挟む）
+  const calcPercent = (clientY: number) => {
+    const { height, top } = metricsRef.current;
+    if (!height) return topHeight;
+    let percent = ((clientY - top) / height) * 100;
+    percent = Math.max((minTop / height) * 100, percent);
+    percent = Math.min(100 - (minBottom / height) * 100, percent);
+    return percent;
+  };
 
-  // ドラッグ中マウスmove
-  const onMouseMove = useCallback(
-    (e: MouseEvent) => {
-      const { clientY } = e;
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      rafRef.current = requestAnimationFrame(() => {
-        setAdjustedTopHeight(calcPercent(clientY));
-      });
-    },
-    [calcPercent]
-  );
-  // ドラッグ解除
-  const onMouseUp = useCallback(() => {
-    setDragging(false);
-    document.body.style.cursor = '';
-    document.body.style.userSelect = '';
-  }, []);
+  // ドラッグは Pointer Events + setPointerCapture で扱う。マウス・タッチ・ペンのどれでも動き、
+  // バーの外にポインタが出ても move / up がバーに届くので、window へリスナーを張らなくてよい
+  // （以前はマウスしか扱えず、window の mousemove / mouseup と、その張り替えのための useCallback を持っていた）
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setDragging(true);
+  };
 
-  // イベントリスナーの追加/解除
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    const { clientY } = e;
+    // 1 フレームに 1 回だけ高さを更新する
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      setAdjustedTopHeight(calcPercent(clientY));
+    });
+  };
+
+  const stopDragging = () => setDragging(false);
+
+  // ドラッグ中はカーソルと、テキスト選択の禁止を body に当てる（React の外の DOM への同期）。
+  // バーの外にポインタが出ても選択範囲が伸びないよう body に当てる。以前は .splitter-panes に
+  // select-none を常時付けており、チャットログ・入室フォームを含む全チャット欄で文字が選択できなかった
   useEffect(() => {
     if (!dragging) return;
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
     document.body.style.cursor = 'row-resize';
-    // ドラッグ中だけテキスト選択を止める (マウスがバーを外れても選択範囲が伸びないよう body に当てる)。
-    // 以前は .splitter-panes に select-none を常時付けており、チャットログ・入室フォームを含む
-    // 全チャット欄で文字が選択できず、右クリックからのコピーも効かなかった
     document.body.style.userSelect = 'none';
     return () => {
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
       document.body.style.cursor = '';
       document.body.style.userSelect = '';
     };
-  }, [dragging, onMouseMove, onMouseUp]);
+  }, [dragging]);
 
   useEffect(
     () => () => {
@@ -227,8 +214,14 @@ export default function RetroSplitter({
         aria-valuemin={Math.round(clampedMinPercent)}
         aria-valuemax={Math.round(clampedMaxPercent)}
         tabIndex={0}
-        onMouseDown={() => setDragging(true)}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        onLostPointerCapture={stopDragging}
         onKeyDown={onBarKeyDown}
+        // 指でドラッグしてもページがスクロールしないようにする
+        style={{ touchAction: 'none' }}
         className="bleed-x cursor-row-resize outline-none"
       >
         <hr className="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full" />

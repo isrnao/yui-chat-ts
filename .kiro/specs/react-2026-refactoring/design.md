@@ -499,6 +499,10 @@ import tseslint from 'typescript-eslint';
 
 - ランキングの開閉は `startTransition(() => setShowRanking(…))` で行う。ViewTransition は Transition の更新にだけ
   反応するので、Realtime の受信（通常の更新）ではアニメーションしない（R12.5）
+- **ただし送信・「更新」で閉じるときは Transition にしない。** 発言の送信は Action（非同期の Transition）なので、
+  同じイベントの `startTransition` の更新は Action に束ねられ、保存が終わるまでランキングが閉じない（一時テストで
+  確認: Transition だと保存の解決前は `ranking` のまま、即時の更新なら `log`）。入室フォームとチャット入力の
+  切り替えも、Transition にすると入室の保存まで切り替わらないのでアニメーションしない
 - 非表示の Activity の中では Effect が止まる（ParticipantsList の `useNowMinute` のタイマーも止まる）。更新は
   低優先度で裏で反映される
 - **スクロール位置（R12.2a）**: 今は RetroSplitter の下段の枠がスクロールしている。Activity は DOM を残しても
@@ -519,6 +523,21 @@ import tseslint from 'typescript-eslint';
 - `supabaseClient.ts` のグローバルヘッダから `Accept-Encoding`（ブラウザが設定を許さないヘッダ）と
   `X-My-Custom-Header` を外す。`Content-Type: application/json` は各パッケージが自分で付けるので外す（R13.2）。
   これは採否に関係なく先に出せる
+
+**スパイクの結果（2026-09-23、PR14）:**
+
+| チャンク（gzip）                    | supabase-js | 機能別パッケージ        |
+| ----------------------------------- | ----------- | ----------------------- |
+| vendor-supabase                     | 49.1 kB     | 21.1 kB                 |
+| vendor-iceberg-js（Storage の依存） | 1.6 kB      | なし                    |
+| **合計**                            | **50.7 kB** | **21.1 kB（−29.6 kB）** |
+
+15 kB 以上減るので採用した。`@supabase/supabase-js` を依存から外し、`shared/supabaseClient.ts` で
+PostgREST / Realtime / Functions のクライアントを supabase-js と同じ設定（apikey と Authorization ヘッダ、
+Realtime の `apikey` パラメータと `setAuth`、`eventsPerSecond: 10`）で作る。呼び出し側の形
+（`from` / `channel` / `removeChannel` / `functions.invoke`）は変えない。
+本番の Supabase に対し、書き込みをせずに次を確かめた: PostgREST（`chats` と `chat_ranking` ビュー）の読み取り、
+Realtime の postgres_changes と broadcast の `SUBSCRIBED`、save-chat の呼び出し（空の送信に 400 の検証エラー）。
 
 ### 14. トップの参加人数（Requirement 14）
 
@@ -545,6 +564,10 @@ $$;
 
 - 一覧に出す部屋だけに絞る処理（`getListableRoomIds`）はクライアントに残す
 - `security invoker` なので、呼び出しは anon の SELECT の RLS の範囲に収まる（R14.4）
+- `since_ms` は anon が自由に渡せるので、24 時間前より古い値は 24 時間前に切り上げる（0 を渡されても全期間を
+  集計しない。以前の行取得は 5000 行で打ち切られていたので、それに代わる上限）。トップが使う窓は 6 時間
+- 本番に適用するときは、`idx_chats_recent_speakers` の作成中（`CONCURRENTLY` なし）に `chats` への書き込みが
+  止まる。件数が多いときは、先に SQL Editor で `create index concurrently` を流してからマイグレーションを適用する
 - 集計が今の `aggregateCountsFromRows` と一致することを、同じ入力データで比べるテストを書く。`chat_ranking`
   ビュー（20260921000000）と同じく、必要なら `time` の部分インデックスを足す
 
@@ -593,7 +616,36 @@ Realtime の再接続の待ちが体感を損なっていると計測で分か�
 
 **決定（Q3、2026-09-23）:** A を採る。top-and-transition-performance の Requirement 4（クライアントサイド遷移）は
 本方式で置き換え、Requirement 5（Room_Prefetcher）のうちチャンクと HTML の先読みは Speculation Rules の `prefetch`
-で代替する。
+で代替する。Requirement 5 のうち、ホバー前にチャンクだけを先読みする独自の Room_Prefetcher は作らない
+（Speculation Rules の `prefetch` は HTML を取りにいき、そこから参照されるチャンクは遷移後の通常の読み込みになる。
+チャンクは vendor 単位で長期キャッシュされるので、2 回目以降の遷移ではほぼ取りにいかない）。
+
+**実装（PR17）:**
+
+- `index.html` の `<head>` に `<script type="speculationrules">` を置き、`/chat/*` と `/chanari/*` への
+  リンクを `prefetch`・`eagerness: moderate` にする。ルールは全ページの HTML に入る（SSG はこのテンプレートから
+  各ページを作る）ので、トップの部屋一覧だけでなく、部屋から別の部屋へのリンクにも効く。`prerender` にしないのは、
+  遷移前に JS が動くと Realtime の購読や入室の自動処理がホバーだけで始まってしまうため
+- `App.css` に `@view-transition { navigation: auto; }` を置き、`prefers-reduced-motion: reduce` の中で
+  `navigation: none` に戻す。遷移元と遷移先の両方にこの指定がある同一オリジンの遷移だけが対象になる
+- 非対応のブラウザ（Speculation Rules は Safari / Firefox、ドキュメント間 View Transitions は Firefox）は、
+  `<script type="speculationrules">` と `@view-transition` を無視するので今と同じに動く
+
+**省かれた遷移の扱い:** Chromium は、遷移先の描画の前にドキュメント間の View Transition を省くことがある
+（`vite preview` での確認では部屋への遷移の約半数。理由は特定できていない）。そのとき `pagereveal` の
+`viewTransition` は null で、ブラウザ自身の Promise が「Transition was skipped」の AbortError で reject され、
+未処理の Promise のエラーとして報告される（New Relic にも JS エラーとして載る）。アニメーションが無くなるだけで
+遷移は成立しているので、`index.html` の head の先頭（監視のエージェントより前）で、この理由の
+`unhandledrejection` だけを `preventDefault` と `stopImmediatePropagation` で受け止める。
+あわせて ChatRoute の `<ViewTransition>` は、ランキングの開閉（`addTransitionType('ranking')`）のときだけ
+有効にした（既定のままだと Suspense の中身が現れたときにも View Transition を始めるため）。
+
+**スパイクの結果:** `pnpm build:prod` の成果物を `vite preview` で配り、Chromium 152 でトップの部屋リンクに
+ポインタを乗せてから押すと、遷移先の `PerformanceNavigationTiming.deliveryType` が `navigational-prefetch` に
+なる（先読みした HTML が使われた）ことを確かめた。localhost では回線の待ちがほぼないので、遷移時間の差は測れていない。
+本番の回線での、入室フォームが操作できるまでの時間と Realtime が `SUBSCRIBED` になるまでの時間は、デプロイ後に
+測る（B に進むかどうかはその値で判断する）。Realtime の再接続は今もページ遷移のたびに起きているので、A で悪くなる
+ことはない。
 
 ### 17. 長いログの描画（Requirement 17）
 
@@ -602,6 +654,14 @@ Realtime の再接続の待ちが体感を損なっていると計測で分か�
   0.32 ms → 0.02 ms になる
 - ChatLogList で毎回やっているソートは、入力がソート済みであることを前提にして外す
 - 行数が 200 を超えるとき、各行に `content-visibility: auto; contain-intrinsic-size: auto 1.5em` を当てる
+
+**実装（PR18）:** 比較関数を `compareChatsNewestFirst`（`shared/utils/uuid.ts`）に切り出し、`sortChatsByTime` と
+合流の両方で使う。置き換える発言の並び順が変わる場合（uuid v7 でない行の time が変わったとき）も、以前の
+「Map + 安定ソート」と同じ位置に入るよう、等しい行の範囲 [lower, upper) を探して元の位置で挟む。
+一致は fast-check のプロパティテスト（`aggregatedLog.test.ts`、以前の実装を参照実装として持つ）で確かめた。
+2000 件への合流 1 回は、同じ Node で 0.130 ms → 0.026 ms（残りは uuid の検索と配列の複製）。ChatLogList が
+描画のたびにしていたソート（同じく約 0.13 ms）は無くなった。並び順は Room_Log_Store が保ち、楽観的な発言は
+useOptimistic で先頭に重なる。
 
 ## データフロー
 

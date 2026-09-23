@@ -52,14 +52,12 @@ export default function AllRoomsRoute() {
   // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
-  const [message, setMessage] = useState('');
   const [sendError, setSendError] = useState('');
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setName('');
-    setMessage('');
     return session.exit();
   };
 
@@ -71,8 +69,6 @@ export default function AllRoomsRoute() {
 
   const wrappedHandleSend = async (msg: string, metadata?: ChatMetadata) => {
     setSendError('');
-    // 発言もコマンドも、送信した時点で入力欄を空にする
-    if (msg.trim()) setMessage('');
     try {
       await session.send(msg, metadata);
     } catch (err) {
@@ -113,8 +109,6 @@ export default function AllRoomsRoute() {
           top={
             entered ? (
               <ChatRoom
-                message={message}
-                setMessage={setMessage}
                 windowRows={windowRows}
                 setWindowRows={(rows) => {
                   setWindowRows(rows);

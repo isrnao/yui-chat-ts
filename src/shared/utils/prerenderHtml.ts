@@ -174,10 +174,10 @@ export function renderChanariRoomHtml(template: string, roomId: RoomId): string 
 
 /** プリレンダ後の出力先 (dist からの相対パス)。 例: chat/anime/index.html */
 export function buildOutputRelativePath(roomId: RoomId): string {
-  return `${buildRoomPath(roomId).replace(/^\//, '')}/index.html`;
+  return `${buildRoomPath(roomId).replace(/^\//, '')}index.html`;
 }
 
 /** なりきり側の出力先 (dist からの相対パス)。 例: chanari/durarara/index.html */
 export function buildChanariOutputRelativePath(roomId: RoomId): string {
-  return `${buildChanariPath(roomId).replace(/^\//, '')}/index.html`;
+  return `${buildChanariPath(roomId).replace(/^\//, '')}index.html`;
 }

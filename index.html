@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+    <!-- ページ間の遷移（ドキュメント間の View Transitions、App.css の @view-transition）は、ブラウザが
+         遷移先の描画の前に省くことがある。そのときブラウザ自身の Promise が「Transition was skipped」の
+         AbortError で reject され、ページからは受け取れない（pagereveal の viewTransition が null）ため、
+         未処理の Promise のエラーとして報告される（部屋への遷移の数回に 1 回。New Relic にも JS エラーとして
+         載る）。アニメーションが無くなるだけで遷移は成立しているので、この理由のものだけ受け止める。
+         監視のエージェントより先に登録する必要があるので、head の先頭に置く -->
+    <script>
+      addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        if (
+          reason &&
+          reason.name === 'AbortError' &&
+          /transition was skipped/i.test(String(reason.message))
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      });
+    </script>
+
     <!-- Performance optimizations -->
     <!-- Supabase への接続を先に張る。ホストは VITE_SUPABASE_URL から生成する
          (Vite の HTML env 置換)。直書きするとプロジェクト差し替え時に置き去りになり、
@@ -168,6 +188,20 @@
           window.addEventListener('load', loadGtag, { once: true });
         }
       })();
+    </script>
+    <!-- 部屋へのリンクは、ポインタを乗せた・押し始めた時点で遷移先の HTML を先読みする
+         （Speculation Rules の prefetch、eagerness: moderate）。画面遷移は全ページ読み込みの
+         ままで、非対応のブラウザ（Safari / Firefox）では何も起きない
+         （.kiro/specs/react-2026-refactoring Requirement 16） -->
+    <script type="speculationrules">
+      {
+        "prefetch": [
+          {
+            "where": { "href_matches": ["/chat/*", "/chanari/*"] },
+            "eagerness": "moderate"
+          }
+        ]
+      }
     </script>
   </head>
   <body>

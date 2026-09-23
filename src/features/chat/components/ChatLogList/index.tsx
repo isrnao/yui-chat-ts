@@ -1,12 +1,15 @@
 import { Fragment, memo } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
-import { sortChatsByTime } from '@shared/utils/uuid';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import Divider from '../shared/Divider';
 
+/** これより多い行を出すときは、画面外の行の描画を省く */
+const DEFER_OFFSCREEN_ROWS = 200;
+
 type Props = {
+  /** 新しい順に並んだログ（useRoomLog が返すもの）。ここでは並べ直さない */
   chatLog: Chat[];
   isLoading?: boolean;
   windowRows: number;
@@ -29,8 +32,10 @@ function ChatLogList({
   loadError = false,
   onRetry,
 }: Props) {
-  // 並べ替え結果のメモ化は React Compiler に任せる
-  const chats = sortChatsByTime(chatLog).slice(0, windowRows);
+  // 並び順は Room_Log_Store が保ち、楽観的な発言は先頭に重なる。発言が届くたびに
+  // 全体を並べ直さないよう、ここでは切り出すだけにする（Requirement 17）
+  const chats = chatLog.slice(0, windowRows);
+  const deferOffscreen = chats.length > DEFER_OFFSCREEN_ROWS;
 
   if (isLoading) {
     return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;
@@ -59,7 +64,12 @@ function ChatLogList({
       )}
       {chats.map((c) => (
         <Fragment key={c.uuid}>
-          <ChatMessage chat={c} showRoomName={showRoomName} onRoomClick={onRoomClick} />
+          <ChatMessage
+            chat={c}
+            showRoomName={showRoomName}
+            onRoomClick={onRoomClick}
+            deferOffscreen={deferOffscreen}
+          />
           <Divider />
         </Fragment>
       ))}

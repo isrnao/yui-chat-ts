@@ -148,55 +148,55 @@ describe('fetchRoomParticipantCounts', () => {
     return spy;
   }
 
-  it('apikey / Authorization を付けて PostgREST へ問い合わせる', async () => {
+  const rows = [
+    { room_id: 'superbeginner', name: 'ゆい', system: false, metadata: null, time: 1 },
+    { room_id: 'superbeginner', name: 'ゆい', system: false, metadata: null, time: 2 },
+    { room_id: 'superbeginner', name: 'たろ', system: false, metadata: null, time: 3 },
+  ];
+
+  it('apikey / Authorization を付けて、参加人数の RPC を POST で呼ぶ', async () => {
     const spy = mockFetch(() => new Response('[]', { status: 200 }));
 
-    await fetchRoomParticipantCounts();
+    await fetchRoomParticipantCounts(60_000);
 
     expect(spy).toHaveBeenCalledTimes(1);
     const [url, init] = spy.mock.calls[0];
-    expect(String(url).startsWith('https://example.supabase.co/rest/v1/chats?')).toBe(true);
+    expect(String(url)).toBe('https://example.supabase.co/rest/v1/rpc/room_participant_counts');
+    expect(init?.method).toBe('POST');
     const headers = init?.headers as Record<string, string>;
     expect(headers.apikey).toBe('anon-key');
     expect(headers.Authorization).toBe('Bearer anon-key');
+    const body = JSON.parse(String(init?.body)) as { since_ms: number };
+    expect(Date.now() - body.since_ms).toBeGreaterThanOrEqual(60_000);
   });
 
-  it('取得した行から参加人数を集計する', async () => {
-    const spy = mockFetch(
+  it('RPC の結果を、一覧に出す部屋だけの人数にする', async () => {
+    mockFetch(
       () =>
         new Response(
           JSON.stringify([
-            {
-              room_id: 'superbeginner',
-              name: 'ゆい',
-              message: 'やあ',
-              system: false,
-              metadata: null,
-              time: 1,
-            },
-            {
-              room_id: 'superbeginner',
-              name: 'ゆい',
-              message: 'また',
-              system: false,
-              metadata: null,
-              time: 2,
-            },
-            {
-              room_id: 'superbeginner',
-              name: 'たろ',
-              message: 'どうも',
-              system: false,
-              metadata: null,
-              time: 3,
-            },
+            { room_id: 'superbeginner', participants: 2 },
+            { room_id: 'not-a-room', participants: 5 },
+            { room_id: 'hajime', participants: 0 },
           ]),
           { status: 200 }
         )
     );
 
     await expect(fetchRoomParticipantCounts()).resolves.toEqual({ superbeginner: 2 });
-    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  // マイグレーションを適用する前に配信しても、参加人数の表示が壊れないようにする
+  it('RPC がまだ無い（404）ときは、従来どおり発言の行を取得して数える', async () => {
+    const spy = mockFetch(() => new Response('[]', { status: 200 }));
+    spy.mockImplementationOnce(() => new Response('{"code":"PGRST202"}', { status: 404 }));
+    spy.mockImplementationOnce(() => new Response(JSON.stringify(rows), { status: 200 }));
+
+    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ superbeginner: 2 });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(
+      String(spy.mock.calls[1][0]).startsWith('https://example.supabase.co/rest/v1/chats?')
+    ).toBe(true);
   });
 
   // 環境変数が無い環境 (Storybook / CI の一部) で通信しない既存挙動を保つ

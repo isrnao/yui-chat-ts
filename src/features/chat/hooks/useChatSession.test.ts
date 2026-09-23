@@ -5,25 +5,27 @@ import { createRoomLogStore, type LogSource } from '@features/chat/api/roomLogSt
 import { useChatSession, type SessionTarget } from './useChatSession';
 import { trackEvent } from '@shared/utils/analytics';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
-import {
-  broadcastLookEvent,
-  clearChatLogsByName,
-  saveChatLogOptimistic,
-} from '@features/chat/api/chatApi';
+import { saveChatLogOptimistic } from '@features/chat/api/saveChat';
+import { clearChatLogsByName } from '@features/chat/api/chatQueries';
+import { broadcastLookEvent } from '@features/chat/api/realtime';
 
-vi.mock('@features/chat/api/chatApi', () => ({
+vi.mock('@features/chat/api/saveChat', () => ({
   saveChatLogOptimistic: vi.fn((_roomId: string, chat: Chat) =>
     Promise.resolve({ ...chat, uuid: `server-${chat.message}`, optimistic: false })
   ),
-  clearChatLogsByName: vi.fn(() => Promise.resolve()),
-  broadcastLookEvent: vi.fn(),
-  broadcastUnlookEvent: vi.fn(),
   createOptimisticChat: vi.fn((chat: Omit<Chat, 'uuid' | 'time' | 'optimistic'>) => ({
     ...chat,
     uuid: `temp-${chat.message}`,
     time: 1,
     optimistic: true,
   })),
+}));
+vi.mock('@features/chat/api/chatQueries', () => ({
+  clearChatLogsByName: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('@features/chat/api/realtime', () => ({
+  broadcastLookEvent: vi.fn(),
+  broadcastUnlookEvent: vi.fn(),
 }));
 vi.mock('@shared/utils/analytics', () => ({ trackEvent: vi.fn() }));
 vi.mock('@shared/observability/newRelic', () => ({ recordSendChat: vi.fn() }));

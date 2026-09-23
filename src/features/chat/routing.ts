@@ -30,7 +30,9 @@ export function buildChatRoomPath(roomId: RoomId): string {
     ? import.meta.env.BASE_URL.slice(0, -1)
     : import.meta.env.BASE_URL;
 
-  return `${baseUrl}/chat/${roomId}`;
+  // 末尾の / まで付ける。GitHub Pages は /chat/<id> を /chat/<id>/ へ 301 で転送するので、
+  // 付けないと部屋へ移るたびに転送の往復が 1 回増える
+  return `${baseUrl}/chat/${roomId}/`;
 }
 
 export function matchRoute(pathname: string): RouteMatch {
