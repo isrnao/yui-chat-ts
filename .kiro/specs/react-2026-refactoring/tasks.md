@@ -216,10 +216,10 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 13.1 `supabaseClient.ts` のグローバルヘッダから `Accept-Encoding` / `X-My-Custom-Header` /
         `Content-Type` を外す（PR4 で先に出す）
     - _Requirements: 13.2_
-  - [ ] 13.2 スパイク: `@supabase/postgrest-js` / `@supabase/realtime-js` / `@supabase/functions-js` だけで最小の
+  - [x] 13.2 スパイク: `@supabase/postgrest-js` / `@supabase/realtime-js` / `@supabase/functions-js` だけで最小の
         クライアントを作り、チャット系ルートの modulePreload の合計（gzip）を比べる。結果を design.md §13 に書く
     - _Requirements: 13.1_
-  - [ ] 13.3 15 kB gz 以上減るときだけ、`shared/supabase/{rest,realtime,functions}.ts` に置き換える
+  - [x] 13.3 15 kB gz 以上減るときだけ、`shared/supabase/{rest,realtime,functions}.ts` に置き換える
     - _Requirements: 13.1, 13.3_
   - [ ]\* 13.4 Realtime の再接続、`save-chat` のヘッダ（`x-chat-operation-id` / `x-chat-attempt`）、New Relic の
     `traceparent` を確かめる（`scripts/verify-trace.ts` を使う）

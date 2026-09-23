@@ -1,5 +1,5 @@
 import type { Chat } from '@features/chat/types';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { RealtimeChannel } from '@supabase/realtime-js';
 import { supabase } from '@shared/supabaseClient';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import type { RoomId } from '../rooms';

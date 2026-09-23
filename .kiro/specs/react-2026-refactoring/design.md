@@ -524,6 +524,21 @@ import tseslint from 'typescript-eslint';
   `X-My-Custom-Header` を外す。`Content-Type: application/json` は各パッケージが自分で付けるので外す（R13.2）。
   これは採否に関係なく先に出せる
 
+**スパイクの結果（2026-09-23、PR14）:**
+
+| チャンク（gzip）                    | supabase-js | 機能別パッケージ        |
+| ----------------------------------- | ----------- | ----------------------- |
+| vendor-supabase                     | 49.1 kB     | 21.1 kB                 |
+| vendor-iceberg-js（Storage の依存） | 1.6 kB      | なし                    |
+| **合計**                            | **50.7 kB** | **21.1 kB（−29.6 kB）** |
+
+15 kB 以上減るので採用した。`@supabase/supabase-js` を依存から外し、`shared/supabaseClient.ts` で
+PostgREST / Realtime / Functions のクライアントを supabase-js と同じ設定（apikey と Authorization ヘッダ、
+Realtime の `apikey` パラメータと `setAuth`、`eventsPerSecond: 10`）で作る。呼び出し側の形
+（`from` / `channel` / `removeChannel` / `functions.invoke`）は変えない。
+本番の Supabase に対し、書き込みをせずに次を確かめた: PostgREST（`chats` と `chat_ranking` ビュー）の読み取り、
+Realtime の postgres_changes と broadcast の `SUBSCRIBED`、save-chat の呼び出し（空の送信に 400 の検証エラー）。
+
 ### 14. トップの参加人数（Requirement 14）
 
 - 先に出せる変更: `buildRoomCountsUrl` の `select` から `message` を外す（R14.1）

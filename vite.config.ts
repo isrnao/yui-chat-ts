@@ -98,7 +98,13 @@ export default defineConfig({
   },
   // パフォーマンス最適化
   optimizeDeps: {
-    include: ['react', 'react-dom', '@supabase/supabase-js'],
+    include: [
+      'react',
+      'react-dom',
+      '@supabase/postgrest-js',
+      '@supabase/realtime-js',
+      '@supabase/functions-js',
+    ],
     // 開発時の依存関係事前バンドル
     force: false,
   },
