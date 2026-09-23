@@ -16,8 +16,8 @@ type ChatRow = {
 
 /** Supabase 環境変数が不足している等で実行できない状況かを判定する */
 function isSupabaseConfigured(): boolean {
-  // 環境変数未設定時は createClient 側が落ちないように空文字で初期化される。
-  // url / anon_key が空なら接続しない方針で早期リターンする。
+  // 環境変数が未設定だと、shared/supabaseClient.ts は仮の URL でクライアントを組み立てる（通信は失敗する）。
+  // ここでは url / anon_key が空なら接続せずに早期リターンする。
   const url = import.meta.env.VITE_SUPABASE_URL;
   const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
   return Boolean(url && key);
@@ -37,8 +37,8 @@ function isSupabaseConfigured(): boolean {
 /**
  * PostgREST へ直接投げるクエリ URL を組み立てる (テスト用に export)。
  *
- * supabase-js を使わないのは、この 1 クエリのためにトップページへ
- * 約 50kB gz のライブラリを載せないため
+ * Supabase のクライアント（shared/supabaseClient.ts、vendor-supabase チャンク 約 21 kB gz）を使わないのは、
+ * この 1 クエリのためにトップページへライブラリを載せないため
  * (.kiro/specs/top-and-transition-performance Requirement 3)。
  * Supabase の REST は PostgREST そのものなので、素の fetch で等価に表現できる。
  */
