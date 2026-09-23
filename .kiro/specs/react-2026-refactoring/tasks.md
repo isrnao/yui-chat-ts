@@ -236,17 +236,17 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x]\* 14.4 同じ入力データで、RPC の結果と `aggregateCountsFromRows` の結果が一致することを確かめる
     - _Requirements: 14.3_
 
-- [ ] 15. ビルド設定を Vite 8 に合わせ、SSG の API を更新する（Requirement 15、PR15）
-  - [ ] 15.1 `build.rollupOptions` を `build.rolldownOptions` に改名する
+- [x] 15. ビルド設定を Vite 8 に合わせ、SSG の API を更新する（Requirement 15、PR15）
+  - [x] 15.1 `build.rollupOptions` を `build.rolldownOptions` に改名する
     - _Requirements: 15.1_
-  - [ ] 15.2 関数形式の `manualChunks` を `codeSplitting` の groups に書き換え、`dist/assets` のチャンクの一覧と
+  - [x] 15.2 関数形式の `manualChunks` を `codeSplitting` の groups に書き換え、`dist/assets` のチャンクの一覧と
         サイズを前後で比べる
     - _Requirements: 15.2_
-  - [ ] 15.3 `entry-server.tsx` を `prerenderToNodeStream` + `node:stream/consumers` の `text()` にする
+  - [x] 15.3 `entry-server.tsx` を `prerenderToNodeStream` + `node:stream/consumers` の `text()` にする
     - _Requirements: 15.3_
-  - [ ] 15.4 `pnpm build:prod` の前後で、`dist/**/index.html` の `#root` の中身と modulePreload を比べる
+  - [x] 15.4 `pnpm build:prod` の前後で、`dist/**/index.html` の `#root` の中身と modulePreload を比べる
     - _Requirements: 15.4_
-  - [ ] 15.5 Oxc の minify で console の削除ができることを確かめ、terser と gzip の合計を比べる。差が 1% 以内なら
+  - [x] 15.5 Oxc の minify で console の削除ができることを確かめ、terser と gzip の合計を比べる。差が 1% 以内なら
         Oxc にする
     - _Requirements: 15.5_
 
