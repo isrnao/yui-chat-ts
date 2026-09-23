@@ -51,7 +51,6 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
-  const [message, setMessage] = useState('');
   const [windowRows, setWindowRows] = useState(30);
   const [showRanking, setShowRanking] = useState(false);
   // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
@@ -64,16 +63,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setShowRanking(false);
     setName('');
-    setMessage('');
     return session.exit();
   };
 
   const handleSend = (msg: string, metadata?: ChatMetadata) => {
-    // 発言もコマンド（「消す」ボタンの clear を含む）も、送信した時点で入力欄を空にしてログ表示へ戻す
-    if (msg.trim()) {
-      setMessage('');
-      setShowRanking(false);
-    }
+    // 発言もコマンド（「消す」ボタンの clear を含む）も、送信した時点でログ表示へ戻す
+    // （入力欄は ChatRoom が自分で空にする）
+    if (msg.trim()) setShowRanking(false);
     return session.send(msg, metadata);
   };
 
@@ -90,8 +86,6 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         top={
           entered ? (
             <ChatRoom
-              message={message}
-              setMessage={setMessage}
               windowRows={windowRows}
               setWindowRows={(rows) => {
                 setWindowRows(rows);

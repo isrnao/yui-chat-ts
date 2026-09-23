@@ -48,7 +48,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [ ] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Task 9.5 の再レンダー計測テストで前後を記録するまで未完了）
+  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9.5 の `ChatRoute.renders.test.tsx` で計測。5 文字の入力でルートの再レンダーは Task 9 の前が 5 回、後が 0 回）
     - _Requirements: 1.1_
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
@@ -156,18 +156,18 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
         `chatApi.ts` を削除し、design.md §5 の構成（`saveChat` / `chatQueries` / `realtime` / `roomLogStore`）に分ける
     - _Requirements: 6.8, 7.1_
 
-- [ ] 9. フォームを React 19 の Actions に揃える（Requirement 8、PR9）
-  - [ ] 9.1 ChatRoom の発言の値を ChatRoom の中の state にし、ChatRoute / AllRoomsRoute から `message` /
+- [x] 9. フォームを React 19 の Actions に揃える（Requirement 8、PR9）
+  - [x] 9.1 ChatRoom の発言の値を ChatRoom の中の state にし、ChatRoute / AllRoomsRoute から `message` /
         `setMessage` を外す
     - _Requirements: 8.2_
-  - [ ] 9.2 ChatRoom を `<form action={formAction}>` にし、`onSubmit` ではランキングを閉じることと入力欄を空にする
+  - [x] 9.2 ChatRoom を `<form action={formAction}>` にし、`onSubmit` ではランキングを閉じることと入力欄を空にする
         ことだけを行う
     - _Requirements: 8.1, 8.3_
-  - [ ]\* 9.3 `onSubmit` で入力欄を空にしても、送信した値が action に届くことをテストする
+  - [x]\* 9.3 `onSubmit` で入力欄を空にしても、送信した値が action に届くことをテストする
     - _Requirements: 8.3_
-  - [ ] 9.4 ちゃなりの下書きの復元と、最後の発言の保存が今と同じに動くことを確かめる
+  - [x] 9.4 ちゃなりの下書きの復元と、最後の発言の保存が今と同じに動くことを確かめる
     - _Requirements: 8.5_
-  - [ ] 9.5 Task 1.5 と同じ手順で再レンダーの範囲を記録し、ChatRoom の中だけになったことを確かめる
+  - [x] 9.5 Task 1.5 と同じ手順で再レンダーの範囲を記録し、ChatRoom の中だけになったことを確かめる
     - _Requirements: 8.2_
 
 - [ ] 10. 永続化ストアの書き方を揃える（Requirement 9、PR10）
