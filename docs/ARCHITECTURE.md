@@ -155,6 +155,8 @@ docs/
 
 Feature-Based Architecture を採用し、機能単位でコード（コンポーネント・フック・API・型）を凝集させています。`App.tsx` はルート解決だけを担当し、各ルートの実体は `src/routes/*` から `src/features/*` へ転送します。
 
+下の図はアプリ内部のレイヤー構成です。外部 API・監視・CI/CD を含むシステム全体の構成図は [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) を参照してください。
+
 ```
 ┌────────────────────────────────────────────────────────────┐
 │                         App.tsx                            │
