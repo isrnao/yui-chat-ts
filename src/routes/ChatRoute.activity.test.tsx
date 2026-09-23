@@ -68,4 +68,60 @@ describe('ChatRoute のランキングとログの切り替え', () => {
     expect(screen.getByTestId('chat-log-pane')).toBe(pane);
     expect(pane.scrollTop).toBe(123);
   });
+
+  it('View Transition はランキングの開閉でだけ始め、ページを開いた直後には始めない', async () => {
+    // ページ間の遷移のアニメーション中に、ログ一覧の Suspense が解けて View Transition が始まると、
+    // ブラウザが片方を省いて未処理の AbortError（Transition was skipped）になっていた
+    const started: string[][] = [];
+    const done = () => Promise.resolve();
+    const startViewTransition = vi.fn(
+      (options: { update: () => void | Promise<void>; types?: string[] }) => {
+        started.push([...(options.types ?? [])]);
+        const finished = Promise.resolve().then(() => options.update());
+        return {
+          ready: finished,
+          finished,
+          updateCallbackDone: finished,
+          skipTransition: vi.fn(),
+          types: new Set(options.types),
+        };
+      }
+    );
+    Object.defineProperty(document, 'startViewTransition', {
+      value: startViewTransition,
+      configurable: true,
+    });
+    // React が View Transition の中で読むもの（jsdom には無い）
+    Object.defineProperty(document, 'fonts', {
+      value: { status: 'loaded', ready: Promise.resolve() },
+      configurable: true,
+    });
+    Object.defineProperty(document.documentElement, 'getAnimations', {
+      value: () => [],
+      configurable: true,
+    });
+    Object.defineProperty(document.documentElement, 'animate', {
+      value: () => ({ cancel: vi.fn(), finished: Promise.resolve() }),
+      configurable: true,
+    });
+    try {
+      render(<ChatRoute roomId="superbeginner" />);
+      fireEvent.change(screen.getByRole('textbox', { name: 'おなまえ' }), {
+        target: { value: 'ゆい' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'チャットに参加する' }));
+      await screen.findByTestId('chat-log-list-mock');
+      await done();
+      expect(started).toEqual([]);
+
+      fireEvent.click(screen.getByText('[ランキング]'));
+      await waitFor(() => expect(started).toContainEqual(['ranking']));
+      expect(started.every((types) => types.includes('ranking'))).toBe(true);
+    } finally {
+      Reflect.deleteProperty(document, 'startViewTransition');
+      Reflect.deleteProperty(document, 'fonts');
+      Reflect.deleteProperty(document.documentElement, 'getAnimations');
+      Reflect.deleteProperty(document.documentElement, 'animate');
+    }
+  });
 });
