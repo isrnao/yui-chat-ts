@@ -631,6 +631,15 @@ Realtime の再接続の待ちが体感を損なっていると計測で分か�
 - 非対応のブラウザ（Speculation Rules は Safari / Firefox、ドキュメント間 View Transitions は Firefox）は、
   `<script type="speculationrules">` と `@view-transition` を無視するので今と同じに動く
 
+**省かれた遷移の扱い:** Chromium は、遷移先の描画の前にドキュメント間の View Transition を省くことがある
+（`vite preview` での確認では部屋への遷移の約半数。理由は特定できていない）。そのとき `pagereveal` の
+`viewTransition` は null で、ブラウザ自身の Promise が「Transition was skipped」の AbortError で reject され、
+未処理の Promise のエラーとして報告される（New Relic にも JS エラーとして載る）。アニメーションが無くなるだけで
+遷移は成立しているので、`index.html` の head の先頭（監視のエージェントより前）で、この理由の
+`unhandledrejection` だけを `preventDefault` と `stopImmediatePropagation` で受け止める。
+あわせて ChatRoute の `<ViewTransition>` は、ランキングの開閉（`addTransitionType('ranking')`）のときだけ
+有効にした（既定のままだと Suspense の中身が現れたときにも View Transition を始めるため）。
+
 **スパイクの結果:** `pnpm build:prod` の成果物を `vite preview` で配り、Chromium 152 でトップの部屋リンクに
 ポインタを乗せてから押すと、遷移先の `PerformanceNavigationTiming.deliveryType` が `navigational-prefetch` に
 なる（先読みした HTML が使われた）ことを確かめた。localhost では回線の待ちがほぼないので、遷移時間の差は測れていない。

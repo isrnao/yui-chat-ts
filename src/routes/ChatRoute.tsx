@@ -1,4 +1,12 @@
-import { Activity, ViewTransition, startTransition, useState, lazy, Suspense } from 'react';
+import {
+  Activity,
+  ViewTransition,
+  addTransitionType,
+  startTransition,
+  useState,
+  lazy,
+  Suspense,
+} from 'react';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
@@ -20,6 +28,16 @@ import { useConversationMeasurement } from '@features/chat/hooks/useConversation
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
+
+/**
+ * ランキングの開閉だけをアニメーションする。<ViewTransition> は既定では Suspense の中身が現れたときにも
+ * View Transition を始めるので、ページを開いた直後（ログ一覧のチャンクの読み込み完了時）にも動いていた。
+ * ページ間の遷移（ドキュメント間の View Transitions）の最中にそれが始まるとブラウザが片方を省き、
+ * 省かれた側の Promise が未処理の AbortError（Transition was skipped）として報告されていた。
+ * 開閉の Transition にだけ型を付け、その型のときだけ有効にする
+ */
+const RANKING_TRANSITION = 'ranking';
+const RANKING_ONLY = { [RANKING_TRANSITION]: 'auto', default: 'none' };
 
 export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
@@ -57,8 +75,16 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // ViewTransition でアニメーションする。発言の送信や「更新」で閉じるときは Transition にしない。
   // 送信は Action（非同期の Transition）なので、同じイベントの Transition の更新は Action に束ねられ、
   // 保存が終わるまでランキングが閉じなくなる（テストで確認済み）
-  const openRanking = () => startTransition(() => setShowRanking(true));
-  const closeRankingAnimated = () => startTransition(() => setShowRanking(false));
+  const openRanking = () =>
+    startTransition(() => {
+      addTransitionType(RANKING_TRANSITION);
+      setShowRanking(true);
+    });
+  const closeRankingAnimated = () =>
+    startTransition(() => {
+      addTransitionType(RANKING_TRANSITION);
+      setShowRanking(false);
+    });
   const closeRanking = () => setShowRanking(false);
   // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
   const roomRanking = useRoomRanking(roomId, showRanking);
@@ -144,7 +170,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 スクロールは各ビューが自分の枠で持つ（下段の枠を共有すると、ランキングの
                 高さに合わせてスクロール量が変わってしまう） */}
             <Activity mode={showRanking ? 'hidden' : 'visible'}>
-              <ViewTransition>
+              <ViewTransition default={RANKING_ONLY}>
                 <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
                   <Suspense
                     fallback={
@@ -165,7 +191,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               </ViewTransition>
             </Activity>
             {showRanking && (
-              <ViewTransition>
+              <ViewTransition default={RANKING_ONLY}>
                 <div className="h-full overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]">
                   {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
                       （更新・発言ボタンからもチャット表示に戻れる） */}
