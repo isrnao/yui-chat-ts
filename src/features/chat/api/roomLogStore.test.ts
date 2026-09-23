@@ -89,6 +89,20 @@ describe('Room_Log_Store', () => {
     expect(messages(store.getSnapshot().chats)).toEqual(['remote', 'older']);
   });
 
+  it('順番どおりでなく届いた発言も、新しい順の位置に入る', async () => {
+    // ChatLogList は並べ直さないので、ログの並び順はこの store が保つ（Requirement 17）
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    fake.fetches[0]!.resolve([chat('c', 30), chat('a', 10)]);
+    await flush();
+
+    fake.insert(chat('b', 20)); // 遅れて届いた、途中の時刻の発言
+    fake.insert(chat('d', 40));
+    store.applySaved(chat('e', 5)); // 保存の応答も同じ
+    expect(messages(store.getSnapshot().chats)).toEqual(['d', 'c', 'b', 'a', 'e']);
+  });
+
   it('SUBSCRIBED に遷移したときだけ取り直す', async () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);

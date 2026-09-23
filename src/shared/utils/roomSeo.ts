@@ -27,8 +27,13 @@ export type RoomSeoOverrides = {
   description?: string;
 };
 
+/**
+ * 通常チャット部屋のパス（`/chat/<id>/`）。canonical・og:url・sitemap もこの形にする。
+ * GitHub Pages は末尾の / が無い URL を / 付きへ 301 で転送するので、転送先の形を正にする
+ * （転送される URL を canonical や sitemap に載せると、検索エンジンに「転送があるページ」として扱われる）
+ */
 export function buildRoomPath(roomId: RoomId): string {
-  return `/chat/${roomId}`;
+  return `/chat/${roomId}/`;
 }
 
 /**
@@ -39,7 +44,7 @@ export function buildRoomPath(roomId: RoomId): string {
  * このファイルの制約 (冒頭コメント参照) に合わせた固定形の実装を置く。
  */
 export function buildChanariPath(roomId: RoomId): string {
-  return `/chanari/${roomId}`;
+  return `/chanari/${roomId}/`;
 }
 
 /**
@@ -48,7 +53,7 @@ export function buildChanariPath(roomId: RoomId): string {
  * ChanariChatPage の useSEO 呼び出しと同値になるよう組む。ズレると hydrate 後に
  * head が書き換わり、プリレンダした値が一瞬だけ見える状態になる。
  * - title: 「{部屋名}（なりきり） | {サイト名}」
- * - canonical: `/chat/<id>`。内容が重複するため評価を通常チャット側に集約する
+ * - canonical: `/chat/<id>/`。内容が重複するため評価を通常チャット側に集約する
  *   (sitemap 除外と同じ canonical 化方針。.kiro/specs/seo-improvement design §3)
  * - jsonLd: 空。ChanariChatPage は useSEO に jsonLd を渡しておらず、hydrate 後に
  *   data-page-jsonld ノードが削除されるため、プリレンダで入れると

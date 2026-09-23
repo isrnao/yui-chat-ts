@@ -48,7 +48,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [ ] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Task 9.5 の再レンダー計測テストで前後を記録するまで未完了）
+  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9.5 の `ChatRoute.renders.test.tsx` で計測。5 文字の入力でルートの再レンダーは Task 9 の前が 5 回、後が 0 回）
     - _Requirements: 1.1_
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
@@ -156,58 +156,58 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
         `chatApi.ts` を削除し、design.md §5 の構成（`saveChat` / `chatQueries` / `realtime` / `roomLogStore`）に分ける
     - _Requirements: 6.8, 7.1_
 
-- [ ] 9. フォームを React 19 の Actions に揃える（Requirement 8、PR9）
-  - [ ] 9.1 ChatRoom の発言の値を ChatRoom の中の state にし、ChatRoute / AllRoomsRoute から `message` /
+- [x] 9. フォームを React 19 の Actions に揃える（Requirement 8、PR9）
+  - [x] 9.1 ChatRoom の発言の値を ChatRoom の中の state にし、ChatRoute / AllRoomsRoute から `message` /
         `setMessage` を外す
     - _Requirements: 8.2_
-  - [ ] 9.2 ChatRoom を `<form action={formAction}>` にし、`onSubmit` ではランキングを閉じることと入力欄を空にする
+  - [x] 9.2 ChatRoom を `<form action={formAction}>` にし、`onSubmit` ではランキングを閉じることと入力欄を空にする
         ことだけを行う
     - _Requirements: 8.1, 8.3_
-  - [ ]\* 9.3 `onSubmit` で入力欄を空にしても、送信した値が action に届くことをテストする
+  - [x]\* 9.3 `onSubmit` で入力欄を空にしても、送信した値が action に届くことをテストする
     - _Requirements: 8.3_
-  - [ ] 9.4 ちゃなりの下書きの復元と、最後の発言の保存が今と同じに動くことを確かめる
+  - [x] 9.4 ちゃなりの下書きの復元と、最後の発言の保存が今と同じに動くことを確かめる
     - _Requirements: 8.5_
-  - [ ] 9.5 Task 1.5 と同じ手順で再レンダーの範囲を記録し、ChatRoom の中だけになったことを確かめる
+  - [x] 9.5 Task 1.5 と同じ手順で再レンダーの範囲を記録し、ChatRoom の中だけになったことを確かめる
     - _Requirements: 8.2_
 
-- [ ] 10. 永続化ストアの書き方を揃える（Requirement 9、PR10）
-  - [ ] 10.1 `shared/utils/persistentStore.ts` を作る（生の文字列が同じなら同じ参照を返す）
+- [x] 10. 永続化ストアの書き方を揃える（Requirement 9、PR10）
+  - [x] 10.1 `shared/utils/persistentStore.ts` を作る（生の文字列が同じなら同じ参照を返す）
     - _Requirements: 9.1_
-  - [ ] 10.2 settingsStore をその上に作り直す（公開している関数の形は変えない）
+  - [x] 10.2 settingsStore をその上に作り直す（公開している関数の形は変えない）
     - _Requirements: 9.1, 9.4_
-  - [ ] 10.3 ちゃなりの draftStore をその上に作り直し、`useChanariSettings` を `useSyncExternalStore` で読む形にする。
+  - [x] 10.3 ちゃなりの draftStore をその上に作り直し、`useChanariSettings` を `useSyncExternalStore` で読む形にする。
         roomId で読み直す Effect と ref を同期する Effect を消す
     - _Requirements: 9.2, 9.3, 9.4_
-  - [ ]\* 10.4 参照の安定、別タブの追随、壊れた JSON のテストを書く。下書きを保存した状態で SSG 済み HTML を
+  - [x]\* 10.4 参照の安定、別タブの追随、壊れた JSON のテストを書く。下書きを保存した状態で SSG 済み HTML を
     hydrate しても不一致が出ないテストを残す
     - _Requirements: 9.2, 9.4_
 
 - [ ] 11. RetroSplitter を Pointer Events にする（Requirement 10、PR11）
-  - [ ] 11.1 分割バーを `pointerdown` + `setPointerCapture` / `pointermove` / `pointerup` / `lostpointercapture` に
+  - [x] 11.1 分割バーを `pointerdown` + `setPointerCapture` / `pointermove` / `pointerup` / `lostpointercapture` に
         し、`touch-action: none` を付ける
     - _Requirements: 10.1, 10.3_
-  - [ ] 11.2 window への `mousemove` / `mouseup` の登録、`onMouseMove` / `onMouseUp` / `calcPercent` の
+  - [x] 11.2 window への `mousemove` / `mouseup` の登録、`onMouseMove` / `onMouseUp` / `calcPercent` の
         `useCallback`、`topHeightRef` の同期 Effect を消す。CLAUDE.md の「残す useCallback」の一覧から外す
     - _Requirements: 10.2, 18.1_
-  - [ ]\* 11.3 ポインタ操作とキーボード操作のテストを書く（jsdom 用に `setPointerCapture` のスタブを用意する）
+  - [x]\* 11.3 ポインタ操作とキーボード操作のテストを書く（jsdom 用に `setPointerCapture` のスタブを用意する）
     - _Requirements: 10.1, 10.4_
   - [ ] 11.4 タッチ端末（または DevTools のエミュレーション）でドラッグできることを確かめる
     - _Requirements: 10.1, 10.3_
 
 - [ ] 12. React 19.3 に上げて Activity と ViewTransition を使う（Requirement 12、PR12）
-  - [ ] 12.1 `react` / `react-dom` / `@types/react` / `@types/react-dom` を 19.3 系に上げる。開発環境の SSG ページの
+  - [x] 12.1 `react` / `react-dom` / `@types/react` / `@types/react-dom` を 19.3 系に上げる。開発環境の SSG ページの
         hydration で Effect が二重に呼ばれても、Realtime の channel が重複しないことを確かめる
     - _Requirements: 12.1_
-  - [ ] 12.2 ChatLogList と ChatRanking にそれぞれのスクロール枠を持たせ、RetroSplitter の下段の枠は
+  - [x] 12.2 ChatLogList と ChatRanking にそれぞれのスクロール枠を持たせ、RetroSplitter の下段の枠は
         `overflow: hidden` にする
     - _Requirements: 12.2a_
-  - [ ] 12.3 ランキングを表示している間、ChatLogList を `<Activity mode="hidden">` で残す。開閉は `startTransition`
+  - [x] 12.3 ランキングを表示している間、ChatLogList を `<Activity mode="hidden">` で残す。開閉は `startTransition`
         で行う
     - _Requirements: 12.2, 12.2a_
-  - [ ] 12.4 ランキングとログの切り替え、入室フォームとチャット入力の切り替えを `<ViewTransition>` で包み、
+  - [x] 12.4 ランキングとログの切り替え、入室フォームとチャット入力の切り替えを `<ViewTransition>` で包み、
         `prefers-reduced-motion: reduce` でアニメーションを止める CSS を入れる
     - _Requirements: 12.3, 12.4, 12.5_
-  - [ ]\* 12.5 ランキングから戻ったときに ChatLogList が再マウントされない（マウントの回数を数える）テストを書く
+  - [x]\* 12.5 ランキングから戻ったときに ChatLogList が再マウントされない（マウントの回数を数える）テストを書く
     - _Requirements: 12.2_
   - [ ] 12.6 Chrome と Safari で、アニメーションと reduced-motion を確かめる
     - _Requirements: 12.3, 12.4_
@@ -216,65 +216,67 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x] 13.1 `supabaseClient.ts` のグローバルヘッダから `Accept-Encoding` / `X-My-Custom-Header` /
         `Content-Type` を外す（PR4 で先に出す）
     - _Requirements: 13.2_
-  - [ ] 13.2 スパイク: `@supabase/postgrest-js` / `@supabase/realtime-js` / `@supabase/functions-js` だけで最小の
+  - [x] 13.2 スパイク: `@supabase/postgrest-js` / `@supabase/realtime-js` / `@supabase/functions-js` だけで最小の
         クライアントを作り、チャット系ルートの modulePreload の合計（gzip）を比べる。結果を design.md §13 に書く
     - _Requirements: 13.1_
-  - [ ] 13.3 15 kB gz 以上減るときだけ、`shared/supabase/{rest,realtime,functions}.ts` に置き換える
+  - [x] 13.3 15 kB gz 以上減るときだけ、`shared/supabase/{rest,realtime,functions}.ts` に置き換える
     - _Requirements: 13.1, 13.3_
   - [ ]\* 13.4 Realtime の再接続、`save-chat` のヘッダ（`x-chat-operation-id` / `x-chat-attempt`）、New Relic の
     `traceparent` を確かめる（`scripts/verify-trace.ts` を使う）
     - _Requirements: 13.3_
 
-- [ ] 14. トップの参加人数の集計をサーバーに移す（Requirement 14、PR4 / PR14）
+- [x] 14. トップの参加人数の集計をサーバーに移す（Requirement 14、PR4 / PR14）
   - [x] 14.1 `buildRoomCountsUrl` の `select` から `message` を外す（PR4 で先に出す）
     - _Requirements: 14.1_
-  - [ ] 14.2 `room_participant_counts(since_ms)` の RPC を作るマイグレーションを追加する（`security invoker`）。
+  - [x] 14.2 `room_participant_counts(since_ms)` の RPC を作るマイグレーションを追加する（`security invoker`）。
         必要なら `time` の部分インデックスを足す
     - _Requirements: 14.2, 14.4_
-  - [ ] 14.3 `fetchRoomParticipantCounts` を RPC の呼び出しにする（supabase-js は使わず `fetch` のまま）
+  - [x] 14.3 `fetchRoomParticipantCounts` を RPC の呼び出しにする（supabase-js は使わず `fetch` のまま）
     - _Requirements: 14.2_
-  - [ ]\* 14.4 同じ入力データで、RPC の結果と `aggregateCountsFromRows` の結果が一致することを確かめる
+  - [x]\* 14.4 同じ入力データで、RPC の結果と `aggregateCountsFromRows` の結果が一致することを確かめる
     - _Requirements: 14.3_
 
-- [ ] 15. ビルド設定を Vite 8 に合わせ、SSG の API を更新する（Requirement 15、PR15）
-  - [ ] 15.1 `build.rollupOptions` を `build.rolldownOptions` に改名する
+- [x] 15. ビルド設定を Vite 8 に合わせ、SSG の API を更新する（Requirement 15、PR15）
+  - [x] 15.1 `build.rollupOptions` を `build.rolldownOptions` に改名する
     - _Requirements: 15.1_
-  - [ ] 15.2 関数形式の `manualChunks` を `codeSplitting` の groups に書き換え、`dist/assets` のチャンクの一覧と
+  - [x] 15.2 関数形式の `manualChunks` を `codeSplitting` の groups に書き換え、`dist/assets` のチャンクの一覧と
         サイズを前後で比べる
     - _Requirements: 15.2_
-  - [ ] 15.3 `entry-server.tsx` を `prerenderToNodeStream` + `node:stream/consumers` の `text()` にする
+  - [x] 15.3 `entry-server.tsx` を `prerenderToNodeStream` + `node:stream/consumers` の `text()` にする
     - _Requirements: 15.3_
-  - [ ] 15.4 `pnpm build:prod` の前後で、`dist/**/index.html` の `#root` の中身と modulePreload を比べる
+  - [x] 15.4 `pnpm build:prod` の前後で、`dist/**/index.html` の `#root` の中身と modulePreload を比べる
     - _Requirements: 15.4_
-  - [ ] 15.5 Oxc の minify で console の削除ができることを確かめ、terser と gzip の合計を比べる。差が 1% 以内なら
+  - [x] 15.5 Oxc の minify で console の削除ができることを確かめ、terser と gzip の合計を比べる。差が 1% 以内なら
         Oxc にする
     - _Requirements: 15.5_
 
 - [ ] 16. ページ間の遷移方式を決める（Requirement 16、PR16）
   - [ ] 16.1 スパイク: 方式 A（`@view-transition` + Speculation Rules）を試験的に入れ、トップ → 部屋で入室フォームが
         操作できるまでの時間と、Realtime が `SUBSCRIBED` になるまでの時間を測る
+    - localhost で prefetch が使われること（`deliveryType: navigational-prefetch`）までは確認した。
+      本番の回線での時間の計測はデプロイ後に行う（design.md §16「スパイクの結果」）
     - _Requirements: 16.1_
-  - [ ] 16.2 結果と決定（A / B、top-and-transition-performance の R4 / R5 の扱い）を design.md §16 に書く
+  - [x] 16.2 結果と決定（A / B、top-and-transition-performance の R4 / R5 の扱い）を design.md §16 に書く
     - _Requirements: 16.1, 16.4_
-  - [ ] 16.3 A を選んだ場合: トップの部屋リンクに Speculation Rules（`prefetch`、`eagerness: moderate`）を付け、
+  - [x] 16.3 A を選んだ場合: トップの部屋リンクに Speculation Rules（`prefetch`、`eagerness: moderate`）を付け、
         CSS に `@view-transition { navigation: auto; }` と reduced-motion の無効化を入れる
     - _Requirements: 16.2, 16.3_
 
-- [ ] 17. 長いログの描画コストを下げる（Requirement 17、PR17、任意）
-  - [ ] 17.1 1 件の合流を二分探索での挿入にし、UUID の比較を `<` にする
+- [x] 17. 長いログの描画コストを下げる（Requirement 17、PR17、任意）
+  - [x] 17.1 1 件の合流を二分探索での挿入にし、UUID の比較を `<` にする
     - _Requirements: 17.1, 17.2_
-  - [ ] 17.2 ChatLogList のソートを外す（入力がソート済みであることを前提にする）
+  - [x] 17.2 ChatLogList のソートを外す（入力がソート済みであることを前提にする）
     - _Requirements: 17.1_
-  - [ ] 17.3 行数が 200 を超えるとき、各行に `content-visibility: auto` を当てる
+  - [x] 17.3 行数が 200 を超えるとき、各行に `content-visibility: auto` を当てる
     - _Requirements: 17.3_
-  - [ ]\* 17.4 合流の結果が今の `mergeChatLogByUuid` と一致することを、fast-check のプロパティテストで確かめる
+  - [x]\* 17.4 合流の結果が今の `mergeChatLogByUuid` と一致することを、fast-check のプロパティテストで確かめる
     - _Requirements: 17.1_
 
-- [ ] 18. ドキュメントの整合と検収（Requirement 18、各 PR 共通）
-  - [ ] 18.1 CLAUDE.md と `docs/ARCHITECTURE.md` を、その PR の変更に合わせる（コンパイラの適用範囲、手動メモ化の
+- [x] 18. ドキュメントの整合と検収（Requirement 18、各 PR 共通）
+  - [x] 18.1 CLAUDE.md と `docs/ARCHITECTURE.md` を、その PR の変更に合わせる（コンパイラの適用範囲、手動メモ化の
         例外、ログ取得の流れ、削除したモジュール）
     - _Requirements: 18.1_
-  - [ ] 18.2 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
+  - [x] 18.2 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
     - _Requirements: 18.2_
-  - [ ] 18.3 性能に関わる PR では、変更前後のチャンクサイズ（gzip）を PR 本文に書く
+  - [x] 18.3 性能に関わる PR では、変更前後のチャンクサイズ（gzip）を PR 本文に書く
     - _Requirements: 18.3_

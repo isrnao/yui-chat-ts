@@ -1,40 +1,30 @@
-import { useState, useEffect, useRef } from 'react';
+import { useSyncExternalStore } from 'react';
 
-import { loadDraft, saveDraft, type ChanariDraft } from '../utils/draftStore';
+import { draftsStore, saveDraft, type ChanariDraft } from '../utils/draftStore';
 
 type SettingsPartial = Partial<Omit<ChanariDraft, 'version' | 'updatedAt' | 'roomId'>>;
 
+const EMPTY: Partial<ChanariDraft> = {};
+
+/**
+ * 部屋ごとの下書き（名前・色・最後の発言）。Persistent_Store を useSyncExternalStore で読む。
+ *
+ * 以前は useState の初期化で localStorage を読み、roomId の変化で読み直す Effect と、
+ * 最新の値を ref へ写す Effect を持っていた。ストアから読むので、どちらも不要になった
+ * （roomId が変われば読む部屋が変わるだけで、App も key={roomId} で再マウントしている）。
+ * SSG / hydration 中は既定値（空）で描画し、その後 localStorage の値に追随する。
+ */
 export function useChanariSettings(roomId: string) {
-  const [settings, setSettings] = useState<Partial<ChanariDraft>>(() => {
-    const draft = loadDraft(roomId);
-    return draft ?? {};
-  });
+  const drafts = useSyncExternalStore(
+    draftsStore.subscribe,
+    draftsStore.getSnapshot,
+    draftsStore.getServerSnapshot
+  );
+  const settings: Partial<ChanariDraft> = drafts[roomId] ?? EMPTY;
 
-  // 最新の settings を updater の外側で読むための控え。
-  // state updater は純粋である必要があり (Strict Mode では開発時に 2 回呼ばれる)、
-  // localStorage への書き込みを updater 内で行うことはできない。
-  const settingsRef = useRef(settings);
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
-
-  // roomId が切り替わったときに別 room の draft を引きずらないよう再 hydrate する。
-  // 初回マウント時は useState の initializer で読み込み済みなのでスキップする。
-  const previousRoomIdRef = useRef(roomId);
-  useEffect(() => {
-    if (previousRoomIdRef.current === roomId) return;
-    previousRoomIdRef.current = roomId;
-    const draft = loadDraft(roomId);
-    settingsRef.current = draft ?? {};
-    setSettings(draft ?? {});
-  }, [roomId]);
-
+  // 保存はストアの現在値に差分を重ねる（同じ tick 内の連続更新も取りこぼさない）
   const updateSettings = (partial: SettingsPartial) => {
-    // ref を即時更新することで、同一 tick 内の連続呼び出しでも取りこぼさない
-    const next = { ...settingsRef.current, ...partial };
-    settingsRef.current = next;
-    setSettings(next);
-    saveDraft({ roomId, ...next });
+    saveDraft({ roomId, ...partial });
   };
 
   return { settings, updateSettings };

@@ -16,7 +16,7 @@ describe('<RoomInfo />', () => {
     expect(screen.getByText('アニメチャット')).toBeInTheDocument();
     // anime カテゴリ: reborn / monhan / rozen が関連部屋
     const link = screen.getByRole('link', { name: 'リボーンチャット' });
-    expect(link).toHaveAttribute('href', '/chat/reborn');
+    expect(link).toHaveAttribute('href', '/chat/reborn/');
     // 自分自身へのリンクは出さない
     expect(screen.queryByRole('link', { name: 'アニメチャット' })).toBeNull();
   });

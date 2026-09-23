@@ -55,11 +55,13 @@ Manual memoization is being removed incrementally (the official guidance is not 
 once right after enabling the compiler). Event handlers and derived values now rely on the
 compiler. What is deliberately **kept**:
 
-- `useCallback` whose identity actually appears in a `useEffect` dependency array:
-  `RetroSplitter`'s drag handlers. It carries a comment saying why. The chat log no longer needs
-  any: fetching and the realtime subscription live in `Room_Log_Store`
+- No `useCallback` is needed any more. The last ones were `RetroSplitter`'s drag handlers, whose
+  identity gated the window `mousemove` / `mouseup` listeners; dragging now uses Pointer Events with
+  `setPointerCapture` on the bar itself, so there are no window listeners to re-attach. The chat log
+  needs none either: fetching and the realtime subscription live in `Room_Log_Store`
   (`api/roomLogStore.ts`), whose methods are stable, and components read it with
-  `useSyncExternalStore`.
+  `useSyncExternalStore`. Only add `useCallback` when the identity really appears in an effect's
+  dependency array, with a comment saying why.
 - `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
 
 Do not add _new_ manual memoization — let the compiler handle it.
@@ -123,6 +125,16 @@ messages. Because the log is Realtime-synced, this reflects cross-user presence.
 - New rows propagate to all clients via the `subscribeChatLogs` Realtime subscription
 - Chat logs are loaded from Supabase by `Room_Log_Store` (`api/chatQueries.ts`, no cache: every
   navigation is a full page load, so a cross-page cache never hits)
+- `Room_Log_Store` keeps the log sorted newest-first (uuid v7 descending; a single incoming row is
+  inserted by binary search in `mergeChatLogByUuid`). `ChatLogList` does **not** re-sort — it only
+  slices, so anything feeding it must already be in that order.
+
+**Page navigation**: there is no client-side router; moving between pages is a full page load
+(MPA). Room URLs end with a slash (`/chat/<id>/`, `/chanari/<id>/`): GitHub Pages 301-redirects
+`/chat/<id>` to `/chat/<id>/`, so links, canonical, og:url and the sitemap all use the slash form
+(`buildChatRoomPath` / `buildRoomPath`). Room links (`/chat/*`, `/chanari/*`) are prefetched by the Speculation Rules script in
+`index.html`, and pages are joined by cross-document View Transitions (`@view-transition` in
+`App.css`, off under `prefers-reduced-motion`). Browsers without support just navigate normally.
 
 ### Import Aliases
 
