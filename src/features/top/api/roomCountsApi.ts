@@ -56,6 +56,32 @@ export function buildRoomCountsUrl(baseUrl: string, since: number): string {
   return `${baseUrl.replace(/\/$/, '')}/rest/v1/chats?${params.toString()}`;
 }
 
+/** 参加人数の RPC（supabase/migrations/20260923000000_room_participant_counts.sql） */
+export function buildRoomCountsRpcUrl(baseUrl: string): string {
+  return `${baseUrl.replace(/\/$/, '')}/rest/v1/rpc/room_participant_counts`;
+}
+
+type RoomCountRow = { room_id: string | null; participants: number | null };
+
+/** RPC の結果を、一覧に出す部屋だけの RoomCountMap にする (テスト用に export) */
+export function toRoomCountMap(rows: readonly RoomCountRow[]): RoomCountMap {
+  const listable = new Set<string>(getListableRoomIds());
+  const result: RoomCountMap = {};
+  for (const row of rows) {
+    if (!row.room_id || !listable.has(row.room_id)) continue;
+    if (typeof row.participants !== 'number' || row.participants <= 0) continue;
+    result[row.room_id as RoomId] = row.participants;
+  }
+  return result;
+}
+
+/**
+ * 直近 `windowMs` の部屋ごとの参加人数。サーバー側の RPC で集計し、部屋の数ぶんの行だけを受け取る
+ * （.kiro/specs/react-2026-refactoring Requirement 14）。
+ *
+ * RPC がまだ DB に無い（マイグレーションの適用前: 404）ときは、従来どおり発言の行を取得して
+ * クライアントで数える。どちらも失敗したら空オブジェクトを返す（左カラムは「0人」で描画を続ける）。
+ */
 export async function fetchRoomParticipantCounts(
   windowMs: number = 6 * 60 * 60 * 1000
 ): Promise<RoomCountMap> {
@@ -66,31 +92,52 @@ export async function fetchRoomParticipantCounts(
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
   const since = Date.now() - windowMs;
+  const headers = {
+    apikey: anonKey,
+    Authorization: `Bearer ${anonKey}`,
+    Accept: 'application/json',
+  };
 
   try {
-    const response = await fetch(buildRoomCountsUrl(baseUrl, since), {
-      headers: {
-        apikey: anonKey,
-        Authorization: `Bearer ${anonKey}`,
-        Accept: 'application/json',
-      },
+    const response = await fetch(buildRoomCountsRpcUrl(baseUrl), {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ since_ms: since }),
     });
-
-    if (!response.ok) {
+    if (response.ok) {
+      return toRoomCountMap((await response.json()) as RoomCountRow[]);
+    }
+    if (response.status !== 404) {
       if (import.meta.env.DEV) {
-        console.warn('[roomCountsApi] fetch failed:', response.status, response.statusText);
+        console.warn('[roomCountsApi] rpc failed:', response.status, response.statusText);
       }
       return {};
     }
-
-    const rows = (await response.json()) as ChatRow[];
-    return aggregateCountsFromRows(rows);
+    // RPC が未適用 → 従来の行取得へ
+    return await fetchCountsFromRows(baseUrl, since, headers);
   } catch (err) {
     if (import.meta.env.DEV) {
       console.warn('[roomCountsApi] unexpected error:', err);
     }
     return {};
   }
+}
+
+/** 従来の集計: 発言の行（最大 5000 行）を取得してクライアントで数える。RPC が無いときだけ使う */
+async function fetchCountsFromRows(
+  baseUrl: string,
+  since: number,
+  headers: Record<string, string>
+): Promise<RoomCountMap> {
+  const response = await fetch(buildRoomCountsUrl(baseUrl, since), { headers });
+  if (!response.ok) {
+    if (import.meta.env.DEV) {
+      console.warn('[roomCountsApi] fetch failed:', response.status, response.statusText);
+    }
+    return {};
+  }
+  const rows = (await response.json()) as ChatRow[];
+  return aggregateCountsFromRows(rows);
 }
 
 /**

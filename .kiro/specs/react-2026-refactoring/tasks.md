@@ -225,15 +225,15 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     `traceparent` を確かめる（`scripts/verify-trace.ts` を使う）
     - _Requirements: 13.3_
 
-- [ ] 14. トップの参加人数の集計をサーバーに移す（Requirement 14、PR4 / PR14）
+- [x] 14. トップの参加人数の集計をサーバーに移す（Requirement 14、PR4 / PR14）
   - [x] 14.1 `buildRoomCountsUrl` の `select` から `message` を外す（PR4 で先に出す）
     - _Requirements: 14.1_
-  - [ ] 14.2 `room_participant_counts(since_ms)` の RPC を作るマイグレーションを追加する（`security invoker`）。
+  - [x] 14.2 `room_participant_counts(since_ms)` の RPC を作るマイグレーションを追加する（`security invoker`）。
         必要なら `time` の部分インデックスを足す
     - _Requirements: 14.2, 14.4_
-  - [ ] 14.3 `fetchRoomParticipantCounts` を RPC の呼び出しにする（supabase-js は使わず `fetch` のまま）
+  - [x] 14.3 `fetchRoomParticipantCounts` を RPC の呼び出しにする（supabase-js は使わず `fetch` のまま）
     - _Requirements: 14.2_
-  - [ ]\* 14.4 同じ入力データで、RPC の結果と `aggregateCountsFromRows` の結果が一致することを確かめる
+  - [x]\* 14.4 同じ入力データで、RPC の結果と `aggregateCountsFromRows` の結果が一致することを確かめる
     - _Requirements: 14.3_
 
 - [ ] 15. ビルド設定を Vite 8 に合わせ、SSG の API を更新する（Requirement 15、PR15）
