@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
-import { render } from './entry-server';
+import { render, renderToHtml } from './entry-server';
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
@@ -147,5 +147,33 @@ describe('SSG + hydrateRoot', () => {
     const values = Array.from(container.querySelectorAll('input')).map((el) => el.value);
     expect(values).toContain('たろう');
     expect(warnings).toEqual([]);
+  });
+});
+
+describe('renderToHtml', () => {
+  it('Suspense の中で描画に失敗したら、fallback の HTML を返さずに失敗する', async () => {
+    // ルートのチャンクの読み込みに失敗した場合に当たる。以前は prerender が fallback の HTML を返し、
+    // 中身のないページのままビルドが通っていた
+    const Broken = lazy(() => Promise.reject(new Error('チャンクを読み込めない')));
+    await expect(
+      renderToHtml(
+        <main>
+          <Suspense fallback={<p>読み込み中</p>}>
+            <Broken />
+          </Suspense>
+        </main>
+      )
+    ).rejects.toThrow('チャンクを読み込めない');
+  });
+
+  it('エラーがなければ Suspense の解決を待った HTML を返す', async () => {
+    const Loaded = lazy(() => Promise.resolve({ default: () => <p>本体</p> }));
+    const html = await renderToHtml(
+      <Suspense fallback={<p>読み込み中</p>}>
+        <Loaded />
+      </Suspense>
+    );
+    expect(html).toContain('本体');
+    expect(html).not.toContain('読み込み中');
   });
 });
