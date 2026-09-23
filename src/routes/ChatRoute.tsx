@@ -60,12 +60,12 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   useLookSound(roomId);
 
   const handleExit = () => {
-    const saving = session.exit();
-    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
+    // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setShowRanking(false);
     setName('');
     setMessage('');
-    return saving;
+    return session.exit();
   };
 
   const handleSend = (msg: string, metadata?: ChatMetadata) => {

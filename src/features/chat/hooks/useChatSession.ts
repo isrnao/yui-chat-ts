@@ -7,6 +7,7 @@ import {
 } from '@features/chat/api/chatApi';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
@@ -90,7 +91,7 @@ export function useChatSession({
     const err = validateName(name);
     if (err) {
       measurement.onJoinFailed(sessionRoomId, 'validation');
-      throw new Error(err);
+      throw new UserFacingError(err);
     }
     // 保存を待たずにチャット画面へ切り替える
     setEntered(true);
@@ -124,23 +125,21 @@ export function useChatSession({
   };
 
   /**
-   * 退室。退室メッセージの表示と入室状態の解除は同期で行い、保存の完了を返す。
-   * 入力欄やランキングの表示は呼び出し元が戻す。
+   * 退室。入室状態を同期で戻してから退室メッセージを送り、保存の完了を返す。
+   * 入力欄やランキングの表示は、呼び出し元が exit を呼ぶ前に戻す。
    */
-  const exit = (): Promise<void> => {
+  const exit = async (): Promise<void> => {
     trackEvent('chat_exit', { room_id: sessionRoomId, room_title: sessionTitle });
     measurement.onExited();
 
-    const saving = send(
-      sessionRoomId,
-      createAdminChat({
-        roomId: sessionRoomId,
-        message: `${identity.name}さん、またきておくれやすぅ。`,
-        userColor: identity.color,
-      })
-    );
+    // 退室の名前と色は、呼び出し元が入力欄を戻す前の値を使う
+    const farewell = createAdminChat({
+      roomId: sessionRoomId,
+      message: `${identity.name}さん、またきておくれやすぅ。`,
+      userColor: identity.color,
+    });
     setEntered(false);
-    return saving.then(() => {});
+    await send(sessionRoomId, farewell);
   };
 
   /** 送信するメッセージの metadata。全部屋まとめはアイデンティティのアバターと書式を足す */
@@ -171,7 +170,7 @@ export function useChatSession({
         const hasTargets = store
           .getSnapshot()
           .chats.some((c) => isClearTarget(c, sendTo, identity.name));
-        if (!hasTargets) throw new Error('削除対象の発言がありません');
+        if (!hasTargets) throw new UserFacingError('削除対象の発言がありません');
       }
       await clearChatLogsByName(sendTo, identity.name);
       trackEvent('command_used', { room_id: sendTo, command: 'clear' });

@@ -64,11 +64,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const { entered } = session;
 
   const handleExit = () => {
-    const saving = session.exit();
-    // 保存を待つ前に入力欄を戻す（退室操作は即座に反映させる）
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
+    // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setName('');
     setMessage('');
-    return saving;
+    return session.exit();
   };
 
   // 発言もログ消去（clear）も、送信した時点で入力欄を空にする

@@ -4,6 +4,7 @@ import type { Chat } from '@features/chat/types';
 import { createRoomLogStore, type LogSource } from '@features/chat/api/roomLogStore';
 import { useChatSession, type SessionTarget } from './useChatSession';
 import { trackEvent } from '@shared/utils/analytics';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 import {
   broadcastLookEvent,
   clearChatLogsByName,
@@ -201,6 +202,40 @@ describe('useChatSession', () => {
     expect(trackEvent).toHaveBeenCalledWith('command_used', {
       room_id: 'superbeginner',
       command: 'cut',
+    });
+  });
+
+  it('名前の検証エラーは利用者向けのエラー（UserFacingError）として返す', async () => {
+    const { result } = setup({ kind: 'room', roomId: 'superbeginner' });
+    await act(async () => {
+      await expect(result.current.enter({ name: '', color: '#000' })).rejects.toBeInstanceOf(
+        UserFacingError
+      );
+    });
+    expect(saveChatLogOptimistic).not.toHaveBeenCalled();
+  });
+
+  it('退室は保存を待たずに entered を戻す', async () => {
+    const { result } = setup({ kind: 'room', roomId: 'superbeginner' });
+    await act(async () => {
+      await result.current.enter({ name: 'ゆい', color: '#000' });
+    });
+
+    let resolveSave: (chat: Chat) => void = () => {};
+    vi.mocked(saveChatLogOptimistic).mockReturnValueOnce(
+      new Promise<Chat>((resolve) => {
+        resolveSave = resolve;
+      })
+    );
+    let exiting: Promise<void> | undefined;
+    act(() => {
+      exiting = result.current.exit();
+    });
+    expect(result.current.entered).toBe(false);
+
+    await act(async () => {
+      resolveSave(chat({ uuid: 'server-exit' }));
+      await exiting;
     });
   });
 });
