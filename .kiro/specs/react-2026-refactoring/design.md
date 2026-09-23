@@ -95,18 +95,33 @@ flowchart TB
 // @vitest-environment node
 import { transformSync } from '@babel/core';
 import reactCompiler from 'babel-plugin-react-compiler';
-import { globSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 
-/** 意図してコンパイル対象から外す関数。'use no memo' と理由のコメントを付けたうえでここに載せる */
-const ALLOWLIST: readonly string[] = [];
+// Node 20 には fs.globSync がないので readdirSync の recursive で走査する
+const files = readdirSync('src', { recursive: true, encoding: 'utf8' })
+  .map((f) => `src/${f}`)
+  .filter(
+    (f) => /\.tsx?$/.test(f) && !/\.(test|stories)\.|^src\/(test|storybook)\/|\.d\.ts$/.test(f)
+  );
 
-test('src の本番コードに React Compiler の CompileError がない', () => {
+/**
+ * CompileError を出した関数が意図した opt-out か。本体の先頭に 'use no memo' があり、
+ * その直前の行が理由のコメントであること。位置だけを並べた許可リストは、リストに足すだけで
+ * CompileError を隠せてしまうので使わない（'use no memo' を付けてもコンパイラは CompileError を報告する）。
+ */
+function isDocumentedOptOut(lines: string[], fnStartLine: number): boolean {
+  const body = lines.slice(fnStartLine - 1, fnStartLine + 3);
+  const at = body.findIndex((line) => /^\s*['"]use no memo['"];?\s*$/.test(line));
+  if (at <= 0) return false;
+  return /^\s*\/\/\s*\S/.test(body[at - 1]);
+}
+
+test('src の本番コードに React Compiler がコンパイルできない関数がない', () => {
   const failures: string[] = [];
-  const files = globSync('src/**/*.{ts,tsx}', {
-    exclude: (f) => /\.(test|stories)\.|\/test\/|\/storybook\/|\.d\.ts$/.test(f),
-  });
   for (const file of files) {
-    transformSync(readFileSync(file, 'utf8'), {
+    const source = readFileSync(file, 'utf8');
+    const lines = source.split('\n');
+    transformSync(source, {
       filename: file,
       babelrc: false,
       configFile: false,
@@ -118,8 +133,9 @@ test('src の本番コードに React Compiler の CompileError がない', () =
             panicThreshold: 'none',
             logger: {
               logEvent(_f: string, e: { kind: string; fnLoc?: { start: { line: number } } }) {
-                if (e.kind === 'CompileError')
-                  failures.push(`${file}:${e.fnLoc?.start.line ?? '?'}`);
+                if (e.kind !== 'CompileError') return;
+                const line = e.fnLoc?.start.line ?? 0;
+                if (!isDocumentedOptOut(lines, line)) failures.push(`${file}:${line}`);
               },
             },
           },
@@ -127,7 +143,7 @@ test('src の本番コードに React Compiler の CompileError がない', () =
       ],
     });
   }
-  expect(failures.filter((f) => !ALLOWLIST.includes(f))).toEqual([]);
+  expect(failures).toEqual([]);
 });
 ```
 
@@ -148,14 +164,15 @@ ChatRoute 配下で再レンダーされる範囲を記録する（R8 の前後�
 // features/chat/hooks/useChatSender.ts（概略）
 import { startTransition } from 'react';
 
-function sendWithOptimistic(roomId: RoomId, chat: Chat, options?: SaveChatOptions): Promise<Chat> {
+// useChatSender({ addOptimistic, mergeChat }) が返す send
+function send(roomId: RoomId, chat: Chat, options?: SaveChatOptions): Promise<Chat> {
   return new Promise((resolve, reject) => {
     startTransition(async () => {
       addOptimistic(chat); // この Action が pending の間だけ表示される
       try {
         const saved = await saveChat(roomId, chat, options);
         // await の後は Transition の文脈が切れるので、もう一度包む（React の既知の制約）
-        startTransition(() => applySaved(saved));
+        startTransition(() => mergeChat(saved)); // R6 以降は store.applySaved を渡す
         resolve(saved);
       } catch (error) {
         // Action の中で投げると最寄りの Error Boundary に届いてしまうので、ここで捕まえて返す
@@ -168,8 +185,9 @@ function sendWithOptimistic(roomId: RoomId, chat: Chat, options?: SaveChatOption
 
 - 呼び出し元（ChatRoom の `useActionState` など）が Action の中にいる場合、React はこの Transition を外側の
   Action に束ねる。どちらの場合でも、楽観的な表示は保存が終わるまで残る
-- `showOptimistic` と `saveAndMerge` を分けて呼ぶ API はなくし、`sendWithOptimistic` 1 つにする。退室の
-  「表示を先に戻す」処理（入室状態を戻す、入力欄を空にする）は、`sendWithOptimistic` を呼ぶ前に同期で行う
+- `showOptimistic` と `saveAndMerge` を分けて呼ぶ API はなくし、`send` 1 つにする（利用者の発言は、操作 ID を
+  発行して `send` を呼ぶ `sendUserMessage`）。退室の「表示を先に戻す」処理（入室状態を戻す、入力欄を空にする）は、
+  `send` を呼ぶ前に同期で行う
 - 保存が失敗すると、Action が終わった時点で楽観的な表示は自動で消える（R2.3）
 
 ### 3. 参加者リスト（Requirement 3）
@@ -330,18 +348,22 @@ type SessionTarget = { kind: 'room'; roomId: RoomId } | { kind: 'all'; replyTo: 
 function useChatSession(args: {
   target: SessionTarget;
   identity: ChatIdentity;
-  log: RoomLogStore;
+  store: RoomLogStore;
+  // 楽観的な表示は store ではなく useRoomLog の useOptimistic が持つので、その追加アクションを受け取る。
+  // store はサーバーで確定した行だけを持つ（R6.6）。setState ではなく useOptimistic のアクション
+  addOptimistic: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }): {
   entered: boolean;
   enter: (opts: { silent: boolean }) => Promise<void>;
   exit: () => Promise<void>;
-  send: (message: string, metadata?: ChatMetadata) => Promise<SendResult>; // SendResult で「入力欄を空にする」「ランキングを閉じる」などを返す
+  send: (message: string, metadata?: ChatMetadata) => Promise<void>;
 };
 ```
 
-- 入室状態（`entered`）は Chat_Session が持つ。ランキングの表示（`showRanking`）はルートの UI の状態として残し、
-  `send` の結果（`SendResult.closeRanking`）を見てルートが閉じる。Chat_Session には `setState` を渡さない（R7.3）
+- 入室状態（`entered`）は Chat_Session が持つ。入力欄とランキングの表示（`showRanking`）はルートの UI の状態として
+  残し、ルートが送信・退室の操作に合わせて自分で戻す（空でない発言を送ったら入力欄を空にしてランキングを閉じる）。
+  Chat_Session には `setState` を渡さない（R7.3）
 - **部屋と全部屋まとめで違う点は、今の挙動を保つ**（R7.4）。統合するときに消してしまわないよう、ここに列挙しておく:
 
 | 項目                   | 部屋                                    | 全部屋まとめ                                     |
@@ -515,7 +537,8 @@ language sql stable security invoker as $$
     and time >= since_ms
     and coalesce(system, false) = false
     and coalesce(metadata->>'kind', '') <> 'admin'
-    and name is not null
+    -- 現行の aggregateCountsFromRows は `if (!row.name) continue` で空文字も除く
+    and coalesce(name, '') <> ''
   group by room_id
 $$;
 ```
@@ -595,7 +618,7 @@ sequenceDiagram
   U->>F: 発言
   F->>F: onSubmit: 入力欄を空にする（同期）
   F->>S: send(msg)（useActionState の Action）
-  S->>C: sendWithOptimistic(roomId, chat)
+  S->>C: sendUserMessage(roomId, chat) → send
   C->>C: startTransition(async): addOptimistic(chat)
   Note over F: 「送信中...」を表示（Action が終わるまで）
   C->>E: saveChat（リトライあり）
@@ -679,7 +702,7 @@ PR の順序は [tasks.md](./tasks.md) に書く。進め方の要点:
 
 | 指標                                           | 現状                                     | 目標                           | 関係する要件 |
 | ---------------------------------------------- | ---------------------------------------- | ------------------------------ | ------------ |
-| コンパイラが処理した関数                       | 55 / 73（未コンパイル 18）               | CompileError 0（許可リスト外） | R1           |
+| コンパイラが処理した関数                       | 55 / 73（未コンパイル 18）               | CompileError 0（opt-out 以外） | R1           |
 | 発言の入力 1 文字で再レンダーされる範囲        | ChatRoute 配下（未コンパイルの子を含む） | ChatRoom の中だけ              | R1 / R8      |
 | 楽観的なチャットが保存の解決前に出る経路       | 1 / 4                                    | 4 / 4                          | R2           |
 | チャット系ルートの初期 JS（gzip）              | 約 153 kB                                | −15 kB 以上（採用した場合）    | R13          |
