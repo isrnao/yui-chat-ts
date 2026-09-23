@@ -43,12 +43,12 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 1.5_
   - [x] 1.3 `src/test/reactCompiler.test.ts`（Compiler_Check）を追加する
     - 対象: `src/**/*.{ts,tsx}` から `*.test.*` / `*.stories.*` / `src/test/` / `src/storybook/` / `*.d.ts` を除く
-    - 許可リストは空で始める（ChatLogPage の try/finally は Task 5 で削除するまで一時的に載せる）
+    - 意図した opt-out は `'use no memo'` + 直前の理由コメントで表し、ソースから検査する（ChatLogPage は Task 5 で削除するまで opt-out にする）
     - _Requirements: 1.2, 1.3, 1.4_
   - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Profiler の代わりに Task 9.5 の再レンダー計測テストで前後を比べる）
+  - [ ] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Task 9.5 の再レンダー計測テストで前後を記録するまで未完了）
     - _Requirements: 1.1_
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
@@ -58,7 +58,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     `useActionState` 経由 / async Action の中の 3 通りで、保存が解決する前に楽観的なチャットが表示されることを
     確かめる（今は「Action の外」だけ失敗する）
     - _Requirements: 2.4_
-  - [x] 2.2 `useChatSender` に `sendWithOptimistic` を作り、楽観的な表示 → 保存 → `startTransition(applySaved)` を
+  - [x] 2.2 `useChatSender` の `send` で、楽観的な表示 → 保存 → `startTransition(() => mergeChat(saved))` を
         1 つの `startTransition(async …)` の中で行う。Action の中の例外は捕まえて Promise の reject で返す
     - _Requirements: 2.1, 2.3_
   - [x] 2.3 `showOptimistic` + `saveAndMerge` を別々に呼んでいる箇所（入室、退室、発言、おみくじ）を
@@ -109,19 +109,19 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 5.4_
   - [x] 5.6 Q2 の回答により `mockChatData` の経路は残す（変更なし）
     - _Requirements: 5.6_
-  - [x] 5.7 Compiler_Check の許可リストから ChatLogPage を外す
+  - [x] 5.7 Compiler_Check の opt-out が残っていないことを確かめる（ChatLogPage の削除で消える）
     - _Requirements: 1.2_
   - [x] 5.8 到達しないモジュールを CI で検出する仕組み（knip など）の導入を検討し、
         到達しないモジュールが 0 であることを確かめる
     - _Requirements: 5.1_
 
-- [x] 6. 型情報を使う lint を入れる（Requirement 11、PR6）
+- [ ] 6. 型情報を使う lint を入れる（Requirement 11、PR6）
   - [x] 6.1 `eslint.config.js` に typescript-eslint の `no-floating-promises` / `no-misused-promises` /
         `no-explicit-any` を、型情報つき（`projectService`）で `src/` の本番コードに error として追加する
     - _Requirements: 11.1, 11.3_
   - [x] 6.2 残っている違反を直すか、理由のコメント付きで抑制する
     - _Requirements: 11.2, 4.5_
-  - [x] 6.3 CI の lint の所要時間を PR 本文に記録する
+  - [ ] 6.3 CI の lint の所要時間を PR 本文に記録する（CI に lint の手順を追加。所要時間は CI の実行後に記録する）
     - _Requirements: 11.3_
 
 - [x] 7. Room_Log_Store を入れる（段階 1: 内部の置き換え）（Requirement 6、PR7）

@@ -1,5 +1,6 @@
 import { clearChatLogsByName, createOptimisticChat } from '@features/chat/api/chatApi';
 import { validateName } from '@features/chat/utils/validation';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
 import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend';
@@ -64,7 +65,7 @@ export function useAllRoomsChatHandlers({
     const err = validateName(entryName);
     if (err) {
       measurement.onJoinFailed('all', 'validation');
-      throw new Error(err);
+      throw new UserFacingError(err);
     }
     setEntered(true);
 
@@ -115,13 +116,12 @@ export function useAllRoomsChatHandlers({
       userColor: color,
     });
 
-    const saving = send('all', optimistic);
-    // 保存を待つ前に入力欄と表示状態を戻す（退室操作は即座に反映させる）
+    // 保存を待つ前に入力欄と表示状態を同期で戻してから送る（退室操作は即座に反映させる）
     setEntered(false);
     setName('');
     setMessage('');
 
-    await saving;
+    await send('all', optimistic);
   };
 
   const handleSend = async (msg: string, metadata?: ChatMetadata) => {
@@ -148,7 +148,7 @@ export function useAllRoomsChatHandlers({
 
       if (targets.length === 0) {
         setMessage('');
-        throw new Error('削除対象の発言がありません');
+        throw new UserFacingError('削除対象の発言がありません');
       }
 
       await clearChatLogsByName(replyTarget, name);

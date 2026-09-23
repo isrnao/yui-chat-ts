@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { toUserMessage } from '@features/chat/utils/userFacingError';
 import ChanariColorPicker from '../ChanariColorPicker';
 import ChanariCharCounter from '../ChanariCharCounter';
 import { countChars } from '../../utils/countChars';
@@ -54,10 +55,11 @@ export default function ChanariChatRoom({
   // 保存の完了まで遅らせないため（Action の中の更新は Action の終わりにまとめて反映される）。
   const [actionError, setActionError] = useState('');
   const error = externalError || actionError;
-  const report = (result: void | Promise<void>) => {
+  // API の内部エラー（Failed to save chat: ... など）は画面に出さず、操作ごとの文言にする
+  const report = (result: void | Promise<void>, fallback: string) => {
     setActionError('');
     Promise.resolve(result).catch((err: unknown) => {
-      setActionError(err instanceof Error && err.message ? err.message : '送信エラー');
+      setActionError(toUserMessage(err, fallback));
     });
   };
 
@@ -67,7 +69,7 @@ export default function ChanariChatRoom({
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (message.trim() === '' || countChars(message) > 120) return;
-    report(onSend(message));
+    report(onSend(message), '発言を送信できませんでした。時間をおいてもう一度お試しください。');
   };
 
   return (
@@ -182,7 +184,16 @@ export default function ChanariChatRoom({
       <button type="button" onClick={onRestoreDraft} disabled={isPending}>
         発言復元
       </button>
-      <button type="button" onClick={() => report(onClearMyLogs())} disabled={isPending}>
+      <button
+        type="button"
+        onClick={() =>
+          report(
+            onClearMyLogs(),
+            'ログを消去できませんでした。時間をおいてもう一度お試しください。'
+          )
+        }
+        disabled={isPending}
+      >
         ログ消去
       </button>
       <button
