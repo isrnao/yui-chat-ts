@@ -247,6 +247,6 @@ export const usePageView = (pageName?: string) => {
 // グローバルなgtagの型定義
 declare global {
   interface Window {
-    gtag: (...args: any[]) => void;
+    gtag: (...args: unknown[]) => void;
   }
 }

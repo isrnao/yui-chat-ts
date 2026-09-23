@@ -262,8 +262,6 @@ SSR ビルドで注意する点:
 
 - `Header/index.tsx` が `./headerTheme.css` を import しているため、SSR ビルドでも CSS import を
   通す必要がある（Vite が SSR 出力では実体を落とすので、スタイルはクライアント側の CSS に任せる）
-- `App.tsx` は全ルートを静的 import しているため、SSR バンドルに `TermsModal` 経由で MDX が入る。
-  `@mdx-js/rollup` は SSR ビルドでも有効にしておく
 - React Compiler の babel プラグインは SSR ビルドにも適用されるが、出力は変わらない
 
 #### 検証

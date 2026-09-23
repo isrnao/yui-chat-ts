@@ -9,7 +9,20 @@ type Props = {
   chat: Chat;
   showRoomName?: boolean;
   onRoomClick?: (roomId: RoomId) => void;
+  /** 画面外にある間は描画を省く（ログが長いときに ChatLogList が付ける） */
+  deferOffscreen?: boolean;
 };
+
+/**
+ * 発言 1 行の外枠のクラス。deferOffscreen のときは content-visibility: auto で画面外の行の
+ * レイアウトと描画を省き、高さは一度描いた実寸（初回は 1 行ぶん）で見積もる
+ * （.kiro/specs/react-2026-refactoring Requirement 17）
+ */
+function rowClassName(deferOffscreen?: boolean): string {
+  return deferOffscreen
+    ? 'mb-1 [content-visibility:auto] [contain-intrinsic-size:auto_1.5em]'
+    : 'mb-1';
+}
 
 /** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP はサーバー側でマスク済み） */
 function getTimeDisplay(chat: Chat): string {
@@ -174,15 +187,7 @@ function buildBrowserLine(chat: Chat): string {
 }
 
 /** 管理人メッセージ専用のレンダリング（レガシー風） */
-function AdminMessage({
-  chat,
-  showRoomName,
-  onRoomClick,
-}: {
-  chat: Chat;
-  showRoomName?: boolean;
-  onRoomClick?: (roomId: RoomId) => void;
-}) {
+function AdminMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props) {
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
@@ -190,7 +195,7 @@ function AdminMessage({
   const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (
-    <div className="mb-1">
+    <div className={rowClassName(deferOffscreen)}>
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
@@ -228,15 +233,22 @@ function AdminMessage({
   );
 }
 
-function ChatMessage({ chat, showRoomName, onRoomClick }: Props) {
+function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props) {
   if (chat.metadata?.kind === 'admin') {
-    return <AdminMessage chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />;
+    return (
+      <AdminMessage
+        chat={chat}
+        showRoomName={showRoomName}
+        onRoomClick={onRoomClick}
+        deferOffscreen={deferOffscreen}
+      />
+    );
   }
 
   const avatar = chat.metadata?.avatar;
 
   return (
-    <div className="mb-1">
+    <div className={rowClassName(deferOffscreen)}>
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}

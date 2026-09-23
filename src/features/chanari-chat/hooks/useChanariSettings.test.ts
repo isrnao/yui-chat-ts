@@ -1,35 +1,29 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { StrictMode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { useChanariSettings } from './useChanariSettings';
+import { STORAGE_KEY, ONE_YEAR_MS, saveDraft } from '../utils/draftStore';
 
-const { loadDraft, saveDraft } = vi.hoisted(() => ({
-  loadDraft: vi.fn(),
-  saveDraft: vi.fn(),
-}));
-
-vi.mock('../utils/draftStore', () => ({
-  loadDraft,
-  saveDraft,
-}));
+function storedDrafts(): Record<string, Record<string, unknown>> {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<
+    string,
+    Record<string, unknown>
+  >;
+}
 
 describe('useChanariSettings', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    loadDraft.mockReturnValue(null);
+    localStorage.clear();
   });
 
-  // 回帰テスト: 以前は setSettings の updater 内で saveDraft を呼んでいたため、
-  // updater が純粋でなく Strict Mode の二重呼び出しで副作用も 2 回走っていた
-  it('Strict Mode でも保存の副作用が 1 回だけ走る', () => {
+  it('Strict Mode でも保存は 1 回で、保存した値を返す', () => {
     const { result } = renderHook(() => useChanariSettings('durarara'), { wrapper: StrictMode });
 
     act(() => {
       result.current.updateSettings({ name: 'ゆい' });
     });
 
-    expect(saveDraft).toHaveBeenCalledTimes(1);
-    expect(saveDraft).toHaveBeenCalledWith({ roomId: 'durarara', name: 'ゆい' });
+    expect(storedDrafts().durarara).toMatchObject({ roomId: 'durarara', name: 'ゆい', version: 1 });
     expect(result.current.settings.name).toBe('ゆい');
   });
 
@@ -41,18 +35,12 @@ describe('useChanariSettings', () => {
       result.current.updateSettings({ nameColor: '#ff69b4' });
     });
 
-    expect(saveDraft).toHaveBeenLastCalledWith({
-      roomId: 'durarara',
-      name: 'ゆい',
-      nameColor: '#ff69b4',
-    });
-    expect(result.current.settings).toEqual({ name: 'ゆい', nameColor: '#ff69b4' });
+    expect(storedDrafts().durarara).toMatchObject({ name: 'ゆい', nameColor: '#ff69b4' });
+    expect(result.current.settings).toMatchObject({ name: 'ゆい', nameColor: '#ff69b4' });
   });
 
-  it('roomId が変わると別 room の draft を読み直す', () => {
-    loadDraft.mockImplementation((roomId: string) =>
-      roomId === 'hajime' ? { version: 1, roomId, name: 'はじめ', updatedAt: Date.now() } : null
-    );
+  it('roomId が変わると別 room の draft を読む', () => {
+    saveDraft({ roomId: 'hajime', name: 'はじめ' });
 
     const { result, rerender } = renderHook(({ roomId }) => useChanariSettings(roomId), {
       initialProps: { roomId: 'durarara' },
@@ -63,5 +51,30 @@ describe('useChanariSettings', () => {
     rerender({ roomId: 'hajime' });
 
     expect(result.current.settings.name).toBe('はじめ');
+  });
+
+  it('他の部屋の下書きを壊さずに保存する', () => {
+    saveDraft({ roomId: 'hajime', name: 'はじめ' });
+    const { result } = renderHook(() => useChanariSettings('durarara'));
+
+    act(() => {
+      result.current.updateSettings({ name: 'ゆい' });
+    });
+
+    expect(Object.keys(storedDrafts()).sort()).toEqual(['durarara', 'hajime']);
+  });
+
+  it('1 年より古い下書きや未来の日付の下書きは読まない', () => {
+    const now = Date.now();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        old: { version: 1, roomId: 'old', name: '古い', updatedAt: now - ONE_YEAR_MS - 1000 },
+        future: { version: 1, roomId: 'future', name: '未来', updatedAt: now + 60_000 },
+      })
+    );
+
+    expect(renderHook(() => useChanariSettings('old')).result.current.settings).toEqual({});
+    expect(renderHook(() => useChanariSettings('future')).result.current.settings).toEqual({});
   });
 });

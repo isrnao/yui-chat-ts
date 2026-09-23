@@ -1,24 +1,24 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { StrictMode } from 'react';
+import { StrictMode, Suspense, lazy } from 'react';
 import { hydrateRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
-import { render } from './entry-server';
+import { render, renderToHtml } from './entry-server';
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@features/chat/api/chatApi', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@features/chat/api/chatApi')>();
-  return {
-    ...actual,
-    loadChatLogs: vi.fn(() => Promise.resolve([])),
-    subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
-    onLookBroadcast: vi.fn(() => vi.fn()),
-  };
-});
+vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/chatQueries')>()),
+  loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
+}));
+vi.mock('@features/chat/api/realtime', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/api/realtime')>()),
+  subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
+  onLookBroadcast: vi.fn(() => vi.fn()),
+}));
 
 /** hydration の不一致は console.error で報告される */
 function collectHydrationErrors() {
@@ -85,12 +85,31 @@ describe('SSG + hydrateRoot', () => {
     expect(warnings).toEqual([]);
   });
 
+  // React 19.3 では hydration のときも Strict Mode が Effect を二重に呼ぶ（react#35961）。
+  // Room_Log_Store は購読の解除をマイクロタスクまで遅らせるので、channel を張り直さない
+  it('Strict Mode の hydration でも Realtime の購読を 1 つしか張らない', async () => {
+    const { subscribeChatLogs } = await import('@features/chat/api/realtime');
+    vi.mocked(subscribeChatLogs).mockClear();
+
+    // 他のテストで hydrate したルートが購読を続けていない部屋を使う
+    await ssgThenHydrate('/chat/durarara');
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(subscribeChatLogs).toHaveBeenCalledTimes(1);
+    expect(subscribeChatLogs).toHaveBeenCalledWith(
+      'durarara',
+      expect.any(Function),
+      expect.any(Function)
+    );
+  });
+
   // 「前回の名前を覚えている」機能が SSG 化で壊れないことの回帰テスト。
   // 入力 state を useState でコピーすると、SSG 時の既定値 (空) を握ったままになり、
   // hydration 後にストアが実値へ切り替わっても追随しない。
   it('hydration 後にストア由来のおなまえが入力欄へ反映される', async () => {
-    // settingsStore はモジュール読み込み時に localStorage を読むため、
-    // 後から localStorage を書いても反映されない。公開 API で更新する。
+    // 公開 API で更新する（同じタブの変更として購読者へ通知される）
     const settingsStore = await import('@features/chat/utils/settingsStore');
     settingsStore.updateSettings({ name: 'ゆい' });
 
@@ -115,5 +134,46 @@ describe('SSG + hydrateRoot', () => {
 
     expect(checked.map((el) => el.value)).toContain('hoshi1');
     expect(warnings).toEqual([]);
+  });
+
+  // ちゃなりの下書きは useSyncExternalStore で読む。SSG と hydration 中は空の既定値で描画し、
+  // hydration 後に下書きへ追随する（useState の初期化で localStorage を読むと不一致の元になる）
+  it('ちゃなりの下書きを保存した状態でも、不一致なく hydrate して下書きの名前を出す', async () => {
+    const { saveDraft } = await import('@features/chanari-chat/utils/draftStore');
+    saveDraft({ roomId: 'durarara', name: 'たろう' });
+
+    const { container, warnings } = await ssgThenHydrate('/chanari/durarara');
+
+    const values = Array.from(container.querySelectorAll('input')).map((el) => el.value);
+    expect(values).toContain('たろう');
+    expect(warnings).toEqual([]);
+  });
+});
+
+describe('renderToHtml', () => {
+  it('Suspense の中で描画に失敗したら、fallback の HTML を返さずに失敗する', async () => {
+    // ルートのチャンクの読み込みに失敗した場合に当たる。以前は prerender が fallback の HTML を返し、
+    // 中身のないページのままビルドが通っていた
+    const Broken = lazy(() => Promise.reject(new Error('チャンクを読み込めない')));
+    await expect(
+      renderToHtml(
+        <main>
+          <Suspense fallback={<p>読み込み中</p>}>
+            <Broken />
+          </Suspense>
+        </main>
+      )
+    ).rejects.toThrow('チャンクを読み込めない');
+  });
+
+  it('エラーがなければ Suspense の解決を待った HTML を返す', async () => {
+    const Loaded = lazy(() => Promise.resolve({ default: () => <p>本体</p> }));
+    const html = await renderToHtml(
+      <Suspense fallback={<p>読み込み中</p>}>
+        <Loaded />
+      </Suspense>
+    );
+    expect(html).toContain('本体');
+    expect(html).not.toContain('読み込み中');
   });
 });

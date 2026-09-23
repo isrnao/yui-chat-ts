@@ -1,9 +1,7 @@
-import { useState } from 'react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
-import * as uuidUtils from '@shared/utils/uuid';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -103,95 +101,33 @@ describe('ChatLogList', () => {
     expect(screen.getByText(`(DATE(${FIXED_NOW - 2000}) test-ip)`)).toBeInTheDocument();
   });
 
-  it('sorts out-of-order chatLog by uuid v7 desc (newer first) before slicing by windowRows', () => {
-    // out-of-order: 古いメッセージが配列先頭、新しいメッセージが配列末尾
-    // (本実装が prepend を前提に sort をスキップする回帰を防ぐためのテスト)
-    const outOfOrder: Chat[] = [
-      {
-        uuid: '0191b8a0-0001-7000-8000-000000000001', // uuid v7: 古め
-        name: 'Older',
-        color: '#000',
-        message: 'OLDER_MESSAGE',
-        time: FIXED_NOW - 5000,
-        email: '',
-        ip_masked: 'test-ip',
-        ua: 'test-ua',
-      },
-      {
-        uuid: '0191b8a0-9999-7000-8000-000000000002', // uuid v7: 新しめ
-        name: 'Newer',
-        color: '#000',
-        message: 'NEWER_MESSAGE',
-        time: FIXED_NOW - 1000,
-        email: '',
-        ip_masked: 'test-ip',
-        ua: 'test-ua',
-      },
+  it('渡された順のまま表示し、並べ直さない（並び順は Room_Log_Store が保つ）', () => {
+    // 発言が届くたびに全体を並べ直さないよう、ChatLogList は切り出すだけにした（Requirement 17）
+    const log: Chat[] = [
+      { ...chatLog[0]!, uuid: 'first', message: 'FIRST_MESSAGE', time: FIXED_NOW - 5000 },
+      { ...chatLog[1]!, uuid: 'second', message: 'SECOND_MESSAGE', time: FIXED_NOW - 1000 },
     ];
 
-    // windowRows=1: sort 後の先頭 (= Newer) だけが描画される
-    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
-    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
-    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
+    render(<ChatLogList chatLog={log} windowRows={1} />);
+    expect(screen.getByText('FIRST_MESSAGE')).toBeInTheDocument();
+    expect(screen.queryByText('SECOND_MESSAGE')).not.toBeInTheDocument();
   });
 
-  it('falls back to time-desc sort when uuids are not v7 (e.g. temp- or test ids)', () => {
-    // uuid が temp-* / 単純 id のときは isUUIDv7 が false を返し、time-desc に fallback する
-    const outOfOrder: Chat[] = [
-      {
-        uuid: 'A',
-        name: 'Older',
-        color: '#000',
-        message: 'OLDER_MESSAGE',
-        time: FIXED_NOW - 5000,
-        email: '',
-        ip_masked: 'test-ip',
-        ua: 'test-ua',
-      },
-      {
-        uuid: 'B',
-        name: 'Newer',
-        color: '#000',
-        message: 'NEWER_MESSAGE',
-        time: FIXED_NOW - 1000,
-        email: '',
-        ip_masked: 'test-ip',
-        ua: 'test-ua',
-      },
-    ];
+  it('200 行を超えて表示するときだけ、画面外の行の描画を省く', () => {
+    const rows = (count: number): Chat[] =>
+      Array.from({ length: count }, (_, i) => ({
+        ...chatLog[0]!,
+        uuid: `row-${i}`,
+        message: `ROW_${i}`,
+      }));
+    const rowOf = (text: string) => screen.getByText(text).closest('div.mb-1');
 
-    render(<ChatLogList chatLog={outOfOrder} windowRows={1} />);
-    expect(screen.getByText('NEWER_MESSAGE')).toBeInTheDocument();
-    expect(screen.queryByText('OLDER_MESSAGE')).not.toBeInTheDocument();
-  });
+    const { unmount } = render(<ChatLogList chatLog={rows(300)} windowRows={200} />);
+    expect(rowOf('ROW_0')?.className).not.toContain('content-visibility');
+    unmount();
 
-  it('does not recompute sorted/sliced chats when parent rerenders with the same chatLog reference', () => {
-    // sortChatsByTime は ChatLogList の useMemo 内で呼ばれる。useMemo deps が
-    // [chatLog, windowRows] のため、参照不変な再 render では再実行されない。
-    const sortSpy = vi.spyOn(uuidUtils, 'sortChatsByTime');
-    const stableChatLog = [...chatLog].reverse();
-
-    function Host() {
-      const [tick, setTick] = useState(0);
-      return (
-        <>
-          <button type="button" onClick={() => setTick((value) => value + 1)}>
-            rerender {tick}
-          </button>
-          <ChatLogList chatLog={stableChatLog} windowRows={2} />
-        </>
-      );
-    }
-
-    render(<Host />);
-    const initialCallCount = sortSpy.mock.calls.length;
-    expect(initialCallCount).toBeGreaterThanOrEqual(1);
-
-    fireEvent.click(screen.getByRole('button', { name: /rerender/ }));
-
-    // 親の tick だけが変わって chatLog 参照は不変なので sort 呼び出しは増えない
-    expect(sortSpy.mock.calls.length).toBe(initialCallCount);
-
-    sortSpy.mockRestore();
+    render(<ChatLogList chatLog={rows(300)} windowRows={201} />);
+    expect(rowOf('ROW_0')?.className).toContain('[content-visibility:auto]');
+    expect(rowOf('ROW_200')?.className).toContain('[content-visibility:auto]');
   });
 });

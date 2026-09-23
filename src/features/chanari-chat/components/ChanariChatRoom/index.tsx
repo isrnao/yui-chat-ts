@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { toUserMessage } from '@features/chat/utils/userFacingError';
 import ChanariColorPicker from '../ChanariColorPicker';
 import ChanariCharCounter from '../ChanariCharCounter';
 import { countChars } from '../../utils/countChars';
@@ -11,8 +12,8 @@ export type ChanariChatRoomProps = {
   setMessage: (v: string) => void;
   onSend: (msg: string) => void | Promise<void>;
   onReload: () => void;
-  onExit: () => void;
-  onClearMyLogs: () => void;
+  onExit: () => void | Promise<void>;
+  onClearMyLogs: () => void | Promise<void>;
   nameColor: string;
   setNameColor: (v: string) => void;
   speechColor: string;
@@ -40,7 +41,7 @@ export default function ChanariChatRoom({
   setReloadSeconds,
   onRestoreDraft,
   isPending,
-  error,
+  error: externalError,
   sid,
 }: ChanariChatRoomProps) {
   // Local-only UI state
@@ -49,13 +50,26 @@ export default function ChanariChatRoom({
   const [fontSize, setFontSize] = useState<LegacyFontSize>('default');
   const [atField, setAtField] = useState(false);
 
+  // 送信・自分の発言の削除の失敗を表示する。以前は Promise を捨てていたため、保存に
+  // 失敗しても何も表示されなかった。Action にしないのは、送信で入力欄を空にする更新を
+  // 保存の完了まで遅らせないため（Action の中の更新は Action の終わりにまとめて反映される）。
+  const [actionError, setActionError] = useState('');
+  const error = externalError || actionError;
+  // API の内部エラー（Failed to save chat: ... など）は画面に出さず、操作ごとの文言にする
+  const report = (result: void | Promise<void>, fallback: string) => {
+    setActionError('');
+    Promise.resolve(result).catch((err: unknown) => {
+      setActionError(toUserMessage(err, fallback));
+    });
+  };
+
   const charCount = countChars(message);
   const isSendDisabled = charCount > 120 || isPending;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (message.trim() === '' || countChars(message) > 120) return;
-    onSend(message);
+    report(onSend(message), '発言を送信できませんでした。時間をおいてもう一度お試しください。');
   };
 
   return (
@@ -170,7 +184,16 @@ export default function ChanariChatRoom({
       <button type="button" onClick={onRestoreDraft} disabled={isPending}>
         発言復元
       </button>
-      <button type="button" onClick={onClearMyLogs} disabled={isPending}>
+      <button
+        type="button"
+        onClick={() =>
+          report(
+            onClearMyLogs(),
+            'ログを消去できませんでした。時間をおいてもう一度お試しください。'
+          )
+        }
+        disabled={isPending}
+      >
         ログ消去
       </button>
       <button
@@ -181,10 +204,19 @@ export default function ChanariChatRoom({
       >
         AT フィールド
       </button>
-      <button type="button" onClick={onExit} disabled={isPending}>
+      <button
+        type="button"
+        // 退室するとこの部品はアンマウントされるので、失敗は受け取るだけにする
+        onClick={() => void Promise.resolve(onExit()).catch(() => {})}
+        disabled={isPending}
+      >
         チャットから退室する
       </button>
-      {error && <div style={{ color: 'red' }}>{error}</div>}
+      {error && (
+        <div role="alert" style={{ color: 'red' }}>
+          {error}
+        </div>
+      )}
     </form>
   );
 }

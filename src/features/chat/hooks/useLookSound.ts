@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { onLookBroadcast } from '@features/chat/api/chatApi';
+import { onLookBroadcast } from '@features/chat/api/realtime';
 import {
   playNotificationSound,
   stopNotificationSound,
@@ -27,7 +27,8 @@ export function useLookSound(roomId: RoomId): {
   useEffect(() => {
     const unsubscribe = onLookBroadcast(roomId, (event) => {
       if (event.type === 'look') {
-        playNotificationSound();
+        // 再生できなくても（音声が許可されていないなど）通知の受信は続ける
+        void playNotificationSound().catch(() => {});
       } else if (event.type === 'unlook') {
         stopNotificationSound();
       }

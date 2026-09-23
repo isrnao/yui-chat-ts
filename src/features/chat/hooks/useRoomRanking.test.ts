@@ -4,11 +4,11 @@ import { RANKING_LOADING_DELAY_MS, useRoomRanking } from './useRoomRanking';
 import type { RankingEntry } from '@features/chat/utils/chatRanking';
 import type { RoomId } from '@features/chat/rooms';
 
-vi.mock('@features/chat/api/chatApi', () => ({
+vi.mock('@features/chat/api/chatQueries', () => ({
   loadChatRanking: vi.fn(),
 }));
 
-const { loadChatRanking } = await import('@features/chat/api/chatApi');
+const { loadChatRanking } = await import('@features/chat/api/chatQueries');
 const mockedLoad = vi.mocked(loadChatRanking);
 
 const entry = (name: string, count: number): RankingEntry => ({

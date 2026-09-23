@@ -129,7 +129,7 @@ TBT が 10ms しかないため、JS 実行時間の削減より「描画開始�
     - _Requirements: 8.1_
   - [ ] 8.3 SSR ビルドを `build:prod` に組み込む
     - `generate:sitemap → tsc -b → vite build → vite build --ssr → prerender`
-    - CSS import（`Header/headerTheme.css`）と MDX（`TermsModal`）が SSR ビルドを通ること
+    - CSS import（`Header/headerTheme.css`）が SSR ビルドを通ること
     - _Requirements: 8.1_
   - [ ] 8.4 `scripts/prerender-rooms.ts` を拡張し、トップページを SSG して `#root` に注入する
     - `data-ssg="1"` を `#root` に付与する

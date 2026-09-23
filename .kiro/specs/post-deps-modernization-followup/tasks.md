@@ -52,7 +52,6 @@ Task 4 (R4: 横断検証) は各 PR の最終コミット時に共通で実施�
   - [ ] 2.4 `pnpm preview` を起動し `/` および `/chat/superbeginner` で Console エラー / module not found が出ないことを目視確認する
     - _Requirements: 2.4_
   - [ ] 2.5 `pnpm storybook` を起動し、`@features/*` を import している任意の story (例: `EntryForm.stories.tsx`) が正常描画されることを確認する
-    - `.storybook/main.ts` の `viteFinal` で `@mdx-js/rollup` フィルタが `tsconfigPaths()` を誤って除去しないこと
     - _Requirements: 2.5_
   - [ ] 2.6 PR4 共通検収を実行する
     - _Requirements: 4.1, 4.2_

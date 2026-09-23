@@ -55,7 +55,7 @@ deps-modernization-vite8 spec の Non-Goals に「新 API 採用は別 spec」�
 2. THE `vite.config.ts` SHALL `plugins` 配列に `tsconfigPaths()` を追加し、既存の `resolve.alias` セクション全体を削除する。
 3. WHEN `pnpm typecheck` / `pnpm test` / `pnpm build` / `pnpm build-storybook` を実行する, THE 各コマンド SHALL 緑で完了する。特に `vendor-react` / `vendor-supabase` の chunk 命名が PR6 後と同一であること (manualChunks は影響を受けないため変化なしを期待)。
 4. WHEN `pnpm preview` を起動して `/` および `/chat/superbeginner` にアクセスする, THE 開発者 SHALL Console エラー / module not found が出ないことを確認する。
-5. THE Storybook の `.storybook/main.ts` SHALL `viteFinal` 経由で `tsconfigPaths()` が適用されることを `pnpm storybook` 起動 + 任意 story 描画で確認する (既存 `viteFinal` で `@mdx-js/rollup` を除去している処理と共存)。
+5. THE Storybook の `.storybook/main.ts` SHALL `viteFinal` 経由で `tsconfigPaths()` が適用されることを `pnpm storybook` 起動 + 任意 story 描画で確認する。
 6. THE 採用した `vite-tsconfig-paths@^6` SHALL Vite 8 で動作することを `pnpm install` の peer 解決と `pnpm build` の成功で確認する (peer は `vite: '*'` で範囲広め)。
 
 ### Requirement 3: Vitest 4 への昇格 + coverage threshold 再設計 + Vite override 解除

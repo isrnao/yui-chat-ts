@@ -3,14 +3,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import ChatRoom from './index';
 import type { ChatRoomProps } from './index';
+import { UserFacingError } from '@features/chat/utils/userFacingError';
 
 describe('ChatRoom', () => {
   let props: ChatRoomProps;
 
   beforeEach(() => {
     props = {
-      message: '',
-      setMessage: vi.fn(),
       windowRows: 50,
       setWindowRows: vi.fn(),
       onExit: vi.fn(),
@@ -42,11 +41,11 @@ describe('ChatRoom', () => {
     expect(screen.getByText('かお@塵')).toHaveStyle({ color: '#ff69b4' });
   });
 
-  it('calls setMessage when input changes', () => {
+  it('発言欄の値は部品の中で持つ', () => {
     render(<ChatRoom {...props} />);
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: 'abc' } });
-    expect(props.setMessage).toHaveBeenCalledWith('abc');
+    expect(input).toHaveValue('abc');
   });
 
   it('ログ行数の選択肢は既定で 100 件まで', () => {
@@ -98,7 +97,6 @@ describe('ChatRoom', () => {
   });
 
   it('calls onSend when 発言 (submit) and clears message', async () => {
-    props.message = '送信テスト';
     render(<ChatRoom {...props} />);
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: '送信テスト' } });
@@ -109,25 +107,54 @@ describe('ChatRoom', () => {
         fontStyle: { bold: true },
       })
     );
-    // 成功時 setMessage('') が呼ばれる
   });
 
-  it('shows error when onSend rejects', async () => {
-    props.message = 'error test';
-    const errorMsg = '送信失敗';
-    props.onSend = vi.fn(() => Promise.reject(new Error(errorMsg)));
+  // onSubmit で入力欄を空にしても、action に渡る FormData は空にする前の値で作られる（spec R8.3）
+  it('送信すると保存を待たずに入力欄が空になり、送った値は失われない', async () => {
+    let resolveSend: () => void = () => {};
+    props.onSend = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        })
+    );
+    render(<ChatRoom {...props} />);
+    const input = screen.getByRole('textbox', { name: '発言' });
+    fireEvent.change(input, { target: { value: 'すぐ消える' } });
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+
+    await waitFor(() =>
+      expect(props.onSend).toHaveBeenCalledWith('すぐ消える', expect.any(Object))
+    );
+    expect(input).toHaveValue('');
+    resolveSend();
+  });
+
+  it('送信に失敗すると、内部のエラー文言ではなく汎用の文言を表示する', async () => {
+    props.onSend = vi.fn(() => Promise.reject(new Error('Failed to save chat: 500')));
     render(<ChatRoom {...props} />);
     const input = screen.getByRole('textbox', { name: '発言' });
     fireEvent.change(input, { target: { value: 'error test' } });
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
 
     await waitFor(() => {
-      expect(screen.getByText(errorMsg)).toBeInTheDocument();
+      expect(screen.getByText(/発言を送信できませんでした/)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/Failed to/)).not.toBeInTheDocument();
+  });
+
+  it('利用者向けのエラー（UserFacingError）は文言をそのまま表示する', async () => {
+    props.onSend = vi.fn(() => Promise.reject(new UserFacingError('削除対象の発言がありません')));
+    render(<ChatRoom {...props} />);
+    fireEvent.change(screen.getByRole('textbox', { name: '発言' }), { target: { value: 'clear' } });
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('削除対象の発言がありません')).toBeInTheDocument();
     });
   });
 
   it('does not send empty message', async () => {
-    props.message = '';
     render(<ChatRoom {...props} />);
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
     await waitFor(() => expect(props.onSend).not.toHaveBeenCalled());
@@ -135,7 +162,6 @@ describe('ChatRoom', () => {
 
   describe('入力欄のフォーカス', () => {
     it('送信アクション完了後に入力欄へフォーカスが戻る', async () => {
-      props.message = 'フォーカステスト';
       render(<ChatRoom {...props} />);
       const input = screen.getByRole('textbox', { name: '発言' });
       fireEvent.change(input, { target: { value: 'フォーカステスト' } });

@@ -50,7 +50,7 @@ useChatHandlers
 ### 移行後
 
 ```
-useChatHandlers
+useChatSession（旧 useChatHandlers）
   → saveChatLogOptimistic(chat)          // ip/ua を送らない
   → supabase.functions.invoke('save-chat', { body })
       Edge: ip = x-forwarded-for（先頭ホップ）→ x-real-ip
@@ -106,7 +106,8 @@ useChatHandlers
 で呼ばれるため、CORS プリフライト（OPTIONS）に応答する必要がある。
 
 ハマりどころとして、`src/shared/supabaseClient.ts` のグローバル設定が **全リクエストに
-カスタムヘッダ `X-My-Custom-Header` を付与**する。これによりブラウザのプリフライトは
+カスタムヘッダ `X-My-Custom-Header` を付与**していた（2026-09 に削除済み。
+`.kiro/specs/react-2026-refactoring` R13.2）。これによりブラウザのプリフライトは
 `Access-Control-Request-Headers: ..., x-my-custom-header` を要求するが、Edge 側の許可リストに
 これが無いとプリフライトが失敗し、`supabase-js` は
 `Failed to send a request to the Edge Function`（`FunctionsFetchError`）を投げる。

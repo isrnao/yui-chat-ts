@@ -90,3 +90,25 @@ body {
   font-weight: 700;
   text-decoration: none;
 }
+
+/* ViewTransition（ランキングの開閉）のアニメーションは、動きを減らす設定では止める */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+/* ページ間の遷移（全ページ読み込み）をドキュメント間 View Transitions でつなぐ。
+   遷移元と遷移先の両方がこの指定を持つときだけ効き、非対応のブラウザでは普通に遷移する。
+   動きを減らす設定では使わない（.kiro/specs/react-2026-refactoring Requirement 16） */
+@view-transition {
+  navigation: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @view-transition {
+    navigation: none;
+  }
+}

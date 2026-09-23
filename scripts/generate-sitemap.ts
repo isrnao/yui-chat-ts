@@ -23,6 +23,7 @@ import { writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
+import { buildRoomPath } from '../src/shared/utils/roomSeo.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ORIGIN = 'https://www.okiraku.chat';
@@ -31,9 +32,10 @@ const locs: string[] = [
   `${ORIGIN}/`,
   ...getListableRoomIds()
     .filter((id) => CHAT_ROOMS[id].enabled)
-    .map((id) => `${ORIGIN}/chat/${id}`),
+    // canonical と同じ末尾 / 付きの形（buildRoomPath）で載せる
+    .map((id) => `${ORIGIN}${buildRoomPath(id)}`),
   // 全部屋まとめビュー (prerender 対象・固有メタあり)
-  `${ORIGIN}/chat/all`,
+  `${ORIGIN}${buildRoomPath('all')}`,
 ];
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
