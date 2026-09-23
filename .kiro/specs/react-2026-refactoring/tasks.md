@@ -43,12 +43,12 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 1.5_
   - [x] 1.3 `src/test/reactCompiler.test.ts`（Compiler_Check）を追加する
     - 対象: `src/**/*.{ts,tsx}` から `*.test.*` / `*.stories.*` / `src/test/` / `src/storybook/` / `*.d.ts` を除く
-    - 許可リストは空で始める（ChatLogPage の try/finally は Task 5 で削除するまで一時的に載せる）
+    - 意図した opt-out は `'use no memo'` + 直前の理由コメントで表し、ソースから検査する（ChatLogPage は Task 5 で削除するまで opt-out にする）
     - _Requirements: 1.2, 1.3, 1.4_
   - [x] 1.4 `pnpm build` の出力で、ChatRoom / EntryForm / ChatLogList / RetroSplitter / Button / Input がコンパイル
         されている（`react.memo_cache_sentinel` を参照する）ことを確かめ、PR 本文に記録する
     - _Requirements: 1.1_
-  - [x] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Profiler の代わりに Task 9.5 の再レンダー計測テストで前後を比べる）
+  - [ ] 1.5 発言の入力 1 文字あたりの再レンダーの範囲を記録する（Task 9 の比較基準。Task 9.5 の再レンダー計測テストで前後を記録するまで未完了）
     - _Requirements: 1.1_
   - [x] 1.6 CLAUDE.md の「React Compiler」節に、`@babel/core` を固定している理由と、固定を外す条件を書く
     - _Requirements: 1.6, 18.1_
@@ -109,7 +109,7 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
     - _Requirements: 5.4_
   - [x] 5.6 Q2 の回答により `mockChatData` の経路は残す（変更なし）
     - _Requirements: 5.6_
-  - [ ] 5.7 Compiler_Check の許可リストから ChatLogPage を外す
+  - [ ] 5.7 Compiler_Check の opt-out が残っていないことを確かめる（ChatLogPage の削除で消える）
     - _Requirements: 1.2_
   - [ ] 5.8 到達しないモジュールを CI で検出する仕組み（knip など）の導入を検討し、
         到達しないモジュールが 0 であることを確かめる

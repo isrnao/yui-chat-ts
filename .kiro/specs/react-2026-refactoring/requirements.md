@@ -60,10 +60,11 @@
 
 1. THE ビルドとテスト SHALL React Compiler を `@babel/core` 7.29 系で実行する。
 2. WHEN Compiler_Check が `src/` の本番コード（`*.test.*`、`*.stories.*`、`src/test/`、`src/storybook/` を除く）を
-   変換する, THE Compiler_Check SHALL 許可リストにない CompileError が 1 件でもあれば失敗する。
+   変換する, THE Compiler_Check SHALL 4 の条件を満たさない CompileError が 1 件でもあれば失敗する。
 3. THE Compiler_Check SHALL `pnpm test` の一部として実行される。
-4. WHERE 意図してコンパイル対象から外す関数がある, THE 関数 SHALL `'use no memo'` と理由のコメントを持ち、
-   許可リストに載る。
+4. WHERE 意図してコンパイル対象から外す関数がある, THE 関数 SHALL 本体の先頭に `'use no memo'` を持ち、
+   その直前の行に外す理由のコメントを持つ。Compiler_Check はこの 2 つをソースから検査する（位置だけを
+   並べた許可リストは使わない。リストに足すだけで CompileError を隠せてしまうため）。
 5. THE `useRoomCounts` SHALL 既定引数の式（`6 * 60 * 60 * 1000`）をモジュール定数にし、コンパイルに成功する。
 6. THE CLAUDE.md SHALL `@babel/core` を固定している理由と、固定を外す条件（`babel-plugin-react-compiler` が
    Babel 8 に対応し、Compiler_Check が Babel 8 で通ること）を書く。
@@ -342,7 +343,7 @@
 
 | 指標                                                                                        | 現状（調査時点）                               | 目標                              |
 | ------------------------------------------------------------------------------------------- | ---------------------------------------------- | --------------------------------- |
-| React Compiler で未コンパイルの関数（許可リスト外）                                         | 18（CompileError 21 件）                       | 0                                 |
+| React Compiler で未コンパイルの関数（opt-out 以外）                                         | 18（CompileError 21 件）                       | 0                                 |
 | 保存の解決前に楽観的なチャットが表示される経路（通常の発言 / ちゃなりの発言 / 入室 / 退室） | 1 / 4                                          | 4 / 4                             |
 | 5 分を過ぎた発言者が参加者一覧から消えるまで                                                | 次の発言が届くまで                             | 5 分を過ぎてから 1 分以内         |
 | 型情報を使う lint の違反（Promise 関連 / `any`）                                            | 17 / 2                                         | 0 / 0                             |
