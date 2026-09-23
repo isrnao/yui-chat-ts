@@ -21,18 +21,18 @@
 
 ## 2. 技術スタック
 
-| カテゴリ               | 技術                     | バージョン |
-| ---------------------- | ------------------------ | ---------- |
-| フレームワーク         | React                    | 19.2.6     |
-| 言語                   | TypeScript               | 6.0.3      |
-| ビルドツール           | Vite                     | 8.0.13     |
-| CSS                    | Tailwind CSS             | 4.1.8      |
-| バックエンド           | Supabase (PostgreSQL)    | 2.105.4    |
-| テスト                 | Vitest + Testing Library | 3.2.4      |
-| コンポーネントカタログ | Storybook                | 10.4.0     |
-| パッケージマネージャ   | pnpm 10                  | -          |
-| 実行環境（CI / 推奨）  | Node.js 24               | -          |
-| デプロイ               | GitHub Pages (gh-pages)  | -          |
+| カテゴリ               | 技術                     | バージョン                                                      |
+| ---------------------- | ------------------------ | --------------------------------------------------------------- |
+| フレームワーク         | React                    | 19.3.0                                                          |
+| 言語                   | TypeScript               | 6.0.3                                                           |
+| ビルドツール           | Vite                     | 8.0.13                                                          |
+| CSS                    | Tailwind CSS             | 4.1.8                                                           |
+| バックエンド           | Supabase (PostgreSQL)    | 2.105.4（postgrest-js / realtime-js / functions-js を直接使う） |
+| テスト                 | Vitest + Testing Library | 3.2.4                                                           |
+| コンポーネントカタログ | Storybook                | 10.4.0                                                          |
+| パッケージマネージャ   | pnpm 10                  | -                                                               |
+| 実行環境（CI / 推奨）  | Node.js 24               | -                                                               |
+| デプロイ               | GitHub Pages (gh-pages)  | -                                                               |
 
 ---
 
@@ -306,7 +306,7 @@ useRoomLog(getRoomLogStore(roomId)) → useSyncExternalStore が store を購読
              - ORDER BY uuid DESC LIMIT limit（初期 10、入室で 100、行数の選択で最大 1000）
 ```
 
-`/chat/:roomId` 直訪問時はトップを経由しないため、現状は事前 prefetch を呼んでいません（以前あった `earlyDataFetch` / `preloadCriticalResources` は削除済み）。画面遷移は全ページ読み込みなので、ページをまたぐキャッシュは持ちません（以前の `chatLogResource` の 5 分 TTL キャッシュは、1 ページの表示中にしか効かず Realtime の発言も入らないため削除しました）。
+`/chat/:roomId` 直訪問時はトップを経由しないため、現状は事前 prefetch を呼んでいません（以前あった `earlyDataFetch` / `preloadCriticalResources` は削除済み）。画面遷移は全ページ読み込みなので、ページをまたぐキャッシュは持ちません。代わりに、部屋へのリンク（`/chat/*`、`/chanari/*`）は Speculation Rules（`index.html`、`prefetch`・`eagerness: moderate`）で遷移先の HTML を先読みし、遷移はドキュメント間 View Transitions（`App.css` の `@view-transition`、`prefers-reduced-motion: reduce` では無効）でつなぎます（`.kiro/specs/react-2026-refactoring` Requirement 16）（以前の `chatLogResource` の 5 分 TTL キャッシュは、1 ページの表示中にしか効かず Realtime の発言も入らないため削除しました）。
 
 ### 5.4 トップページの参加人数集計
 
@@ -359,19 +359,19 @@ Effect の依存配列では制御しません。
 | 契機                 | 処理                                                                                      |
 | -------------------- | ----------------------------------------------------------------------------------------- |
 | 最初の購読           | Realtime を張ってから取得（初期 10 件、全部屋まとめは 200 件）                            |
-| Realtime の INSERT   | 確定行に uuid で合流。取得中ならバッファにも入れる                                        |
+| Realtime の INSERT   | 確定行に uuid で合流（二分探索で挿入位置だけを探す）。取得中ならバッファにも入れる        |
 | 取得の完了           | 拡張なら表示中の行を残して合流、それ以外は取得結果 + バッファを正とする（論理削除を反映） |
 | `connected` への遷移 | キャッシュを使わずに取り直す（SUBSCRIBED までと切断中の取りこぼしを埋める）               |
 | `expand(n)`          | 件数を増やして取得（減らさない）                                                          |
 | 最後の購読解除       | マイクロタスク後にまだ誰もいなければ止める（StrictMode の再購読で張り直さない）           |
 
-store はサーバーで確定した行だけを持ち、楽観的な表示は `useRoomLog` の `useOptimistic`
+store はサーバーで確定した行だけを新しい順（uuid v7 の降順）に並べて持ち、楽観的な表示は `useRoomLog` の `useOptimistic`
 （`utils/optimisticLog.ts` の `reduceOptimisticChat`）で重ねます。
 
 ### 6.3 派生値の最適化
 
 - `useParticipants` は `useDeferredValue(chatLog)` で入力側を遅延化したうえで `getRecentParticipants` を呼ぶ。メモ化は React Compiler が行うため手動の `useMemo` は置かない。
-- `ChatLogList` は `React.memo` でラップする。内部の `sortChatsByTime` → `slice(0, windowRows)` のメモ化は React Compiler に任せる。
+- `ChatLogList` は `React.memo` でラップする。入力は新しい順に並んでいる前提で、`slice(0, windowRows)` するだけにする（発言が届くたびに全体を並べ直さない）。表示する行が 200 を超えるときは、各行に `content-visibility: auto` を当てて画面外の描画を省く。
 - `ChatMessage` も `React.memo` 化（shallow compare で十分）。
 - `ParticipantsList` は `useNowMinute()` を内製しており、親に `currentTime` プロップを渡させない。1 分に 1 度だけ再描画する。
 
@@ -493,7 +493,7 @@ type Chat = {
 | `RetroSplitter`              | 上下ペインのリサイズ可能な分割レイアウト                                                                                                   |
 | `ChatRoom`                   | メッセージ入力・送信・退室ボタン                                                                                                           |
 | `EntryForm`                  | 名前・色・メール入力、入室ボタン                                                                                                           |
-| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。`sortChatsByTime`（uuid v7 降順）→ `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ                           |
+| `ChatLogList` (memo + lazy)  | メッセージ履歴の表示。新しい順の入力を `slice(0, windowRows)`、内部で `useParticipants` を呼ぶ                                             |
 | `ChatMessage` (memo)         | 個別メッセージの描画（管理人 / 通常 / URL リンク化）                                                                                       |
 | `ChatRanking`                | 発言数ランキング表示                                                                                                                       |
 | `ParticipantsList`           | 直近 5 分以内の参加者一覧。`useNowMinute()` を内製                                                                                         |
@@ -531,28 +531,30 @@ type Chat = {
 
 ### 10.1 ビルド最適化
 
-| 最適化       | 設定                                                                                                    |
-| ------------ | ------------------------------------------------------------------------------------------------------- |
-| コード分割   | Rolldown の `codeSplitting.groups` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`） |
-| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示                     |
-| 圧縮         | Terser（`console.log` 削除、変数名短縮）                                                                |
-| CSS 圧縮     | Lightning CSS                                                                                           |
-| ターゲット   | ES2022                                                                                                  |
+| 最適化       | 設定                                                                                                        |
+| ------------ | ----------------------------------------------------------------------------------------------------------- |
+| コード分割   | Rolldown の `codeSplitting.groups` で vendor 分離（`vendor-react`, `vendor-supabase`, `vendor-<name>`）     |
+| Tree Shaking | Vite 8 / Rolldown 向けに Rollup `recommended` 相当の `treeshake` オブジェクトを明示                         |
+| 圧縮         | Oxc（Vite 8 の既定。`console` / `debugger` の削除と toplevel の mangle は `rolldownOptions.output.minify`） |
+| CSS 圧縮     | Lightning CSS                                                                                               |
+| ターゲット   | ES2022                                                                                                      |
 
 ### 10.2 ランタイム最適化
 
-| 最適化                | 実装                                                                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                      |
-| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                              |
-| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                              |
-| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                       |
-| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                    |
-| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                            |
-| 取得の共有            | 同じ部屋の取得と購読は Room_Log_Store が 1 つにまとめ、世代番号で古い取得の結果を捨てる                                         |
-| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                      |
-| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry) |
-| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                          |
+| 最適化                | 実装                                                                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                         |
+| ページ間の遷移        | 全ページ読み込みのまま、Speculation Rules の `prefetch` と `@view-transition { navigation: auto; }` で待ちと切り替えを滑らかにする |
+| ログの合流            | 1 件の合流は二分探索で挿入し、UUID は文字コードで比べる。`ChatLogList` は並べ直さない                                              |
+| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                                 |
+| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                                 |
+| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                          |
+| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                       |
+| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                               |
+| 取得の共有            | 同じ部屋の取得と購読は Room_Log_Store が 1 つにまとめ、世代番号で古い取得の結果を捨てる                                            |
+| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                         |
+| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry)    |
+| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                             |
 
 ---
 
@@ -681,7 +683,7 @@ jobs:
 ### 14.3 デプロイ
 
 ```bash
-pnpm build:prod    # sitemap → client build → SSR build → 全対象URLのprerender
+pnpm build:prod    # sitemap → client build → SSR build → 全対象URLのprerender（react-dom/static の prerenderToNodeStream）
 pnpm deploy        # predeployでbuild:prodを実行後、gh-pages -d dist
 ```
 

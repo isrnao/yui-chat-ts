@@ -272,11 +272,11 @@ Task 18（R18: ドキュメントと検収）は、各 PR の最後に共通し�
   - [x]\* 17.4 合流の結果が今の `mergeChatLogByUuid` と一致することを、fast-check のプロパティテストで確かめる
     - _Requirements: 17.1_
 
-- [ ] 18. ドキュメントの整合と検収（Requirement 18、各 PR 共通）
-  - [ ] 18.1 CLAUDE.md と `docs/ARCHITECTURE.md` を、その PR の変更に合わせる（コンパイラの適用範囲、手動メモ化の
+- [x] 18. ドキュメントの整合と検収（Requirement 18、各 PR 共通）
+  - [x] 18.1 CLAUDE.md と `docs/ARCHITECTURE.md` を、その PR の変更に合わせる（コンパイラの適用範囲、手動メモ化の
         例外、ログ取得の流れ、削除したモジュール）
     - _Requirements: 18.1_
-  - [ ] 18.2 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
+  - [x] 18.2 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
     - _Requirements: 18.2_
-  - [ ] 18.3 性能に関わる PR では、変更前後のチャンクサイズ（gzip）を PR 本文に書く
+  - [x] 18.3 性能に関わる PR では、変更前後のチャンクサイズ（gzip）を PR 本文に書く
     - _Requirements: 18.3_

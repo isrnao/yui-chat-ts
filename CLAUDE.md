@@ -125,6 +125,14 @@ messages. Because the log is Realtime-synced, this reflects cross-user presence.
 - New rows propagate to all clients via the `subscribeChatLogs` Realtime subscription
 - Chat logs are loaded from Supabase by `Room_Log_Store` (`api/chatQueries.ts`, no cache: every
   navigation is a full page load, so a cross-page cache never hits)
+- `Room_Log_Store` keeps the log sorted newest-first (uuid v7 descending; a single incoming row is
+  inserted by binary search in `mergeChatLogByUuid`). `ChatLogList` does **not** re-sort — it only
+  slices, so anything feeding it must already be in that order.
+
+**Page navigation**: there is no client-side router; moving between pages is a full page load
+(MPA). Room links (`/chat/*`, `/chanari/*`) are prefetched by the Speculation Rules script in
+`index.html`, and pages are joined by cross-document View Transitions (`@view-transition` in
+`App.css`, off under `prefers-reduced-motion`). Browsers without support just navigate normally.
 
 ### Import Aliases
 
