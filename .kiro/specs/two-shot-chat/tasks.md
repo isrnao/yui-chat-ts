@@ -131,45 +131,45 @@
   - [x] 4.8 部品のテスト（日本語の名前）: 文言、属性（`size` / `maxLength` / `border`）、状態ごとの出し分け
     - _Requirements: 18.5_
 
-- [ ] 5. API クライアントとストアを作る（Requirement 4 / 8 / 12 / 13 / 17、PR5）
-  - [ ] 5.1 `protocol.ts`（要求・応答の型と検証）と、Task 2.4 のフィクスチャを通すテスト
+- [x] 5. API クライアントとストアを作る（Requirement 4 / 8 / 12 / 13 / 17、PR5）
+  - [x] 5.1 `protocol.ts`（要求・応答の型と検証）と、Task 2.4 のフィクスチャを通すテスト
     - _Requirements: 14.6_
-  - [ ] 5.2 `api/twoShotApi.ts`: `fetch` で `/functions/v1/two-shot` と `/rest/v1/rpc/two_shot_lobby` を呼ぶ。
+  - [x] 5.2 `api/twoShotApi.ts`: `fetch` で `/functions/v1/two-shot` と `/rest/v1/rpc/two_shot_lobby` を呼ぶ。
         Supabase の SDK を import しない。10 秒タイムアウト、失敗は E12。変更操作を自動再送しない
     - _Requirements: 11.5, 17.5_
-  - [ ] 5.3 `api/sessionStore.ts`（pending / active、active の表示用 me、条件付き clear、保存不可時のメモリ退避）と
+  - [x] 5.3 `api/sessionStore.ts`（pending / active、active の表示用 me、条件付き clear、保存不可時のメモリ退避）と
         `api/roomResource.ts`（初期取得の外部ストア）を作る
     - 送信前に 256 ビット乱数を含むトークンと入室要求を保存。pending の再読み込みでフォームを復元する
     - 古い要求は token / generation で排除。最後の購読解除で abort とログのキャッシュ破棄、再購読は read
     - 初回 read が通信失敗しても active.me で上ペインを描き、E12 から手動更新できる
     - _Requirements: 5.10, 8.5, 8.6, 8.7, 12.5, 17.2_
-  - [ ] 5.4 `api/lobbyStore.ts`（`idle` / `loaded` / `error`、最初の購読で取得、`reload()`、世代管理と取得の重複抑止）
+  - [x] 5.4 `api/lobbyStore.ts`（`idle` / `loaded` / `error`、最初の購読で取得、`reload()`、世代管理と取得の重複抑止）
     - _Requirements: 4.4, 4.5, 4.6, 4.7, 17.2_
-  - [ ] 5.5 `api/entryStore.ts` を既存 `createPersistentStore` の上に作り、入力は `useStoreBackedState` で扱う
+  - [x] 5.5 `api/entryStore.ts` を既存 `createPersistentStore` の上に作り、入力は `useStoreBackedState` で扱う
     - _Requirements: 13.1, 13.2, 13.3, 13.4_
-  - [ ] 5.6 `hooks/useAutoRefresh.ts`（`useEffectEvent`、表示中のログだけ、再表示で更新可能なら 1 回、操作中は tick を捨てる）
+  - [x] 5.6 `hooks/useAutoRefresh.ts`（`useEffectEvent`、表示中のログだけ、再表示で更新可能なら 1 回、操作中は tick を捨てる）
     - _Requirements: 4.3, 8.2, 8.3_
-  - [ ] 5.7 ストアとフックのテスト（`visibilitychange`、StrictMode、保存不可、古い応答、再購読を含む）
+  - [x] 5.7 ストアとフックのテスト（`visibilitychange`、StrictMode、保存不可、古い応答、再購読を含む）
 
-- [ ] 6. 画面をつなぐ（Requirement 3 / 5 / 6 / 8 / 9 / 11 / 17、PR5）
-  - [ ] 6.1 `LobbyScreen`: `useActionState` の入室の Action、`入室` / `開設`（`formData.has('make')`）、E1 / E2 のページ全体の
+- [x] 6. 画面をつなぐ（Requirement 3 / 5 / 6 / 8 / 9 / 11 / 17、PR5）
+  - [x] 6.1 `LobbyScreen`: `useActionState` の入室の Action、`入室` / `開設`（`formData.has('make')`）、E1 / E2 のページ全体の
         お知らせ、満室のときに入力を保持して一覧を取り直す、成功したら `roomResource` の初期値と active Session を保存
     - 同じ pending の再送、失効した試行の page E4、通信失敗の page E12、入力変更時の新しい試行を扱う
     - _Requirements: 3.5, 3.6, 5.3, 11.2, 13.1, 13.2, 17.1_
-  - [ ] 6.2 `RoomRestoreBoundary` で初期取得ストアを購読し、完了後に `RoomScreen` を mount する。
+  - [x] 6.2 `RoomRestoreBoundary` で初期取得ストアを購読し、完了後に `RoomScreen` を mount する。
         `useActionState` の非同期 reducer、previous の直前ログ、terminal の失効状態、`直前の画面`、`空室状況へ`
     - Action の入口で重複 dispatch を抑止し、自動更新をためない。通信失敗・abort の後でも操作可能に戻す
     - _Requirements: 8.1, 9.6, 11.2, 11.3, 11.4, 17.1, 17.3_
-  - [ ] 6.3 ChatForm の操作: `onSubmit` で `startTransition(dispatch)` し文字を残して全選択、`いつでも手動更新` とラジオで
+  - [x] 6.3 ChatForm の操作: `onSubmit` で `startTransition(dispatch)` し文字を残して全選択、`いつでも手動更新` とラジオで
         発言欄を空にして取得、`confirm()`、相手を退室で自動更新を なし に、入室直後のフォーカス
     - _Requirements: 6.3, 6.4, 6.5, 6.6, 6.7_
-  - [ ] 6.4 `TwoShotPage`: `sessionStore` で LobbyScreen / RoomRestoreBoundary を出し分け、初期取得中は空のフレーム。
+  - [x] 6.4 `TwoShotPage`: `sessionStore` で LobbyScreen / RoomRestoreBoundary を出し分け、初期取得中は空のフレーム。
         `useSEO` に Session に応じたタイトルを一か所から渡し、Lobby に戻ると復元する。`usePageView` に私的な入力値を渡さない
     - LobbyScreen と RoomScreen がそれぞれ FrameLayout を持つので、切り替えで比率が既定に戻る
     - _Requirements: 2.7, 8.5, 17.2_
-  - [ ] 6.5 画面のテスト（design.md「コンポーネントのテスト」「レビューで追加した受け入れケース」の各項目）
+  - [x] 6.5 画面のテスト（design.md「コンポーネントのテスト」「レビューで追加した受け入れケース」の各項目）
     - _Requirements: 18.5_
-  - [ ] 6.6 `pnpm lint`（型情報を使う lint）と Compiler_Check が、本機能のファイルを許可リストなしで通すことを確かめる
+  - [x] 6.6 `pnpm lint`（型情報を使う lint）と Compiler_Check が、本機能のファイルを許可リストなしで通すことを確かめる
     - _Requirements: 17.4, 17.8_
 
 - [ ] 7. 発言の文字参照を展開する（Requirement 7.10、PR6、任意）
