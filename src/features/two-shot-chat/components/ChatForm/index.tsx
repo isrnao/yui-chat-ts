@@ -68,7 +68,8 @@ export default function ChatForm({
         onSubmit={(event) => {
           event.preventDefault();
           onSay(value);
-          // 原作は送信の 0.5 秒後に、文字を残したまま全選択する（sendTimer）。ここではすぐに選ぶ
+          // 保存されたら親が発言欄を空にする。送れなかったときは文字が残るので、全選択して送り直せるようにする
+          // （原作は送信の 0.5 秒後に、文字を残したまま全選択していた。sendTimer）
           inputRef.current?.select();
           inputRef.current?.focus();
         }}

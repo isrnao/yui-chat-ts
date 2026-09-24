@@ -689,7 +689,8 @@ const [ui, dispatch, isPending] = useActionState(roomReducer, initial);
   満室・E1・E2・通信失敗でも名前や選択部屋を保持する。`make` は submit ボタンの `name` から取得する。通常の
   入力値保存はチェックに従い、pending の要求保存とは区別する
 - ChatForm は controlled の発言欄と `onSubmit` を使い、`startTransition` の中で dispatch する。
-  送信後は文字を残して全選択。手動更新とラジオは発言欄を空にして read / setAuto を送る。
+  送信後は全選択してフォーカスを戻し、発言が保存されてログが返ったら RoomScreen が発言欄を空にする（D20。送れなかった
+  ときは残す。応答を待つ間に書き足した文字は消さない）。手動更新とラジオは発言欄を空にして read / setAuto を送る。
   空の発言は read とし、閉鎖・kick・退室は確認ダイアログで同意されたときだけ送る。
 - React の `<form action>` は成功した Action の後で uncontrolled な入力をリセットするため、
   入室失敗を通常の戻り値で扱う本画面では uncontrolled な入力と組み合わせない。
@@ -819,7 +820,7 @@ sequenceDiagram
   participant S as RoomScreen（useActionState）
   participant E as Edge two-shot
   F->>S: startTransition(dispatch({ type: 'say', text }))
-  F->>F: 発言欄を全選択
+  F->>F: 発言欄を全選択（保存されたら空にする。D20）
   T->>S: 自動更新の tick
   Note over S: 操作中の tick は捨てる（要求をためない）
   S->>E: say（x-two-shot-token）
@@ -867,7 +868,7 @@ D16 の E2 の本文と D18 の Guest 入室前ログの消去、Q3 / Q4 の承�
 
 - EntryForm: 保存値の有無でフォーカスと性別の既定が変わる。部屋を選ばずに入室すると E1 がページ全体に出る
 - RoomList: 取得前は状態の欄が空、失敗で `異常(2)`、`自動更新(60秒)にする` で表示が変わる
-- ChatForm: 発言の後も文字が残って全選択されている。確認ダイアログでキャンセルすると何も送らない。ラジオで発言欄が
+- ChatForm: 発言の後に全選択してフォーカスを戻す。保存されたら発言欄が空になり、送れなかったら文字が残る。確認ダイアログでキャンセルすると何も送らない。ラジオで発言欄が
   空になり取得が走る。相手を退室で自動更新が なし になる
 - RoomScreen: 退室の後も上ペインが残る。`直前の画面` で下ペインが戻る。自動更新と発言の応答の順序
 - TwoShotPage: `sessionStorage` のトークンで Room_Screen に戻る。無効なら Lobby_Screen に戻ってトークンが消える
@@ -982,4 +983,4 @@ D16 の E2 の本文と D18 の Guest 入室前ログの消去、Q3 / Q4 の承�
 - **一覧をビュー（security definer view）で公開する。** Supabase の検査でエラーになる。関数で同じことができる
 - **RetroSplitter を使う。** 見た目とプリセットの高さが違う（§4）
 - **uncontrolled な `<form action>` で発言を送る。** Action 完了時の自動リセットと、
-  原作の「文字を残して全選択」が食い違う。発言は既存方針の controlled + onSubmit に揃える（§8）
+  送れなかったときに文字を残せない。発言は既存方針の controlled + onSubmit に揃える（§8。空にするのは保存された後だけ。D20）

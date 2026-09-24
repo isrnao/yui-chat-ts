@@ -204,7 +204,8 @@ describe('入室後', () => {
     return withGuest;
   }
 
-  it('発言すると応答のログを出し、発言欄の文字は残る', async () => {
+  // 原作は発言の後も文字を残して全選択したが、Enter のたびに同じ発言を連投してしまうので空にする
+  it('発言が保存されたら応答のログを出し、発言欄を空にする', async () => {
     const state = await enterAsOwner();
     const said = applyCommand(
       state,
@@ -227,7 +228,39 @@ describe('入室後', () => {
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '発言' })));
     expect(api.callTwoShot.mock.calls[1][0]).toEqual({ room: '02', op: 'say', text: 'こんにちは' });
     await waitFor(() => expect(screen.getByText('はなこ > こんにちは')).toBeInTheDocument());
+    expect(input).toHaveValue('');
+    expect(document.activeElement).toBe(input);
+    // 空のまま Enter を押しても発言は送らない（取り直しになる）
+    api.callTwoShot.mockResolvedValueOnce(roomResponse(said));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '発言' })));
+    expect(api.callTwoShot.mock.calls[2][0]).toEqual({ room: '02', op: 'read' });
+  });
+
+  it('発言を送れなかったら、送り直せるように発言欄の文字を残す', async () => {
+    await enterAsOwner();
+    api.callTwoShot.mockResolvedValueOnce('failed');
+    const input = screen.getByRole('textbox', { name: '発言' });
+    fireEvent.change(input, { target: { value: 'こんにちは' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '発言' })));
+    expect(screen.getByRole('heading', { name: 'システムエラー' })).toBeInTheDocument();
     expect(input).toHaveValue('こんにちは');
+  });
+
+  it('応答を待つ間に書き足した文字は、発言が保存されても消さない', async () => {
+    const state = await enterAsOwner();
+    let respond: (response: TwoShotResponse) => void = () => {};
+    api.callTwoShot.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          respond = resolve;
+        })
+    );
+    const input = screen.getByRole('textbox', { name: '発言' });
+    fireEvent.change(input, { target: { value: 'こんにちは' } });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '発言' })));
+    fireEvent.change(input, { target: { value: 'こんにちは、よろしく' } });
+    await act(async () => respond(roomResponse(state)));
+    expect(input).toHaveValue('こんにちは、よろしく');
   });
 
   it('通信中に発言を押し直しても二重に送らず、完了した後はまた送れる', async () => {
@@ -250,6 +283,9 @@ describe('入室後', () => {
     await act(async () => respond(roomResponse(state)));
     const says = () => api.callTwoShot.mock.calls.filter(([request]) => request.op === 'say');
     expect(says()).toHaveLength(1);
+    fireEvent.change(screen.getByRole('textbox', { name: '発言' }), {
+      target: { value: 'もう一度' },
+    });
     await act(async () => fireEvent.click(button));
     expect(says()).toHaveLength(2);
   });

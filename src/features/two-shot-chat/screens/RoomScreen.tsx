@@ -26,10 +26,20 @@ function RoomScreen({ session, initial }: { session: ActiveSession; initial: Roo
   const busy = useRef(false);
   const [ui, dispatchAction] = useActionState(
     (previous: RoomUiState, action: RoomAction): Promise<RoomUiState> =>
-      // React Compiler は catch のない try / finally をコンパイルできないので、Promise の finally で戻す
-      reduceRoom(session, previous, action).finally(() => {
-        busy.current = false;
-      }),
+      reduceRoom(session, previous, action)
+        .then((next) => {
+          // 発言が保存されてログが返ったら発言欄を空にする。原作は文字を残して全選択したが、Enter のたびに
+          // 同じ発言を連投してしまうため変えた（requirements.md 6.4）。送れなかったとき（お知らせ）は残して
+          // 送り直せるようにし、応答を待つ間に書き足した文字は消さない
+          if (action.type === 'say' && next.bottom.kind === 'log') {
+            setValue((current) => (current === action.text ? '' : current));
+          }
+          return next;
+        })
+        // React Compiler は catch のない try / finally をコンパイルできないので、Promise の finally で戻す
+        .finally(() => {
+          busy.current = false;
+        }),
     initial
   );
 
