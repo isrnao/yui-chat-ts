@@ -172,10 +172,12 @@
   - [x] 6.6 `pnpm lint`（型情報を使う lint）と Compiler_Check が、本機能のファイルを許可リストなしで通すことを確かめる
     - _Requirements: 17.4, 17.8_
 
-- [ ] 7. 発言の文字参照を展開する（Requirement 7.10、PR6、任意）
-  - [ ] 7.1 `utils/decodeCharRefs.ts`: 数値の文字参照と、よく使われた名前付きの文字参照の表。`innerHTML` を使わない
+- [x] 7. 発言の文字参照を展開する（Requirement 7.10、PR6、任意）
+  - [x] 7.1 `utils/decodeCharRefs.ts`: 数値の文字参照と、HTML 4.01 の名前付きの文字参照の表。`innerHTML` を使わない。
+        発言の本文・一覧のプロフィール・N4 のお知らせに適用する
     - _Requirements: 7.10_
-  - [ ] 7.2 テスト: `&hearts;` `&#9829;` `&#x2665;` が ♥ に、`&lt;b&gt;` が `<b>` の文字になる。未知の参照はそのまま
+  - [x] 7.2 テスト: `&hearts;` `&#9829;` `&#x2665;` が ♥ に、`&lt;b&gt;` が `<b>` の文字になる。未知の参照はそのまま。
+        表の全ての名前と任意の数値が jsdom の解釈と一致する
 
 - [ ] 8. `/chat/2shot/` を切り替える（Requirement 1 / 15 / 16、PR7）
   - [ ] 8.1 `routing.ts`（`matchTwoShotRoute`）、`resolveRoute.ts`、`routeLoaders.ts`、`App.tsx`（lazy とシェルの色）、

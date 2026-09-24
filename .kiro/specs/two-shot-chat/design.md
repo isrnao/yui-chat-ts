@@ -287,7 +287,7 @@ export const TWO_SHOT_CONFIG = {
 
 **Oracle との比較の結果（Task 0 / 4.7）:** ページ全体のお知らせ（E1）は画素単位で一致。入室後の画面は、入力欄の
 カーソルと、Quirks モードの行の高さの計算による注意書きの 1px の差だけ（差分 0.7%）。ログは一致（`&hearts;` などの
-文字参照は Task 7 で展開する）。一覧は、注意書き（Q4(a)）の分だけ表が下がる以外は一致。意図した差分（D16 の E2、
+文字参照は Task 7 で展開した）。一覧は、注意書き（Q4(a)）の分だけ表が下がる以外は一致。意図した差分（D16 の E2、
 D18 の入室前のログの消去、Q3 のクレジット、Q4(a) の注意書き）は比較から除く
 
 ### 6. サーバー: `rules.ts`（Requirement 5 / 9 / 10 / 12）
@@ -737,8 +737,11 @@ export function errorPage(code: ErrorCode): { title: string; lines: string[] };
 
 - `formatTime` は `Intl.DateTimeFormat('ja-JP', { timeZone: 'Asia/Tokyo', hour: '2-digit', minute: '2-digit',
 hourCycle: 'h23' })`。ログは SSG しないので、サーバーとクライアントでタイムゾーンが違っても hydration には影響しない
-- `decodeCharRefs`（P2）は、数値の文字参照（`&#9829;` / `&#x2665;`）と、よく使われた名前付きの文字参照
-  （`&hearts;` `&amp;` `&quot;` `&nbsp;` `&copy;` など、一覧は実装時に決める）だけを文字に戻す。`innerHTML` は使わない
+- `decodeCharRefs`（P2）は、数値の文字参照（`&#9829;` / `&#x2665;`）と、名前付きの文字参照だけを 1 回で文字に戻す。
+  `innerHTML` は使わない。名前の表は、原作の時代のブラウザが解釈した HTML 4.01 の 252 個と `&apos;`（値は今の
+  ブラウザと同じ。`&lang;` / `&rang;` は U+27E8 / U+27E9）。`;` のない参照（`&copy` など）は展開しない。数値の参照は
+  HTML Standard の規則（0・サロゲート・範囲外は U+FFFD、0x80〜0x9F は Windows-1252）。テストでは表の全ての名前と
+  任意の数値を jsdom の HTML パーサーの結果と突き合わせる。適用先は発言の本文、一覧のプロフィール、N4 のお知らせ
 
 ### 10. 既存機能との整合（Requirement 15 / 16）
 
