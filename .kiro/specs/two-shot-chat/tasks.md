@@ -31,14 +31,14 @@
     - Frame_Border の描き方（色と幅）と、既定のフォント・文字の大きさをここで確かめ、design.md §4 / §5 に書き足す
     - _Requirements: 2.4, 18.1_
 
-- [ ] 1. 状態遷移の規則を純粋な関数で書く（Requirement 5 / 9 / 10 / 12、PR2）
-  - [ ] 1.1 `supabase/functions/two-shot/rules.ts` に定数（`ROOM_IDS`、`MAX_LINES`、`LOG_SIZE_LIMIT`、`IDLE_SECONDS`、
+- [x] 1. 状態遷移の規則を純粋な関数で書く（Requirement 5 / 9 / 10 / 12、PR2）
+  - [x] 1.1 `supabase/functions/two-shot/rules.ts` に定数（`ROOM_IDS`、`MAX_LINES`、`LOG_SIZE_LIMIT`、`IDLE_SECONDS`、
         `NAME_MAX`、`PROFILE_MAX`、入室受付・保持期限）と型（`RoomState`、`Member_ID` に対応するフィールド、`Command`、`Context`、`Outcome`）を置く。import を持たせない
     - _Requirements: 14.4_
-  - [ ] 1.2 `sjisSize` / `logSize`（コードポイント単位の概算、通知も同じ本文定義）、匿名化、切り詰め
+  - [x] 1.2 `sjisSize` / `logSize`（コードポイント単位の概算、通知も同じ本文定義）、匿名化、切り詰め
         （名前 30 / プロフィール 60 コードポイント → 匿名化の順）を書く
     - _Requirements: 5.4, 5.9, 10.3_
-  - [ ] 1.3 `applyCommand` を design.md §6 の順序（正規化 → 入室 / 認証 → 書き込み）で書く
+  - [x] 1.3 `applyCommand` を design.md §6 の順序（正規化 → 入室 / 認証 → 書き込み）で書く
     - 正規化: 300 秒と 5000 概算バイト。入室以外の未認証操作は正規化以外で状態を変えない
     - 入室: トークンと入室記録の照合、同一試行の再送・期限・失効、新規 Owner / Guest、満室、E2 の拒否（部屋を消さない）
     - Guest の新規入室では既存ログを消す。同一試行の再送では消さず、通知・Idle_Timer を更新しない
@@ -47,12 +47,12 @@
     - 状態が変わらないときは同じ参照を返す
     - E10（認証コードの発行失敗）は返さない。空室に戻すときと席を空けるときに IP・UA も消す
     - _Requirements: 5.1, 5.2, 5.3, 5.5, 5.6, 5.7, 8.4, 9.1, 9.2, 9.3, 9.4, 9.5, 9.7, 10.1, 10.2, 11.6, 12.2, 12.3, 12.4, 15.3_
-  - [ ] 1.4 `toRoomView` を書く（新しい順、`mine` を Member_ID で決める、`idleSeconds`、ほかの人の IP・UA・ハッシュを含めない）
+  - [x] 1.4 `toRoomView` を書く（新しい順、`mine` を Member_ID で決める、`idleSeconds`、ほかの人の IP・UA・ハッシュを含めない）
     - _Requirements: 7.1, 7.6, 7.8, 15.1_
-  - [ ] 1.5 `src/features/two-shot-chat/rules.test.ts` に例ベースのテストを書く: research.md §5.2 の N1〜N10 と
+  - [x] 1.5 `src/features/two-shot-chat/rules.test.ts` に例ベースのテストを書く: research.md §5.2 の N1〜N10 と
         §5.3 の E1〜E9 が出る操作列をすべて。300 秒 / 299 秒、5000 / 5001 バイトの境界
     - _Requirements: 18.3_
-  - [ ] 1.6 同じファイルに fast-check のプロパティテストを書く: 任意の操作列・時刻・トークンに対して design.md §6 の
+  - [x] 1.6 同じファイルに fast-check のプロパティテストを書く: 任意の操作列・時刻・トークンに対して design.md §6 の
         不変条件が成り立つ。時刻は Unix ミリ秒、seats は `[null, null]` で初期化し、拒否した入室・同一試行の再送を含める
     - _Requirements: 18.2_
 

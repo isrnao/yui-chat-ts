@@ -361,11 +361,16 @@ export type Outcome =
   | { kind: 'lobby' }
   | { kind: 'notice'; code: ErrorCode; placement: 'page' | 'pane' }
   | { kind: 'invalid-request' }; // 400。トークンの形式・試行の部屋/入力の不一致等
-export function applyCommand(
-  state: RoomState,
-  cmd: Command,
-  ctx: Context
-): { state: RoomState; outcome: Outcome };
+export type NewAdmission =
+  | { result: 'accepted'; memberId: string }
+  | { result: 'duplicate' | 'full'; memberId: null };
+export type Transition = {
+  state: RoomState; // 変わらなければ引数と同じ参照
+  outcome: Outcome;
+  admission: NewAdmission | null; // 新しく保存する入室記録（再送・期限切れでは null）
+  said: { seat: 0 | 1; line: MessageLine } | null; // Q4(b) の控えを同じトランザクションで書く発言
+};
+export function applyCommand(state: RoomState, cmd: Command, ctx: Context): Transition;
 export function sjisSize(text: string): number;
 export function logSize(lines: StoredLine[]): number;
 export function toRoomView(roomId: string, state: RoomState, seat: 0 | 1, now: number): RoomView;
