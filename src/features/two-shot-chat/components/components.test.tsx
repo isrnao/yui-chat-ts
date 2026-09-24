@@ -21,6 +21,7 @@ const T0 = Date.UTC(2026, 8, 23, 21, 12, 0); // 2026-09-24 06:12（日本時間�
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('設定', () => {
@@ -72,6 +73,39 @@ describe('FrameLayout', () => {
     const separator = setup();
     for (let i = 0; i < 60; i++) fireEvent.keyDown(separator, { key: 'ArrowUp' });
     expect(separator).toHaveAttribute('aria-valuenow', '5'); // 40 / 800
+  });
+
+  // 動かした後も px で固定しない。固定すると、ウィンドウを縮めたときに下のペインが 0 になる
+  it('ドラッグした位置を割合で持ち、ウィンドウの高さが変わっても両方のペインを残す', () => {
+    // jsdom には PointerEvent と Pointer Capture がないので、テストの中でだけ用意する
+    vi.stubGlobal(
+      'PointerEvent',
+      class extends MouseEvent {
+        pointerId: number;
+        constructor(
+          type: string,
+          init: ConstructorParameters<typeof MouseEvent>[1] & { pointerId?: number } = {}
+        ) {
+          super(type, init);
+          this.pointerId = init.pointerId ?? 0;
+        }
+      }
+    );
+    // （jsdom の環境はテストのファイルごとに作り直されるので、ほかのファイルには残らない）
+    Object.assign(HTMLElement.prototype, {
+      setPointerCapture: () => {},
+      releasePointerCapture: () => {},
+      hasPointerCapture: () => false,
+    });
+    const separator = setup();
+    const frames = separator.parentElement!;
+    fireEvent.pointerDown(separator, { button: 0, pointerId: 1, clientY: 240 });
+    fireEvent.pointerMove(separator, { pointerId: 1, clientY: 600 });
+    fireEvent.pointerUp(separator, { pointerId: 1, clientY: 600 });
+
+    expect(separator).toHaveAttribute('aria-valuenow', '75'); // (240 + 360) / 800
+    expect(frames.style.getPropertyValue('--ts-top')).toBe('0.75');
+    expect(frames.style.gridTemplateRows).toBe('');
   });
 });
 
