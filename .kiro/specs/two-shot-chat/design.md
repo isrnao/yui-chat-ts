@@ -112,8 +112,10 @@ stateDiagram-v2
 ### 1. ルーティングと設置（Requirement 1）
 
 ```ts
-// src/features/two-shot-chat/routing.ts
+// src/features/chat/rooms.ts（ほかの部屋 ID と同じ場所。Node から読むプリレンダとトップの人数集計も使う）
 export const TWO_SHOT_ROOM_ID = '2shot' satisfies RoomId;
+
+// src/features/two-shot-chat/routing.ts
 export type TwoShotRouteMatch = { type: 'two-shot' } | { type: 'redirect'; to: string };
 
 export function matchTwoShotRoute(pathname: string): TwoShotRouteMatch | null;
@@ -146,13 +148,19 @@ export function matchTwoShotRoute(pathname: string): TwoShotRouteMatch | null;
 - `generate-sitemap.ts` は変更しない（`buildRoomPath` の末尾 `/` 付きの形で `/chat/2shot/` が今も載る）
 - `entry-server.tsx` の `renderToHtml` は、描画中のエラー（Suspense の中のものを含む）が 1 件でもあればビルドを失敗させる。
   TwoShotPage の SSG は `sessionStorage` などのブラウザ API に触れず、外部ストアの `getServerSnapshot` だけで入口を描く
-- 検証: ビルド後の `dist/chat/2shot/index.html` の modulePreload に `vendor-supabase` がないことを
-  `prerenderHtml.test.ts` と同じ形のテスト、または build 後のスクリプトで確かめる（Requirement 17.5）
+- 検証（Requirement 17.5）: `prerender-rooms.ts` は TwoShotRoute の静的依存（manifest の `imports`）に Supabase の
+  チャンク（`findSupabaseAssets`。`vite.config.ts` は `@supabase/*` をまとめて `vendor-supabase` にする）があれば
+  ビルドを止める。`pnpm test` でも `src/test/reachability.test.ts` が TwoShotRoute から静的な import をたどり、
+  `@supabase/*` と `shared/supabaseClient.ts` に届かないことを確かめる（対照として ChatRoute は届くこと）
+- 実測（2026-09-24）: TwoShotRoute のチャンクは 39.2 kB（gzip 14.9 kB）、CSS 2.2 kB。`/chat/2shot/` の先読みは
+  TwoShotRoute と roomSeo の 2 つだけで、ブラウザで開いても `vendor-supabase` は読まれない
 
 **SEO**
 
-- `useSEO({ title: buildPageTitle('ツーショットチャット'), description: room.description, canonical:
-buildRoomSeo('2shot').canonical })`。プリレンダの head も同じ値にする（ズレると hydrate 後に書き換わる）
+- `buildTwoShotSeo(roomId | null)`（`src/features/two-shot-chat/seo.ts`）が唯一の定義。`buildRoomSeo('2shot')` の
+  canonical・説明文・構造化データに、タイトルだけ `buildPageTitle('ツーショットチャット')` を載せる。TwoShotPage の
+  `useSEO` とプリレンダ（`renderTwoShotHtml`）の両方がこれを使う（ズレると hydrate 後に書き換わる）。Node から直接
+  読むので、import は相対パスと `.ts` 拡張子にし、`import.meta.env` を読むモジュールを import しない
 - タイトルは TwoShotPage の `useSEO` 一か所で、Lobby / pending では入口のタイトル、active では
   `ツーショットチャット - ルーム１` に切り替える。Lobby に戻ったときも復元し、RoomScreen から別途
   `document.title` を書かない。canonical / description は同じ公開ページの値を保ち、名前などは head に入れない
@@ -745,7 +753,10 @@ hourCycle: 'h23' })`。ログは SSG しないので、サーバーとクライ�
 
 ### 10. 既存機能との整合（Requirement 15 / 16）
 
-- **トップの参加人数**: R14 の `room_participant_counts(since_ms)` と 404 時の行取得は実装済み。
+- **トップの参加人数**（`src/features/top/api/roomCountsApi.ts`）: 公開ログで数える部屋から `2shot` を外し
+  （RPC の結果・404 時の行取得の URL・行の集計）、`two_shot_lobby()` の待機中を 1 人、満室を 2 人として数える
+  （`countTwoShotSeats`。トップに two-shot の部品を載せないため最小限だけ読む）。
+  R14 の `room_participant_counts(since_ms)` と 404 時の行取得は実装済み。
   既存 RPC は通常部屋用のままにし、`two_shot_lobby()` を並行取得してツーショットの人数だけを合流する。
   `toRoomCountMap` と `aggregateCountsFromRows` の両方で公開 `chats` の `2shot` を除外し、旧フォールバック URL の
   対象からも外す。独立した失敗として扱い、ロビーが失敗しても通常部屋の人数は残す（2shot は既存 UI の 0 人表示）。

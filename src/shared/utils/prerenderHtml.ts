@@ -15,6 +15,7 @@ import {
 } from './roomSeo.ts';
 import { SITE_NAME } from './seo.ts';
 import { type RoomId } from '../../features/chat/rooms.ts';
+import { buildTwoShotSeo } from '../../features/two-shot-chat/seo.ts';
 
 export const PAGE_SEO_START = '<!-- page-seo:start -->';
 export const PAGE_SEO_END = '<!-- page-seo:end -->';
@@ -170,6 +171,25 @@ export function renderRoomHtml(template: string, roomId: RoomId): string {
  */
 export function renderChanariRoomHtml(template: string, roomId: RoomId): string {
   return renderPageHtml(template, buildChanariRoomSeo(roomId));
+}
+
+/**
+ * テンプレートからツーショットチャットのページ (`/chat/2shot/`) の HTML を生成する。
+ * head は TwoShotPage の useSEO と同じ buildTwoShotSeo の入口の値にする (SSG は常に入口を描くため)。
+ * 出力先は通常の部屋と同じ buildOutputRelativePath('2shot')。
+ */
+export function renderTwoShotHtml(template: string): string {
+  return renderPageHtml(template, buildTwoShotSeo(null));
+}
+
+/**
+ * 先読みする資産のうち、Supabase の SDK / クライアントのチャンクを返す。
+ * vite.config.ts は @supabase/* をまとめて vendor-supabase にするので、ファイル名で見分けられる。
+ * ツーショットチャットのルートは fetch だけで通信するので、これが空でなければビルドを止める
+ * (.kiro/specs/two-shot-chat Requirement 17.5)。
+ */
+export function findSupabaseAssets(assetPaths: readonly string[]): string[] {
+  return assetPaths.filter((path) => /supabase/i.test(path.slice(path.lastIndexOf('/') + 1)));
 }
 
 /** プリレンダ後の出力先 (dist からの相対パス)。 例: chat/anime/index.html */

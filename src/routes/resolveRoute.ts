@@ -2,8 +2,12 @@ import { matchRoute } from '@features/chat/routing';
 import type { RouteMatch } from '@features/chat/routing';
 import { matchChanariRoute } from '@features/chanari-chat/routing';
 import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
+import { matchTwoShotRoute } from '@features/two-shot-chat/routing';
+import type { TwoShotRouteMatch } from '@features/two-shot-chat/routing';
 
-export type ResolvedRoute = Exclude<RouteMatch | ChanariRouteMatch, { type: 'redirect' }>;
+type AnyRouteMatch = RouteMatch | ChanariRouteMatch | TwoShotRouteMatch;
+
+export type ResolvedRoute = Exclude<AnyRouteMatch, { type: 'redirect' }>;
 
 export type RouteResolution = {
   route: ResolvedRoute;
@@ -14,7 +18,10 @@ export type RouteResolution = {
   finalPathname: string;
 };
 
-function resolveRoute(pathname: string): RouteMatch | ChanariRouteMatch {
+function resolveRoute(pathname: string): AnyRouteMatch {
+  // ツーショットチャットは /chat/2shot/ と /chanari/2shot/ を通常の部屋より先に受ける
+  const twoShot = matchTwoShotRoute(pathname);
+  if (twoShot !== null) return twoShot;
   const chanari = matchChanariRoute(pathname);
   if (chanari !== null) return chanari;
   return matchRoute(pathname);

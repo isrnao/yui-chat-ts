@@ -4,6 +4,7 @@ import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
 import { loadRecentChatLogs } from '@features/chat/api/chatQueries';
 import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
+import { fetchLobby } from '@features/two-shot-chat/api/twoShotApi';
 
 // 複雑なSupabase統合部分はモック化
 vi.mock('@features/chat/api/chatQueries', () => ({
@@ -33,6 +34,12 @@ vi.mock('@features/chat/utils/webAudioPlayer', () => ({
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock('@features/two-shot-chat/api/twoShotApi', () => ({
+  callTwoShot: vi.fn().mockResolvedValue('failed'),
+  fetchLobby: vi.fn().mockResolvedValue({}),
+  REQUEST_TIMEOUT_MS: 10_000,
 }));
 
 beforeEach(() => {
@@ -162,6 +169,41 @@ describe('<App />', () => {
     await waitFor(() => {
       expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
     });
+  });
+
+  // /chat/2shot/ は通常のチャット画面ではなく、ツーショットチャット（.kiro/specs/two-shot-chat Requirement 1）
+  it('shows the two-shot lobby on /chat/2shot/ instead of the chat room', async () => {
+    window.history.replaceState(null, '', '/chat/2shot/');
+
+    await renderApp();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'ツーショットチャット' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '入室' })).toBeInTheDocument();
+    expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
+    expect(document.querySelector('meta[name="theme-color"]')?.getAttribute('content')).toBe(
+      '#ffffff'
+    );
+    // 公開ログは読まない
+    expect(loadRecentChatLogs).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(fetchLobby).toHaveBeenCalled();
+    });
+  });
+
+  it('redirects /chanari/2shot to /chat/2shot/ and shows the two-shot lobby', async () => {
+    window.history.replaceState(null, '', '/chanari/2shot');
+
+    await renderApp();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'ツーショットチャット' })
+    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/chat/2shot/');
+    });
+    expect(loadRecentChatLogs).not.toHaveBeenCalled();
   });
 
   it('redirects /chanari to the default chanari room and updates history', async () => {

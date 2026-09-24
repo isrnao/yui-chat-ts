@@ -14,6 +14,7 @@ export const routeLoaders = {
   'chat-room': () => import('./ChatRoute'),
   'all-rooms': () => import('./AllRoomsRoute'),
   'chanari-room': () => import('./ChanariRoute'),
+  'two-shot': () => import('./TwoShotRoute'),
   'not-found': () => import('./NotFoundRoute'),
 } as const;
 

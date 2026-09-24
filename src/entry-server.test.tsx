@@ -10,6 +10,12 @@ vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
 }));
 
+vi.mock('@features/two-shot-chat/api/twoShotApi', () => ({
+  callTwoShot: vi.fn().mockResolvedValue('failed'),
+  fetchLobby: vi.fn().mockResolvedValue({}),
+  REQUEST_TIMEOUT_MS: 10_000,
+}));
+
 vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/chat/api/chatQueries')>()),
   loadRecentChatLogs: vi.fn(() => Promise.resolve([])),
@@ -83,6 +89,41 @@ describe('SSG + hydrateRoot', () => {
     expect(markup).toContain('おなまえ');
     expect(markup).toContain('<input');
     expect(warnings).toEqual([]);
+  });
+
+  // SSG はブラウザの API（sessionStorage など）を読まずに入口を描く（.kiro/specs/two-shot-chat Requirement 1.5）
+  it('ツーショットチャットは入口を SSG し、不一致なく hydrate できる', async () => {
+    const { markup, warnings } = await ssgThenHydrate('/chat/2shot/');
+
+    expect(markup).toContain('ツーショットチャット');
+    expect(markup).toContain('name="make"');
+    // 通常の部屋の入室フォームは出さない
+    expect(markup).not.toContain('おなまえ');
+    expect(warnings).toEqual([]);
+  });
+
+  // 入室中のタブで再読み込みしても、hydrate は SSG と同じ入口で行い、その後で入室後の画面に切り替える
+  it('ツーショットチャットに入室中のタブでも、不一致なく hydrate できる', async () => {
+    sessionStorage.setItem(
+      'okiraku:two-shot:session',
+      JSON.stringify({
+        v: 1,
+        status: 'active',
+        token: `v1.1.${'a'.repeat(43)}`,
+        roomId: '01',
+        seat: 0,
+        me: { name: 'はなこ', sex: 'F' },
+      })
+    );
+    try {
+      const { markup, container, warnings } = await ssgThenHydrate('/chat/2shot/');
+      expect(markup).toContain('name="make"');
+      expect(warnings).toEqual([]);
+      // hydrate の後で、このタブの Session の画面（入室後のフレーム）に切り替わる
+      expect(container.querySelector('input[name="make"]')).toBeNull();
+    } finally {
+      sessionStorage.clear();
+    }
   });
 
   // React 19.3 では hydration のときも Strict Mode が Effect を二重に呼ぶ（react#35961）。

@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   renderRoomHtml,
   renderChanariRoomHtml,
+  renderTwoShotHtml,
+  findSupabaseAssets,
   buildOutputRelativePath,
   buildChanariOutputRelativePath,
   injectRoutePreload,
@@ -10,6 +12,7 @@ import {
   PAGE_SEO_END,
 } from './prerenderHtml';
 import { buildRoomSeo, buildChanariRoomSeo } from './roomSeo';
+import { buildTwoShotSeo } from '@features/two-shot-chat/seo';
 
 const TEMPLATE = `<!doctype html>
 <html lang="ja">
@@ -197,5 +200,47 @@ describe('injectSsgMarkup', () => {
 
   it('#root が無いテンプレートでは throw する', () => {
     expect(() => injectSsgMarkup('<html><body></body></html>', '<main></main>')).toThrow();
+  });
+});
+
+describe('renderTwoShotHtml', () => {
+  const html = renderTwoShotHtml(TEMPLATE);
+
+  it('title は入口の画面名で、canonical と og:url は /chat/2shot/', () => {
+    expect(html).toContain('<title>ツーショットチャット | お気楽チャットTS</title>');
+    expect(html).toContain('<link rel="canonical" href="https://www.okiraku.chat/chat/2shot/" />');
+    expect(html).toContain(
+      '<meta property="og:url" content="https://www.okiraku.chat/chat/2shot/" />'
+    );
+  });
+
+  it('TwoShotPage の useSEO と同じ値（buildTwoShotSeo）で、説明文は部屋の紹介文', () => {
+    const seo = buildTwoShotSeo(null);
+    expect(html).toContain(`<meta name="description" content="${seo.description}" />`);
+    expect(seo.description).toBe(buildRoomSeo('2shot').description);
+    expect(seo.description).toContain('2人にだけ見え');
+    const jsonLd = JSON.parse(
+      html.match(/<script type="application\/ld\+json" data-page-jsonld>(.*?)<\/script>/)![1]
+    );
+    expect(jsonLd).toEqual(seo.jsonLd);
+  });
+
+  it('出力先は通常の部屋と同じ chat/2shot/index.html', () => {
+    expect(buildOutputRelativePath('2shot')).toBe('chat/2shot/index.html');
+  });
+});
+
+describe('findSupabaseAssets', () => {
+  it('Supabase の SDK とクライアントのチャンクだけを返す', () => {
+    expect(
+      findSupabaseAssets([
+        'assets/TwoShotRoute-abc.js',
+        'assets/TwoShotRoute-abc.css',
+        'assets/vendor-supabase-123.js',
+        'assets/supabaseClient-456.js',
+        'assets/supabase-dir/other.js',
+      ])
+    ).toEqual(['assets/vendor-supabase-123.js', 'assets/supabaseClient-456.js']);
+    expect(findSupabaseAssets(['assets/vendor-react-1.js'])).toEqual([]);
   });
 });

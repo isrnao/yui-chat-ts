@@ -180,28 +180,36 @@
         表の全ての名前と任意の数値が jsdom の解釈と一致する
 
 - [ ] 8. `/chat/2shot/` を切り替える（Requirement 1 / 15 / 16、PR7）
-  - [ ] 8.1 `routing.ts`（`matchTwoShotRoute`）、`resolveRoute.ts`、`routeLoaders.ts`、`App.tsx`（lazy とシェルの色）、
+  - [x] 8.1 `routing.ts`（`matchTwoShotRoute`）、`resolveRoute.ts`、`routeLoaders.ts`、`App.tsx`（lazy とシェルの色）、
         `src/routes/TwoShotRoute.tsx`。`/chanari/2shot/` から `/chat/2shot/`（`buildChatRoomPath`）へのリダイレクト
     - `rooms.ts` の `'2shot'` の ID・カテゴリ・関連部屋はそのまま残す。`chats` の `room_id = '2shot'` の行には触れない
     - `src/test/reachability.test.ts` の一時的な例外（`NOT_YET_ROUTED`）を消す
+    - `TWO_SHOT_ROOM_ID` は `rooms.ts` に置く（Node のプリレンダとトップの人数集計からも読むため）
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.7, 1.8, 16.2_
-  - [ ] 8.2 `prerenderHtml.ts` に `renderTwoShotHtml` を足し、`prerender-rooms.ts` の通常の部屋とちゃなりのループから
+  - [x] 8.2 `prerenderHtml.ts` に `renderTwoShotHtml` を足し、`prerender-rooms.ts` の通常の部屋とちゃなりのループから
         `'2shot'` を外す。SEO の head を `useSEO` と同じ値にする（canonical・og:url は `/chat/2shot/`）
     - 出力先は `buildOutputRelativePath('2shot')`。SSG は描画エラーを出さない（`renderToHtml` がビルドを止める）
     - _Requirements: 1.5, 1.6, 1.9_
-  - [ ] 8.3 `rooms.ts` の `'2shot'` の紹介文を書き換える（Q4 の決定を反映）
+  - [x] 8.3 `rooms.ts` の `'2shot'` の紹介文を書き換える（Q4 の決定を反映）
     - _Requirements: 15.4, 15.5_
-  - [ ] 8.4 トップの参加人数: 既存の人数 RPC は変更せず、`two_shot_lobby()` を並行取得して合流する
+  - [x] 8.4 トップの参加人数: 既存の人数 RPC は変更せず、`two_shot_lobby()` を並行取得して合流する
     - RPC 結果変換・404 時の行取得 URL・行集計の全経路から公開 `2shot` を除外する
     - 一方の取得に失敗しても他方の人数を保持する。切り替え PR の revert で旧集計に戻る
     - _Requirements: 15.2, 16.1_
-  - [ ] 8.5 ルーティングとプリレンダのテスト: `/chat/2shot/` と `/chat/2shot` が two-shot、`/chanari/2shot/` と
+  - [x] 8.5 ルーティングとプリレンダのテスト: `/chat/2shot/` と `/chat/2shot` が two-shot、`/chanari/2shot/` と
         `/chanari/2shot` が `/chat/2shot/` へリダイレクト（BASE_URL 込み）、似た別パスが一致しないこと
     - build 後の静的依存に `vendor-supabase` だけでなく分割済みの Supabase SDK もないこと
+      （`prerender-rooms.ts` がビルドを止める。`reachability.test.ts` が import のグラフでも確かめる）
     - 人数 RPC の成功 / 404 フォールバック / 部分失敗 / 全失敗を検証する
     - _Requirements: 1.1, 1.3, 1.5, 1.9, 17.5_
   - [ ] 8.6 ローカルの Supabase とステージングの Edge で、異なる IP または UA の 2 クライアントで状態遷移を確かめ、同じ IP / UA は E2 の拒否用に別途確認する
     - _Requirements: 5.6, 5.8, 18.1_
+    - [x] ローカル（2026-09-24、`supabase start` の Kong + PostgREST + Edge Runtime、`TWO_SHOT_TRUSTED_IP_HEADER` は
+          テスト用のヘッダ）: ブラウザの 2 タブで 開設 → 一覧の待機中（プロフィールの `&hearts;` は ♥）→ 入室（新しい
+          Guest に前のログを見せない）→ 発言（文字参照は記号、タグは文字）→ 相手を退室（Guest は「終了」）→ 閉鎖。
+          トップの人数は待機中に「1人」。閉鎖後は席・IP・UA・ログが空で、控えは発言 2 件だけ、`chats` の `2shot` は 0 件。
+          API で、同じ IP と同じ UA の入室は E2、同じ IP で別の UA は入室できることを確かめた
+    - [ ] ステージング（デプロイ時。入室から操作できるまでの時間も測る）
 
 - [ ] 9. ドキュメントと検収（Requirement 16.3 / 18、PR8）
   - [ ] 9.1 CLAUDE.md に `two-shot-chat/`、Edge Function `two-shot`、`two_shot_rooms`（ログを公開しない、service_role

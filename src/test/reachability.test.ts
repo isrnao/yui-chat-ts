@@ -29,11 +29,6 @@ const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
 const IMPORT_PATTERN =
   /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)|^import\s+['"]([^'"]+)['"]/gm;
 const EXCLUDE = /\.(test|stories)\.|^src\/test\/|^src\/storybook\/|\.d\.ts$/;
-/**
- * ツーショットチャットの画面は、/chat/2shot/ の切り替え（.kiro/specs/two-shot-chat の Task 8）の PR まで
- * どこからも import しない（それまでの PR を利用者から到達させないため）。切り替えの PR でこの例外を消す。
- */
-const NOT_YET_ROUTED = /^src\/features\/two-shot-chat\//;
 
 function resolveImport(from: string, specifier: string): string | null {
   let base: string;
@@ -68,8 +63,44 @@ function collectReachable(): Set<string> {
 test('本番のエントリから到達しない src のモジュールがない', () => {
   const reachable = collectReachable();
   const unreachable = listFiles('src', true)
-    .filter((file) => /\.tsx?$/.test(file) && !EXCLUDE.test(file) && !NOT_YET_ROUTED.test(file))
+    .filter((file) => /\.tsx?$/.test(file) && !EXCLUDE.test(file))
     .filter((file) => !reachable.has(join(ROOT, file)))
     .map((file) => relative(ROOT, join(ROOT, file)));
   expect(unreachable).toEqual([]);
+});
+
+/** entry から静的な import だけでたどれる src のファイルと、パッケージ（動的 import の先は別のチャンクなので含めない） */
+function collectStaticImports(entry: string): { files: Set<string>; packages: Set<string> } {
+  const files = new Set<string>();
+  const packages = new Set<string>();
+  const stack = [join(ROOT, entry)];
+  while (stack.length > 0) {
+    const file = stack.pop()!;
+    if (files.has(file)) continue;
+    files.add(file);
+    if (!/\.tsx?$/.test(file)) continue;
+    for (const match of readFileSync(file, 'utf8').matchAll(IMPORT_PATTERN)) {
+      const specifier = match[1] ?? match[3];
+      if (specifier === undefined) continue;
+      const resolved = resolveImport(file, specifier);
+      if (resolved) stack.push(resolved);
+      else if (!/^(\.|@features\/|@shared\/)/.test(specifier)) packages.add(specifier);
+    }
+  }
+  return { files, packages };
+}
+
+// ツーショットチャットは fetch だけで通信する（.kiro/specs/two-shot-chat Requirement 17.5）。
+// SDK が静的依存に入ると、このルートで Supabase のチャンク（vendor-supabase）を先読みすることになる。
+// ビルド後の検査は scripts/prerender-rooms.ts でも行う
+test('ツーショットチャットのルートは、Supabase の SDK とクライアントを静的に import しない', () => {
+  const supabase = (graph: ReturnType<typeof collectStaticImports>) => [
+    ...[...graph.packages].filter((name) => name.startsWith('@supabase/')),
+    ...[...graph.files]
+      .filter((file) => file.endsWith('supabaseClient.ts'))
+      .map((file) => relative(ROOT, file)),
+  ];
+  // 検査が空振りしていないことを、SDK を使う通常の部屋のルートで確かめる
+  expect(supabase(collectStaticImports('src/routes/ChatRoute.tsx'))).not.toEqual([]);
+  expect(supabase(collectStaticImports('src/routes/TwoShotRoute.tsx'))).toEqual([]);
 });
