@@ -18,6 +18,7 @@ import {
 const ChatRoute = lazy(routeLoaders['chat-room']);
 const AllRoomsRoute = lazy(routeLoaders['all-rooms']);
 const ChanariRoute = lazy(routeLoaders['chanari-room']);
+const TwoShotRoute = lazy(routeLoaders['two-shot']);
 const NotFoundRoute = lazy(routeLoaders['not-found']);
 
 type ShellChrome = {
@@ -38,6 +39,12 @@ const CHAT_SHELL_CHROME: ShellChrome = {
 const CHANARI_SHELL_CHROME: ShellChrome = {
   backgroundColor: '#ffffdd',
   themeColor: '#ffffdd',
+};
+
+// 原作のツーショットチャットは白地（.kiro/specs/two-shot-chat Requirement 1.7）
+const TWO_SHOT_SHELL_CHROME: ShellChrome = {
+  backgroundColor: '#ffffff',
+  themeColor: '#ffffff',
 };
 
 function upsertMetaColor(name: string, content: string) {
@@ -61,6 +68,8 @@ function resolveShellChrome(route: ResolvedRoute): ShellChrome {
       return CHAT_SHELL_CHROME;
     case 'chanari-room':
       return CHANARI_SHELL_CHROME;
+    case 'two-shot':
+      return TWO_SHOT_SHELL_CHROME;
   }
 }
 
@@ -114,6 +123,7 @@ export default function App({ initialPathname }: { initialPathname?: string } = 
         下書き自体は useChanariSettings が roomId ごとにストアから読む。
       */}
       {route.type === 'chanari-room' && <ChanariRoute key={route.roomId} roomId={route.roomId} />}
+      {route.type === 'two-shot' && <TwoShotRoute />}
       {route.type === 'not-found' && <NotFoundRoute />}
     </RouteHost>
   );

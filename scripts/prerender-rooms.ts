@@ -17,12 +17,14 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   renderRoomHtml,
   renderChanariRoomHtml,
+  renderTwoShotHtml,
+  findSupabaseAssets,
   buildOutputRelativePath,
   buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
 } from '../src/shared/utils/prerenderHtml.ts';
-import { CHAT_ROOMS, getListableRoomIds } from '../src/features/chat/rooms.ts';
+import { CHAT_ROOMS, getListableRoomIds, TWO_SHOT_ROOM_ID } from '../src/features/chat/rooms.ts';
 import { buildRoomPath, buildChanariPath } from '../src/shared/utils/roomSeo.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -79,8 +81,13 @@ function resolveChunkPaths(entryKey: string): string[] {
   });
 }
 
+// ツーショットチャット ('2shot') は通常の部屋の画面ではないので、下で別に描く
+const enabledRoomIds = getListableRoomIds().filter(
+  (id) => CHAT_ROOMS[id].enabled && id !== TWO_SHOT_ROOM_ID
+);
+
 // enabled な全部屋 + 全部屋まとめビュー ('all')
-const targets = [...getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled), 'all' as const];
+const targets = [...enabledRoomIds, 'all' as const];
 
 function writePage(relativePath: string, html: string): void {
   const outPath = resolve(distDir, relativePath);
@@ -113,7 +120,9 @@ for (const roomId of targets) {
 // `/chanari` 単体のリダイレクト先が DEFAULT_ROOM_ID (chanari カテゴリ外) なので、
 // リンク済みの部屋だけに絞るとそこが 404 に戻る。
 // `all` は matchChanariRoute が `/chat/all` へリダイレクトするため含めない。
-const chanariTargets = getListableRoomIds().filter((id) => CHAT_ROOMS[id].enabled);
+// `2shot` も matchTwoShotRoute が `/chat/2shot/` へリダイレクトするため含めない
+// (.kiro/specs/two-shot-chat Requirement 1.6)。
+const chanariTargets = enabledRoomIds;
 
 let chanariCount = 0;
 for (const roomId of chanariTargets) {
@@ -126,10 +135,33 @@ for (const roomId of chanariTargets) {
   chanariCount += 1;
 }
 
+// ツーショットチャット (`/chat/2shot/`)。入口 (空室状況と入室の入力欄) を SSG し、
+// TwoShotRoute のチャンクだけを先読みさせる (ChatRoute のチャンクや部屋紹介は出さない)。
+// 入口の SSG はブラウザの API に触れないので、描画エラーが出れば render がビルドを止める。
+{
+  const assets = resolveChunkPaths('src/routes/TwoShotRoute.tsx');
+  if (assets.length === 0) {
+    console.error('✖ manifest に src/routes/TwoShotRoute.tsx のチャンクがありません。');
+    exit(1);
+  }
+  // fetch だけで通信するルートなので、Supabase の SDK を先読みしていたら止める (Requirement 17.5)
+  const supabaseAssets = findSupabaseAssets(assets);
+  if (supabaseAssets.length > 0) {
+    console.error(
+      `✖ ツーショットチャットの静的依存に Supabase があります: ${supabaseAssets.join(', ')}`
+    );
+    exit(1);
+  }
+  const withMeta = injectRoutePreload(renderTwoShotHtml(template), assets);
+  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(TWO_SHOT_ROOM_ID)));
+  writePage(buildOutputRelativePath(TWO_SHOT_ROOM_ID), html);
+}
+
 // トップページも SSG する。#root が空だと LCP 要素 (紹介文) が JS 待ちになる。
 // 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい。
 writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8');
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
 console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);
+console.log(`✔ prerendered two-shot → ${distDir}/${buildOutputRelativePath(TWO_SHOT_ROOM_ID)}`);
 console.log('✔ SSG: dist/index.html + 各部屋ページ');
