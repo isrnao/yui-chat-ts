@@ -36,6 +36,14 @@ Deno.serve(async (req: Request) => {
 });
 TS
 
+# 公開レジストリはレート制限（toomanyrequests）で一時的に取得できないことがあるので、間隔をあけて再試行する
+for attempt in 1 2 3 4; do
+  docker image inspect "$IMAGE" >/dev/null 2>&1 && break
+  docker pull -q "$IMAGE" >/dev/null && break
+  [[ $attempt == 4 ]] && { echo "✖ $IMAGE を取得できない"; exit 1; }
+  sleep $((attempt * 15))
+done
+
 docker run -d --name "$NAME" -p "$PORT:9000" \
   -e SUPABASE_URL=https://example.invalid -e SUPABASE_SERVICE_ROLE_KEY=smoke \
   -e DEPLOYMENT_ENVIRONMENT=smoke \
