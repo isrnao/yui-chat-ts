@@ -145,9 +145,15 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
       startTransition(() => dispatch({ type: 'dismiss' }));
       lobbyStore.reload();
     };
+    // 〔直前の画面〕は保留中の試行を残し、同じ入力の〔入室〕で同じトークンを再送できるようにする。
+    // 〔空室状況へ〕は試行を破棄する（design.md §8 入室の 5。残すと、前回の席が失効していたときに空室でも E4 になる）
+    const toLobby = () => {
+      if (pending !== null) sessionStore.clearIfToken(pending.token);
+      dismiss();
+    };
     return (
       <TwoShotScope className="ts-page">
-        <NoticePage code={ui.code} onLobby={dismiss} onBack={dismiss} homeHref={HOME_HREF} />
+        <NoticePage code={ui.code} onLobby={toLobby} onBack={dismiss} homeHref={HOME_HREF} />
       </TwoShotScope>
     );
   }

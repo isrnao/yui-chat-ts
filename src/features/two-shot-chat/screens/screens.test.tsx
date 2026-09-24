@@ -132,6 +132,21 @@ describe('入口', () => {
     expect(api.callTwoShot.mock.calls[0][1]).toBe(api.callTwoShot.mock.calls[1][1]);
   });
 
+  // 〔直前の画面〕は同じ試行を再送できるように残すが、〔空室状況へ〕は試行を破棄する（design.md §8 入室の 5）。
+  // 残すと、前回の席が失効していた場合に空室でも E4 になる
+  it('入室の応答を受け取れずに空室状況へ戻ると試行を破棄し、次の入室は新しいトークンにする', async () => {
+    api.callTwoShot.mockResolvedValueOnce('failed').mockResolvedValueOnce(roomResponse(ownerOnly));
+    render(<TwoShotPage />);
+    await act(async () => fillAndEnter());
+    expect(sessionStore.getSnapshot()).toMatchObject({ status: 'pending' });
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '空室状況へ' })));
+    expect(sessionStore.getSnapshot()).toBeNull();
+    expect(screen.getByRole('region', { name: '空室状況' })).toBeInTheDocument();
+    await act(async () => fillAndEnter());
+    await waitFor(() => expect(screen.getByRole('region', { name: 'ログ' })).toBeInTheDocument());
+    expect(api.callTwoShot.mock.calls[0][1]).not.toBe(api.callTwoShot.mock.calls[1][1]);
+  });
+
   it('入力を変えて入室し直すと、新しいトークンにする', async () => {
     api.callTwoShot.mockResolvedValueOnce('failed').mockResolvedValueOnce(roomResponse(ownerOnly));
     render(<TwoShotPage />);
@@ -213,6 +228,30 @@ describe('入室後', () => {
     expect(api.callTwoShot.mock.calls[1][0]).toEqual({ room: '02', op: 'say', text: 'こんにちは' });
     await waitFor(() => expect(screen.getByText('はなこ > こんにちは')).toBeInTheDocument());
     expect(input).toHaveValue('こんにちは');
+  });
+
+  it('通信中に発言を押し直しても二重に送らず、完了した後はまた送れる', async () => {
+    const state = await enterAsOwner();
+    let respond: (response: TwoShotResponse) => void = () => {};
+    api.callTwoShot.mockResolvedValue(roomResponse(state)).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          respond = resolve;
+        })
+    );
+    fireEvent.change(screen.getByRole('textbox', { name: '発言' }), {
+      target: { value: 'こんにちは' },
+    });
+    const button = screen.getByRole('button', { name: '発言' });
+    await act(async () => {
+      fireEvent.click(button);
+      fireEvent.click(button);
+    });
+    await act(async () => respond(roomResponse(state)));
+    const says = () => api.callTwoShot.mock.calls.filter(([request]) => request.op === 'say');
+    expect(says()).toHaveLength(1);
+    await act(async () => fireEvent.click(button));
+    expect(says()).toHaveLength(2);
   });
 
   it('相手を退室させると自動更新を「なし」に戻す', async () => {

@@ -23,27 +23,28 @@ function backToLobby(token: string) {
  */
 function RoomScreen({ session, initial }: { session: ActiveSession; initial: RoomUiState }) {
   const [value, setValue] = useState('');
-  const inFlight = useRef(0);
+  const busy = useRef(false);
   const [ui, dispatchAction] = useActionState(
     (previous: RoomUiState, action: RoomAction): Promise<RoomUiState> =>
       // React Compiler は catch のない try / finally をコンパイルできないので、Promise の finally で戻す
       reduceRoom(session, previous, action).finally(() => {
-        inFlight.current--;
+        busy.current = false;
       }),
     initial
   );
 
+  // 操作は 1 つずつ送る。実行中に届いた操作（発言の連打・自動更新の tick）は捨て、後でまとめて送らない
+  // （design.md §8。ためると、応答を待つ間に押し直した発言が完了後にもう一度送られる）
   const dispatch = (action: RoomAction) => {
-    inFlight.current++;
+    if (busy.current) return;
+    busy.current = true;
     startTransition(() => dispatchAction(action));
   };
 
-  // 自動更新はログを表示している間だけ。操作の実行中に届いた tick は捨てる（要求をためない）
+  // 自動更新はログを表示している間だけ
   useAutoRefresh(
     ui.auto,
-    () => {
-      if (inFlight.current === 0) dispatch({ type: 'read' });
-    },
+    () => dispatch({ type: 'read' }),
     ui.bottom.kind === 'log' && !ui.terminal && ui.auto > 0
   );
 
