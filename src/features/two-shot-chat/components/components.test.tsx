@@ -235,6 +235,25 @@ describe('RoomList', () => {
     expect(rows()[2]).toHaveTextContent('空室');
   });
 
+  it('プロフィールの文字参照は記号にし、タグは文字のまま出す', () => {
+    setup({
+      lobby: {
+        kind: 'loaded',
+        rows: {
+          '01': {
+            status: 'waiting',
+            sex: 'F',
+            name: 'はなこ',
+            profile: '&hearts;&lt;b&gt;よろしく',
+          },
+        },
+      },
+    });
+    const profileCell = rows()[0].querySelectorAll('td')[3];
+    expect(profileCell).toHaveTextContent('♥<b>よろしく');
+    expect(profileCell.children).toHaveLength(0);
+  });
+
   it('手動更新と自動更新の切り替え', () => {
     const handlers = setup();
     fireEvent.click(screen.getByRole('button', { name: '手動更新' }));
@@ -394,6 +413,22 @@ describe('ChatLog', () => {
       'おしらせ > はなこ(女)さん が入室しましたので、このチャットルームをロックしました. (06:12)'
     );
     expect(container.querySelectorAll('hr')).toHaveLength(3);
+  });
+
+  it('発言とプロフィールのお知らせは、文字参照を記号にして出す', () => {
+    const refs = run([
+      [A, { op: 'enter', name: 'alice', sex: 'M', profile: '', make: false }],
+      [B, { op: 'enter', name: 'はなこ', sex: 'F', profile: '&hearts;です', make: false }],
+      [A, { op: 'say', text: 'すき&#9829;&lt;i&gt;' }],
+      [B, { op: 'say', text: '&amp;hearts; &#x2665;' }],
+    ]);
+    const { container } = render(
+      <ChatLog view={toRoomView('01', refs, 0, T0 + 12_000)} auto={0} onClear={vi.fn()} />
+    );
+    expect(screen.getByText('alice > すき♥<i>')).toBeInTheDocument();
+    expect(container.textContent).toContain('はなこ > &hearts; ♥');
+    expect(container.textContent).toContain('はなこさんのプロフィール『 ♥です 』');
+    expect(container.querySelector('i')).toBeNull();
   });
 
   it('更新の方式・無発言監視タイマ・表示行数を出す。画面クリアは管制者だけ', () => {

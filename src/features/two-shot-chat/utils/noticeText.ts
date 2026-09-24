@@ -6,6 +6,7 @@ import {
   type NoticeLine,
   type NoticePart,
 } from '../../../../supabase/functions/two-shot/rules.ts';
+import { decodeCharRefs } from './decodeCharRefs';
 
 /**
  * お知らせ（N1〜N10）とお知らせ画面（E1〜E12）の文言。文言そのものは rules.ts が唯一の定義で、
@@ -14,8 +15,14 @@ import {
 
 export type NoticeView = { name: string; parts: NoticePart[] };
 
+/** 文字の断片は文字参照を展開する（N4 のプロフィール。原作はお知らせも HTML として出していた） */
 export function noticeView(line: NoticeLine): NoticeView {
-  return { name: noticeName(line.code), parts: noticeParts(line) };
+  return {
+    name: noticeName(line.code),
+    parts: noticeParts(line).map((part) =>
+      typeof part === 'string' ? decodeCharRefs(part) : part
+    ),
+  };
 }
 
 export function errorPage(code: ErrorCode): { title: string; lines: readonly string[] } {

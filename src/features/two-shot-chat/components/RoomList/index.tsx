@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { Sex } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG } from '../../config';
+import { decodeCharRefs } from '../../utils/decodeCharRefs';
 import SexLabel from '../SexLabel';
 
 export type LobbyRow =
@@ -58,7 +59,8 @@ function Row({ name, row }: { name: string; row: LobbyRow | null }) {
         <Padded>{waiting?.name}</Padded>
       </td>
       <td>
-        <Padded>{waiting?.profile}</Padded>
+        {/* 原作はプロフィールを HTML として出していたので、文字参照は記号になる */}
+        <Padded>{waiting && decodeCharRefs(waiting.profile)}</Padded>
       </td>
     </tr>
   );

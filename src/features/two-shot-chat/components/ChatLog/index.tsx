@@ -1,6 +1,7 @@
 import { Fragment } from 'react';
 import type { RoomView, ViewLine } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG, type AutoSeconds } from '../../config';
+import { decodeCharRefs } from '../../utils/decodeCharRefs';
 import { formatTime } from '../../utils/formatTime';
 import { noticeView } from '../../utils/noticeText';
 import SexLabel from '../SexLabel';
@@ -16,7 +17,7 @@ function Line({ line }: { line: ViewLine }) {
         <span style={{ color: own }}>
           {line.name}
           {' > '}
-          {line.text}
+          {decodeCharRefs(line.text)}
         </span>{' '}
         <span className="ts-small" style={{ color: own }}>
           {time}
@@ -29,7 +30,7 @@ function Line({ line }: { line: ViewLine }) {
       <>
         <b>{line.name}</b>
         {' > '}
-        {line.text} <span className="ts-small">{time}</span>
+        {decodeCharRefs(line.text)} <span className="ts-small">{time}</span>
       </>
     );
   }
