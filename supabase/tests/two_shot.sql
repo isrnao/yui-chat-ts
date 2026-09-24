@@ -10,7 +10,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(38);
+SELECT plan(41);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -226,6 +226,23 @@ SELECT is(
     (SELECT string_agg(name, ',') FROM public.two_shot_audit WHERE room_id = '06'), 'new',
     '30 日を過ぎた控えだけを消す'
 );
+
+-- 7. 削除ジョブの監視 --------------------------------------------------------
+
+SELECT is(
+    (SELECT string_agg(jobname || ':' || active::text, ',') FROM public.two_shot_maintenance_health()),
+    'two-shot-purge-admissions:true,two-shot-purge-audit:true',
+    '監視は 2 つのジョブを返す（一度も動いていなければ healthy は false）'
+);
+
+-- ジョブが消えても行は残り、異常として返す（消えた行を返さないと、false を見る監視が見逃す）
+DO $$ BEGIN PERFORM cron.unschedule('two-shot-purge-audit'); END $$;
+SELECT is(
+    (SELECT row(active, last_status, healthy)::text FROM public.two_shot_maintenance_health()
+     WHERE jobname = 'two-shot-purge-audit'),
+    '(f,missing,f)', '削除されたジョブは missing・healthy = false で返す'
+);
+SELECT is((SELECT count(*)::int FROM public.two_shot_maintenance_health()), 2, 'ジョブが消えても 2 行を返す');
 
 SELECT * FROM finish();
 ROLLBACK;

@@ -573,8 +573,9 @@ grant execute on function public.two_shot_lobby() to anon, authenticated;
 - `two_shot_admissions(attempt_at)` に削除用インデックスを付け、毎時の pg_cron ジョブで 24 時間以上の記録を消す。
   ジョブが遅れても再送判定は保持期限を越えた記録を新規入室の許可には使わない。
 - 削除ジョブの監視は `two_shot_maintenance_health()`（service_role 専用）で行う。2 つのジョブの直近の実行が
-  2 時間以内に成功していれば `healthy`。外部の監視（New Relic の定期チェックなど）から service_role で呼び、
-  false が続いたら通知する。監視の設定は本番の鍵を扱うので、切り替え（Task 8）の前提としてデプロイ時に行う
+  2 時間以内に成功していれば `healthy`。期待する 2 つのジョブ名を起点にするので、ジョブが消えていても行は残り、
+  `last_status = 'missing'`・`healthy = false` になる（`20260924010000_two_shot_health_missing_jobs.sql`）。
+  外部の監視（New Relic の定期チェックなど）から service_role で呼び、false が続いたら通知する。監視の設定は本番の鍵を扱うので、切り替え（Task 8）の前提としてデプロイ時に行う
 - 管理者の確認は `two_shot_audit_recent`（30 日以内だけを見せる security_invoker のビュー。service_role 専用）で行う
 - Edge とクライアントが共有するフィクスチャ（`supabase/functions/two-shot/fixtures/*.json`）は handler の実際の出力から
   作り、Deno のテストで一致を確かめる（意図して変えるときは `UPDATE_FIXTURES=1` で書き直す）
