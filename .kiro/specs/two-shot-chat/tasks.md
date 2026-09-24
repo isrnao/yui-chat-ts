@@ -204,6 +204,12 @@
     - _Requirements: 1.1, 1.3, 1.5, 1.9, 17.5_
   - [ ] 8.6 ローカルの Supabase とステージングの Edge で、異なる IP または UA の 2 クライアントで状態遷移を確かめ、同じ IP / UA は E2 の拒否用に別途確認する
     - _Requirements: 5.6, 5.8, 18.1_
+    - [x] ローカル（2026-09-24、`supabase start` の Kong + PostgREST + Edge Runtime、`TWO_SHOT_TRUSTED_IP_HEADER` は
+          テスト用のヘッダ）: ブラウザの 2 タブで 開設 → 一覧の待機中（プロフィールの `&hearts;` は ♥）→ 入室（新しい
+          Guest に前のログを見せない）→ 発言（文字参照は記号、タグは文字）→ 相手を退室（Guest は「終了」）→ 閉鎖。
+          トップの人数は待機中に「1人」。閉鎖後は席・IP・UA・ログが空で、控えは発言 2 件だけ、`chats` の `2shot` は 0 件。
+          API で、同じ IP と同じ UA の入室は E2、同じ IP で別の UA は入室できることを確かめた
+    - [ ] ステージング（デプロイ時。入室から操作できるまでの時間も測る）
 
 - [ ] 9. ドキュメントと検収（Requirement 16.3 / 18、PR8）
   - [ ] 9.1 CLAUDE.md に `two-shot-chat/`、Edge Function `two-shot`、`two_shot_rooms`（ログを公開しない、service_role
