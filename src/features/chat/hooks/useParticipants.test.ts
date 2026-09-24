@@ -74,7 +74,7 @@ describe('getRecentParticipants', () => {
       }, // 6分40秒前
     ];
 
-    const participants = getRecentParticipants(chatLog, Date.now());
+    const participants = getRecentParticipants(chatLog, now);
     expect(participants).toHaveLength(2);
     expect(participants).toContainEqual({ uuid: '1', name: 'User1', color: '#ff0000' });
     expect(participants).toContainEqual({ uuid: '2', name: 'User2', color: '#00ff00' });
@@ -112,7 +112,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    const participants = getRecentParticipants(chatLog, Date.now());
+    const participants = getRecentParticipants(chatLog, now);
     expect(participants).toHaveLength(2);
     expect(participants.filter((p) => p.name === 'User1')).toHaveLength(1);
   });
@@ -132,7 +132,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    expect(getRecentParticipants(chatLog, Date.now())).toEqual([]);
+    expect(getRecentParticipants(chatLog, now)).toEqual([]);
   });
 
   it('should handle edge cases in time filtering', () => {
@@ -170,7 +170,9 @@ describe('getRecentParticipants', () => {
       }, // 1秒前
     ];
 
-    const participants = getRecentParticipants(chatLog, Date.now());
+    // 発言時刻の計算に使ったのと同じ now を渡す。ここで Date.now() を読み直すと、
+    // 負荷で 1ms 進んだだけで「ちょうど5分前」が「5分1ms前」になり、境界の確認にならない
+    const participants = getRecentParticipants(chatLog, now);
     expect(participants).toHaveLength(2); // User1とUser3のみ
     expect(participants.map((p) => p.name)).toContain('User1');
     expect(participants.map((p) => p.name)).toContain('User3');
@@ -209,7 +211,7 @@ describe('getRecentParticipants', () => {
       },
     ];
 
-    const participants = getRecentParticipants(chatLog, Date.now());
+    const participants = getRecentParticipants(chatLog, now);
     expect(participants).toHaveLength(2);
 
     const user1 = participants.find((p) => p.name === 'User1');
@@ -241,7 +243,7 @@ describe('getRecentParticipants', () => {
       }, // 未来の時刻
     ];
 
-    const participants = getRecentParticipants(chatLog, Date.now());
+    const participants = getRecentParticipants(chatLog, now);
     expect(participants).toHaveLength(2);
     expect(participants.map((p) => p.name)).toContain('User1');
     expect(participants.map((p) => p.name)).toContain('User2');
@@ -260,7 +262,7 @@ describe('getRecentParticipants', () => {
     }));
 
     const startTime = performance.now();
-    const participants = getRecentParticipants(chatLog, Date.now());
+    const participants = getRecentParticipants(chatLog, now);
     const endTime = performance.now();
 
     // パフォーマンステスト：処理時間が合理的であることを確認
