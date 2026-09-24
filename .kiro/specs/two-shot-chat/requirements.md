@@ -95,12 +95,13 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 
 #### Acceptance Criteria
 
-1. THE Lobby_Screen SHALL 画面を上 30%・下 70% に分け、間に Frame_Border を置く（原作の `rows="30%,70%"`）。
+1. THE Lobby_Screen SHALL 上を 245px に固定し、境界線を出さない（旧お気楽チャットの `rows="245,*" border=0`。Q1・Q10）。
+   この境界は動かせない。
 2. THE Room_Screen SHALL 画面を上 20%・下 80% に分け、間に Frame_Border を置く（原作の `rows="20%,80%"`）。
 3. THE 各ペイン SHALL 独立してスクロールし、ページ全体はスクロールしない（フレームと同じ）。
 4. THE Frame_Border SHALL 原作の `border=5 bordercolor=#555555` の frameset を Chromium で描いたものと同じ見た目になる
    （Oracle のスクリーンショットと比べる）。
-5. WHEN Frame_Border をポインターでドラッグする, THE Frame_Layout SHALL 上下のペインの高さを変える。THE Frame_Border
+5. WHEN Room_Screen の Frame_Border をポインターでドラッグする, THE Frame_Layout SHALL 上下のペインの高さを変える。THE Frame_Border
    SHALL キーボード（上下の矢印キー）でも動かせる（原作のフレームは境界を動かせた）。
 6. THE Frame_Layout SHALL `<frameset>` や `<iframe>` を使わず、1 つの React のツリーで作る。
 7. WHEN Lobby_Screen から Room_Screen に切り替わる（またはその逆）, THE Frame_Layout SHALL その画面の既定の比率に戻る。
@@ -111,14 +112,15 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 
 #### Acceptance Criteria
 
-1. THE Entry_Form SHALL research.md §3.1 の要素（見出し、チャット名、性別、部屋、入室・開設、保存、プロフィール）を
-   同じ順序・同じ文言・同じ色・同じ入力欄の幅（`size`）と文字数の上限（`maxlength`）で表示する。
-2. THE 部屋のセレクト SHALL 先頭に値が空の `▼ルームを選択してください` を置き、Two_Shot_Config の部屋をその後に並べる。
-3. WHEN 保存された入力値がない, THE Entry_Form SHALL チャット名の欄にフォーカスし、性別は ？ を選ぶ。
-4. WHERE 保存された入力値がある, THE Entry_Form SHALL チャット名・性別・プロフィールをその値で埋め、プロフィールの欄に
-   フォーカスする。
-5. WHEN `入室` を押す, THE Two_Shot_Page SHALL Requirement 5 の入室を行う。WHEN `開設` を押す, THE Two_Shot_Page SHALL
-   開設の印を付けて同じ入室を行う。
+1. THE Entry_Form SHALL 旧お気楽チャットのアーカイブ（research.md §7）と同じ要素・順序・文言・色・入力欄の幅（`size`）で
+   表示する: 13px のリンク「チャットならお気楽チャット」（`h1`）、19px の「ツーショットチャット」（`h2`）、ハンドルネーム
+   （`size=10`）、性別 男 `#0099ff` / 女 `#ff0099`、部屋、`入室`、`保存`、待機用プロフィール（`size=50 maxlength=50`）。
+2. THE 部屋のセレクト SHALL 先頭に値が空の `選択してください` を置き、`チャットルーム01`〜`チャットルーム12` をその後に並べる。
+3. WHEN 保存された入力値がない, THE Entry_Form SHALL 性別に 男 を選ぶ。
+4. THE Entry_Form SHALL 表示されたときにハンドルネームの欄にフォーカスする（保存値の有無によらない）。WHERE 保存された
+   入力値がある, THE Entry_Form SHALL ハンドルネーム・性別・待機用プロフィールをその値で埋める。
+5. WHEN `入室` を押す, THE Two_Shot_Page SHALL Requirement 5 の入室を行う。旧お気楽チャットに `開設` はないので、
+   開設の印は付けない（空室に入れば待機中の Owner になる）。
 6. WHEN 部屋を選ばずに入室する, THE Two_Shot_Page SHALL ページ全体に Notice_Page の E1 を出す。
 
 ### Requirement 4: 空室状況の一覧（P0）
@@ -127,10 +129,11 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 
 #### Acceptance Criteria
 
-1. THE Room_List SHALL research.md §3.2 の構成（更新の切り替え、見出し行が黒地白字の表、`ホームページへ戻る`）を同じ
-   文言・色・罫線で表示する。
-2. THE Room_List SHALL 各部屋の状態を 空室 / 待機中 / 満室 で出し、待機中のときだけ Owner の性別・チャット名・
-   プロフィールを出す。
+1. THE Room_List SHALL 旧お気楽チャットのアーカイブ（research.md §7）の構成（更新の切り替え、「▼重要なお知らせ」、
+   `border=2 cellpadding=5 cellspacing=1 bordercolor=#FF99CC width=700` の表、`チャットならお気楽チャットにもどる`、
+   右寄せのクレジット）を同じ文言・色・罫線・配置で表示する。表の右の広告の枠（幅 200px）は、広告を出さずに空けておく。
+2. THE Room_List SHALL 各部屋の状態を 空室 `#8888ff` / 待機中 `#00dd00` / 満室 `#ff0000` で出し、待機中のときだけ Owner の
+   性別・ハンドルネーム・プロフィールを出す。接続元（ホスト名）は出さない（Q8、D21）。
 3. WHEN `自動更新(60秒)にする` を押す, THE Room_List SHALL 表示を `〔60秒自動更新中〕〔手動更新にする〕` に変え、
    60 秒ごとに一覧を取り直す。WHEN `手動更新にする` を押す, THE Room_List SHALL 自動の取り直しをやめる。
 4. WHEN `手動更新` を押す, THE Room_List SHALL 一覧を取り直す。
@@ -448,6 +451,8 @@ React Compiler、純粋なレンダー）で作り直し、`https://www.okiraku.
 | D18 | 新しい入室者にも既存ログを渡す              | 新規 Guest の入室確定時に既存ログを消す                           | 前の 2 人の会話を第三者に渡さない                  |
 | D19 | 保存ファイルの Shift_JIS バイト長で容量制限 | 表示名・本文・時刻・区切りをコードポイント単位の概算で数える      | JSON と装飾 HTML の差を明示し、計算を一意にする    |
 | D20 | 発言の後も文字を残して全選択する            | 保存されたら発言欄を空にする（送れなかったら残す）                | Enter のたびに同じ発言を連投してしまう             |
+| D21 | 待機中の人の接続元（ホスト名）を一覧に出す  | 出さない（行の高さは同じ）                                        | 個人情報（Q8）                                     |
+| D22 | 通報フォーム・広告・PHP 移植のクレジット    | 管理者チャットへ案内、広告の枠は空ける、原作の文字のクレジット    | 今のサイトにないもの・事実と違うものを出さない     |
 
 ## 決定事項（2026-09-24）
 
@@ -469,6 +474,21 @@ Q1〜Q7 は推奨どおりに決定した。本書の要件は、この決定を
 
 原作のソース（`2shot.cgi`、`jcode.pl`）と著作表示の画像は、ライセンスフリーだが本機能に不要なのでリポジトリに入れない。
 Oracle はリポジトリの外に置く。
+
+### 追記: 見た目を旧お気楽チャットの待合室に合わせる（2026-09-24）
+
+ユーザーの依頼で、Q1 と Q6 を次のとおり変更し、Q8〜Q10 を決めた。
+
+- **Q1（変更）: 見た目の基準 → 待合室（入室フォームと空室状況）は旧お気楽チャットのアーカイブ**（research.md §7。
+  `2shot.php` の `?action=Form` / `?action=List` の HTML）に忠実に合わせる。入室後の画面はアーカイブがないので
+  v5.0.1 の構成のまま、色・罫線・文言を待合室に合わせる（トンマナを揃える）。動き（状態遷移・お知らせ）は v5.0.1 のまま
+- **Q6（変更）: 部屋 → チャットルーム01〜12 の 12 部屋**（DB に部屋 11・12 を足し、Edge Function を再デプロイする）
+- **Q8: 待機中の人の接続元（ホスト名）→ 出さない。** アーカイブではプロフィール欄にホスト名が出ていたが、個人情報なので
+  出さない。行の高さは同じにする（D21）
+- **Q9: 通報の案内 → 管理者チャット。** 旧サイトの通報フォームに当たるものがないので、文はアーカイブのまま、リンク先と
+  文字を管理者チャットにする（D22）
+- **Q10: 入室後の画面の境界線 → 残す。** 待合室はアーカイブどおり境界線なしで上 245px に固定し、入室後の画面は今の
+  境界線（ドラッグで高さを変えられる）を残す
 
 ## Success Metrics
 

@@ -212,28 +212,24 @@ supabase/tests/two_shot.sql    ロール別の権限、CAS と付随記録、ロ
 ### 3. Two_Shot_Config（Requirement 3 / 4 / 14.4）
 
 ```ts
-// src/features/two-shot-chat/config.ts（値は research.md §4）
+// src/features/two-shot-chat/config.ts（見た目と文言は旧お気楽チャットの待合室。research.md §7。2026-09-24 に変更）
 export const TWO_SHOT_CONFIG = {
   title: 'ツーショットチャット',
-  homeLabel: 'ホームページへ戻る',
+  siteLabel: 'チャットならお気楽チャット', // 待合室の上のリンク（h1）
+  homeLabel: 'チャットならお気楽チャットにもどる',
+  nameLabel: 'ハンドルネーム',
+  profileLabel: '待機用プロフィール',
+  profileMaxLength: 50, // 旧お気楽チャットの maxlength。サーバーの PROFILE_MAX（60）より短い
   sexName: '性別',
-  sexLabels: { M: '男', F: '女', '-': '？' },
+  sexLabels: SEX_LABELS, // rules.ts
   colors: {
-    text: '#000000',
-    background: '#FFFFFF',
-    link: '#f55550', // 原作は link=#f5555。レガシーな色の解析で #f55550 になる（research.md O8）
-    visited: '#ff5555',
-    headerText: '#FFFFFF',
-    headerBackground: '#000000',
     own: '#888888',
-    sex: { M: '#5555ff', F: '#ff0000', '-': '#555555' },
-    status: { empty: '#8888ff', waiting: '#cc6633', full: '#ff0000' },
+    sex: { M: '#0099ff', F: '#ff0099', '-': '#555555' },
+    status: { empty: '#8888ff', waiting: '#00dd00', full: '#ff0000' },
+    notice: '#ff0000',
   },
-  rooms: [
-    { id: '01', name: 'ルーム１' },
-    /* … */ { id: '10', name: 'ルーム１０' },
-  ],
-  frames: { lobby: 30, room: 20 }, // 上ペインの %
+  rooms: ROOM_IDS.map((id) => ({ id, name: `チャットルーム${id}` })), // 01〜12
+  frames: { lobbyTopPx: 245, room: 20 }, // 待合室は上 245px 固定・境界なし、入室後は上 20%
   lobbyReloadSeconds: 60,
   chatReloadOptions: [0, 20, 30],
 } as const;
@@ -245,14 +241,20 @@ export const TWO_SHOT_CONFIG = {
 - `rules.test.ts` で「`config.ts` の部屋の ID = `rules.ts` の部屋の ID」を確かめる。DB の行はマイグレーションで
   同じ ID を入れる（ID を変えるときはマイグレーションを足す）
 
-**Q1 / Q6 の決定で変わるもの:** 旧お気楽チャットに寄せる場合は色・文言に加え、research.md §7 の
-ペイン比率・一覧の寸法・入力上限・開設ボタンの有無も見直す。部屋数を変える場合は `ROOM_IDS` と DB 行も変更する。
+**2026-09-24 の変更（Q1・Q6）:** 待合室を旧お気楽チャットに合わせたので、ペインの高さ（245px 固定）・一覧の寸法
+（700px、右に空けた 200px の枠）・入力の上限（プロフィール 50 文字）・開設ボタンの削除も合わせた。部屋は 12 にし、
+`ROOM_IDS` と DB の行（`20260924020000_two_shot_rooms_12.sql`）を変えた。本文の色は `#333333`、リンクは `#ff0000`。
 
 ### 4. Frame_Layout（Requirement 2）
 
 ```tsx
-<FrameLayout initialTopPercent={30} top={<EntryForm … />} bottom={<RoomList … />} />
+// 待合室: 上 245px 固定・境界なし（<frameset rows="245,*" border=0>）
+<FrameLayout fixedTopPx={245} top={<EntryForm … />} bottom={<RoomList … />} />
+// 入室後: 上 20%・境界線あり（ドラッグで動かせる）
+<FrameLayout initialTopPercent={20} top={<ChatForm … />} bottom={<ChatLog … />} />
 ```
+
+- `fixedTopPx` を渡すと、上のペインの高さを固定し、境界線（separator）を出さない（Q10 の決定で入室後の画面だけ残す）
 
 - CSS grid（`grid-template-rows: <上> 5px 1fr`、高さ `100dvh`）。上下のペインは `overflow: auto` で独立して
   スクロールし、ページは `overflow: hidden`
@@ -286,8 +288,16 @@ export const TWO_SHOT_CONFIG = {
     `<div class="ts-p">` で包む
   - 行の高さに親のブロックの文字の大きさ（strut）を含めない。小さい文字だけの段落（入力画面の注意書き）は、
     段落自体を小さい文字にする
-- リンクは `a:link` を `#f55550`（原作の `#f5555` をブラウザが解釈した色）、`a:visited` を `#ff5555`。一覧の
-  〔手動更新〕などは URL を持たない操作なので `<button class="ts-link">` にし、リンクと同じ見た目にする
+- 本文は `#333333`、リンクは `a:link` / `a:visited` とも `#ff0000`（旧お気楽チャットの `<body text=#333333 link=#ff0000
+vlink=#ff0000>`）。一覧の〔手動更新〕などは URL を持たない操作なので `<button class="ts-link">` にし、リンクと同じ
+  見た目にする
+- 旧お気楽チャットの表（`border=2 cellpadding=5 cellspacing=1 bordercolor=#FF99CC`）は `.ts-pink`。`bordercolor` 属性が
+  あると Chromium は表とセルの罫線を実線で描く。入室後の入力画面も同じ罫線で、余白は原作の 2px（`.ts-pink-compact`）
+- Quirks モードの表は文字の配置を親から受け継がない（`table { text-align: start }`）。`<td align=center>` の中の一覧の
+  セルが左寄せになるので、同じ指定を置く
+- 行の高さの quirk は、文字を直接持たないインラインの要素（`label` など）にも当たる。待合室の見出しのリンクの行や、
+  折り返したときのチェックボックスだけの行が低くなるので、`.ts-line-quirk`（範囲の行の高さを 0 にし、文字を直接持つ
+  要素とフォームの部品だけに通常の行の高さを与える）で合わせる
 - `<font color>` → `<span style={{ color }}>`、`<font size=-1>` → `font-size: small`、`<center>` / `align=center` →
   `text-align: center`、`<table align=center width=70%>` → `width: 70%; margin-inline: auto`、`<th nowrap>` →
   `white-space: nowrap`、`bgcolor` → `background-color`
@@ -298,6 +308,11 @@ export const TWO_SHOT_CONFIG = {
 `&hearts;` などの文字参照も一致した。一覧は、注意書き（Q4(a)）の分だけ表が下がる以外は一致。残りの差はすべて意図した
 差分（D16 の E2、D18 の入室前のログの消去、Q3 のクレジット、Q4(a) の注意書き、Q5 の画面クリア）か、Oracle の作り方に
 よるもの（静的な上ペインは入室時のラジオのまま、S9d は S9c の画面クリアの続き）。状態ごとの結果は tasks.md の 9.2
+
+**旧お気楽チャットの待合室との比較（2026-09-24、Task 10）:** アーカイブの `?action=Form` / `?action=List` の HTML から
+広告のスクリプトを取り除き、意図した差分（D21・D22、控えの注意書き）を当てた静的なページを Oracle にした。ストーリーの
+O1〜O3 と 1280×800・375×812・1280×1100（一覧の下の端まで）で比べ、差は入力欄のカーソルと下線の数画素だけ
+（0.001〜0.006%）。入室後の画面は比べる相手がないので、Storybook で待合室と色・罫線が揃っていることを目で確かめた
 
 ### 6. サーバー: `rules.ts`（Requirement 5 / 9 / 10 / 12）
 

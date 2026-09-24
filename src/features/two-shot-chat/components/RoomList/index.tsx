@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { Sex } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG } from '../../config';
 import { decodeCharRefs } from '../../utils/decodeCharRefs';
@@ -18,87 +17,77 @@ export type LobbyState =
 const NBSP = '\u00a0';
 const { colors } = TWO_SHOT_CONFIG;
 
-/** 原作は「値の前後に &nbsp;」を入れて描く */
-function Padded({ children }: { children?: ReactNode }) {
-  return (
-    <>
-      {NBSP}
-      {children}
-      {NBSP}
-    </>
-  );
-}
+const STATUS: Record<LobbyRow['status'], { label: string; color: string }> = {
+  empty: { label: '空室', color: colors.status.empty },
+  waiting: { label: '待機中', color: colors.status.waiting },
+  full: { label: '満室', color: colors.status.full },
+};
 
-function Status({ row }: { row: LobbyRow }) {
-  switch (row.status) {
-    case 'empty':
-      return <span style={{ color: colors.status.empty }}>空室</span>;
-    case 'waiting':
-      return (
-        <span style={{ color: colors.status.waiting }}>
-          <b>待機中</b>
-        </span>
-      );
-    case 'full':
-      return <span style={{ color: colors.status.full }}>満室</span>;
-  }
-}
-
+/**
+ * 1 部屋の行。旧お気楽チャットはプロフィールの下に小さい文字で接続元のホスト名を出していたが、個人情報なので
+ * 出さない（2026-09-24 の決定）。行の高さを変えないよう、2 行目は空の小さい文字にする（空室の行と同じ形）。
+ */
 function Row({ name, row }: { name: string; row: LobbyRow | null }) {
   const waiting = row?.status === 'waiting' ? row : null;
+  const status = row === null ? null : STATUS[row.status];
   return (
     <tr>
-      <th className="ts-nowrap">{name}</th>
-      <td className="ts-nowrap ts-center">
-        <Padded>{row && <Status row={row} />}</Padded>
-      </td>
-      <td className="ts-nowrap ts-center">
-        <Padded>{waiting && <SexLabel sex={waiting.sex} />}</Padded>
-      </td>
-      <td className="ts-nowrap">
-        <Padded>{waiting?.name}</Padded>
-      </td>
+      <td>{name}</td>
       <td>
-        {/* 原作はプロフィールを HTML として出していたので、文字参照は記号になる */}
-        <Padded>{waiting && decodeCharRefs(waiting.profile)}</Padded>
+        {/* <CENTER><FONT color=…>空室</FONT></CENTER> */}
+        <div className="ts-center">
+          {status === null ? NBSP : <span style={{ color: status.color }}>{status.label}</span>}
+        </div>
+      </td>
+      <td className="ts-center">{waiting ? <SexLabel sex={waiting.sex} /> : NBSP}</td>
+      <td>{waiting?.name || NBSP}</td>
+      <td>
+        {/* プロフィールは HTML として出していたので、文字参照は記号になる */}
+        {(waiting && decodeCharRefs(waiting.profile)) || NBSP}
+        {/* <BR><FONT size=-2>&nbsp;</FONT>。Quirks モードの行の高さに合わせて、小さい文字のブロックにする */}
+        <div className="ts-x-small">{NBSP}</div>
       </td>
     </tr>
   );
 }
 
 /**
- * 旧お気楽チャットの注意書き（Q4(a)）。会話の控えを残すこと（Q4(b)）と、その保持期間・削除の遅れも書く
- * （requirements.md Requirement 15.5）。
+ * 旧お気楽チャットの注意書き（Q4(a)）。アーカイブの文言のまま（「にします。」の後の「。」も含む）。
+ * 通報の案内は、旧サイトの通報フォームの代わりに管理者チャットへ（2026-09-24 の決定）。会話の控えを残すこと
+ * （Q4(b)）と、その保持期間・削除の遅れの 1 行を足す（requirements.md Requirement 15.5）。
  */
 function SafetyNotice({ reportHref }: { reportHref: string }) {
   return (
     <div>
       <b>
-        <span style={{ color: '#FF0000' }}>▼重要なお知らせ</span>
-        {'\u3000'}プロフィールやチャット名、発言に関する注意事項
+        <span style={{ color: colors.notice }}>▼重要なお知らせ</span>
+        {'\u3000'}待機用プロフィールやハンドルネーム、発言に関する注意事項
       </b>
       <br />
       <b>
         アダルトや出会いを求める表現を記載している方は、見つけ次第、
-        <span style={{ color: '#FF0000' }}>即アクセス禁止</span>にします。
+        <span style={{ color: colors.notice }}>即アクセス禁止</span>にします。
       </b>
-      <br />
+      。<br />
       当サイトはアダルトサイトではありません。
       <br />
       通報に対応するため、会話の控えを 30 日間保存し、通報があったときだけ管理者が確認します（30
       日を過ぎた控えは 1 時間以内に削除します）。
       <br />
-      見つけた方は、
+      発見された方は、
       <b>
-        <a href={reportHref}>管理者チャット</a>
+        <a href={reportHref} target="_blank" rel="noopener">
+          管理者チャット
+        </a>
       </b>{' '}
-      でお知らせください。
+      よりご連絡ください。
     </div>
   );
 }
 
 /**
- * 空室状況（原作の action=List）。research.md §3.2
+ * 待合室の空室状況。旧お気楽チャットのアーカイブ（2shot.php?action=List。research.md §8）と同じ構成にする。
+ * 右の列は広告の枠（幅 200px）だった。広告は出さないが、表の位置を同じにするため空けておく。
  */
 export default function RoomList({
   lobby,
@@ -119,82 +108,86 @@ export default function RoomList({
   const seconds = TWO_SHOT_CONFIG.lobbyReloadSeconds;
   return (
     <div className="ts-doc">
-      <div className="ts-p">
-        <br />
-        <table className="ts-table-70">
-          <tbody>
-            <tr>
-              <td>
-                {auto ? (
-                  <>
-                    〔{seconds}秒自動更新中〕〔
-                    <button type="button" className="ts-link" onClick={() => onSetAuto(false)}>
-                      手動更新にする
-                    </button>
-                    〕
-                  </>
-                ) : (
-                  <>
-                    〔
-                    <button type="button" className="ts-link" onClick={onReload}>
-                      <b>手動更新</b>
-                    </button>
-                    〕〔
-                    <button type="button" className="ts-link" onClick={() => onSetAuto(true)}>
-                      自動更新({seconds}秒)にする
-                    </button>
-                    〕
-                  </>
-                )}
-                <div className="ts-p">
-                  <SafetyNotice reportHref={reportHref} />
-                </div>
-                <div className="ts-p">
-                  <table className="ts-grid ts-grid-3 ts-table-full">
-                    <tbody>
-                      <tr style={{ backgroundColor: colors.headerBackground }}>
-                        {[
-                          'ルーム名',
-                          '状態',
-                          TWO_SHOT_CONFIG.sexName,
-                          'チャット名',
-                          'プロフィール',
-                        ].map((label) => (
-                          <th key={label}>
-                            <span style={{ color: colors.headerText }}>{label}</span>
-                          </th>
-                        ))}
+      {auto ? (
+        <>
+          〔{seconds}秒自動更新中〕〔
+          <button type="button" className="ts-link" onClick={() => onSetAuto(false)}>
+            手動更新にする
+          </button>
+          〕
+        </>
+      ) : (
+        <>
+          〔
+          <button type="button" className="ts-link" onClick={onReload}>
+            手動更新
+          </button>
+          〕〔
+          <button type="button" className="ts-link" onClick={() => onSetAuto(true)}>
+            自動更新({seconds}秒)にする
+          </button>
+          〕
+        </>
+      )}
+      <br />
+      <br />
+      <SafetyNotice reportHref={reportHref} />
+      <br />
+      <table className="ts-table-full">
+        <tbody>
+          <tr>
+            <td className="ts-center">
+              <table className="ts-pink ts-list" style={{ width: '700px', marginInline: 'auto' }}>
+                <tbody>
+                  <tr>
+                    {[
+                      '部屋名',
+                      '状態',
+                      TWO_SHOT_CONFIG.sexName,
+                      TWO_SHOT_CONFIG.nameLabel,
+                      'プロフィール',
+                    ].map((label) => (
+                      <th key={label}>{label}</th>
+                    ))}
+                  </tr>
+                  {TWO_SHOT_CONFIG.rooms.map((room) =>
+                    lobby.kind === 'error' ? (
+                      <tr key={room.id}>
+                        <td>{room.name}</td>
+                        <td colSpan={4} className="ts-center">
+                          異常(2)
+                        </td>
                       </tr>
-                      {TWO_SHOT_CONFIG.rooms.map((room) =>
-                        lobby.kind === 'error' ? (
-                          <tr key={room.id}>
-                            <th>{room.name}</th>
-                            <td colSpan={4} className="ts-center">
-                              異常(2)
-                            </td>
-                          </tr>
-                        ) : (
-                          <Row
-                            key={room.id}
-                            name={room.name}
-                            row={lobby.kind === 'loaded' ? (lobby.rows[room.id] ?? null) : null}
-                          />
-                        )
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <p>
-                  〔<a href={homeHref}>{TWO_SHOT_CONFIG.homeLabel}</a>〕
-                </p>
-                <p />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      {/* 原作の著作表示の画像の位置（Q3: 画像は使わず、文字のクレジットにする） */}
-      <div className="ts-right">
+                    ) : (
+                      <Row
+                        key={room.id}
+                        name={room.name}
+                        row={lobby.kind === 'loaded' ? (lobby.rows[room.id] ?? null) : null}
+                      />
+                    )
+                  )}
+                </tbody>
+              </table>
+            </td>
+            <td style={{ verticalAlign: 'top' }}>
+              <table style={{ width: '200px', borderSpacing: 0 }} aria-hidden="true">
+                <tbody>
+                  <tr>
+                    <td style={{ padding: '5px' }} />
+                  </tr>
+                </tbody>
+              </table>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      〔
+      <a href={homeHref} target="_top">
+        {TWO_SHOT_CONFIG.homeLabel}
+      </a>
+      〕
+      {/* 旧お気楽チャットは原作の著作表示の画像と「Powered by PHP」。画像は使わず文字のクレジットにする（Q3） */}
+      <div className="ts-right ts-line-quirk">
         <small>
           原作:{' '}
           <a href="http://www.rescue.ne.jp/" target="_blank" rel="noopener noreferrer">
@@ -203,7 +196,6 @@ export default function RoomList({
           (CGI-RESCUE)
         </small>
       </div>
-      <p />
     </div>
   );
 }

@@ -96,7 +96,7 @@ describe('SSG + hydrateRoot', () => {
     const { markup, warnings } = await ssgThenHydrate('/chat/2shot/');
 
     expect(markup).toContain('ツーショットチャット');
-    expect(markup).toContain('name="make"');
+    expect(markup).toContain('name="chat_name"');
     // 通常の部屋の入室フォームは出さない
     expect(markup).not.toContain('おなまえ');
     expect(warnings).toEqual([]);
@@ -117,10 +117,10 @@ describe('SSG + hydrateRoot', () => {
     );
     try {
       const { markup, container, warnings } = await ssgThenHydrate('/chat/2shot/');
-      expect(markup).toContain('name="make"');
+      expect(markup).toContain('name="chat_name"');
       expect(warnings).toEqual([]);
       // hydrate の後で、このタブの Session の画面（入室後のフレーム）に切り替わる
-      expect(container.querySelector('input[name="make"]')).toBeNull();
+      expect(container.querySelector('input[name="chat_name"]')).toBeNull();
     } finally {
       sessionStorage.clear();
     }

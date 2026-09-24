@@ -74,7 +74,8 @@ export default function ChatForm({
           inputRef.current?.focus();
         }}
       />
-      <table className="ts-grid ts-grid-5">
+      {/* 原作は <table border=5 cellpadding=2 cellspacing=2>。罫線は待合室と同じピンクの実線にする */}
+      <table className="ts-pink ts-pink-compact">
         <tbody>
           <tr>
             <td className="ts-center">

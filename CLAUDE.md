@@ -75,8 +75,8 @@ This is a React + TypeScript chat application with feature-based architecture:
 - **Features**: Located in `src/features/`. Four features:
   - `chat/` - main chat feature (components, hooks, API, types)
   - `chanari-chat/` - alternate "ちゃなり" chat UI variant
-  - `two-shot-chat/` - ツーショットチャット at `/chat/2shot/`, a re-creation of CGI-RESCUE 2SHOT-CHAT
-    v5.0.1 (see "Two-shot chat" below)
+  - `two-shot-chat/` - ツーショットチャット at `/chat/2shot/`: CGI-RESCUE 2SHOT-CHAT v5.0.1's behaviour
+    with the look of the old okiraku-chat lobby (see "Two-shot chat" below)
   - `top/` - top/landing page with room listing
 - **Shared**: Common utilities in `src/shared/` including components, hooks, and utilities
 - **Pages**: Top-level page components in `src/pages/` (e.g., `NotFoundPage`)
@@ -177,7 +177,9 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
 ## Two-shot chat (`/chat/2shot/`)
 
 Spec: `.kiro/specs/two-shot-chat/`. A private 1-on-1 chat that reproduces the original CGI's UI
-(frames, tables, quirks-mode spacing) in React. The room id `'2shot'` (`TWO_SHOT_ROOM_ID` in
+(frames, tables, quirks-mode spacing) in React. The lobby (entry form + room list) matches the archived
+old okiraku-chat `2shot.php` pixel for pixel (12 rooms `チャットルーム01`–`12`, pink tables, top frame fixed at
+245px with no border); the room screen keeps v5.0.1's layout and draggable border with the same colours. The room id `'2shot'` (`TWO_SHOT_ROOM_ID` in
 `rooms.ts`) keeps its metadata, top-page link and sitemap entry, but its page is **not** the normal
 chat room and its conversation is **never** written to `chats` (old public `2shot` rows are left as
 they are). `/chanari/2shot/` redirects to `/chat/2shot/`.
@@ -191,7 +193,7 @@ they are). `/chanari/2shot/` redirects to `/chat/2shot/`.
   (compare-and-swap on the room version, retried up to 3 times). The duplicate-entry check (E2) uses an
   IP only when `TWO_SHOT_TRUSTED_IP_HEADER` is set (`<header>` or `x-forwarded-for:<n>`); unset means
   no IP check. Smoke-test with `bash scripts/smoke-two-shot-edge.sh` before `supabase functions deploy two-shot`.
-- **Tables** (migration `20260924000000_two_shot.sql`, RLS on with no policies, only `service_role`):
+- **Tables** (migrations `20260924000000_two_shot.sql` + later `20260924*` ones, RLS on with no policies, only `service_role`):
   `two_shot_rooms` (one row per room: seats with IP/UA, log, version), `two_shot_admissions` (entry
   attempts for idempotent resend, 24 h), `two_shot_audit` (a copy of every message for abuse reports,
   30 days). `two_shot_commit` saves room + admission + audit atomically. The only public read is

@@ -26,13 +26,19 @@ type Drag = { pointerId: number; startY: number; startTop: number };
  * 画面（入口 / 入室後）ごとに別のコンポーネントの中に置くので、画面が変わると比率も既定に戻る。
  */
 export default function FrameLayout({
-  initialTopPercent,
+  initialTopPercent = 30,
+  fixedTopPx,
   top,
   bottom,
   topLabel,
   bottomLabel,
 }: {
-  initialTopPercent: number;
+  initialTopPercent?: number;
+  /**
+   * 上のペインの高さを px で固定し、境界線を出さない（待合室の <frameset rows="245,*" border=0>）。
+   * このときは境界線を動かせない
+   */
+  fixedTopPx?: number;
   top: ReactNode;
   bottom: ReactNode;
   topLabel: string;
@@ -86,6 +92,22 @@ export default function FrameLayout({
       resize(currentTop() + step);
     }
   };
+
+  if (fixedTopPx !== undefined) {
+    return (
+      <TwoShotScope
+        className="ts-frames ts-frames-fixed"
+        style={{ '--ts-top-px': `${fixedTopPx}px` } as CSSProperties}
+      >
+        <section className="ts-pane" aria-label={topLabel}>
+          {top}
+        </section>
+        <section className="ts-pane" aria-label={bottomLabel}>
+          {bottom}
+        </section>
+      </TwoShotScope>
+    );
+  }
 
   return (
     <TwoShotScope

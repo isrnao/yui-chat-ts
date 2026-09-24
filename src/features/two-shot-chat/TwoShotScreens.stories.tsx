@@ -16,11 +16,12 @@ import ChatLog from './components/ChatLog';
 import EntryForm, { type EntryValues } from './components/EntryForm';
 import FrameLayout from './components/FrameLayout';
 import NoticePage from './components/NoticePage';
-import RoomList, { type LobbyState } from './components/RoomList';
+import RoomList, { type LobbyRow, type LobbyState } from './components/RoomList';
 import TwoShotScope from './components/Scope';
 
 /**
- * 原作（Oracle）と見比べるための画面の組み合わせ（design.md「テスト戦略」の S1〜S11）。
+ * Oracle と見比べるための画面の組み合わせ（design.md「テスト戦略」）。待合室の O1〜O3 は旧お気楽チャットの
+ * アーカイブ、入室後の S5〜S11 は原作 2SHOT-CHAT v5.0.1 の構成（色と罫線は待合室に合わせた）。
  * ログは rules.ts の状態遷移で作るので、サーバーと同じ規則の中身になる。
  */
 
@@ -116,14 +117,41 @@ const lobbyRows: LobbyState = {
     '01': { status: 'waiting', sex: 'F', name: 'はなこ', profile: 'こんにちは、お話ししましょう' },
     '02': { status: 'full' },
     '03': { status: 'empty' },
-    '04': { status: 'waiting', sex: '-', name: '匿名', profile: '' },
+    '04': { status: 'waiting', sex: 'M', name: '匿名', profile: '' },
     ...Object.fromEntries(
-      ['05', '06', '07', '08', '09', '10'].map((id) => [id, { status: 'empty' as const }])
+      ['05', '06', '07', '08', '09', '10', '11', '12'].map((id) => [
+        id,
+        { status: 'empty' as const },
+      ])
     ),
   },
 };
 
-const EMPTY_ENTRY: EntryValues = { name: '', sex: '-', room: '', profile: '', save: true };
+/** 部屋ごとの状態を指定し、残りを空室にする */
+function lobbyOf(rows: Record<string, LobbyRow>): LobbyState {
+  return {
+    kind: 'loaded',
+    rows: {
+      ...Object.fromEntries(TWO_SHOT_CONFIG.rooms.map((room) => [room.id, { status: 'empty' }])),
+      ...rows,
+    },
+  };
+}
+
+// Oracle（アーカイブの 2shot.php から作った静的なページ）と同じ状態
+const archiveLobby = lobbyOf({
+  '01': { status: 'waiting', sex: 'M', name: 'ゆさ', profile: 'こん' },
+  '03': { status: 'full' },
+  '07': { status: 'full' },
+});
+const mixedLobby = lobbyOf({
+  '01': { status: 'waiting', sex: 'F', name: 'はなこ', profile: 'こんにちは、お話ししましょう' },
+  '02': { status: 'full' },
+  '05': { status: 'waiting', sex: 'M', name: 'たろう', profile: '' },
+  '12': { status: 'full' },
+});
+
+const EMPTY_ENTRY: EntryValues = { name: '', sex: 'M', room: '', profile: '', save: true };
 
 function Lobby({
   entry = EMPTY_ENTRY,
@@ -137,7 +165,7 @@ function Lobby({
   const [values, setValues] = useState(entry);
   return (
     <FrameLayout
-      initialTopPercent={TWO_SHOT_CONFIG.frames.lobby}
+      fixedTopPx={TWO_SHOT_CONFIG.frames.lobbyTopPx}
       topLabel="入室フォーム"
       bottomLabel="空室状況"
       top={
@@ -145,7 +173,7 @@ function Lobby({
           values={values}
           onChange={(patch) => setValues((prev) => ({ ...prev, ...patch }))}
           action={fn()}
-          focus={entry.name === '' ? 'name' : 'profile'}
+          homeHref="/"
         />
       }
       bottom={
@@ -225,6 +253,15 @@ type Story = StoryObj<typeof meta>;
 const ALICE_ME = { name: 'alice', sex: 'M' } as const;
 const HANAKO_ME = { name: 'はなこ', sex: 'F' } as const;
 
+export const O1_アーカイブと同じ待合室: Story = { render: () => <Lobby lobby={archiveLobby} /> };
+export const O2_保存値あり_全部空室: Story = {
+  render: () => (
+    <Lobby
+      entry={{ name: 'はなこ', sex: 'F', room: '', profile: 'よろしくお願いします', save: true }}
+    />
+  ),
+};
+export const O3_待機中と満室が混ざる: Story = { render: () => <Lobby lobby={mixedLobby} /> };
 export const S1_保存値なし: Story = { render: () => <Lobby /> };
 export const S2_保存値あり: Story = {
   render: () => (
