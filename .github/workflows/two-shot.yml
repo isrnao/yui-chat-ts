@@ -1,0 +1,74 @@
+# .github/workflows/two-shot.yml
+# ツーショットチャット（/chat/2shot/）の検証。どれか 1 つでも失敗したら落とす。
+# 既存の ci.yml は Deno と DB のテストを走らせず、Vitest も continue-on-error なので、本機能の保証には使わない
+# （.kiro/specs/two-shot-chat/requirements.md Requirement 18.6）。
+name: two-shot
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'src/features/two-shot-chat/**'
+      - 'supabase/functions/two-shot/**'
+      - 'supabase/functions/save-chat/telemetry.ts'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - 'scripts/smoke-two-shot-edge.sh'
+      - '.github/workflows/two-shot.yml'
+
+jobs:
+  vitest:
+    name: Vitest（規則と画面）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm exec vitest run src/features/two-shot-chat --coverage.enabled=false
+
+  deno:
+    name: Deno（Edge Function）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # 関数のフォルダの deno.json（import map）を読ませるため、そこで実行する
+      - name: Check
+        working-directory: supabase/functions/two-shot
+        run: deno check --no-lock index.ts
+      - name: Test
+        working-directory: supabase/functions/two-shot
+        run: deno test --no-lock --allow-env --allow-read .
+
+  database:
+    name: 実 DB（マイグレーションと pgTAP）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      # 全マイグレーションを流す（two_shot の適用時の自己検証もここで走る）
+      - name: Start database
+        run: supabase db start
+      - name: Test
+        run: supabase test db
+
+  edge-smoke:
+    name: Edge Runtime での起動確認
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke
+        run: bash scripts/smoke-two-shot-edge.sh

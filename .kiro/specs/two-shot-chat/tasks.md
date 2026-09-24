@@ -57,43 +57,45 @@
     - _Requirements: 18.2_
 
 - [ ] 2. DB と Edge Function を作る（Requirement 12 / 14 / 15、PR3）
-  - [ ] 2.1 マイグレーション `two_shot_rooms` / `two_shot_admissions` を書く: 表、RLS（ポリシーなし）、PUBLIC / anon / authenticated の権限の剥奪、service_role の必要権限、
+  - [x] 2.1 マイグレーション `two_shot_rooms` / `two_shot_admissions` を書く: 表、RLS（ポリシーなし）、PUBLIC / anon / authenticated の権限の剥奪、service_role の必要権限、
         `01`〜`10` の行、`two_shot_lobby()`（SECURITY DEFINER、`search_path = ''`）、自己検証
     - 自己検証: anon / authenticated が表を読み書きできず、保存 RPC を実行できない。公開関数は 5 列、
       300 秒前は empty・299 秒前は waiting、JSON null の Guest は不在扱い、full のときは名前などが null
     - `two_shot_admissions` のハッシュ一意制約、要求指紋、結果、attempt_at、削除用インデックスを定義する
     - _Requirements: 4.5, 10.4, 14.1, 14.2, 14.3, 14.4, 14.5, 15.1_
-  - [ ] 2.2 `supabase/functions/two-shot/handler.ts` を書く: CORS、405 / 400、部屋の ID の検証、`x-two-shot-token` の
+  - [x] 2.2 `supabase/functions/two-shot/handler.ts` を書く: CORS、405 / 400、部屋の ID の検証、`x-two-shot-token` の
         SHA-256、信頼境界を設定した IP resolver と `user-agent`、CAS RPC（最大 3 回、続けば 503）、トレース
     - 入室でもヘッダのトークンを必須とし、形式・時刻・指紋を検証する。未選択の部屋は E1、未知の ID は 400
     - 時刻を CAS の試行ごとに取り直し、同時入室で記録と部屋の読取時点がずれた場合は再読込する
     - 全応答 no-store。64 KiB のボディ上限、UA 上限、本文・トークン等をトレースに載せない
     - _Requirements: 5.8, 5.10, 5.11, 12.1, 12.5, 12.6, 12.7, 14.1, 14.6_
-  - [ ] 2.3 `index.ts` と `supabase/config.toml` の `[functions.two-shot] verify_jwt = false`
+  - [x] 2.3 `index.ts` と `supabase/config.toml` の `[functions.two-shot] verify_jwt = false`
     - _Requirements: 14.6_
-  - [ ] 2.4 応答のフィクスチャ（`fixtures/*.json`: ログ、ページのお知らせ、下ペインのお知らせ、入口へ戻る）を置く
+  - [x] 2.4 応答のフィクスチャ（`fixtures/*.json`: ログ、ページのお知らせ、下ペインのお知らせ、入口へ戻る）を置く
     - _Requirements: 14.6_
-  - [ ] 2.5 `handler.test.ts`（Deno）: save-chat と同じくクライアントを差し替えて、上の各項目と「トークンなしの要求で
+  - [x] 2.5 `handler.test.ts`（Deno）: save-chat と同じくクライアントを差し替えて、上の各項目と「トークンなしの要求で
         正規化以外の変更がない」「応答にほかの人の IP・UA が入らない」を確かめる。保存済み入室の再送・失効・期限・同時送信も含める
     - _Requirements: 12.3, 15.1, 18.3_
-  - [ ] 2.6 ローカルの Supabase で `supabase db reset` と Edge の起動を確かめる（`scripts/smoke-save-chat-edge.sh` と同じ手順）
+  - [x] 2.6 ローカルの Supabase で `supabase db reset` と Edge の起動を確かめる（`scripts/smoke-save-chat-edge.sh` と同じ手順）
     - _Requirements: 14.5_
-  - [ ] 2.7 `two_shot_commit` を作る: service_role 専用、部屋行のロックと version 照合、入室記録の一意性、
+  - [x] 2.7 `two_shot_commit` を作る: service_role 専用、部屋行のロックと version 照合、入室記録の一意性、
         受付期限と正規化境界の再検証、状態・入室記録・監査の同一トランザクション保存
     - DB 例外は全体をロールバックする。version / admission の競合のみ再評価し、通信失敗を自動再送しない
     - _Requirements: 5.10, 5.11, 14.1, 14.2_
-  - [ ] 2.8 Q4(b)（採用済み）の `two_shot_audit`、権限、発言の原子的 INSERT、毎時の 30 日超過削除を作る
+  - [x] 2.8 Q4(b)（採用済み）の `two_shot_audit`、権限、発言の原子的 INSERT、毎時の 30 日超過削除を作る
     - 管理用参照も 30 日未満、最大物理削除遅延 1 時間。記録の主キーは部屋と version、Member_ID で入室者を識別
     - 採否をサーバー側で固定し、クライアントが監査を無効化できないようにする
     - _Requirements: 15.5_
   - [ ] 2.9 入室記録の 24 時間後の削除、pg_cron の導入・ジョブ検証、削除失敗の監視を用意する
     - Q4(b) 不採用でも入室記録の削除は必要
+    - 済: 削除ジョブ 2 つと監視用の `two_shot_maintenance_health()`。未: 外部の監視（本番の service_role の鍵を使う）の設定。
+      切り替え（Task 8）の前提としてデプロイ時に行う
     - _Requirements: 5.11, 15.5_
-  - [ ] 2.10 `supabase/tests/two_shot.sql` に実 DB の統合テストを書く
+  - [x] 2.10 `supabase/tests/two_shot.sql` に実 DB の統合テストを書く
     - CAS 競合、同一トークンの別部屋への同時使用、監査 INSERT 失敗時の状態・version・付随記録の全体ロールバック
     - ロール別権限、時刻と JSON null の境界、保持期限の内外、削除ジョブの設定
     - _Requirements: 14.1, 14.2, 14.5, 15.5, 18.3_
-  - [ ] 2.11 `.github/workflows/two-shot.yml` で本機能の Vitest / Deno / ローカル Supabase SQL テストを必須実行する
+  - [x] 2.11 `.github/workflows/two-shot.yml` で本機能の Vitest / Deno / ローカル Supabase SQL テストを必須実行する
     - 既存 CI の `continue-on-error` に依存しない。失敗を許容せず、再現手順を PR に記録する
     - _Requirements: 18.2, 18.3, 18.6_
 

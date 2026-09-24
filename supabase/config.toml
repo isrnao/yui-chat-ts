@@ -17,3 +17,8 @@ major_version = 17
 # 匿名チャットのため JWT 検証は無効（anon key での invoke を許可）。
 # ip / ua はリクエストヘッダから取得し service_role で INSERT する。
 verify_jwt = false
+
+[functions.two-shot]
+# ツーショットチャット。認可は anon key ではなく、本機能のトークン（x-two-shot-token）と席で行う
+# （supabase/functions/two-shot/handler.ts）。保存は service_role で two_shot_commit を呼ぶ。
+verify_jwt = false
