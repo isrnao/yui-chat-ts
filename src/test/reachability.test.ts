@@ -29,6 +29,11 @@ const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
 const IMPORT_PATTERN =
   /(?:import|export)[^'"]*?from\s*['"]([^'"]+)['"]|import\(\s*['"]([^'"]+)['"]\s*\)|^import\s+['"]([^'"]+)['"]/gm;
 const EXCLUDE = /\.(test|stories)\.|^src\/test\/|^src\/storybook\/|\.d\.ts$/;
+/**
+ * ツーショットチャットの画面は、/chat/2shot/ の切り替え（.kiro/specs/two-shot-chat の Task 8）の PR まで
+ * どこからも import しない（それまでの PR を利用者から到達させないため）。切り替えの PR でこの例外を消す。
+ */
+const NOT_YET_ROUTED = /^src\/features\/two-shot-chat\//;
 
 function resolveImport(from: string, specifier: string): string | null {
   let base: string;
@@ -63,7 +68,7 @@ function collectReachable(): Set<string> {
 test('本番のエントリから到達しない src のモジュールがない', () => {
   const reachable = collectReachable();
   const unreachable = listFiles('src', true)
-    .filter((file) => /\.tsx?$/.test(file) && !EXCLUDE.test(file))
+    .filter((file) => /\.tsx?$/.test(file) && !EXCLUDE.test(file) && !NOT_YET_ROUTED.test(file))
     .filter((file) => !reachable.has(join(ROOT, file)))
     .map((file) => relative(ROOT, join(ROOT, file)));
   expect(unreachable).toEqual([]);
