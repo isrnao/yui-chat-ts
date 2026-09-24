@@ -47,9 +47,9 @@ SELECT throws_ok('SELECT * FROM public.two_shot_rooms', '42501', NULL, 'anon の
 SELECT throws_ok(
     $$SELECT public.two_shot_commit('01', 0, 0, NULL, NULL, NULL)$$, '42501', NULL, 'anon の保存は権限エラー'
 );
-SELECT is((SELECT count(*)::int FROM public.two_shot_lobby()), 10, 'anon の一覧は 10 部屋');
+SELECT is((SELECT count(*)::int FROM public.two_shot_lobby()), 12, 'anon の一覧は 12 部屋');
 SELECT is(
-    (SELECT count(*)::int FROM public.two_shot_lobby() WHERE status = 'empty'), 10, '初期状態は全部屋が空室'
+    (SELECT count(*)::int FROM public.two_shot_lobby() WHERE status = 'empty'), 12, '初期状態は全部屋が空室'
 );
 RESET ROLE;
 

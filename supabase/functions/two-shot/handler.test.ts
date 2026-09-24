@@ -161,7 +161,7 @@ Deno.test('POST 以外は 405', async () => {
 Deno.test('不正な JSON・未知の部屋・未知の操作・長すぎる UA は 400', async () => {
   const { call } = setup();
   assertEquals((await call(null, { raw: '{' })).res.status, 400);
-  assertEquals((await call({ room: '11', op: 'read' })).res.status, 400);
+  assertEquals((await call({ room: '13', op: 'read' })).res.status, 400);
   assertEquals((await call({ room: '01', op: 'drop' })).res.status, 400);
   assertEquals((await call({ room: '01', op: 'read' }, { ua: 'x'.repeat(1025) })).res.status, 400);
   assertEquals(

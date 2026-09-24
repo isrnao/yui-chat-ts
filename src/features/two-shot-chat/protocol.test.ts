@@ -24,7 +24,7 @@ describe('Two_Shot_API の応答の検証', () => {
       parseTwoShotResponse({ ok: true, screen: 'room', room: { ...room.room, seat: 2 } })
     ).toBeNull();
     expect(
-      parseTwoShotResponse({ ok: true, screen: 'room', room: { ...room.room, roomId: '11' } })
+      parseTwoShotResponse({ ok: true, screen: 'room', room: { ...room.room, roomId: '13' } })
     ).toBeNull();
     expect(
       parseTwoShotResponse({ ok: true, screen: 'room', room: { ...room.room, idleSeconds: -1 } })

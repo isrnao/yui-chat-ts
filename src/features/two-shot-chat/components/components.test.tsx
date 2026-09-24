@@ -206,14 +206,14 @@ describe('RoomList', () => {
 
   it('取得前は部屋名だけで、状態などの欄は空', () => {
     setup();
-    expect(rows()).toHaveLength(10);
+    expect(rows()).toHaveLength(12);
     expect(rows()[0]).toHaveTextContent(/^ルーム１\s*$/);
     expect(screen.queryByText('異常(2)')).not.toBeInTheDocument();
   });
 
   it('取得に失敗すると、各行を 異常(2) にする', () => {
     setup({ lobby: { kind: 'error' } });
-    expect(screen.getAllByText('異常(2)')).toHaveLength(10);
+    expect(screen.getAllByText('異常(2)')).toHaveLength(12);
   });
 
   it('待機中だけ管制者の性別・名前・プロフィールを出し、満室では出さない', () => {
