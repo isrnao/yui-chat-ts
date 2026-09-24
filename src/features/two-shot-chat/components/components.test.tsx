@@ -345,7 +345,8 @@ describe('ChatForm', () => {
     expect(handlers.onLeave).toHaveBeenCalledTimes(1);
   });
 
-  it('発言すると、文字を残したまま全選択してフォーカスを戻す', () => {
+  // 空にするのは、発言が保存された後に親（RoomScreen）が行う。送れなかったときは全選択のまま残る
+  it('発言すると親に送り、文字を全選択してフォーカスを戻す', () => {
     const handlers = setup(1, 'こんにちは');
     const input = screen.getByRole<HTMLInputElement>('textbox', { name: '発言' });
     fireEvent.click(screen.getByRole('button', { name: '発言' }));
