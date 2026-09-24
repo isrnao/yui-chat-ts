@@ -601,7 +601,8 @@ export const sessionStore: {
 - `sessionStorage` の値はバージョン付きで検証する。不正な JSON / 古い形 / 不正な room / token / sex は Session として使わない。
   `me` はサーバーで匿名化した確定値。表示専用であり、要求で送って認可に使わない。会話本文は永続保存しない。
 - 生の文字列が同じなら同じ snapshot 参照を返し、同じタブの変更を通知する。
-  保存不可時は既存 `persistentStore.ts` の例外処理を参考にメモリへ退避し、現在のページ内では動くようにする。
+  実装は既存の `createPersistentStore` に `storage: 'session'` を足して使う（保存できないときにメモリへ退避する処理も
+  共有する）。現在のページ内では動く。
   保存不可の環境で再読み込みからの復元は保証しない。
 - `sessionStorage` だけでは複製されたタブのトークン共有を防げない。独立したタブは別の利用者、コピーされたトークンは
   同じ利用者とする。アプリが新しいタブを開くリンクには `rel="noopener"` を使う。
@@ -671,16 +672,20 @@ const [ui, dispatch, isPending] = useActionState(roomReducer, initial);
 
 **フォームと入力値保存**
 
-- EntryForm は `createPersistentStore`（`src/shared/utils/persistentStore.ts`）の `okiraku:two-shot:entry` を読み、
-  名前・性別・プロフィールは `useStoreBackedState` で制御する。未編集なら保存値に追随し、編集後は DOM の再作成や
-  保存値の遅延到着で入力を上書きしない。pending の復元値は保存値より優先する。
-- 入室の `<form action>` は残すが、入力は controlled にする。満室・E1・E2・通信失敗でも名前や選択部屋を保持する。
-  `make` は submit ボタンの `name` から取得する。通常の入力値保存はチェックに従い、pending の要求保存とは区別する。
+- LobbyScreen は `createPersistentStore`（`src/shared/utils/persistentStore.ts`）の `okiraku:two-shot:entry` を読む。
+  入力は `useStoreBackedState` と同じ規則を項目ごとに持つ（未編集の項目は保存値に追随し、編集した項目だけローカルの
+  値を優先する）。DOM の再作成や保存値の遅延到着で入力を上書きしない。pending の復元値は保存値より優先する。
+- 入室フォームは controlled の入力と `onSubmit` で、押したボタンを含む FormData を作り、Transition の中で Action に
+  渡す（`<form action>` にすると、Action の完了後に React がフォームをリセットし、選んだ部屋が初期値に戻るため）。
+  満室・E1・E2・通信失敗でも名前や選択部屋を保持する。`make` は submit ボタンの `name` から取得する。通常の
+  入力値保存はチェックに従い、pending の要求保存とは区別する
 - ChatForm は controlled の発言欄と `onSubmit` を使い、`startTransition` の中で dispatch する。
   送信後は文字を残して全選択。手動更新とラジオは発言欄を空にして read / setAuto を送る。
   空の発言は read とし、閉鎖・kick・退室は確認ダイアログで同意されたときだけ送る。
 - React の `<form action>` は成功した Action の後で uncontrolled な入力をリセットするため、
   入室失敗を通常の戻り値で扱う本画面では uncontrolled な入力と組み合わせない。
+- Action の実行中フラグは、reducer の Promise の `.finally()` で戻す。React Compiler 1.0 は catch のない
+  `try / finally` をコンポーネントの中でコンパイルできない（Compiler_Check で検出した）
 
 **自動更新と一覧ストア**
 
