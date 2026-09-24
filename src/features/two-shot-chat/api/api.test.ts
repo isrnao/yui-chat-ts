@@ -140,7 +140,7 @@ describe('Session のストア', () => {
         v: 1,
         status: 'active',
         token: TOKEN,
-        roomId: '11',
+        roomId: '13',
         seat: 0,
         me: { name: 'a', sex: 'M' },
       })

@@ -56,13 +56,13 @@ const roomResponse = (state: RoomState, seat: 0 | 1 = 0): TwoShotResponse => ({
   room: view(state, seat),
 });
 
-function fillAndEnter(room = '02', button: '入室' | '開設' = '入室') {
-  fireEvent.change(screen.getByRole('textbox', { name: 'チャット名' }), {
+function fillAndEnter(room = '02') {
+  fireEvent.change(screen.getByRole('textbox', { name: 'ハンドルネーム' }), {
     target: { value: 'はなこ' },
   });
   fireEvent.click(screen.getByRole('radio', { name: '女' }));
-  fireEvent.change(screen.getByRole('combobox', { name: 'ルーム' }), { target: { value: room } });
-  fireEvent.click(screen.getByRole('button', { name: button }));
+  fireEvent.change(screen.getByRole('combobox', { name: '部屋' }), { target: { value: room } });
+  fireEvent.click(screen.getByRole('button', { name: '入室' }));
 }
 
 beforeEach(() => {
@@ -92,7 +92,7 @@ describe('入口', () => {
     expect(screen.queryByRole('region', { name: '空室状況' })).not.toBeInTheDocument();
     expect(api.callTwoShot).not.toHaveBeenCalled();
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '直前の画面' })));
-    expect(screen.getByRole('textbox', { name: 'チャット名' })).toHaveValue('はなこ');
+    expect(screen.getByRole('textbox', { name: 'ハンドルネーム' })).toHaveValue('はなこ');
   });
 
   it('入室すると、応答のログで入室後の画面を出す（取り直さない）', async () => {
@@ -111,7 +111,7 @@ describe('入口', () => {
     });
     expect(token).toMatch(/^v1\.\d+\./);
     expect(api.callTwoShot).toHaveBeenCalledTimes(1);
-    expect(screen.getByText(/《ルーム２》/)).toBeInTheDocument();
+    expect(screen.getByText(/《チャットルーム02》/)).toBeInTheDocument();
     expect(sessionStore.getSnapshot()).toMatchObject({ status: 'active', roomId: '02', seat: 0 });
     // 入力値は「保存」にチェックがあれば保存する
     expect(JSON.parse(localStorage.getItem('okiraku:two-shot:entry')!)).toMatchObject({
@@ -152,7 +152,7 @@ describe('入口', () => {
     render(<TwoShotPage />);
     await act(async () => fillAndEnter());
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '直前の画面' })));
-    fireEvent.change(screen.getByRole('textbox', { name: 'プロフィール' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: '待機用プロフィール' }), {
       target: { value: 'やあ' },
     });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '入室' })));
@@ -166,7 +166,7 @@ describe('入口', () => {
     await act(async () => fillAndEnter());
     expect(screen.getByRole('region', { name: '空室状況' })).toBeInTheDocument();
     expect(api.fetchLobby).toHaveBeenCalledTimes(2);
-    expect(screen.getByRole('combobox', { name: 'ルーム' })).toHaveValue('02');
+    expect(screen.getByRole('combobox', { name: '部屋' })).toHaveValue('02');
     expect(sessionStore.getSnapshot()).toBeNull();
   });
 

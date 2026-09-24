@@ -726,10 +726,23 @@ describe('DB の JSON の検証（parseRoomState）', () => {
   });
 });
 
-it('部屋の ID は 01〜10 の 10 部屋', () => {
-  expect(ROOM_IDS).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10']);
-  expect(isRoomId('10')).toBe(true);
-  expect(isRoomId('11')).toBe(false);
+it('部屋の ID は 01〜12 の 12 部屋（旧お気楽チャットと同じ）', () => {
+  expect(ROOM_IDS).toEqual([
+    '01',
+    '02',
+    '03',
+    '04',
+    '05',
+    '06',
+    '07',
+    '08',
+    '09',
+    '10',
+    '11',
+    '12',
+  ]);
+  expect(isRoomId('12')).toBe(true);
+  expect(isRoomId('13')).toBe(false);
   expect(isRoomId('2shot')).toBe(false);
   expect(isRoomId(1)).toBe(false);
 });

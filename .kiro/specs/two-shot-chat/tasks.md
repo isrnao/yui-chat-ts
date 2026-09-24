@@ -244,3 +244,19 @@
     - React Compiler で未コンパイルの関数: 0（Compiler_Check の許可リストに本機能はない）
     - Two_Shot_API の p95: ローカルの Edge Runtime で read 68 ms・say 55 ms（n = 200 / 50）。東京リージョンでの
       計測はステージングで行う（8.6 の残り）
+
+- [ ] 10. 見た目を旧お気楽チャットの待合室に合わせる（requirements.md 追記 2026-09-24、Q1・Q6・Q8〜Q10）
+  - [x] 10.1 部屋を 12 にする: `rules.ts` の `ROOM_IDS` を 01〜12、部屋 11・12 の行を足すマイグレーション
+        `20260924020000_two_shot_rooms_12.sql`、pgTAP・Deno・Vitest の部屋数の期待値
+    - _Requirements: 3.2, 4.1_
+  - [x] 10.2 待合室: `config.ts`（部屋名・色・文言・上 245px）、`FrameLayout` の `fixedTopPx`（境界なし）、`EntryForm`
+        （見出しのリンク、ハンドルネーム、男 / 女、開設なし、待機用プロフィール）、`RoomList`（ピンクの表 700px、空けた
+        200px の枠、ホスト名なし、管理者チャットへの案内、控えの注意書き）
+    - _Requirements: 2.1, 3.1〜3.5, 4.1, 4.2_
+  - [x] 10.3 入室後の画面のトンマナ（本文・リンク・性別の色、ピンクの罫線、チャットルーム01 の表記）。境界線は残す
+    - _Requirements: 2.2, 2.5_
+  - [x] 10.4 Oracle（アーカイブの HTML から広告を除いた静的なページ）とストーリー O1〜O3 を画素で比べる
+    - _Requirements: 18.1_
+    - ルートのチャンクは gzip 15.2 kB（10 の前は 14.9 kB）。待合室の文言・12 部屋・境界なしのフレームの分で、
+      Success Metrics の目標（15 kB 以下）を 0.2 kB 超えた。`vendor-supabase` は引き続き読み込まない
+  - [ ] 10.5 本番: マイグレーション → Edge Function の再デプロイ → 画面のデプロイ（この順）

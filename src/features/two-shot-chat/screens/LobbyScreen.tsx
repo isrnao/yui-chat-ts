@@ -118,7 +118,8 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
   // 入室に失敗しても、満室で入口に戻っても、名前や選んだ部屋は残る
   const stored: EntryValues = {
     name: pending?.request.name ?? saved?.name ?? '',
-    sex: pending?.request.sex ?? saved?.sex ?? ('-' satisfies Sex),
+    // 旧お気楽チャットの既定は「男」
+    sex: pending?.request.sex ?? saved?.sex ?? ('M' satisfies Sex),
     room: pending?.request.room ?? '',
     profile: pending?.request.profile ?? saved?.profile ?? '',
     save: true,
@@ -160,14 +161,13 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
 
   return (
     <FrameLayout
-      initialTopPercent={TWO_SHOT_CONFIG.frames.lobby}
+      fixedTopPx={TWO_SHOT_CONFIG.frames.lobbyTopPx}
       topLabel="入室フォーム"
       bottomLabel="空室状況"
       top={
         <EntryForm
-          // 保存値は hydration の後に届く。届いたらフォーカスの位置を決め直すため作り直す
-          key={saved?.name ? 'profile' : 'name'}
           values={values}
+          homeHref={HOME_HREF}
           onChange={(patch) => setEdited((previous) => ({ ...previous, ...patch }))}
           action={(formData) => {
             // 実行中の二重送信は受け付けない
@@ -175,7 +175,6 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
             busy.current = true;
             dispatch({ type: 'enter', formData });
           }}
-          focus={saved?.name ? 'profile' : 'name'}
         />
       }
       bottom={

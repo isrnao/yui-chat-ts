@@ -25,10 +25,10 @@ afterEach(() => {
 });
 
 describe('設定', () => {
-  it('部屋はサーバーと同じ 01〜10 で、名前は全角の数字', () => {
+  it('部屋はサーバーと同じ 01〜12 で、名前は旧お気楽チャットと同じ「チャットルーム01」', () => {
     expect(TWO_SHOT_CONFIG.rooms.map((room) => room.id)).toEqual([...ROOM_IDS]);
-    expect(getTwoShotRoomName('01')).toBe('ルーム１');
-    expect(getTwoShotRoomName('10')).toBe('ルーム１０');
+    expect(getTwoShotRoomName('01')).toBe('チャットルーム01');
+    expect(getTwoShotRoomName('12')).toBe('チャットルーム12');
   });
 
   it('ログの時刻は日本時間の HH:MM', () => {
@@ -110,9 +110,9 @@ describe('FrameLayout', () => {
 });
 
 describe('EntryForm', () => {
-  const values: EntryValues = { name: '', sex: '-', room: '', profile: '', save: true };
+  const values: EntryValues = { name: '', sex: 'M', room: '', profile: '', save: true };
 
-  function setup(overrides: Partial<EntryValues> = {}, focus: 'name' | 'profile' = 'name') {
+  function setup(overrides: Partial<EntryValues> = {}) {
     const onChange = vi.fn();
     const action = vi.fn();
     const { container } = render(
@@ -120,67 +120,83 @@ describe('EntryForm', () => {
         values={{ ...values, ...overrides }}
         onChange={onChange}
         action={action}
-        focus={focus}
+        homeHref="/"
       />
     );
     return { onChange, action, container };
   }
 
-  it('原作と同じ入力欄の幅と上限、部屋の並びを出す', () => {
+  it('旧お気楽チャットと同じ見出し・入力欄の幅と上限・部屋の並びを出す', () => {
     setup();
-    expect(screen.getByRole('heading', { name: 'ツーショットチャット' })).toBeInTheDocument();
-    const name = screen.getByRole('textbox', { name: 'チャット名' });
-    expect(name).toHaveAttribute('size', '30');
-    expect(name).toHaveAttribute('maxlength', '30');
-    const profile = screen.getByRole('textbox', { name: 'プロフィール' });
-    expect(profile).toHaveAttribute('size', '50');
-    expect(profile).toHaveAttribute('maxlength', '60');
-    const options = within(screen.getByRole('combobox', { name: 'ルーム' })).getAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual([
-      '▼ルームを選択してください',
-      ...TWO_SHOT_CONFIG.rooms.map((room) => room.name),
-    ]);
-    expect(screen.getByRole('radio', { name: '？' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: '保存' })).toBeChecked();
-  });
-
-  it('保存値がなければチャット名に、あればプロフィールにフォーカスする', () => {
-    const { container } = setup();
-    expect(document.activeElement).toBe(
-      within(container).getByRole('textbox', { name: 'チャット名' })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'チャットならお気楽チャット'
     );
+    expect(screen.getByRole('link', { name: 'チャットならお気楽チャット' })).toHaveAttribute(
+      'href',
+      '/'
+    );
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('ツーショットチャット');
+    const name = screen.getByRole('textbox', { name: 'ハンドルネーム' });
+    expect(name).toHaveAttribute('size', '10');
+    expect(name).toHaveAttribute('maxlength', '30');
+    const profile = screen.getByRole('textbox', { name: '待機用プロフィール' });
+    expect(profile).toHaveAttribute('size', '50');
+    expect(profile).toHaveAttribute('maxlength', '50');
+    const options = within(screen.getByRole('combobox', { name: '部屋' })).getAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      '選択してください',
+      ...Array.from({ length: 12 }, (_, i) => `チャットルーム${String(i + 1).padStart(2, '0')}`),
+    ]);
+    // 性別は 男 / 女 の 2 つで、既定は 男
+    expect(screen.getAllByRole('radio').map((radio) => radio.parentElement?.textContent)).toEqual([
+      '男 ',
+      '女 ',
+    ]);
+    expect(screen.getByRole('radio', { name: '男' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: '保存' })).toBeChecked();
+    // 旧お気楽チャットには「開設」がない
+    expect(screen.getAllByRole('button').map((button) => button.getAttribute('value'))).toEqual([
+      '入室',
+    ]);
   });
 
-  it('保存値があるとプロフィールにフォーカスする', () => {
-    const { container } = setup({ name: 'はなこ' }, 'profile');
+  it('保存値があってもハンドルネームにフォーカスする（<body onLoad> と同じ）', () => {
+    const { container } = setup({ name: 'はなこ' });
     expect(document.activeElement).toBe(
-      within(container).getByRole('textbox', { name: 'プロフィール' })
+      within(container).getByRole('textbox', { name: 'ハンドルネーム' })
     );
   });
 
   it('入力の変更を親に伝える', () => {
     const { onChange } = setup();
-    fireEvent.change(screen.getByRole('textbox', { name: 'チャット名' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'ハンドルネーム' }), {
       target: { value: 'あ' },
     });
     fireEvent.click(screen.getByRole('radio', { name: '女' }));
-    fireEvent.change(screen.getByRole('combobox', { name: 'ルーム' }), { target: { value: '03' } });
-    expect(onChange.mock.calls).toEqual([[{ name: 'あ' }], [{ sex: 'F' }], [{ room: '03' }]]);
+    fireEvent.change(screen.getByRole('combobox', { name: '部屋' }), { target: { value: '12' } });
+    fireEvent.change(screen.getByRole('textbox', { name: '待機用プロフィール' }), {
+      target: { value: 'やあ' },
+    });
+    expect(onChange.mock.calls).toEqual([
+      [{ name: 'あ' }],
+      [{ sex: 'F' }],
+      [{ room: '12' }],
+      [{ profile: 'やあ' }],
+    ]);
   });
 
-  it('入室と開設は押したボタンで区別して Action に渡す', async () => {
-    const { action } = setup({ name: 'はなこ', room: '02' });
-    await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: '開設' }));
-    });
+  it('入室の入力を Action に渡す（開設はないので make は送らない）', async () => {
+    const { action } = setup({ name: 'はなこ', room: '02', profile: 'よろしく' });
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: '入室' }));
     });
-    const [[make], [enter]] = action.mock.calls as [FormData][];
-    expect(make.get('make')).toBe('開設');
-    expect(make.get('room')).toBe('02');
-    expect(enter.has('make')).toBe(false);
-    expect(enter.get('chat_name')).toBe('はなこ');
+    const [[formData]] = action.mock.calls as [FormData][];
+    expect(formData.get('chat_name')).toBe('はなこ');
+    expect(formData.get('sex')).toBe('M');
+    expect(formData.get('room')).toBe('02');
+    expect(formData.get('mes')).toBe('よろしく');
+    expect(formData.get('cookie')).toBe('1');
+    expect(formData.has('make')).toBe(false);
   });
 });
 
@@ -202,18 +218,19 @@ describe('RoomList', () => {
 
   // レイアウト用の外側の表を除き、一覧の表の見出し行より下だけを見る
   const rows = () =>
-    within(document.querySelector<HTMLElement>('.ts-grid')!).getAllByRole('row').slice(1);
+    within(document.querySelector<HTMLElement>('.ts-list')!).getAllByRole('row').slice(1);
 
   it('取得前は部屋名だけで、状態などの欄は空', () => {
     setup();
-    expect(rows()).toHaveLength(10);
-    expect(rows()[0]).toHaveTextContent(/^ルーム１\s*$/);
+    expect(rows()).toHaveLength(12);
+    expect(rows()[0]).toHaveTextContent(/^チャットルーム01\s*$/);
+    expect(rows()[11]).toHaveTextContent(/^チャットルーム12\s*$/);
     expect(screen.queryByText('異常(2)')).not.toBeInTheDocument();
   });
 
   it('取得に失敗すると、各行を 異常(2) にする', () => {
     setup({ lobby: { kind: 'error' } });
-    expect(screen.getAllByText('異常(2)')).toHaveLength(10);
+    expect(screen.getAllByText('異常(2)')).toHaveLength(12);
   });
 
   it('待機中だけ管制者の性別・名前・プロフィールを出し、満室では出さない', () => {
@@ -231,7 +248,7 @@ describe('RoomList', () => {
     expect(rows()[0]).toHaveTextContent('女');
     expect(rows()[0]).toHaveTextContent('はなこ');
     expect(rows()[0]).toHaveTextContent('よろしく');
-    expect(rows()[1]).toHaveTextContent(/^ルーム２\s*満室\s*$/);
+    expect(rows()[1]).toHaveTextContent(/^チャットルーム02\s*満室\s*$/);
     expect(rows()[2]).toHaveTextContent('空室');
   });
 
@@ -249,9 +266,9 @@ describe('RoomList', () => {
         },
       },
     });
-    const profileCell = rows()[0].querySelectorAll('td')[3];
+    const profileCell = rows()[0].querySelectorAll('td')[4];
     expect(profileCell).toHaveTextContent('♥<b>よろしく');
-    expect(profileCell.children).toHaveLength(0);
+    expect(profileCell.querySelector('b')).toBeNull();
   });
 
   it('手動更新と自動更新の切り替え', () => {
@@ -269,7 +286,27 @@ describe('RoomList', () => {
     expect(handlers.onSetAuto).toHaveBeenCalledWith(false);
   });
 
-  it('注意書き・ホームページへのリンク・原作のクレジットを出す', () => {
+  it('見出しの行は旧お気楽チャットと同じ', () => {
+    setup();
+    expect(
+      within(document.querySelector<HTMLElement>('.ts-list')!)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent)
+    ).toEqual(['部屋名', '状態', '性別', 'ハンドルネーム', 'プロフィール']);
+  });
+
+  // 旧お気楽チャットはプロフィールの下に接続元のホスト名を出していたが、個人情報なので出さない
+  it('待機中の行に接続元（ホスト名）を出さない', () => {
+    setup({
+      lobby: {
+        kind: 'loaded',
+        rows: { '01': { status: 'waiting', sex: 'M', name: 'ゆさ', profile: 'こん' } },
+      },
+    });
+    expect(rows()[0].querySelectorAll('td')[4]).toHaveTextContent(/^こん\s*$/);
+  });
+
+  it('注意書き・お気楽チャットへのリンク・原作のクレジットを出す', () => {
     setup();
     expect(screen.getByText('▼重要なお知らせ')).toBeInTheDocument();
     expect(screen.getByText(/会話の控えを 30 日間保存/)).toBeInTheDocument();
@@ -277,7 +314,9 @@ describe('RoomList', () => {
       'href',
       '/chat/com_sb/'
     );
-    expect(screen.getByRole('link', { name: 'ホームページへ戻る' })).toHaveAttribute('href', '/');
+    expect(
+      screen.getByRole('link', { name: 'チャットならお気楽チャットにもどる' })
+    ).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: '2SHOT-CHAT' })).toHaveAttribute(
       'rel',
       'noopener noreferrer'
@@ -449,7 +488,7 @@ describe('ChatLog', () => {
 });
 
 describe('NoticePage', () => {
-  it('見出しと本文、空室状況へ・ホームページへ戻る・直前の画面を出す', () => {
+  it('見出しと本文、空室状況へ・お気楽チャットへのリンク・直前の画面を出す', () => {
     const onLobby = vi.fn();
     const onBack = vi.fn();
     render(<NoticePage code="E3" onLobby={onLobby} onBack={onBack} homeHref="/" />);
@@ -459,7 +498,7 @@ describe('NoticePage', () => {
       'あなたは現在の利用者であるという認証ができません.',
       'または、データが制限サイズを越えましたので閉鎖しました.',
       '〔空室状況へ〕',
-      '〔ホームページへ戻る〕',
+      '〔チャットならお気楽チャットにもどる〕',
       '〔直前の画面〕',
     ]);
     fireEvent.click(screen.getByRole('button', { name: '空室状況へ' }));

@@ -178,7 +178,7 @@ describe('<App />', () => {
     await renderApp();
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'ツーショットチャット' })
+      await screen.findByRole('heading', { level: 2, name: 'ツーショットチャット' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '入室' })).toBeInTheDocument();
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
@@ -198,7 +198,7 @@ describe('<App />', () => {
     await renderApp();
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'ツーショットチャット' })
+      await screen.findByRole('heading', { level: 2, name: 'ツーショットチャット' })
     ).toBeInTheDocument();
     await waitFor(() => {
       expect(window.location.pathname).toBe('/chat/2shot/');

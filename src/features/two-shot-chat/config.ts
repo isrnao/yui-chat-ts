@@ -4,40 +4,34 @@ import {
   ROOM_IDS,
   SEX_LABELS,
   type Sex,
-  type TwoShotRoomId,
 } from '../../../supabase/functions/two-shot/rules.ts';
 
 /**
- * 原作の「初期設定」に当たる定数（Two_Shot_Config）。値は research.md §4（v5.0.1 の既定）。
+ * 画面の定数（Two_Shot_Config）。動きは原作 2SHOT-CHAT v5.0.1 の既定（research.md §4）、見た目と文言は
+ * 旧お気楽チャットの待合室（アーカイブの 2shot.php。research.md §8）に合わせる。
  * サーバーが守る数値（行数・時間・部屋の ID・性別の表記）は rules.ts を唯一の定義にし、ここから読む。
  * spec: .kiro/specs/two-shot-chat/design.md §3
  */
-
-const FULL_WIDTH_DIGITS = '０１２３４５６７８９';
-
-/** 「ルーム１」〜「ルーム１０」（原作の部屋名は全角の数字） */
-function roomName(id: TwoShotRoomId): string {
-  const digits = String(Number(id))
-    .split('')
-    .map((d) => FULL_WIDTH_DIGITS[Number(d)])
-    .join('');
-  return `ルーム${digits}`;
-}
-
 export const TWO_SHOT_CONFIG = {
   title: 'ツーショットチャット',
-  homeLabel: 'ホームページへ戻る',
+  /** 待合室の上のリンク（旧お気楽チャットの <h1>） */
+  siteLabel: 'チャットならお気楽チャット',
+  homeLabel: 'チャットならお気楽チャットにもどる',
+  nameLabel: 'ハンドルネーム',
+  profileLabel: '待機用プロフィール',
+  /** 旧お気楽チャットの入力欄の上限（<input name="mes" maxlength=50>）。サーバーの上限（PROFILE_MAX）より短い */
+  profileMaxLength: 50,
   sexName: '性別',
   sexLabels: SEX_LABELS,
   colors: {
-    headerText: '#FFFFFF',
-    headerBackground: '#000000',
     own: '#888888',
-    sex: { M: '#5555ff', F: '#ff0000', '-': '#555555' } satisfies Record<Sex, string>,
-    status: { empty: '#8888ff', waiting: '#cc6633', full: '#ff0000' },
+    sex: { M: '#0099ff', F: '#ff0099', '-': '#555555' } satisfies Record<Sex, string>,
+    status: { empty: '#8888ff', waiting: '#00dd00', full: '#ff0000' },
+    notice: '#ff0000',
   },
-  rooms: ROOM_IDS.map((id) => ({ id, name: roomName(id) })),
-  frames: { lobby: 30, room: 20 },
+  rooms: ROOM_IDS.map((id) => ({ id, name: `チャットルーム${id}` })),
+  /** 待合室は <frameset rows="245,*" border=0>。入室後は原作の 20% で、境界線を動かせる */
+  frames: { lobbyTopPx: 245, room: 20 },
   lobbyReloadSeconds: 60,
   chatReloadOptions: [0, 20, 30] as const,
   maxLines: MAX_LINES,

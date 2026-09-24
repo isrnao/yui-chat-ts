@@ -1,5 +1,6 @@
 /*
- * ツーショットチャット（原作 2SHOT-CHAT v5.0.1）の見た目。
+ * ツーショットチャットの見た目。待合室は旧お気楽チャットのアーカイブ（2shot.php）、入室後の画面は原作
+ * 2SHOT-CHAT v5.0.1 の構成を、待合室と同じ色・罫線にしたもの。
  * spec: .kiro/specs/two-shot-chat/design.md §5
  *
  * 原作はスタイルを持たず、ブラウザ既定の見た目（表の border / cellpadding 属性など）で描かれている。
@@ -19,23 +20,19 @@
   all: revert;
 }
 
-/* 原作はフォントも文字の大きさも指定していない = ブラウザ既定 */
+/* フォントと文字の大きさはブラウザ既定。<body bgcolor=#FFFFFF text=#333333 link=#ff0000 vlink=#ff0000> */
 .two-shot-scope {
   font-family: initial;
   font-size: initial;
   line-height: normal;
-  color: #000000;
+  color: #333333;
   background: #ffffff;
 }
 
-/* <body link=#f5555 vlink=#ff5555>。#f5555 は 5 桁の不正な色で、ブラウザは #f55550 として描く
-   （research.md O8） */
 .two-shot-scope a:link,
+.two-shot-scope a:visited,
 .two-shot-scope .ts-link {
-  color: #f55550;
-}
-.two-shot-scope a:visited {
-  color: #ff5555;
+  color: #ff0000;
 }
 
 /* URL を持たない操作（〔手動更新〕など）はボタンにして、リンクと同じ見た目にする */
@@ -66,6 +63,11 @@
   .two-shot-scope.ts-frames {
     grid-template-rows: round(down, calc((100% - 5px) * var(--ts-top)), 1px) 5px minmax(0, 1fr);
   }
+}
+
+/* 待合室の <frameset rows="245,*" border=0>: 上は固定の高さで、境界線がない（動かせない） */
+.two-shot-scope.ts-frames.ts-frames-fixed {
+  grid-template-rows: var(--ts-top-px) minmax(0, 1fr);
 }
 
 .two-shot-scope .ts-pane {
@@ -109,14 +111,6 @@
 .two-shot-scope .ts-center {
   text-align: center;
 }
-.two-shot-scope .ts-nowrap {
-  white-space: nowrap;
-}
-/* <table align=center width=70%> */
-.two-shot-scope .ts-table-70 {
-  width: 70%;
-  margin-inline: auto;
-}
 .two-shot-scope .ts-table-full {
   width: 100%;
 }
@@ -128,25 +122,30 @@
   text-align: right;
 }
 
-/* ---- 罫線のある表（<table border=N cellpadding=2 cellspacing=2>） ----
-   border / cellpadding 属性の効果（Presentational hints）は、上のリセット（all: revert）でブラウザ既定の値に
-   戻ると一緒に消える。ブラウザの既定の描画と同じ値を CSS で明示する。表は outset、セルは 1px の inset で、
-   色は文字色（原作は黒。Chromium は黒の outset / inset を明るい側 #a8a8a8・暗い側 #545454 で描く。
-   Oracle で画素を確認）。cellspacing=2 は既定の border-spacing と同じ */
-.two-shot-scope .ts-grid {
-  border-style: outset;
-  border-color: currentColor;
+/* ---- 旧お気楽チャットの表（<table border=2 cellpadding=5 cellspacing=1 bordercolor=#FF99CC>） ----
+   border / cellpadding などの属性の効果（Presentational hints）は、上のリセット（all: revert）でブラウザ既定の値に
+   戻ると一緒に消えるので、CSS で明示する。bordercolor 属性があると、Chromium は表とセルの罫線を outset / inset では
+   なく実線で描く（Oracle で確認） */
+.two-shot-scope .ts-pink {
+  border: 2px solid #ff99cc;
+  border-spacing: 1px;
 }
-.two-shot-scope .ts-grid-3 {
-  border-width: 3px;
+.two-shot-scope .ts-pink > tbody > tr > td,
+.two-shot-scope .ts-pink > tbody > tr > th {
+  border: 1px solid #ff99cc;
+  padding: 5px;
 }
-.two-shot-scope .ts-grid-5 {
-  border-width: 5px;
-}
-.two-shot-scope .ts-grid > tbody > tr > td,
-.two-shot-scope .ts-grid > tbody > tr > th {
-  border: 1px inset currentColor;
+/* 入室後の入力画面は、同じ罫線で余白を原作（cellpadding=2）のままにする（上のフレームに収めるため） */
+.two-shot-scope .ts-pink.ts-pink-compact > tbody > tr > td,
+.two-shot-scope .ts-pink.ts-pink-compact > tbody > tr > th {
   padding: 2px;
+}
+/* <font size=-2> */
+.two-shot-scope .ts-x-small {
+  font-size: x-small;
+}
+.two-shot-scope div.ts-x-small {
+  display: block;
 }
 
 /* ---- Quirks モードの再現 ---- */
@@ -176,6 +175,22 @@
 .two-shot-scope .ts-small-block {
   display: block;
   font-size: small;
+}
+
+/* 同じ quirk は、文字を直接持たないインラインの要素（label など）にも当たり、行の高さに数えられない。
+   範囲の中は行の高さを 0 にし、文字を直接持つ要素とフォームの部品だけが自分の文字の大きさで行の高さを持つ */
+.two-shot-scope .ts-line-quirk,
+.two-shot-scope .ts-line-quirk label {
+  line-height: 0;
+}
+.two-shot-scope .ts-line-quirk :is(span, a, small, b, input, select, option) {
+  line-height: normal;
+}
+
+/* Quirks モードの表は、文字の配置を親から受け継がない（Chromium の quirks.css の table { text-align: start }）。
+   <td align=center> の中に置いた表のセルが左寄せになる */
+.two-shot-scope table {
+  text-align: start;
 }
 
 /* <form> は下に 1em の margin を持つ */
