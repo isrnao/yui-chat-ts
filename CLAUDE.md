@@ -72,13 +72,16 @@ Do not add _new_ manual memoization — let the compiler handle it.
 
 This is a React + TypeScript chat application with feature-based architecture:
 
-- **Features**: Located in `src/features/`. Three features:
+- **Features**: Located in `src/features/`. Four features:
   - `chat/` - main chat feature (components, hooks, API, types)
   - `chanari-chat/` - alternate "ちゃなり" chat UI variant
+  - `two-shot-chat/` - ツーショットチャット at `/chat/2shot/`, a re-creation of CGI-RESCUE 2SHOT-CHAT
+    v5.0.1 (see "Two-shot chat" below)
   - `top/` - top/landing page with room listing
 - **Shared**: Common utilities in `src/shared/` including components, hooks, and utilities
 - **Pages**: Top-level page components in `src/pages/` (e.g., `NotFoundPage`)
-- **Routes**: Route wrappers in `src/routes/` (`ChatRoute`, `ChanariRoute`, `TopRoute`, `NotFoundRoute`)
+- **Routes**: Route wrappers in `src/routes/` (`ChatRoute`, `ChanariRoute`, `TwoShotRoute`, `TopRoute`,
+  `NotFoundRoute`). `resolveRoute.ts` tries `matchTwoShotRoute` first, then chanari, then chat.
 
 **Multiple Rooms**: The chat supports many rooms (organized by category) defined in
 `src/features/chat/rooms.ts`. Messages are scoped by `room_id`; `DEFAULT_ROOM_ID` is the default,
@@ -170,6 +173,40 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
 - **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`.
 - **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages; a broadcast channel
   for look/unlook events. See the "Real-time delivery" section above.
+
+## Two-shot chat (`/chat/2shot/`)
+
+Spec: `.kiro/specs/two-shot-chat/`. A private 1-on-1 chat that reproduces the original CGI's UI
+(frames, tables, quirks-mode spacing) in React. The room id `'2shot'` (`TWO_SHOT_ROOM_ID` in
+`rooms.ts`) keeps its metadata, top-page link and sitemap entry, but its page is **not** the normal
+chat room and its conversation is **never** written to `chats` (old public `2shot` rows are left as
+they are). `/chanari/2shot/` redirects to `/chat/2shot/`.
+
+- **Rules**: `supabase/functions/two-shot/rules.ts` is the single source for the room state machine
+  (seats, log, idle timeout, notices N1–N10 / E1–E12). It has no imports so Deno and Vitest share it;
+  the client imports it by relative path. Property tests: `src/features/two-shot-chat/rules.test.ts`.
+- **Edge Function `two-shot`** (`handler.ts`, `verify_jwt = false`): one endpoint for enter / read /
+  say / leave / kick / close / clear. Authorization is the feature's own token (`x-two-shot-token`,
+  stored only as SHA-256), not the anon key. Writes use `service_role` via `two_shot_commit`
+  (compare-and-swap on the room version, retried up to 3 times). The duplicate-entry check (E2) uses an
+  IP only when `TWO_SHOT_TRUSTED_IP_HEADER` is set (`<header>` or `x-forwarded-for:<n>`); unset means
+  no IP check. Smoke-test with `bash scripts/smoke-two-shot-edge.sh` before `supabase functions deploy two-shot`.
+- **Tables** (migration `20260924000000_two_shot.sql`, RLS on with no policies, only `service_role`):
+  `two_shot_rooms` (one row per room: seats with IP/UA, log, version), `two_shot_admissions` (entry
+  attempts for idempotent resend, 24 h), `two_shot_audit` (a copy of every message for abuse reports,
+  30 days). `two_shot_commit` saves room + admission + audit atomically. The only public read is
+  `two_shot_lobby()` (SECURITY DEFINER: status, and the waiting owner's sex/name/profile). pg_cron jobs
+  `two-shot-purge-admissions` / `two-shot-purge-audit` delete expired rows hourly;
+  `two_shot_maintenance_health()` reports their state. pgTAP: `supabase/tests/two_shot.sql`.
+- **Client**: plain `fetch` only (`api/twoShotApi.ts`) — the route must not import the Supabase SDK
+  or `shared/supabaseClient.ts`. `prerender-rooms.ts` fails the build if the route's static imports
+  include a Supabase chunk, and `src/test/reachability.test.ts` checks the import graph. The tab's
+  session lives in `sessionStorage` (`api/sessionStore.ts`), read with `useSyncExternalStore`; SSG and
+  hydration always render the lobby. Messages and profiles are text, but HTML character references are
+  decoded (`utils/decodeCharRefs.ts`) as the original did.
+- **Top page count**: `roomCountsApi.ts` counts `2shot` from `two_shot_lobby()` (seated people) in
+  parallel with the normal RPC, and excludes `2shot` from the public-log counts.
+- **CI**: `.github/workflows/two-shot.yml` (Vitest, Deno tests, real DB migration + pgTAP, Edge Runtime smoke).
 
 ## Testing Strategy
 
