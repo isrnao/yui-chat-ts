@@ -15,28 +15,28 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
 
 ## PR の順序
 
-| PR   | Task          | 要件                        | 種別                | 規模 | 備考                                                            |
-| ---- | ------------- | --------------------------- | ------------------- | ---- | --------------------------------------------------------------- |
-| PR1  | —             | —                           | spec                | 小   | 本 spec。Q1〜Q11 を決める                                       |
-| —    | Task 0.1〜0.3 | R12 / R13 / R23             | 確認（PR なし）     | 小   | Play の原文、法令、Realtime の列の権限                          |
-| PR2  | Task 0.4      | R12.5 / R18.1               | Web                 | 小   | `/terms/`・`/privacy/`・`/safety/`。文面は運営                  |
-| PR3  | Task 0.5      | R21.1 / R21.3               | サーバー + Web      | 中   | `save-chat` の `op`。Web を切り替える                           |
-| PR4  | Task 0.6      | R21.2                       | サーバー + DB + Web | 中   | author key、`chat-command` の `clear`、`public-update` を閉じる |
-| PR5  | Task 0.7      | R12.2〜R12.4 / R21.4        | サーバー + DB + Web | 中   | 通報の表と Edge Function、Web の通報の導線                      |
-| PR6  | Task 0.8      | R2.5 / R21.5                | Web                 | 中   | `contracts/` と生成スクリプト、Vitest の確認                    |
-| PR7  | Task 0.9      | R16.2                       | Web（配信）         | 小   | `.nojekyll`、`--dotfiles`（ハッシュは Phase 4 で入れる）        |
-| —    | Gate 1        | —                           | 判断                | —    |                                                                 |
-| PR8  | Task 1.1      | R1 / R20.4                  | Android 基盤        | 中   | `android/` の雛形、convention plugin、CI                        |
-| PR9  | Task 1.2      | R2.5 / R20.2                | Android 基盤        | 中   | model / common / contracts の生成と fixtures のテスト           |
-| PR10 | Task 1.3      | R14                         | Android 見た目      | 大   | Retro_Design_System。Web_Oracle と見比べる                      |
-| PR11 | Task 1.4      | R2 / R8                     | Android 基盤        | 中   | network（ChatApi / RealtimeHub / SafetyApi）                    |
-| PR12 | Task 1.5〜1.6 | R5 / R6 / R8 / R18          | Android 状態        | 大   | RoomLogRepository、ChatSender、ChatSession、DataStore           |
-| PR13 | Task 2.1〜2.2 | R1 / R3 / R12.1 / R13 / R15 | Android 画面        | 中   | アプリの骨組み（Navigation 3、Scene）、同意、ホーム             |
-| PR14 | Task 2.3〜2.5 | R4〜R8                      | Android 画面        | 大   | 部屋の画面（入室・発言・ログ・分割・音）                        |
-| PR15 | Task 2.6〜2.8 | R9 / R12 / R18              | Android 画面        | 中   | ランキング、通報・ブロック、設定、戻る                          |
-| PR16 | Task 3.1〜3.2 | R10 / R11                   | Android 画面        | 中   | 全部屋まとめ、ちゃなり                                          |
-| PR17 | Task 3.3〜3.7 | R15〜R17 / R19              | Android 品質        | 中   | 大画面、App Links、計測・監視、性能、アクセシビリティ           |
-| —    | Task 4.x      | R24                         | 公開（PR は少し）   | —    | Play Console、ストア掲載、テスト、Gate 2                        |
+| PR   | Task          | 要件                        | 種別                | 規模 | 備考                                                           |
+| ---- | ------------- | --------------------------- | ------------------- | ---- | -------------------------------------------------------------- |
+| PR1  | —             | —                           | spec                | 小   | 本 spec。Q1〜Q11 を決める                                      |
+| —    | Task 0.1〜0.3 | R12 / R13 / R23             | 確認（PR なし）     | 小   | Play の原文、法令、Realtime の列の権限                         |
+| PR2  | Task 0.4      | R12.5 / R18.1               | Web                 | 小   | `/terms/`・`/privacy/`・`/safety/`。文面は運営                 |
+| PR3  | Task 0.5      | R21.1〜R21.3 / R21.6        | サーバー + DB + Web | 大   | `docs/SERVER_SIDE_LOGIC_REFACTORING.md` の P1〜P8（複数の PR） |
+| —    | Task 0.6      | R21.2                       | 判断                | —    | 同書の D1〜D5 を決める                                         |
+| PR5  | Task 0.7      | R12.2〜R12.4 / R21.4        | サーバー + DB + Web | 中   | 通報の表と Edge Function、Web の通報の導線                     |
+| PR6  | Task 0.8      | R2.5 / R21.5                | Web                 | 中   | `contracts/` と生成スクリプト、Vitest の確認                   |
+| PR7  | Task 0.9      | R16.2                       | Web（配信）         | 小   | `.nojekyll`、`--dotfiles`（ハッシュは Phase 4 で入れる）       |
+| —    | Gate 1        | —                           | 判断                | —    |                                                                |
+| PR8  | Task 1.1      | R1 / R20.4                  | Android 基盤        | 中   | `android/` の雛形、convention plugin、CI                       |
+| PR9  | Task 1.2      | R2.5 / R20.2                | Android 基盤        | 中   | model / common / contracts の生成と fixtures のテスト          |
+| PR10 | Task 1.3      | R14                         | Android 見た目      | 大   | Retro_Design_System。Web_Oracle と見比べる                     |
+| PR11 | Task 1.4      | R2 / R8                     | Android 基盤        | 中   | network（ChatApi / RealtimeHub / SafetyApi）                   |
+| PR12 | Task 1.5〜1.6 | R5 / R6 / R8 / R18          | Android 状態        | 大   | RoomLogRepository、ChatSender、ChatSession、DataStore          |
+| PR13 | Task 2.1〜2.2 | R1 / R3 / R12.1 / R13 / R15 | Android 画面        | 中   | アプリの骨組み（Navigation 3、Scene）、同意、ホーム            |
+| PR14 | Task 2.3〜2.5 | R4〜R8                      | Android 画面        | 大   | 部屋の画面（入室・発言・ログ・分割・音）                       |
+| PR15 | Task 2.6〜2.8 | R9 / R12 / R18              | Android 画面        | 中   | ランキング、通報・ブロック、設定、戻る                         |
+| PR16 | Task 3.1〜3.2 | R10 / R11                   | Android 画面        | 中   | 全部屋まとめ、ちゃなり                                         |
+| PR17 | Task 3.3〜3.7 | R15〜R17 / R19              | Android 品質        | 中   | 大画面、App Links、計測・監視、性能、アクセシビリティ          |
+| —    | Task 4.x      | R24                         | 公開（PR は少し）   | —    | Play Console、ストア掲載、テスト、Gate 2                       |
 
 ## Tasks
 
@@ -59,17 +59,14 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
     - `/safety/` に CSAE を禁じる基準、通報の方法、対応の流れ、相談先を書く（文面は運営）
     - sitemap とプリレンダの対象に入れる
     - _Requirements: 12.5, 18.1_
-  - [ ] 0.5 `save-chat` に `op`（`enter` / `exit` / `say`）を足し、管理人と巫女の発言をサーバーで作る（PR3）
-    - 文言と metadata は今の Web と 1 文字も違わないことを Deno のテストで確かめる
-    - Web の `useChatSession` / `useChatSender` を `op` に切り替え、`fortuneBot.ts` を消す
-    - 本番で 1 週間問題がなければ、`say` での `kind: admin / fortune` と `system: true` を 400 で拒否する
-    - _Requirements: 21.1, 21.3_
-  - [ ] 0.6 `clear` を author key で照合する Edge Function に移す（PR4）
-    - マイグレーション `chat_authors`（RLS 有効・ポリシーなし・publication に入れない）
-    - `save-chat` が `x-chat-author-key` のハッシュを保存する。Web は `localStorage` に鍵を持つ
-    - `chat-command` の `op: "clear"`、pgTAP と Deno のテスト
-    - Web を切り替えた後、`public-update` ポリシーと anon の `UPDATE (deleted)` を外す
-    - _Requirements: 21.2, 21.3_
+  - [ ] 0.5 `docs/SERVER_SIDE_LOGIC_REFACTORING.md` の P1〜P8 を行う（PR3。実際は同書の PR の単位で出す）
+    - 入力の検証・`metadata` の許可リスト・予約名（S1〜S3）、`rooms` 表（S4）
+    - `save-chat` の `op`（`enter` / `exit` / `say`）、巫女の返事、`metadata.event` / `subject`（S5・S6・S9）
+    - `insert_chat` / `chat_authors` / `clear_my_chats`（S7）、look / unlook を INSERT から鳴らす（S8）
+    - 同書 §8 の性能の合否を確かめてから締める（P8）
+    - _Requirements: 21.1, 21.2, 21.3, 21.6_
+  - [ ] 0.6 同書の D1〜D5（論理削除した発言の見せ方、移行前の発言の `clear`、mock のログ、予約名、発言の長さの単位）を決める
+    - _Requirements: 21.2_
   - [ ] 0.7 通報を受ける（PR5）
     - マイグレーション `chat_reports`、Edge Function `report-chat`（検証、1 時間 10 件の制限、`snapshot`）
     - 児童の安全に関わる通報を New Relic → PagerDuty で知らせる
@@ -111,7 +108,7 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
     - Web_Oracle（Storybook の `Button` / `Input` / `Divider` / `RetroSplitter`）と並べて見比べ、結果を記録する
     - _Requirements: 14.1〜14.7, 7.2, 7.3_
   - [ ] 1.4 `core:network` を作る（PR11）
-    - `ChatApi`（取得・全部屋・ランキング・人数・`save-chat` の `op`・`chat-command`）、`RealtimeHub`、`SafetyApi`
+    - `ChatApi`（取得・全部屋・ランキング・人数・`save-chat` の `op`・`clear_my_chats`）、`RealtimeHub`、`SafetyApi`
     - 再試行（1 秒 → 2 秒、最大 3 回、操作 ID と試行番号）、User-Agent、`x-client`、`x-chat-author-key`
     - ローカルの Supabase に対する相互の確認のテスト（専用の CI）
     - _Requirements: 2.1〜2.4, 5.3, 8.6, 20.3_
@@ -146,7 +143,7 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
   - [ ] 2.4 発言フォームとコマンドを作る（PR14）
     - [退室] [ランキング]、[更新] [発言] [消す]、発言欄（`ImeAction.Send`、送信で空にする、フォーカスの戻し方）、
       ログ行数・Size・色・細字
-    - `LookSoundPlayer`（マナーモードと設定に従う）と Broadcast
+    - `LookSoundPlayer`（マナーモードと設定に従う）。ほかの人の look / unlook は Realtime の INSERT で鳴らす
     - 連絡先の警告（P1。間に合わなければ Phase 3）
     - _Requirements: 5.1〜5.7, 8.4, 12.7_
   - [ ] 2.5 ログと分割を作る（PR14）

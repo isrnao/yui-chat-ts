@@ -79,16 +79,16 @@
 
 ### 2.6 アプリが使うバックエンドの契約
 
-| 用途             | 経路                                                                   | 認可         | 備考                                                                   |
-| ---------------- | ---------------------------------------------------------------------- | ------------ | ---------------------------------------------------------------------- |
-| ログの取得       | PostgREST `GET chats`（`room_id`、`deleted=false`、`uuid` 降順、件数） | anon         | 生の `ip` は取らず `ip_masked` を使う                                  |
-| 発言の保存       | Edge Function `save-chat`                                              | anon         | `ip` / `ua` はサーバーが観測。`x-chat-operation-id` / `x-chat-attempt` |
-| 自分の発言の消去 | PostgREST `PATCH chats set deleted=true where room_id, name`           | anon         | 名前が一致すれば誰でも消せる（§2.8）                                   |
-| ランキング       | PostgREST `chat_ranking` ビュー                                        | anon         |                                                                        |
-| 部屋ごとの人数   | RPC `room_participant_counts`（無ければ行を取って数える）              | anon         |                                                                        |
-| 新着             | Realtime `postgres_changes` INSERT（`room_id=eq.<id>`）                | anon         | 部屋ごとに 1 channel                                                   |
-| look / unlook    | Realtime broadcast `chats-broadcast-<id>` の `look` イベント           | anon         | 保存しない                                                             |
-| ツーショット     | Edge Function `two-shot`、RPC `two_shot_lobby`                         | 独自トークン | 初版では使わない                                                       |
+| 用途             | 経路                                                                   | 認可         | 備考                                                                                |
+| ---------------- | ---------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------- |
+| ログの取得       | PostgREST `GET chats`（`room_id`、`deleted=false`、`uuid` 降順、件数） | anon         | 生の `ip` は取らず `ip_masked` を使う                                               |
+| 発言の保存       | Edge Function `save-chat`                                              | anon         | `ip` / `ua` はサーバーが観測。`x-chat-operation-id` / `x-chat-attempt`              |
+| 自分の発言の消去 | PostgREST `PATCH chats set deleted=true where room_id, name`           | anon         | 名前が一致すれば誰でも消せる（§2.8）                                                |
+| ランキング       | PostgREST `chat_ranking` ビュー                                        | anon         |                                                                                     |
+| 部屋ごとの人数   | RPC `room_participant_counts`（無ければ行を取って数える）              | anon         |                                                                                     |
+| 新着             | Realtime `postgres_changes` INSERT（`room_id=eq.<id>`）                | anon         | 部屋ごとに 1 channel                                                                |
+| look / unlook    | Realtime broadcast `chats-broadcast-<id>` の `look` イベント           | anon         | 保存しない。INSERT から鳴らす形に移す（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` S8） |
+| ツーショット     | Edge Function `two-shot`、RPC `two_shot_lobby`                         | 独自トークン | 初版では使わない                                                                    |
 
 anon key は Web の bundle に入っている公開値なので、アプリに入れても新しく漏れるものはない。
 

@@ -336,12 +336,15 @@
 
 1. THE `save-chat` SHALL 入室・退室の管理人の発言と、`おみくじ` への巫女の返事をサーバーで作る。クライアントが送る
    `metadata.kind` の `admin` / `fortune` と `system` は、Web の切り替えが終わったら受け付けない（Q4）。
-2. THE `clear` SHALL Edge Function で行い、その端末が書いた発言だけを消す（端末ごとの秘密の値のハッシュで照合する）。
-   anon の `UPDATE` は Web の切り替えの後に閉じる。
+2. THE `clear` SHALL サーバーの SQL 関数（RPC）で行い、その端末が書いた発言だけを消す（端末ごとの秘密の値のハッシュで
+   照合する）。anon の `UPDATE` は Web の切り替えの後に閉じる。
 3. THE 変更 SHALL 移行の間、今の Web の送り方を壊さない。
 4. THE 通報 SHALL 新しい Edge Function で受け、`service_role` だけが読める表に保存する。同じ接続元からの通報を
    時間あたりで制限する。通報の本文は公開の Issue に載せない。
 5. THE `contracts/` SHALL `rooms.ts` などから生成し、生成し直した結果が入っているものと違えば CI で失敗する。
+6. THE サーバー SHALL 入力の上限と形式、`metadata` の許可リスト、部屋 ID の正当性を確かめ、`look` / `unlook` の通知は
+   保存された発言から導く（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` の S1〜S4・S8）。1〜6 の移し方と性能の確かめ方は
+   同書を正とする。
 
 ### Requirement 22: 通知（P2）
 

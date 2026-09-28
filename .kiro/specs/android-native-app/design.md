@@ -291,7 +291,9 @@ LazyColumn(state = logListState) {
 - `LookSoundPlayer` は `rin`（Web の `rin.webm` を Ogg Opus に移したもの）を SoundPool に一度だけ読み込む
 - 鳴らすのは、アプリが前面にあり、端末がマナーモードでなく、設定の「音を鳴らす」が有効なときだけ。Web と違い、
   音を鳴らすための操作（解錠）は要らない
-- 自分の `look` は保存が終わったら鳴らし、Broadcast を送る。`unlook` で止める（Web と同じ順）
+- 自分の `look` は保存が終わったら鳴らし、`unlook` で止める。ほかの人の `look` / `unlook` は、Realtime で届いた
+  INSERT の本文で鳴らす・止める（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` S8。Broadcast は使わない）。取得で入った
+  過去の発言と自分の発言では鳴らさない
 
 ### 4.4 ランキング（R9）
 
@@ -482,8 +484,8 @@ Web の `useChatSession` と同じ分け方にする（部屋単位と全部屋�
 | 退室       | `op: "exit"`                                                    | 先に入室前の画面へ戻してから送る           |
 | 発言       | `op: "say"`（今の Web と同じ中身）                              | 楽観的表示                                 |
 | `おみくじ` | `op: "say"`。巫女の返事はサーバーが足し、応答と Realtime で届く | 自分の発言は楽観的表示                     |
-| `clear`    | Edge Function の `clear`（§7.2）                                | 自分の発言をログから外す                   |
-| `look`     | `op: "say"` の後に Broadcast                                    | 通知音                                     |
+| `clear`    | SQL 関数 `clear_my_chats`（RPC。§7.2）                          | 消した件数を受け取り、ログから外す         |
+| `look`     | `op: "say"`（受け手は INSERT で鳴らす）                         | 通知音                                     |
 | `unlook`   | 同上                                                            | 通知音を止める                             |
 | `cut`      | 何も送らない                                                    | 分析のイベントだけ                         |
 
@@ -493,12 +495,13 @@ Web の `useChatSession` と同じ分け方にする（部屋単位と全部屋�
 ### 6.5 参加者
 
 Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で受け取る純粋な関数）。ブロックした名前はここで
-外す。入退室の文言の正規表現は、§7.1 の後もサーバーが同じ文言を出すので変えない。
+外す。入退室は、サーバーが `metadata` に書く `event` / `subject`（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` S9）で
+判定し、それが無い古い行だけ Web と同じ正規表現で読む。
 
 ### 6.6 RealtimeHub
 
-- 部屋ごとに `chats-postgres-<roomId>` と `chats-broadcast-<roomId>` の channel を 1 つずつ持ち、購読の参照数が
-  0 になったら閉じる（Web の `postgresEntries` / `broadcastEntries`）
+- 部屋ごとに `chats-postgres-<roomId>` の channel を 1 つ持ち、購読の参照数が 0 になったら閉じる（Web の
+  `postgresEntries`）。look / unlook も同じ channel の INSERT で受けるので、broadcast の channel は持たない
 - 接続の状態を `connecting` / `connected` / `disconnected` で流し、RoomLogRepository が `connected` への遷移で
   取り直す
 - supabase-kt の型は `core:network` の外に出さない。`RealtimeHub` のインターフェースだけを `core:data` に見せ、
@@ -529,6 +532,9 @@ Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で
 ## 7. サーバー側の変更（Phase 0、R21）
 
 アプリの有無に関わらず Web にも効く変更。Web を先に切り替え、移行の間は今の送り方を壊さない（R21.3）。
+§7.1・§7.2 と、入力の検証・`metadata` の許可リスト・部屋の表・look の通知は
+[`docs/SERVER_SIDE_LOGIC_REFACTORING.md`](../../../docs/SERVER_SIDE_LOGIC_REFACTORING.md)（S1〜S10）を正とし、
+ここには Android から見た要点だけを書く。
 
 ### 7.1 `save-chat` の `op`（Q4）
 
@@ -557,9 +563,10 @@ Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で
   サーバーは SHA-256 のハッシュを **別の表** `chat_authors(chat_uuid, author_key_hash)` に保存する。この表は RLS を
   有効にしてポリシーを作らず、Realtime の publication にも入れない（`chats` に列を足すと Realtime で流れるおそれが
   あるため）
-- 新しい Edge Function `chat-command` の `op: "clear"` は、部屋と名前に加えて author key のハッシュが一致する発言
-  だけを論理削除する。Web のブラウザは `localStorage` に author key を持つ（消されたら、それより前の発言は消せなく
-  なる。今の「名前が同じなら誰でも消せる」より狭いことを Web の文言で示す）
+- SQL 関数 `clear_my_chats(room_id, name, author_key)`（PostgREST の RPC）が、部屋と名前に加えて author key の
+  ハッシュが一致する発言だけを論理削除し、消した件数を返す。Edge Function にしないのは、今の PATCH と同じ 1 往復で
+  コールドスタートが無いため。Web のブラウザは `localStorage` に author key を持つ（消されたら、それより前の発言は
+  消せなくなる。今の「名前が同じなら誰でも消せる」より狭いことを Web の文言で示す）
 - Web とアプリが切り替わったら、anon の `public-update` ポリシーと `UPDATE (deleted)` の権限を外す
 - 切り替え前の発言（ハッシュが無い）は `clear` で消せなくなる。運営の削除（通報の対応）で扱う
 
