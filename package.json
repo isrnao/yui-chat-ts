@@ -61,8 +61,8 @@
     "@supabase/functions-js": "2.105.4",
     "@supabase/postgrest-js": "2.105.4",
     "@supabase/realtime-js": "2.105.4",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0"
+    "react": "19.3.0-canary-278794d7-20261002",
+    "react-dom": "19.3.0-canary-278794d7-20261002"
   },
   "devDependencies": {
     "@babel/core": "~7.29.7",
