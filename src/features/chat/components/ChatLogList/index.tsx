@@ -15,16 +15,12 @@ import Divider from '../shared/Divider';
 const DEFER_OFFSCREEN_ROWS = 200;
 
 /**
- * フィルタの起点にできる行か（chat-ip-mute Requirement 1.7）。管理人の入退室メッセージ・システム・送信中の発言と、
- * IP が分からない発言（空文字・`*`）は起点にしない
+ * フィルタの起点にできる行か（chat-ip-mute Requirement 1.7）。送信中の発言と、IP が分からない発言（空文字・`*`）は
+ * 起点にしない。管理人の入退室メッセージ（system）は入室した本人の IP を持つので起点にできる。
+ * 機能要求の受付返信など、Edge Function が書いた管理人の発言は IP が空なので、ここで除かれる
  */
 function isMutableRow(chat: Chat): boolean {
-  return (
-    chat.metadata?.kind !== 'admin' &&
-    !chat.system &&
-    !chat.optimistic &&
-    isFilterableIp(chat.ip_masked)
-  );
+  return !chat.optimistic && isFilterableIp(chat.ip_masked);
 }
 
 type Props = {

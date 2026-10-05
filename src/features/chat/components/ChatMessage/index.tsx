@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import type { HTMLAttributes } from 'react';
 import { formatLegacyDateTime } from '@shared/utils/format';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
@@ -192,8 +193,16 @@ function buildBrowserLine(chat: Chat): string {
   return line;
 }
 
+/** 行の外枠に付ける属性（クラスと、ダブルタップでフィルタできる行の handlers） */
+type RowProps = HTMLAttributes<HTMLDivElement>;
+
 /** 管理人メッセージ専用のレンダリング（レガシー風） */
-function AdminMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props) {
+function AdminMessage({
+  chat,
+  showRoomName,
+  onRoomClick,
+  rowProps,
+}: Pick<Props, 'chat' | 'showRoomName' | 'onRoomClick'> & { rowProps: RowProps }) {
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
@@ -201,7 +210,7 @@ function AdminMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props
   const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (
-    <div className={rowClassName(deferOffscreen)}>
+    <div {...rowProps}>
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
@@ -245,30 +254,28 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
     onDoubleTap: (row) => onFilterIp?.(chat.ip_masked, row),
   });
 
+  // ダブルタップできる行だけに handlers とクラスを付ける（クラスはダブルタップでの拡大を止める CSS）。
+  // 管理人の入退室メッセージも、入室した本人の IP を持つのでフィルタできる
+  const rowProps: RowProps =
+    onFilterIp !== undefined
+      ? { className: `${rowClassName(deferOffscreen)} chat-row-filterable`, ...doubleTap }
+      : { className: rowClassName(deferOffscreen) };
+
   if (chat.metadata?.kind === 'admin') {
     return (
       <AdminMessage
         chat={chat}
         showRoomName={showRoomName}
         onRoomClick={onRoomClick}
-        deferOffscreen={deferOffscreen}
+        rowProps={rowProps}
       />
     );
   }
 
   const avatar = chat.metadata?.avatar;
-  // ダブルタップできる行だけに handlers とクラスを付ける（クラスはダブルタップでの拡大を止める CSS）
-  const filterable = onFilterIp !== undefined;
 
   return (
-    <div
-      className={
-        filterable
-          ? `${rowClassName(deferOffscreen)} chat-row-filterable`
-          : rowClassName(deferOffscreen)
-      }
-      {...(filterable ? doubleTap : undefined)}
-    >
+    <div {...rowProps}>
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}

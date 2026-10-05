@@ -50,7 +50,7 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 3.1, 3.3_
   - [x] 3.4 `ChatMessage` に `onFilterIp` を足し、`ChatLogList` が Mutable_Row にだけ渡す。`chat-row-filterable`（`touch-action: manipulation`）。ダブルタップで確認の窓を開き、「フィルタする」で `tapHaptic()` → 通知 → `addFilteredIp(ip)`（View Transition は Task 4 で足す）
     - _Requirements: 1.1, 1.2, 1.7, 1.8, 1.10, 1.11, 2.3, 2.7, 3.2, 3.5, 4.11, 8.2_
-  - [x]\* 3.5 テスト: `useDoubleTap.test.tsx`（Fake Timers）、`haptics.test.ts`、`FilterConfirmDialog.test.tsx`、`ChatLogList.test.tsx` にダブルタップの結合テスト（文字の上で反応する、「やめる」で何もしない、「フィルタする」で隠れて振動する、ダブルタップの時点では振動しない、管理人行・`*` の行・楽観的な行は反応しない）
+  - [x]\* 3.5 テスト: `useDoubleTap.test.tsx`（Fake Timers）、`haptics.test.ts`、`FilterConfirmDialog.test.tsx`、`ChatLogList.test.tsx` にダブルタップの結合テスト（文字の上で反応する、「やめる」で何もしない、「フィルタする」で隠れて振動する、ダブルタップの時点では振動しない、管理人の入退室と巫女の行はフィルタできる、IP が空の行・`*` の行・楽観的な行は反応しない）
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8, 1.9, 2.1〜2.5, 3.1〜3.5, 8.4_
   - [x] 3.6 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
     - _Requirements: 8.1, 8.3_

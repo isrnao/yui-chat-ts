@@ -258,14 +258,53 @@ describe('ChatLogList', () => {
       );
     });
 
-    it('管理人の行・IP が分からない行・送信中の行はダブルタップに反応しない', () => {
+    it('管理人の入退室と巫女の発言も、呼び出した人の IP でフィルタできる', () => {
       const log: Chat[] = [
         {
           ...chatLog[0]!,
           uuid: 'admin',
           message: 'たろう さん、Welcome to お気楽チャット☆',
           name: '管理人',
+          system: true,
           ip_masked: '219.*.*.253',
+          metadata: { version: 1, kind: 'admin' },
+        },
+        {
+          ...chatLog[0]!,
+          uuid: 'fortune',
+          message: 'FORTUNE_RESULT',
+          name: '巫女',
+          system: true,
+          ip_masked: '2001:*',
+          metadata: { version: 1, kind: 'fortune' },
+        },
+        { ...chatLog[0]!, uuid: 'b1', message: 'B_FIRST', ip_masked: '2001:*' },
+        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
+      ];
+      render(<WithStore log={log} />);
+
+      const adminRow = screen.getByText(/Welcome to/).closest('div.mb-1')!;
+      expect(adminRow).toHaveClass('chat-row-filterable');
+      doubleTap(adminRow);
+      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
+      expect(getFilteredIps()).toEqual(['219.*.*.253']);
+      expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
+
+      doubleTap(screen.getByText('FORTUNE_RESULT'));
+      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
+      expect(getFilteredIps()).toEqual(['219.*.*.253', '2001:*']);
+      expect(screen.queryByText('B_FIRST')).not.toBeInTheDocument();
+    });
+
+    it('IP が分からない行（機能要求の受付返信など）と送信中の行はダブルタップに反応しない', () => {
+      const log: Chat[] = [
+        {
+          ...chatLog[0]!,
+          uuid: 'reply',
+          message: '機能要求を受け付けました（Issue #1）',
+          name: '管理人',
+          system: true,
+          ip_masked: '',
           metadata: { version: 1, kind: 'admin' },
         },
         { ...chatLog[0]!, uuid: 'star', message: 'STAR', ip_masked: '*' },
@@ -278,7 +317,9 @@ describe('ChatLogList', () => {
         expect(rowOf(text)).not.toHaveClass('chat-row-filterable');
         doubleTap(rowOf(text));
       }
-      doubleTap(screen.getByText(/Welcome to/).closest('div.mb-1')!);
+      const replyRow = screen.getByText(/機能要求を受け付けました/).closest('div.mb-1')!;
+      expect(replyRow).not.toHaveClass('chat-row-filterable');
+      doubleTap(replyRow);
       expect(getFilteredIps()).toEqual([]);
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });

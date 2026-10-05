@@ -64,10 +64,11 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 6. WHEN 2 回目のタップが Double_Tap_Window を過ぎてからか、Double_Tap_Distance より離れた位置で起きたとき, THE Chat_Row SHALL 成立させず、それを新しい 1 回目として数える
 7. THE Chat_Row SHALL 次のすべてを満たすときだけ Mutable_Row とする
    - Target_Page に表示されている
-   - `metadata.kind` が `admin` ではない（管理人の入退室メッセージは起点にしない）
-   - `system` ではない
    - 楽観的な発言（`optimistic`）ではない
    - Masked_IP が空文字でも `*` でもない（IP が分からない発言をまとめて隠さない）
+   - 管理人の入退室メッセージと「巫女」Bot の発言（`system`、`kind` が `admin` / `fortune`）は、呼び出した人のクライアントから
+     保存され、その人の IP を持つので起点にできる（2026-10-05 の要望）。Edge Function が書く管理人の発言（機能要求の
+     受付返信など）は IP が空なので、上の条件で除かれる
 8. WHERE Chat_Row が Mutable_Row でないとき, THE Chat_Row SHALL ダブルタップに反応しない
 9. THE Chat_Row SHALL 2 本目以降の指（`isPrimary` でないポインタ）と、マウスの主ボタン以外のタップを数えない
 10. WHERE Chat_Row が Mutable_Row のとき, THE Chat_Row SHALL ダブルタップでの拡大（`touch-action: manipulation`）と、マウスのダブルクリックでの単語の選択を止める。ピンチでの拡大と、長押し・ドラッグでの文字の選択はこれまでどおりできる
@@ -127,7 +128,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 1. THE Chat_Log_List SHALL フィルタした発言を取り除いてから、表示行数（`windowRows`）ぶんを切り出す
 2. THE Chat_Log_List SHALL 発言の順序を変えない（Room_Log_Store の新しい順のまま）
 3. WHEN Realtime でフィルタ中の Masked_IP の発言が届いたとき, THE Chat_Log_List SHALL それを表示しない
-4. THE Chat_Log_List SHALL Masked_IP が一致すれば、管理人の入退室メッセージも隠す（起点にはできないが、同じ IP の入退室は隠す）
+4. THE Chat_Log_List SHALL Masked_IP が一致すれば、管理人の入退室メッセージと巫女の発言も隠す（呼び出した人の IP を持つ）
 5. THE Chat_Log_List SHALL 参加者一覧（ParticipantsList）にはフィルタを反映しない（入室状況は隠さない）
 6. WHEN フィルタの結果、表示する発言が 0 件になったとき, THE Chat_Log_List SHALL 「表示できる発言はありません（N 件をフィルタ中）。」を出す
 7. THE Target_Page SHALL 通常の部屋と全部屋まとめで同じ Filter_List を使う
