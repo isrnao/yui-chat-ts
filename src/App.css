@@ -121,7 +121,8 @@ body {
 
 /* 確認の窓で「フィルタする」を押したときの View Transition（Requirement 7.1）。タップの間の
    アニメーションは出さない（Requirement 2.6）。runFilterTransition が <html> に data-filter-transition を
-   付けている間だけ効く。ページ全体（root）は動かさず、ダブルタップした行が縮んで消え、「フィルタ(N)」が軽く脈打つ */
+   付けている間だけ効く。ページ全体（root）は動かさず、「フィルタ(N)」が軽く脈打つ。ダブルタップした行が上下に
+   縮んで消える動きは、その前に Web Animations で行の高さを縮めて作る（collapseRowThen） */
 .filter-link {
   view-transition-name: filter-link;
 }
@@ -131,11 +132,6 @@ body {
   animation: none;
 }
 
-:root[data-filter-transition]::view-transition-old(chat-row-filtering) {
-  animation: filter-row-out 200ms ease-in forwards;
-  transform-origin: left center;
-}
-
 :root[data-filter-transition]::view-transition-new(filter-link) {
   animation: filter-link-pulse 320ms ease-out;
 }
@@ -143,13 +139,6 @@ body {
 :root[data-filter-transition]::view-transition-old(filter-link) {
   animation: none;
   opacity: 0;
-}
-
-@keyframes filter-row-out {
-  to {
-    opacity: 0;
-    transform: scale(0.9, 0.2);
-  }
 }
 
 @keyframes filter-link-pulse {

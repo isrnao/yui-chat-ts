@@ -152,9 +152,9 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 
 #### Acceptance Criteria
 
-1. WHEN ダブルタップのあと Confirm_Dialog で「フィルタする」を選んだとき, THE Target_Page SHALL ダブルタップした行が縮んで消えるアニメーションと、Filter_Link の件数が変わるアニメーションを出す。フィルタの一覧は外部ストアにあり、React は外部ストアの更新を Transition にできないので、この演出は `document.startViewTransition` を直接使う（design.md「フィルタを足すときの View Transition」）
+1. WHEN ダブルタップのあと Confirm_Dialog で「フィルタする」を選んだとき, THE Target_Page SHALL ダブルタップした行を上下に縮めて消し（下の行も一緒にせり上がる）、縮み終わってからフィルタを反映して Filter_Link の件数が変わるアニメーションを出す。行は Web Animations で高さを縮める（design.md「行が上下に縮んで消える動き」）。件数の演出は、フィルタの一覧が外部ストアにあり React がその更新を Transition にできないので、`document.startViewTransition` を直接使う（design.md「フィルタを足すときの View Transition」）
 2. WHEN Filter_Panel を開閉したとき, THE Target_Page SHALL Transition 型 `filter` で、ランキングの開閉と同じアニメーションを出す
-3. THE Target_Page SHALL `view-transition-name` を Chat_Row 全体には付けず、消える 1 行と Filter_Link にだけ付ける（1000 行のログで計測と命名のコストを出さない）
+3. THE Target_Page SHALL `view-transition-name` を Chat_Row には付けず、Filter_Link にだけ付ける（1000 行のログで計測と命名のコストを出さない）
 4. THE React の `<ViewTransition>` SHALL `filter`（と既存の `ranking`）以外の型と型なしの更新では何もしない。フィルタを足すときの演出の CSS は、その間だけ `<html>` に付ける属性で絞る（発言の到着、ページ読み込み時の Suspense の解決では動かない。ChatRoute の `RANKING_ONLY` と同じ考え方）
 5. WHERE ブラウザが View Transitions に対応していないか `prefers-reduced-motion: reduce` のとき, THE Target_Page SHALL アニメーションなしで同じ結果にする
 
