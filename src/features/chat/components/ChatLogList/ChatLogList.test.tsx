@@ -3,7 +3,7 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
 import { useIpFilter } from '@features/chat/hooks/useIpFilter';
-import { getFilteredIps, getSnapshot } from '@features/chat/utils/ipFilterStore';
+import { getSnapshot } from '@features/chat/utils/ipFilterStore';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -188,7 +188,7 @@ describe('ChatLogList', () => {
       return <ChatLogList chatLog={log} windowRows={10} ipFilter={ipFilter} />;
     }
 
-    const rowOf = (text: string) => screen.getByText(text).closest('div.mb-1')!;
+    const rowOf = (text: string) => screen.getByText(text).closest<HTMLElement>('div.mb-1')!;
     /** 2 回タップする。行の中の要素（文字）を押しても、行の handlers にバブリングする */
     const doubleTap = (target: Element) => {
       for (let i = 0; i < 2; i += 1) {
@@ -206,52 +206,62 @@ describe('ChatLogList', () => {
       vi.restoreAllMocks();
     });
 
-    it('ダブルタップすると確認の窓を出し、「やめる」ならフィルタしない', () => {
-      const log: Chat[] = [
-        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
-      ];
-      render(<WithStore log={log} />);
+    /** 時刻と IP の表示（名前と本文以外）。ここを押すと IP のフィルタになる */
+    const stampOf = (text: string) => within(rowOf(text)).getByText(/\(DATE\(/);
+    const confirm = () => fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
+    const ipRow = (uuid: string, message: string, ip: string, extra: Partial<Chat> = {}): Chat => ({
+      ...chatLog[0]!,
+      uuid,
+      message,
+      ip_masked: ip,
+      ...extra,
+    });
+    const welcome = (uuid: string, entrant: string, ip: string): Chat => ({
+      ...chatLog[0]!,
+      uuid,
+      message: `${entrant} さん、Welcome to お気楽チャット☆`,
+      name: '管理人',
+      system: true,
+      ip_masked: ip,
+      metadata: { version: 1, kind: 'admin' },
+    });
 
-      doubleTap(rowOf('A_FIRST'));
+    it('名前と本文以外をダブルタップすると IP の確認の窓を出し、「やめる」ならフィルタしない', () => {
+      render(<WithStore log={[ipRow('a1', 'A_FIRST', '219.*.*.253')]} />);
+
+      doubleTap(stampOf('A_FIRST'));
 
       const dialog = screen.getByRole('alertdialog', {
         name: '219.*.*.253 の発言をフィルタ（非表示に）しますか？',
       });
       fireEvent.click(within(dialog).getByRole('button', { name: 'やめる' }));
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      expect(getFilteredIps()).toEqual([]);
+      expect(getSnapshot()).toEqual([]);
       expect(screen.getByText('A_FIRST')).toBeInTheDocument();
       expect(screen.getByRole('status')).toHaveTextContent('');
     });
 
-    it('文字の上をダブルタップして「フィルタする」を押すと、同じ伏せ字の IP の発言がすべて隠れ、支援技術に知らせる', () => {
-      const log: Chat[] = [
-        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
-        { ...chatLog[0]!, uuid: 'b1', message: 'B_FIRST', ip_masked: '2001:*' },
-        {
-          ...chatLog[0]!,
-          uuid: 'a2',
-          message: 'たろう さん、Welcome to お気楽チャット☆',
-          name: '管理人',
-          ip_masked: '219.*.*.253',
-          metadata: { version: 1, kind: 'admin' },
-        },
-      ];
-      render(<WithStore log={log} />);
-
+    it('IP のフィルタ: 同じ伏せ字の IP の発言（入退室を含む）がすべて隠れ、名前も保存し、確定で振動する', () => {
+      render(
+        <WithStore
+          log={[
+            ipRow('a1', 'A_FIRST', '219.*.*.253'),
+            ipRow('b1', 'B_FIRST', '2001:*'),
+            welcome('a2', 'たろう', '219.*.*.253'),
+          ]}
+        />
+      );
       const vibrate = vi.fn(() => true);
       vi.stubGlobal('navigator', { ...navigator, vibrate });
 
-      doubleTap(screen.getByText('A_FIRST'));
+      doubleTap(rowOf('A_FIRST'));
       expect(vibrate).not.toHaveBeenCalled();
       // 指では「フィルタする」に重ねた透明な switch を押す（iOS のハプティック）。ほかの端末は vibrate
-      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
+      confirm();
       expect(vibrate).toHaveBeenCalledTimes(1);
 
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      expect(getFilteredIps()).toEqual(['219.*.*.253']);
-      // フィルタした時点でその IP から発言していた「おなまえ」も保存する（管理人の入退室は本文の入室者）
-      expect(getSnapshot()[0]!.names).toEqual(['Taro', 'たろう']);
+      expect(getSnapshot()).toEqual([{ kind: 'ip', ip: '219.*.*.253', names: ['Taro', 'たろう'] }]);
       expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
       expect(screen.queryByText(/Welcome to/)).not.toBeInTheDocument();
       expect(screen.getByText('B_FIRST')).toBeInTheDocument();
@@ -260,69 +270,144 @@ describe('ChatLogList', () => {
       );
     });
 
-    it('管理人の入退室と巫女の発言も、呼び出した人の IP でフィルタできる', () => {
-      const log: Chat[] = [
-        {
-          ...chatLog[0]!,
-          uuid: 'admin',
-          message: 'たろう さん、Welcome to お気楽チャット☆',
-          name: '管理人',
-          system: true,
-          ip_masked: '219.*.*.253',
-          metadata: { version: 1, kind: 'admin' },
-        },
-        {
-          ...chatLog[0]!,
-          uuid: 'fortune',
-          message: 'FORTUNE_RESULT',
-          name: '巫女',
-          system: true,
-          ip_masked: '2001:*',
-          metadata: { version: 1, kind: 'fortune' },
-        },
-        { ...chatLog[0]!, uuid: 'b1', message: 'B_FIRST', ip_masked: '2001:*' },
-        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
-      ];
-      render(<WithStore log={log} />);
+    it('名前のフィルタ: 名前をダブルタップすると、その名前の発言と入退室がすべて隠れる（IP が違っても）', () => {
+      render(
+        <WithStore
+          log={[
+            ipRow('t1', 'TARO_1', '1.*.*.1'),
+            ipRow('t2', 'TARO_2', '2.*.*.2'),
+            welcome('t3', 'Taro', '3.*.*.3'),
+            ipRow('j1', 'JIRO_1', '1.*.*.1', { name: 'Jiro' }),
+          ]}
+        />
+      );
 
-      const adminRow = screen.getByText(/Welcome to/).closest('div.mb-1')!;
-      expect(adminRow).toHaveClass('chat-row-filterable');
-      doubleTap(adminRow);
-      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
-      expect(getFilteredIps()).toEqual(['219.*.*.253']);
-      expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
+      doubleTap(within(rowOf('TARO_1')).getByText('Taro'));
+      expect(
+        screen.getByRole('alertdialog', { name: '「Taro」の発言をフィルタ（非表示に）しますか？' })
+      ).toBeInTheDocument();
+      confirm();
 
-      doubleTap(screen.getByText('FORTUNE_RESULT'));
-      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
-      expect(getFilteredIps()).toEqual(['219.*.*.253', '2001:*']);
-      expect(screen.queryByText('B_FIRST')).not.toBeInTheDocument();
+      expect(getSnapshot()).toEqual([{ kind: 'name', name: 'Taro' }]);
+      expect(screen.queryByText('TARO_1')).not.toBeInTheDocument();
+      expect(screen.queryByText('TARO_2')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome to/)).not.toBeInTheDocument();
+      expect(screen.getByText('JIRO_1')).toBeInTheDocument();
     });
 
-    it('IP が分からない行（機能要求の受付返信など）と送信中の行はダブルタップに反応しない', () => {
-      const log: Chat[] = [
-        {
-          ...chatLog[0]!,
-          uuid: 'reply',
-          message: '機能要求を受け付けました（Issue #1）',
-          name: '管理人',
-          system: true,
-          ip_masked: '',
-          metadata: { version: 1, kind: 'admin' },
-        },
-        { ...chatLog[0]!, uuid: 'star', message: 'STAR', ip_masked: '*' },
-        { ...chatLog[0]!, uuid: 'empty', message: 'EMPTY', ip_masked: '' },
-        { ...chatLog[0]!, uuid: 'opt', message: 'SENDING', optimistic: true },
-      ];
-      render(<WithStore log={log} />);
+    it('管理人の入退室は、本文の入室者の名前をダブルタップすると名前のフィルタになる', () => {
+      render(<WithStore log={[welcome('w1', 'はなこ', '1.*.*.1')]} />);
+      // 参加者一覧にも名前が出るので、発言の行の中の入室者の名前を押す
+      const row = screen.getByText(/Welcome to/).closest<HTMLElement>('div.mb-1')!;
+      doubleTap(within(row).getByText('はなこ'));
+      expect(
+        screen.getByRole('alertdialog', {
+          name: '「はなこ」の発言をフィルタ（非表示に）しますか？',
+        })
+      ).toBeInTheDocument();
+    });
 
-      for (const text of ['STAR', 'EMPTY', 'SENDING']) {
-        expect(rowOf(text)).not.toHaveClass('chat-row-filterable');
-        doubleTap(rowOf(text));
-      }
-      const replyRow = screen.getByText(/機能要求を受け付けました/).closest('div.mb-1')!;
-      expect(replyRow).not.toHaveClass('chat-row-filterable');
-      doubleTap(replyRow);
-      expect(getFilteredIps()).toEqual([]);
+    it('巫女の名前は名前のフィルタにせず、IP のフィルタになる', () => {
+      render(
+        <WithStore
+          log={[
+            ipRow('f1', 'FORTUNE', '2001:*', {
+              name: '巫女',
+              system: true,
+              metadata: { version: 1, kind: 'fortune' },
+            }),
+          ]}
+        />
+      );
+      doubleTap(screen.getByText('巫女'));
+      expect(
+        screen.getByRole('alertdialog', { name: '2001:* の発言をフィルタ（非表示に）しますか？' })
+      ).toBeInTheDocument();
+    });
+
+    it('言葉のフィルタ: 本文をダブルタップすると言葉を選ぶ窓を出し、選んだ言葉を含む発言が隠れる', () => {
+      render(
+        <WithStore
+          log={[
+            ipRow('m1', 'ＨＥＬＬＯ world', '1.*.*.1'),
+            ipRow('m2', 'say hello', '2.*.*.2'),
+            ipRow('m3', 'bye', '3.*.*.3'),
+          ]}
+        />
+      );
+
+      doubleTap(screen.getByText('say hello'));
+      expect(
+        screen.getByRole('alertdialog', {
+          name: 'この言葉を含む発言をフィルタ（非表示に）しますか？',
+        })
+      ).toBeInTheDocument();
+      // 言葉が空のうちは確定できない
+      expect(screen.getByRole('button', { name: 'フィルタする' })).toBeDisabled();
+      expect(screen.getByText('言葉が空です')).toBeInTheDocument();
+
+      const input = screen.getByRole('textbox', { name: /非表示にする言葉/ });
+      fireEvent.change(input, { target: { value: 'hello' } });
+      // 全角と半角、英字の大文字と小文字は区別しない
+      expect(screen.getByText('この言葉を含む発言: 2 件')).toBeInTheDocument();
+      confirm();
+
+      expect(getSnapshot()).toEqual([{ kind: 'word', word: 'hello' }]);
+      expect(screen.queryByText('ＨＥＬＬＯ world')).not.toBeInTheDocument();
+      expect(screen.queryByText('say hello')).not.toBeInTheDocument();
+      expect(screen.getByText('bye')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(
+        '「hello」を含む発言を非表示にしました。'
+      );
+    });
+
+    it('本文で選ばれている文字を、言葉の最初の値にする。窓の中の発言を選び直すと言葉が変わる', () => {
+      render(<WithStore log={[ipRow('m1', 'abc def', '1.*.*.1')]} />);
+      const body = screen.getByText('abc def');
+      const range = document.createRange();
+      range.setStart(body.firstChild!, 4);
+      range.setEnd(body.firstChild!, 7);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(range);
+
+      doubleTap(body);
+      const input = screen.getByRole('textbox', { name: /非表示にする言葉/ });
+      expect(input).toHaveValue('def');
+
+      const source = screen.getByTestId('filter-word-source');
+      const inDialog = document.createRange();
+      inDialog.setStart(source.firstChild!, 0);
+      inDialog.setEnd(source.firstChild!, 3);
+      document.getSelection()!.removeAllRanges();
+      document.getSelection()!.addRange(inDialog);
+      fireEvent(document, new Event('selectionchange'));
+      expect(input).toHaveValue('abc');
+      document.getSelection()!.removeAllRanges();
+    });
+
+    it('IP が分からない行は、名前と本文だけで反応する（それ以外は何もしない）。送信中の行は反応しない', () => {
+      render(
+        <WithStore
+          log={[
+            ipRow('star', 'STAR', '*'),
+            ipRow('empty', 'EMPTY', '', { name: 'Hanako' }),
+            ipRow('opt', 'SENDING', '1.*.*.1', { optimistic: true }),
+          ]}
+        />
+      );
+
+      doubleTap(rowOf('STAR'));
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      doubleTap(within(rowOf('EMPTY')).getByText('Hanako'));
+      expect(
+        screen.getByRole('alertdialog', {
+          name: '「Hanako」の発言をフィルタ（非表示に）しますか？',
+        })
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
+
+      expect(rowOf('SENDING')).not.toHaveClass('chat-row-filterable');
+      doubleTap(rowOf('SENDING'));
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
@@ -330,7 +415,7 @@ describe('ChatLogList', () => {
       render(<ChatLogList chatLog={chatLog} windowRows={10} />);
       expect(rowOf('Hello')).not.toHaveClass('chat-row-filterable');
       doubleTap(rowOf('Hello'));
-      expect(getFilteredIps()).toEqual([]);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
   });
 });

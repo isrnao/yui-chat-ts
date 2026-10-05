@@ -95,7 +95,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const ipFilter = useIpFilter();
   const [showFilter, setShowFilter] = useState(false);
   // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
-  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter.set) : null;
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
 
   useLookSound(roomId);
 
@@ -140,7 +140,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onReload={reload}
               onShowRanking={openRanking}
               onBackToChat={closeRanking}
-              filterCount={ipFilter.ips.length}
+              filterCount={ipFilter.entries?.length ?? 0}
               onToggleFilter={() => setShowFilter(true)}
               avatar={avatar}
               userName={name}
@@ -222,10 +222,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
       />
       {filterSummary && (
         <FilterListDialog
-          ips={ipFilter.ips}
+          entries={ipFilter.entries ?? []}
           hiddenCounts={filterSummary.hiddenCounts}
           hiddenNames={filterSummary.hiddenNames}
-          savedNames={ipFilter.savedNames}
           onClose={() => setShowFilter(false)}
         />
       )}

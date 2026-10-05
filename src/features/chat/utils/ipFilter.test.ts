@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { Chat } from '@features/chat/types';
-import { filterByIp } from './ipFilter';
+import { countWordMatches, filterByIp } from './ipFilter';
 
 function chat(uuid: string, ip: string, extra: Partial<Chat> = {}): Chat {
   return { uuid, time: 0, name: 'n', color: '#000', message: 'm', ip_masked: ip, ua: '', ...extra };
@@ -25,7 +25,7 @@ describe('filterByIp', () => {
     ];
     const result = filterByIp(log, new Set(['a', 'c']));
     expect(result.visible.map((c) => c.uuid)).toEqual(['2', '4']);
-    expect(Object.fromEntries(result.hiddenCounts)).toEqual({ a: 2, c: 1 });
+    expect(Object.fromEntries(result.hiddenCounts)).toEqual({ 'ip:a': 2, 'ip:c': 1 });
     expect(result.hiddenTotal).toBe(3);
   });
 
@@ -46,6 +46,30 @@ describe('filterByIp', () => {
     expect(result.hiddenNames.get('a')).toEqual(['たろう', 'じろう']);
     expect(result.hiddenNames.get('b')).toEqual(['はなこ']);
     expect(result.hiddenNames.has('c')).toBe(false);
+  });
+
+  it('名前（入退室の入室者を含む）と言葉（全角半角・大文字小文字を区別しない）でも隠し、件数は filterKey ごと', () => {
+    const log = [
+      chat('1', 'x', { name: 'たろう', message: 'ＨＥＬＬＯ' }),
+      chat('2', 'y', {
+        name: '管理人',
+        message: 'たろう さん、Welcome to お気楽チャット☆',
+        metadata: { version: 1, kind: 'admin' },
+      }),
+      chat('3', 'z', { name: 'じろう', message: 'say hello' }),
+      chat('4', 'w', { name: 'はなこ', message: 'bye' }),
+    ];
+    const result = filterByIp(log, {
+      set: new Set(),
+      names: new Set(['たろう']),
+      words: ['hello'],
+    });
+    expect(result.visible.map((c) => c.uuid)).toEqual(['4']);
+    expect(Object.fromEntries(result.hiddenCounts)).toEqual({ 'name:たろう': 2, 'word:hello': 2 });
+    expect(result.hiddenTotal).toBe(3);
+    // 管理人の入退室（定型文）には言葉を当てない
+    expect(countWordMatches(log, 'welcome')).toBe(0);
+    expect(countWordMatches(log, ' Hello ')).toBe(2);
   });
 
   it('順序を保ち、隠した件数の合計は元の件数から残った件数を引いたもの', () => {

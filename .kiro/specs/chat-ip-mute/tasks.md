@@ -11,6 +11,7 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
 | PR2 | Task 1〜2 | R4 / R5 / R6 / R8 | 機能 | 中     | ストア、絞り込み、Filter_Link、Filter_Panel、下段の切り替え |
 | PR3 | Task 3    | R1 / R2 / R3 / R8 | 機能 | 中     | ダブルタップ、確認の窓、振動（iOS は switch）               |
 | PR4 | Task 4〜5 | R7                | 演出 | 小〜中 | フィルタを足したときの View Transition、実機の検収          |
+| PR5 | Task 6    | R9                | 機能 | 中     | 名前と言葉のフィルタ（2026-10-05 の要望）                   |
 
 ## Tasks
 
@@ -79,3 +80,17 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 1.3, 1.4, 1.10, 2.2, 2.4, 2.5, 3.1, 3.2, 7.5_
   - [ ] 5.4 1000 行のログで Chrome の Performance パネルを取り、Long Task がないことを確かめる
     - _Requirements: Success Metrics_
+
+- [x] 6. 名前と言葉のフィルタ（Requirement 9）
+  - [x] 6.1 `ipFilterStore` を `FilterEntry`（ip / name / word）にし、`filterKey`・`addFilteredName`・`addFilteredWord`・`removeFilter`・`clearFilters` を足す。古い形も読む
+    - _Requirements: 9.11_
+  - [x] 6.2 `filterByIp` を IP・名前・言葉に広げる（`speakerName`・`normalizeForMatch`・`countWordMatches`）
+    - _Requirements: 9.3, 9.7_
+  - [x] 6.3 `ChatMessage` に `data-filter-target` を付け、`resolveFilterRequest` で種類を決める。`useDoubleTap` に押した要素と `keepSelectionIn` を足す
+    - _Requirements: 9.1, 9.4, 9.8, 9.9_
+  - [x] 6.4 `FilterConfirmDialog` を見出しと説明を受け取る形にし、`WordPicker` を足す。`ChatLogList` で 3 種類の確認を出し分ける
+    - _Requirements: 9.2, 9.5, 9.6_
+  - [x] 6.5 `FilterListDialog` を `entries` で 3 種類に対応させる
+    - _Requirements: 9.10_
+  - [x]\* 6.6 テスト（ストア・絞り込み・確認の窓・一覧・ChatLogList の結合）と、ヘッドレスの Chrome での確認
+    - _Requirements: 9.1〜9.11, 8.4_

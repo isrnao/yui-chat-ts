@@ -361,3 +361,47 @@ jsdom には `PointerEvent` も `document.startViewTransition` もないので�
 - タップでは再レンダーしない（状態は ref だけ）
 - `filterByIp` は 1000 行で 1ms 未満（O(n)、Set 引き）。ルートと ChatLogList で 2 回呼んでも問題にならない
 - 1000 行でフィルタを追加しても Long Task（50ms 超）を出さない（Chrome の Performance パネルで確認）
+
+## 名前と言葉のフィルタ（Requirement 9、PR5）
+
+### ダブルタップした場所の見分け
+
+- `ChatMessage` は、名前の要素に `data-filter-target="name"`、本文（`MessageBody`）に `data-filter-target="message"` を付ける。
+  管理人の入退室メッセージは、本文の入室者の名前（`<b>`）に `data-filter-target="name"` と `data-filter-name="<入室者>"` を付ける。
+  巫女の名前には付けない（IP のフィルタになる）。フィルタできる行（`onFilterRequest` を渡した行）だけに付ける
+- `useDoubleTap` の `onDoubleTap(row, target)` は、2 回目に押した要素も渡す。`resolveFilterRequest(chat, row, target)`
+  （`utils/filterRequest.ts`）が `target.closest('[data-filter-target]')` で種類を決め、`FilterRequest`（`ip` / `name` /
+  `word`）を返す。`word` には、本文の中でブラウザが選んでいる文字（`getSelection()`）を `selected` として入れる
+- `useDoubleTap` の `keepSelectionIn` に本文のセレクタを渡し、本文の上ではダブルクリックでの単語の選択を止めない
+
+### 確認の窓
+
+- `FilterConfirmDialog` は `title` / `description` / `children` / `confirmDisabled` を受け取る形にし、3 種類で共有する
+- 言葉は `WordPicker`（`components/FilterConfirmDialog/WordPicker.tsx`）で選ぶ。発言の全文の枠と入力欄、件数
+  （`countWordMatches`）。枠の中の選択は `selectionchange`（document の出来事なので Effect で購読）で拾い、値の書き込みは
+  `useEffectEvent` で最新の `onChange` を呼ぶ
+- `ChatLogList` は確認中のフィルタを `PendingFilter`（`ip` / `name` / `word`）として state に持ち、「フィルタする」で
+  `addFilteredIp` / `addFilteredName` / `addFilteredWord` を `runFilterTransition` の中で呼ぶ
+
+### 保存と絞り込み
+
+- `FilterEntry` は `{ kind: 'ip', ip, names }` / `{ kind: 'name', name }` / `{ kind: 'word', word }`。`filterKey`
+  （`ip:` / `name:` / `word:` を前に付けた文字列）で解除と件数を数え分ける。`removeFilter(key)` / `clearFilters()`
+- `filterByIp(chatLog, spec)` は `{ set, names, words }` を受け取り、IP・名前・言葉のどれかに当たる発言を隠す。
+  `hiddenCounts` は `filterKey` ごと。名前は `speakerName`（管理人の入退室は入室者、巫女は null）で比べ、言葉は
+  `normalizeForMatch`（NFKC と小文字）した本文の部分一致（管理人の入退室は除く）
+- `useIpFilter` は `entries` と、`ips` / `set` / `names` / `words` / `savedNames` を返す。`FilterListDialog` は `entries`
+  を受け取り、種類ごとに見出しと「種類・件数」を出す
+
+### テスト
+
+| 対象                  | 確かめること                                                                                                                                                                         |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ipFilterStore`       | 名前と言葉の追加・重複無視・空白の除去、`filterKey` での解除、種類を持つ形と古い形の混在                                                                                             |
+| `filterByIp`          | 名前（入退室の入室者を含む）と言葉（NFKC・大文字小文字）で隠す、件数は `filterKey` ごと                                                                                              |
+| `FilterConfirmDialog` | `confirmDisabled` で「フィルタする」と switch が押せない                                                                                                                             |
+| `FilterListDialog`    | 名前と言葉の行の見出し・「種類・件数」・解除の `aria-label`                                                                                                                          |
+| `ChatLogList`         | 名前・本文・それ以外で種類が変わる、管理人の入退室の入室者、巫女は IP、言葉の入力と件数と確定、本文の選択を最初の値に、窓の中の選択で言葉が変わる、IP が分からない行は名前と本文だけ |
+
+ヘッドレスの Chrome（マウスとタッチのエミュレーション）で、名前・本文・時刻のダブルタップでそれぞれの確認の窓が開き、
+マウスのダブルクリックではブラウザが選んだ文字が言葉の最初の値に入ることを確かめた（入室はしていない）。

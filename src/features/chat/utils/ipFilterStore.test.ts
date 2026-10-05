@@ -4,7 +4,11 @@ import {
   FILTER_NAMES_LIMIT,
   addFilteredIp,
   getFilteredIps,
-  clearFilteredIps,
+  addFilteredName,
+  addFilteredWord,
+  clearFilters,
+  filterKey,
+  removeFilter,
   getServerSnapshot,
   getSnapshot,
   isFilterableIp,
@@ -32,8 +36,8 @@ describe('ipFilterStore', () => {
     addFilteredIp('2001:*');
     expect(getFilteredIps()).toEqual(['219.*.*.253', '2001:*']);
     expect(JSON.parse(localStorage.getItem(KEY) ?? 'null')).toEqual([
-      { ip: '219.*.*.253', names: [] },
-      { ip: '2001:*', names: [] },
+      { kind: 'ip', ip: '219.*.*.253', names: [] },
+      { kind: 'ip', ip: '2001:*', names: [] },
     ]);
   });
 
@@ -60,7 +64,7 @@ describe('ipFilterStore', () => {
     addFilteredIp('b');
     removeFilteredIp('a');
     expect(getFilteredIps()).toEqual(['b']);
-    clearFilteredIps();
+    clearFilters();
     expect(getFilteredIps()).toEqual([]);
   });
 
@@ -75,9 +79,9 @@ describe('ipFilterStore', () => {
 
   it('フィルタした時点の「おなまえ」を保存し、同じ IP をもう一度足すと名前だけを前に足す', () => {
     addFilteredIp('a', ['たろう', 'じろう']);
-    expect(getSnapshot()).toEqual([{ ip: 'a', names: ['たろう', 'じろう'] }]);
+    expect(getSnapshot()).toEqual([{ kind: 'ip', ip: 'a', names: ['たろう', 'じろう'] }]);
     addFilteredIp('a', ['はなこ', 'たろう']);
-    expect(getSnapshot()).toEqual([{ ip: 'a', names: ['はなこ', 'たろう', 'じろう'] }]);
+    expect(getSnapshot()).toEqual([{ kind: 'ip', ip: 'a', names: ['はなこ', 'たろう', 'じろう'] }]);
     const before = getSnapshot();
     addFilteredIp('a', ['じろう']);
     expect(getSnapshot()).toBe(before);
@@ -88,7 +92,8 @@ describe('ipFilterStore', () => {
       'a',
       Array.from({ length: FILTER_NAMES_LIMIT + 2 }, (_, i) => `n${i}`)
     );
-    expect(getSnapshot()[0]!.names).toHaveLength(FILTER_NAMES_LIMIT);
+    const [entry] = getSnapshot();
+    expect(entry?.kind === 'ip' && entry.names).toHaveLength(FILTER_NAMES_LIMIT);
   });
 
   it('名前を保存する前の形（IP の文字列だけ）と、新しい形が混ざっていても読む', () => {
@@ -97,8 +102,50 @@ describe('ipFilterStore', () => {
       JSON.stringify(['a', { ip: 'b', names: ['たろう', 1, ''] }, { ip: '*' }, { names: [] }, 'a'])
     );
     expect(getSnapshot()).toEqual([
-      { ip: 'a', names: [] },
-      { ip: 'b', names: ['たろう'] },
+      { kind: 'ip', ip: 'a', names: [] },
+      { kind: 'ip', ip: 'b', names: ['たろう'] },
+    ]);
+  });
+
+  it('名前と言葉も保存し、IP と合わせて追加した順に並べる。言葉は前後の空白を除く', () => {
+    addFilteredIp('a');
+    addFilteredName('たろう');
+    addFilteredWord('  うざい  ');
+    addFilteredName('たろう');
+    addFilteredWord('うざい');
+    addFilteredWord('   ');
+    expect(getSnapshot()).toEqual([
+      { kind: 'ip', ip: 'a', names: [] },
+      { kind: 'name', name: 'たろう' },
+      { kind: 'word', word: 'うざい' },
+    ]);
+    expect(getFilteredIps()).toEqual(['a']);
+  });
+
+  it('filterKey で 1 件ずつ解除できる', () => {
+    addFilteredIp('a');
+    addFilteredName('a');
+    addFilteredWord('a');
+    removeFilter(filterKey({ kind: 'name', name: 'a' }));
+    expect(getSnapshot().map(filterKey)).toEqual(['ip:a', 'word:a']);
+  });
+
+  it('種類を持つ形と持たない古い形が混ざっていても読み、使えないものは捨てる', () => {
+    localStorage.setItem(
+      KEY,
+      JSON.stringify([
+        'a',
+        { kind: 'name', name: 'たろう' },
+        { kind: 'word', word: ' x ' },
+        { kind: 'name', name: '  ' },
+        { kind: 'word', word: '' },
+        { kind: 'other', ip: 'b' },
+      ])
+    );
+    expect(getSnapshot()).toEqual([
+      { kind: 'ip', ip: 'a', names: [] },
+      { kind: 'name', name: 'たろう' },
+      { kind: 'word', word: 'x' },
     ]);
   });
 

@@ -8,6 +8,12 @@ import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
 import { ROW_UUID_ATTR } from '@features/chat/utils/filterTransition';
 import { splitAdminMessage } from '@features/chat/utils/adminMessage';
+import {
+  FILTER_NAME_ATTR,
+  FILTER_TARGET_ATTR,
+  resolveFilterRequest,
+  type FilterRequest,
+} from '@features/chat/utils/filterRequest';
 
 type Props = {
   chat: Chat;
@@ -16,10 +22,11 @@ type Props = {
   /** 画面外にある間は描画を省く（ログが長いときに ChatLogList が付ける） */
   deferOffscreen?: boolean;
   /**
-   * 行のダブルタップ（ダブルクリック）で、この発言の伏せ字の IP をフィルタする（.kiro/specs/chat-ip-mute）。
-   * ChatLogList がフィルタの起点にできる行（Mutable_Row）にだけ渡す。全行で同じ関数なので memo は崩れない
+   * 行のダブルタップ（ダブルクリック）でフィルタの確認を開く（.kiro/specs/chat-ip-mute）。名前を押せば名前、本文を
+   * 押せば言葉、それ以外は伏せ字の IP のフィルタになる。ChatLogList がフィルタの起点にできる行（Mutable_Row）にだけ
+   * 渡す。全行で同じ関数なので memo は崩れない
    */
-  onFilterIp?: (ip: string, row: HTMLElement) => void;
+  onFilterRequest?: (request: FilterRequest) => void;
 };
 
 /**
@@ -102,7 +109,16 @@ function TimeStamp({
 }
 
 /** メッセージ本文をセグメント分割してレンダリング（URL自動リンク化） */
-function MessageBody({ message, chat }: { message: string; chat: Chat }) {
+function MessageBody({
+  message,
+  chat,
+  filterable,
+}: {
+  message: string;
+  chat: Chat;
+  /** ダブルタップで言葉のフィルタを開く本文か */
+  filterable?: boolean;
+}) {
   const segments = parseMessageSegments(message);
   const fontStyle = chat.metadata?.fontStyle;
 
@@ -116,7 +132,11 @@ function MessageBody({ message, chat }: { message: string; chat: Chat }) {
     : undefined;
 
   return (
-    <span className="ml-1 text-gray-700" style={style}>
+    <span
+      className="ml-1 text-gray-700"
+      style={style}
+      {...(filterable ? { [FILTER_TARGET_ATTR]: 'message' } : undefined)}
+    >
       {segments.map((seg, i) =>
         seg.type === 'url' ? (
           <a
@@ -193,7 +213,12 @@ function AdminMessage({
   showRoomName,
   onRoomClick,
   rowProps,
-}: Pick<Props, 'chat' | 'showRoomName' | 'onRoomClick'> & { rowProps: RowProps }) {
+  filterable,
+}: Pick<Props, 'chat' | 'showRoomName' | 'onRoomClick'> & {
+  rowProps: RowProps;
+  /** 入室者の名前をダブルタップで名前のフィルタにするか */
+  filterable?: boolean;
+}) {
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
   const split = splitAdminMessage(chat.message);
@@ -216,7 +241,13 @@ function AdminMessage({
       <span className="font-bold text-gray-400 px-1">|&gt;</span>
       {split ? (
         <>
-          <b className="font-bold" style={{ color: userColor, fontSize: '1.3em' }}>
+          <b
+            className="font-bold"
+            style={{ color: userColor, fontSize: '1.3em' }}
+            {...(filterable
+              ? { [FILTER_TARGET_ATTR]: 'name', [FILTER_NAME_ATTR]: split.userName }
+              : undefined)}
+          >
             {split.userName}
           </b>
           <span className="font-bold" style={{ color: 'red' }}>
@@ -239,23 +270,28 @@ function AdminMessage({
   );
 }
 
-function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilterIp }: Props) {
+function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilterRequest }: Props) {
+  const filterable = onFilterRequest !== undefined;
   const doubleTap = useDoubleTap({
-    enabled: onFilterIp !== undefined,
-    onDoubleTap: (row) => onFilterIp?.(chat.ip_masked, row),
+    enabled: filterable,
+    onDoubleTap: (row, target) => {
+      const request = resolveFilterRequest(chat, row, target);
+      if (request) onFilterRequest?.(request);
+    },
+    // 本文の上ではダブルクリックで選ばれた単語を、言葉のフィルタの最初の値に使う
+    keepSelectionIn: `[${FILTER_TARGET_ATTR}="message"]`,
   });
 
   // ダブルタップできる行だけに handlers とクラスを付ける（クラスはダブルタップでの拡大を止める CSS）。
   // 管理人の入退室メッセージも、入室した本人の IP を持つのでフィルタできる
   // data-chat-uuid は、フィルタの View Transition で見えている行に名前を付けるときの目印（filterTransition.ts）
-  const rowProps: RowProps & { [ROW_UUID_ATTR]: string } =
-    onFilterIp !== undefined
-      ? {
-          className: `${rowClassName(deferOffscreen)} chat-row-filterable`,
-          [ROW_UUID_ATTR]: chat.uuid,
-          ...doubleTap,
-        }
-      : { className: rowClassName(deferOffscreen), [ROW_UUID_ATTR]: chat.uuid };
+  const rowProps: RowProps & { [ROW_UUID_ATTR]: string } = filterable
+    ? {
+        className: `${rowClassName(deferOffscreen)} chat-row-filterable`,
+        [ROW_UUID_ATTR]: chat.uuid,
+        ...doubleTap,
+      }
+    : { className: rowClassName(deferOffscreen), [ROW_UUID_ATTR]: chat.uuid };
 
   if (chat.metadata?.kind === 'admin') {
     return (
@@ -264,6 +300,7 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
         showRoomName={showRoomName}
         onRoomClick={onRoomClick}
         rowProps={rowProps}
+        filterable={filterable}
       />
     );
   }
@@ -280,7 +317,14 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
           loading="lazy"
         />
       )}
-      <span className="font-bold" style={{ color: chat.color, fontSize: '1.08em' }}>
+      <span
+        className="font-bold"
+        style={{ color: chat.color, fontSize: '1.08em' }}
+        // 巫女の名前はおみくじを呼んだ人の名前ではないので、名前のフィルタにしない（IP のフィルタになる）
+        {...(filterable && chat.metadata?.kind !== 'fortune'
+          ? { [FILTER_TARGET_ATTR]: 'name' }
+          : undefined)}
+      >
         {chat.name}
       </span>
       {chat.email ? (
@@ -300,7 +344,7 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
       ) : (
         <span className="font-bold text-gray-400 px-1">{'>'}</span>
       )}
-      <MessageBody message={chat.message} chat={chat} />
+      <MessageBody message={chat.message} chat={chat} filterable={filterable} />
       {LOOK_PATTERN.test(chat.message.trim()) && (
         // レガシーの rin.swf（18x18・12fps）を GIF に移植したもの
         <img

@@ -68,7 +68,7 @@ describe('useDoubleTap', () => {
     expect(onDoubleTap).not.toHaveBeenCalled();
     vi.advanceTimersByTime(DOUBLE_TAP_MS);
     tap(text);
-    expect(onDoubleTap).toHaveBeenCalledExactlyOnceWith(screen.getByTestId('row'));
+    expect(onDoubleTap).toHaveBeenCalledExactlyOnceWith(screen.getByTestId('row'), text);
   });
 
   it('間が空きすぎたら成立しない。3 回目は新しい 1 回目として数える', () => {

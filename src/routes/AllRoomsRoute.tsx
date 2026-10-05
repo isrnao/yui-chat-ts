@@ -59,7 +59,7 @@ export default function AllRoomsRoute() {
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
   const [showFilter, setShowFilter] = useState(false);
-  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter.set) : null;
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
@@ -132,7 +132,7 @@ export default function AllRoomsRoute() {
                 userColor={color}
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
-                filterCount={ipFilter.ips.length}
+                filterCount={ipFilter.entries?.length ?? 0}
                 onToggleFilter={() => setShowFilter(true)}
               />
             ) : (
@@ -189,10 +189,9 @@ export default function AllRoomsRoute() {
         />
         {filterSummary && (
           <FilterListDialog
-            ips={ipFilter.ips}
+            entries={ipFilter.entries ?? []}
             hiddenCounts={filterSummary.hiddenCounts}
             hiddenNames={filterSummary.hiddenNames}
-            savedNames={ipFilter.savedNames}
             onClose={() => setShowFilter(false)}
           />
         )}

@@ -27,7 +27,8 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
  * - 2 回のタップが DOUBLE_TAP_MS 以内で、位置の差が DOUBLE_TAP_DISTANCE_PX 以内のとき成立
  * - 1 回のタップの中で TAP_MOVE_TOLERANCE_PX を超えて動いたら（スクロールなど）数え直す
  * - 2 本目以降の指（isPrimary でないポインタ）は数えない
- * - マウスのダブルクリックで単語が選択されないよう、2 回目の mousedown の既定の動作を止める
+ * - マウスのダブルクリックで単語が選択されないよう、2 回目の mousedown の既定の動作を止める。
+ *   keepSelectionIn に当たる要素の中（発言の本文）では止めず、選ばれた単語を使えるようにする
  * - タッチで成立したときは、その touchend の既定の動作を止める。タッチでは pointerup の後にブラウザが互換用の
  *   mousedown / click を、その時点で指の下にある要素へ出す。成立と同時に開いた確認の窓の背景やボタンに
  *   そのクリックが届き、窓がすぐ閉じたり、押していないボタンが押されたりしていた
@@ -36,10 +37,13 @@ const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
 export function useDoubleTap({
   enabled,
   onDoubleTap,
+  keepSelectionIn,
 }: {
   enabled: boolean;
-  /** 成立したときに、行の要素を渡して呼ぶ */
-  onDoubleTap: (element: HTMLElement) => void;
+  /** 成立したときに、行の要素と、2 回目に押した要素を渡して呼ぶ */
+  onDoubleTap: (element: HTMLElement, target: Element | null) => void;
+  /** ダブルクリックでの単語の選択を止めない要素の CSS セレクタ */
+  keepSelectionIn?: string;
 }) {
   const downRef = useRef<(Point & { pointerId: number }) | null>(null);
   const lastTapRef = useRef<(Point & { time: number }) | null>(null);
@@ -81,7 +85,7 @@ export function useDoubleTap({
     ) {
       lastTapRef.current = null;
       if (event.pointerType === 'touch') suppressTouchEndRef.current = true;
-      onDoubleTap(event.currentTarget);
+      onDoubleTap(event.currentTarget, event.target instanceof Element ? event.target : null);
       return;
     }
     lastTapRef.current = { ...point, time: now };
@@ -96,7 +100,12 @@ export function useDoubleTap({
   };
 
   const onMouseDown = (event: MouseEvent<HTMLElement>) => {
-    if (enabled && event.detail >= 2 && !isInteractive(event.target)) event.preventDefault();
+    if (!enabled || event.detail < 2 || isInteractive(event.target)) return;
+    const keep =
+      keepSelectionIn !== undefined &&
+      event.target instanceof Element &&
+      event.target.closest(keepSelectionIn) !== null;
+    if (!keep) event.preventDefault();
   };
 
   return {

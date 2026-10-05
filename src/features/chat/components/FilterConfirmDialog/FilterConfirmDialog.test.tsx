@@ -5,7 +5,14 @@ import FilterConfirmDialog from './index';
 function setup() {
   const onConfirm = vi.fn();
   const onCancel = vi.fn();
-  render(<FilterConfirmDialog ip="219.*.*.253" onConfirm={onConfirm} onCancel={onCancel} />);
+  render(
+    <FilterConfirmDialog
+      title="219.*.*.253 の発言をフィルタ（非表示に）しますか？"
+      description="同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
   return { onConfirm, onCancel };
 }
 
@@ -63,5 +70,20 @@ describe('FilterConfirmDialog', () => {
     const { onCancel } = setup();
     fireEvent.click(screen.getByRole('alertdialog').parentElement!);
     expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('confirmDisabled のときは「フィルタする」も switch も押せない', () => {
+    const onConfirm = vi.fn();
+    render(
+      <FilterConfirmDialog
+        title="t"
+        description="d"
+        confirmDisabled
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'フィルタする' })).toBeDisabled();
+    expect(screen.getByTestId('filter-confirm-haptic-switch')).toBeDisabled();
   });
 });
