@@ -19,7 +19,7 @@ import EntryForm from '@features/chat/components/EntryForm';
 import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import ChatRanking from '@features/chat/components/ChatRanking';
-import FilterPanel from '@features/chat/components/FilterPanel';
+import FilterListDialog from '@features/chat/components/FilterListDialog';
 import { useIpFilter } from '@features/chat/hooks/useIpFilter';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import { useRoomRanking } from '@features/chat/hooks/useRoomRanking';
@@ -33,18 +33,14 @@ import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
 /**
- * 下段の切り替え（ランキングとフィルタの開閉）だけをアニメーションする。<ViewTransition> は既定では
- * Suspense の中身が現れたときにも View Transition を始めるので、ページを開いた直後（ログ一覧のチャンクの
- * 読み込み完了時）にも動いていた。ページ間の遷移（ドキュメント間の View Transitions）の最中にそれが始まると
- * ブラウザが片方を省き、省かれた側の Promise が未処理の AbortError（Transition was skipped）として報告されていた。
+ * ランキングの開閉だけをアニメーションする。<ViewTransition> は既定では Suspense の中身が現れたときにも
+ * View Transition を始めるので、ページを開いた直後（ログ一覧のチャンクの読み込み完了時）にも動いていた。
+ * ページ間の遷移（ドキュメント間の View Transitions）の最中にそれが始まるとブラウザが片方を省き、
+ * 省かれた側の Promise が未処理の AbortError（Transition was skipped）として報告されていた。
  * 開閉の Transition にだけ型を付け、その型のときだけ有効にする
  */
 const RANKING_TRANSITION = 'ranking';
-const FILTER_TRANSITION = 'filter';
-const PANEL_ONLY = { [RANKING_TRANSITION]: 'auto', [FILTER_TRANSITION]: 'auto', default: 'none' };
-
-/** 下段に出すもの。ログ・ランキング・フィルタの編集画面のどれか 1 つ */
-type BottomPanel = 'log' | 'ranking' | 'filter';
+const RANKING_ONLY = { [RANKING_TRANSITION]: 'auto', default: 'none' };
 
 export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const room = getRoomMeta(roomId);
@@ -77,36 +73,37 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
   const [windowRows, setWindowRows] = useState(30);
-  const [panel, setPanel] = useState<BottomPanel>('log');
-  const showRanking = panel === 'ranking';
-  // [ランキング] と「フィルタ」のリンク、それぞれの見出しから戻るリンクは Transition で開閉し、
+  const [showRanking, setShowRanking] = useState(false);
+  // [ランキング] のリンクと、ランキングの見出しから戻るリンクは Transition で開閉し、
   // ViewTransition でアニメーションする。発言の送信や「更新」で閉じるときは Transition にしない。
   // 送信は Action（非同期の Transition）なので、同じイベントの Transition の更新は Action に束ねられ、
   // 保存が終わるまでランキングが閉じなくなる（テストで確認済み）
-  const switchPanelAnimated = (type: string, next: BottomPanel) =>
+  const openRanking = () =>
     startTransition(() => {
-      addTransitionType(type);
-      setPanel(next);
+      addTransitionType(RANKING_TRANSITION);
+      setShowRanking(true);
     });
-  const openRanking = () => switchPanelAnimated(RANKING_TRANSITION, 'ranking');
-  const closeRankingAnimated = () => switchPanelAnimated(RANKING_TRANSITION, 'log');
-  // 「フィルタ」は開いているときにもう一度押すとログへ戻る（chat-ip-mute Requirement 4.4）
-  const toggleFilter = () =>
-    switchPanelAnimated(FILTER_TRANSITION, panel === 'filter' ? 'log' : 'filter');
-  const closeFilterAnimated = () => switchPanelAnimated(FILTER_TRANSITION, 'log');
-  const backToLog = () => setPanel('log');
+  const closeRankingAnimated = () =>
+    startTransition(() => {
+      addTransitionType(RANKING_TRANSITION);
+      setShowRanking(false);
+    });
+  const closeRanking = () => setShowRanking(false);
   // ランキングは表示用ログ (直近分) ではなくサーバー集計の全期間分を、開いたときに取る
   const roomRanking = useRoomRanking(roomId, showRanking);
-  // フィルタした伏せ字の IP（chat-ip-mute）。編集画面の件数はログ一覧と同じ純粋関数で数える
+  // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const { hiddenCounts, hiddenNames } = filterByIp(chatLog, ipFilter.set);
+  const [showFilter, setShowFilter] = useState(false);
+  // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter.set) : null;
 
   useLookSound(roomId);
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
-    setPanel('log');
+    setShowRanking(false);
+    setShowFilter(false);
     setName('');
     return session.exit();
   };
@@ -114,7 +111,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const handleSend = (msg: string, metadata?: ChatMetadata) => {
     // 発言もコマンド（「消す」ボタンの clear を含む）も、送信した時点でログ表示へ戻す
     // （入力欄は ChatRoom が自分で空にする）
-    if (msg.trim()) backToLog();
+    if (msg.trim()) closeRanking();
     return session.send(msg, metadata);
   };
 
@@ -142,9 +139,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onSend={handleSend}
               onReload={reload}
               onShowRanking={openRanking}
-              onBackToChat={backToLog}
+              onBackToChat={closeRanking}
               filterCount={ipFilter.ips.length}
-              onToggleFilter={toggleFilter}
+              onToggleFilter={() => setShowFilter(true)}
               avatar={avatar}
               userName={name}
               userColor={color}
@@ -179,12 +176,12 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         }
         bottom={
           <>
-            {/* ランキングやフィルタを表示している間もログ一覧は Activity で残しておく。戻ったときに
+            {/* ランキングを表示している間もログ一覧は Activity で残しておく。戻ったときに
                 再マウントせず（1000 行でも作り直さない）、スクロール位置もそのまま戻る。
                 スクロールは各ビューが自分の枠で持つ（下段の枠を共有すると、ランキングの
                 高さに合わせてスクロール量が変わってしまう） */}
-            <Activity mode={panel === 'log' ? 'visible' : 'hidden'}>
-              <ViewTransition default={PANEL_ONLY}>
+            <Activity mode={showRanking ? 'hidden' : 'visible'}>
+              <ViewTransition default={RANKING_ONLY}>
                 <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
                   <Suspense
                     fallback={
@@ -206,7 +203,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               </ViewTransition>
             </Activity>
             {showRanking && (
-              <ViewTransition default={PANEL_ONLY}>
+              <ViewTransition default={RANKING_ONLY}>
                 <div className="h-full overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]">
                   {/* レガシーに合わせ、戻る導線は見出しの部屋名リンクが担う
                       （更新・発言ボタンからもチャット表示に戻れる） */}
@@ -220,21 +217,18 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 </div>
               </ViewTransition>
             )}
-            {panel === 'filter' && (
-              <ViewTransition default={PANEL_ONLY}>
-                <div className="h-full overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]">
-                  <FilterPanel
-                    ips={ipFilter.ips}
-                    hiddenCounts={hiddenCounts}
-                    hiddenNames={hiddenNames}
-                    onBack={closeFilterAnimated}
-                  />
-                </div>
-              </ViewTransition>
-            )}
           </>
         }
       />
+      {filterSummary && (
+        <FilterListDialog
+          ips={ipFilter.ips}
+          hiddenCounts={filterSummary.hiddenCounts}
+          hiddenNames={filterSummary.hiddenNames}
+          savedNames={ipFilter.savedNames}
+          onClose={() => setShowFilter(false)}
+        />
+      )}
     </main>
   );
 }

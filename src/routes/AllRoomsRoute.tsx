@@ -1,12 +1,4 @@
-import {
-  Activity,
-  ViewTransition,
-  addTransitionType,
-  startTransition,
-  useState,
-  lazy,
-  Suspense,
-} from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
@@ -22,7 +14,7 @@ import ChatRoom from '@features/chat/components/ChatRoom';
 import EntryForm from '@features/chat/components/EntryForm';
 import RoomInfo from '@features/chat/components/RoomInfo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
-import FilterPanel from '@features/chat/components/FilterPanel';
+import FilterListDialog from '@features/chat/components/FilterListDialog';
 import { useIpFilter } from '@features/chat/hooks/useIpFilter';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
@@ -37,10 +29,6 @@ const ROOM_META = getRoomMeta('all');
 
 // description は rooms.ts の ROOM_DESCRIPTIONS で集約ビュー固有の文面になる
 const ALL_ROOMS_SEO = buildRoomSeo('all');
-
-/** フィルタの編集画面の開閉だけをアニメーションする（ChatRoute の PANEL_ONLY と同じ考え方） */
-const FILTER_TRANSITION = 'filter';
-const FILTER_ONLY = { [FILTER_TRANSITION]: 'auto', default: 'none' };
 
 export default function AllRoomsRoute() {
   useSEO(ALL_ROOMS_SEO);
@@ -68,15 +56,10 @@ export default function AllRoomsRoute() {
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
   const [sendError, setSendError] = useState('');
-  // 下段にフィルタの編集画面を出しているか（.kiro/specs/chat-ip-mute Requirement 4）
-  const [showFilter, setShowFilter] = useState(false);
-  const switchFilterAnimated = (next: boolean) =>
-    startTransition(() => {
-      addTransitionType(FILTER_TRANSITION);
-      setShowFilter(next);
-    });
+  // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const { hiddenCounts, hiddenNames } = filterByIp(chatLog, ipFilter.set);
+  const [showFilter, setShowFilter] = useState(false);
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter.set) : null;
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
@@ -149,9 +132,8 @@ export default function AllRoomsRoute() {
                 userColor={color}
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
-                onBackToChat={() => setShowFilter(false)}
                 filterCount={ipFilter.ips.length}
-                onToggleFilter={() => switchFilterAnimated(!showFilter)}
+                onToggleFilter={() => setShowFilter(true)}
               />
             ) : (
               <>
@@ -182,53 +164,38 @@ export default function AllRoomsRoute() {
             )
           }
           bottom={
-            <>
-              {/* フィルタの編集画面を出している間もログ一覧は Activity で残し、戻ったときに
-                  スクロール位置を保つ（ChatRoute のランキングと同じ） */}
-              <Activity mode={showFilter ? 'hidden' : 'visible'}>
-                <ViewTransition default={FILTER_ONLY}>
-                  <div className="h-full overflow-y-auto">
-                    <Suspense
-                      fallback={
-                        <div className="mt-8 animate-pulse text-gray-400">
-                          チャットログを読み込み中...
-                        </div>
-                      }
-                    >
-                      {isEmpty ? (
-                        <div className="text-gray-400 px-[var(--page-gap)] py-3 mt-2 font-yui">
-                          まだ発言はありません。
-                        </div>
-                      ) : (
-                        <ChatLogList
-                          chatLog={chatLog}
-                          isLoading={isLoading}
-                          windowRows={windowRows}
-                          showRoomName
-                          onRoomClick={handleRoomClick}
-                          hideParticipants
-                          ipFilter={ipFilter}
-                        />
-                      )}
-                    </Suspense>
-                  </div>
-                </ViewTransition>
-              </Activity>
-              {showFilter && (
-                <ViewTransition default={FILTER_ONLY}>
-                  <div className="h-full overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]">
-                    <FilterPanel
-                      ips={ipFilter.ips}
-                      hiddenCounts={hiddenCounts}
-                      hiddenNames={hiddenNames}
-                      onBack={() => switchFilterAnimated(false)}
-                    />
-                  </div>
-                </ViewTransition>
+            <Suspense
+              fallback={
+                <div className="mt-8 animate-pulse text-gray-400">チャットログを読み込み中...</div>
+              }
+            >
+              {isEmpty ? (
+                <div className="text-gray-400 px-[var(--page-gap)] py-3 mt-2 font-yui">
+                  まだ発言はありません。
+                </div>
+              ) : (
+                <ChatLogList
+                  chatLog={chatLog}
+                  isLoading={isLoading}
+                  windowRows={windowRows}
+                  showRoomName
+                  onRoomClick={handleRoomClick}
+                  hideParticipants
+                  ipFilter={ipFilter}
+                />
               )}
-            </>
+            </Suspense>
           }
         />
+        {filterSummary && (
+          <FilterListDialog
+            ips={ipFilter.ips}
+            hiddenCounts={filterSummary.hiddenCounts}
+            hiddenNames={filterSummary.hiddenNames}
+            savedNames={ipFilter.savedNames}
+            onClose={() => setShowFilter(false)}
+          />
+        )}
       </main>
     </ErrorBoundary>
   );

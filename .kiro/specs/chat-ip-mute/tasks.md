@@ -31,12 +31,13 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 5.1, 5.5, 5.6, 5.8_
   - [x] 2.2 `ChatRoom` に `filterCount` / `onToggleFilter` を足し、「細字」の右に Filter_Link を出す
     - _Requirements: 4.1, 4.2, 4.9_
-  - [x] 2.3 `components/FilterPanel` を作る（見出しのリンク、表、解除、すべて解除、空の案内、`aria-label`）
+  - [x] 2.3 `components/FilterListDialog` を作る（`ModalShell` のモーダル、おなまえと「IP・件数」の 1 行、解除、すべて解除、空の案内、`aria-label`）
+    - 当初は下段に出す `FilterPanel` だったが、2026-10-05 の要望でコンパクトなモーダルに変えた
     - _Requirements: 4.5, 4.6, 4.7, 4.8, 4.9_
-  - [x] 2.4 ChatRoute の `showRanking` を `panel: 'log' | 'ranking' | 'filter'` にし、`RANKING_ONLY` を `PANEL_ONLY` に広げる。AllRoomsRoute に `panel` と `<Activity>` を足す。どちらも `useIpFilter` を呼んで配る
+  - [x] 2.4 ChatRoute と AllRoomsRoute で `useIpFilter` を呼んで配り、「フィルタ」で `FilterListDialog` を開く。下段（ログとランキングの切り替え）は変えない
     - 「更新」と発言の送信で閉じる、ランキングを開くと閉じる
     - _Requirements: 4.3, 4.4, 4.10, 4.12, 5.7, 7.2, 7.4_
-  - [x]\* 2.5 テスト: `ChatLogList`（Filter_List を先に入れた状態で行が消える、`windowRows` はフィルタ後、参加者一覧は変わらない、`ipFilter` なしなら従来どおり）、`ChatRoom`（Filter_Link）、`FilterPanel`、ChatRoute / AllRoomsRoute の開閉
+  - [x]\* 2.5 テスト: `ChatLogList`（Filter_List を先に入れた状態で行が消える、`windowRows` はフィルタ後、参加者一覧は変わらない、`ipFilter` なしなら従来どおり）、`ChatRoom`（Filter_Link）、`FilterListDialog`、ChatRoute / AllRoomsRoute でモーダルを開閉
     - _Requirements: 4.1〜4.12, 5.1, 5.5, 5.6, 5.8, 8.4_
   - [x] 2.6 `pnpm typecheck` / `pnpm lint` / `pnpm test`（Compiler_Check を含む）/ `pnpm build:prod` を通す
     - _Requirements: 8.1, 8.3_
@@ -68,7 +69,7 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
 - [ ] 5. 見た目と検収
   - [x] 5.1 `App.css` に `[data-filter-transition]` の間のアニメーションを足す。タップの間の見た目は入れない
     - _Requirements: 2.6, 7.5_
-  - [ ]\* 5.2 Storybook: `FilterPanel` の 0 / 1 / 3 件、`FilterConfirmDialog`
+  - [ ]\* 5.2 Storybook: `FilterListDialog` の 0 / 1 / 3 件、`FilterConfirmDialog`
     - _Requirements: 2.1, 4.5_
   - [ ] 5.3 実機で確かめる
     - iOS Safari 18 以降: ダブルタップで確認の窓、「フィルタする」でハプティックが鳴る、ダブルタップで拡大しない、文字を長押しで選択できる

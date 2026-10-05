@@ -15,15 +15,15 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
   文字は長押しやドラッグでこれまでどおり選択できる（Requirement 1）
 - **フィルタは閲覧者のブラウザの中だけの設定。** サーバーにも他の利用者にも影響しない。発言は消えず、解除すれば
   元どおり表示される。自分の IP をフィルタすると自分の発言も隠れるが、防がない（「フィルタ」から戻せる）
-- **React 19.3 の安定版の機能だけを使う。** `<ViewTransition>`、`<Activity>`、`startTransition` /
-  `addTransitionType` を使う。Canary にしかない API（`onAnimationCancel` など）には依存しない。依存パッケージは増やさない
+- **React 19.3 の安定版の機能だけを使う。** `<ViewTransition>` の考え方（型で絞る）を引き継ぎ、
+  フィルタを足す演出は `document.startViewTransition` を直接使う。Canary にしかない API（`onAnimationCancel` など）には依存しない。依存パッケージは増やさない
 
 既存 spec との関係:
 
 - [`react-2026-refactoring`](../react-2026-refactoring/requirements.md) の方針（外部ストア、純粋なレンダー、
   手書きのメモ化をしない）に従う。設定は既存の Persistent_Store（R9）で保存する。ダブルタップの判定は
   `RetroSplitter` と同じく Pointer Events で作る（R10）
-- Filter_Panel は、ランキング（ChatRoute）と同じく下段のログと入れ替えて表示し、ログは `<Activity>` で残す
+- Filter_Dialog は、確認の窓（Confirm_Dialog）と同じ旧来風のモーダルで出す。下段のログはそのまま（2026-10-05 の要望で、下段に出す形から変えた）
 - ログの並び順は Room_Log_Store が保つ（新しい順）。本機能は並べ直さず、取り除くだけにする
 
 ## Glossary
@@ -42,7 +42,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 - **Filter_List**: フィルタしている Masked_IP の一覧。追加した順に並ぶ
 - **Filter_Store**: Filter_List を localStorage に保存する外部ストア（Persistent_Store を使う）
 - **Filter_Link**: ChatRoom の 4 行目、「細字」チェックボックスの右に置くリンク。「フィルタ」または「フィルタ(N)」
-- **Filter_Panel**: Filter_Link で開く、下段に表示するフィルタの編集画面
+- **Filter_Dialog**: Filter_Link で開く、フィルタの一覧を出すコンパクトなモーダル
 - **Confirm_Dialog**: ダブルタップのあとに出す、フィルタするかを確かめる旧来風の小さな窓（`window.confirm` の代わり）
 - **Haptic_Switch**: Confirm_Dialog の「フィルタする」ボタンの上に重ねる透明な `<input type="checkbox" switch>`。iOS Safari 18
   以降は、利用者が指で switch を切り替えると本物のハプティックを鳴らす
@@ -108,16 +108,15 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 
 1. WHILE 入室している間, THE ChatRoom SHALL 4 行目の「細字」チェックボックスの右に Filter_Link を表示する
 2. THE Filter_Link SHALL Filter_List が空なら「フィルタ」、空でなければ件数を付けた「フィルタ(N)」と表示する。文字色は「細字」と同じ黒（親から受け継ぐ）にし、下線を付ける
-3. WHEN 閲覧者が Filter_Link を押したとき, THE Target_Page SHALL 下段のログを隠して Filter_Panel を表示する。ログは `<Activity>` で残し、戻ったときにスクロール位置を保つ
-4. WHILE Filter_Panel を表示している間に Filter_Link をもう一度押したとき, THE Target_Page SHALL ログ表示に戻る
-5. THE Filter_Panel SHALL 見出し（押すとログ表示に戻るリンク）と、Filter_List の Masked_IP を追加した順に並べ、それぞれに「おなまえ」「現在のログで隠れている発言の数」「解除」ボタンを出す。「おなまえ」は現在のログで隠れている発言の発言者を新しい順に重複なく「、」で並べる（管理人の入退室メッセージは本文の入室者の名前、巫女は数えない。ログにないときは「—」）
-6. WHEN 閲覧者が「解除」を押したとき, THE Filter_Panel SHALL その Masked_IP を Filter_List から取り除く。ログに戻ると該当する発言が表示される
-7. WHERE Filter_List が 2 件以上のとき, THE Filter_Panel SHALL 「すべて解除」ボタンを出す
-8. WHILE Filter_List が空の間, THE Filter_Panel SHALL 「フィルタしている IP はありません。発言の行をダブルタップ（ダブルクリック）すると、同じ IP の発言を非表示にできます。」と表示する
-9. THE Filter_Link と「解除」「すべて解除」 SHALL キーボードで操作でき、「解除」の `aria-label` は「<Masked_IP> のフィルタを解除」とする
-10. WHEN 閲覧者が「更新」を押したか発言を送信したとき, THE Target_Page SHALL ランキングと同じく Filter_Panel を閉じてログ表示に戻る
+3. WHEN 閲覧者が Filter_Link を押したとき, THE Target_Page SHALL Filter_Dialog をモーダルで開く（`role="dialog"`・`aria-modal="true"`、見出しは「フィルタ」、1 件以上なら「フィルタ（N）」）。下段のログとランキングの表示は変えない
+4. THE Filter_Dialog SHALL 開いたときは「閉じる」（×）にフォーカスし、×・Esc・窓の外（背景）で閉じる
+5. THE Filter_Dialog SHALL Filter_List の Masked_IP を追加した順に、1 件 1 行で並べる。各行は「おなまえ」を上に、その下に小さく「<Masked_IP>・<現在のログで隠れている発言の数> 件」を、右に「解除」を置く（幅の狭い窓に収める）。「おなまえ」は現在のログで隠れている発言の発言者を新しい順に重複なく並べ、その後ろにフィルタした時点で保存した名前（Requirement 6.7）を重複なく続けて「、」で区切る（管理人の入退室メッセージは本文の入室者の名前、巫女は数えない。どちらにもないときは「—」）。行が多いときは窓の中でスクロールする
+6. WHEN 閲覧者が「解除」を押したとき, THE Filter_Dialog SHALL その Masked_IP を Filter_List から取り除く。該当する発言はその場でログに戻る
+7. WHERE Filter_List が 2 件以上のとき, THE Filter_Dialog SHALL 「すべて解除」ボタンを出す
+8. WHILE Filter_List が空の間, THE Filter_Dialog SHALL 「フィルタしている IP はありません。発言の行をダブルタップ（ダブルクリック）すると、同じ IP の発言を非表示にできます。」と表示する
+9. THE Filter_Link と「解除」「すべて解除」「閉じる」 SHALL キーボードで操作でき、「解除」の `aria-label` は「<Masked_IP> のフィルタを解除」とする
+10. WHEN 退室したとき, THE Target_Page SHALL Filter_Dialog を閉じる
 11. WHEN ダブルタップで Masked_IP が Filter_List に追加されたとき, THE Chat_Log_List SHALL 「<Masked_IP> の発言を非表示にしました。「フィルタ」から解除できます。」を `role="status"` の領域で通知する（画面には出さず、支援技術にだけ伝える）
-12. WHILE ChatRoute で Filter_Panel を表示している間にランキングを開いたとき, THE ChatRoute SHALL Filter_Panel を閉じてランキングを表示する（下段に出すのは常に 1 つ）
 
 ### Requirement 5: 一覧の表示
 
@@ -146,6 +145,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 4. IF 保存値が壊れているか形が違うとき, THEN THE Filter_Store SHALL 文字列以外と空文字・`*`・重複を捨てた一覧として読む
 5. WHERE localStorage が使えないとき, THE Filter_Store SHALL そのページの間だけメモリ上で動く
 6. THE Target_Page SHALL SSG と hydration の間は Filter_List を空として描画し、hydration の後に保存値へ切り替える（hydration の不一致を起こさない）
+7. WHEN Masked_IP を Filter_List に追加するとき, THE Filter_Store SHALL そのときのログでその Masked_IP から発言している「おなまえ」を、IP ごとに新しい順で最大 10 人まで一緒に保存する。同じ IP をもう一度追加したときは、まだない名前だけを前に足す。保存値は `{ ip, names }` の配列で、名前を保存する前の形（IP の文字列の配列）も読める
 
 ### Requirement 7: アニメーション（View Transition）
 
@@ -154,9 +154,9 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 #### Acceptance Criteria
 
 1. WHEN ダブルタップのあと Confirm_Dialog で「フィルタする」を選んだとき, THE Target_Page SHALL 同じ IP の行（見えているもの）をすべてフェードアウトさせながら、下の行を下から上へ詰めるアニメーションと、Filter_Link の件数が変わるアニメーションを出す。フィルタの一覧が外部ストアにあり React がその更新を Transition にできないので、`document.startViewTransition` を直接使う（design.md「フィルタを足すときの View Transition」「同じ IP の行がフェードアウトし、下の行が上へ詰まる動き」）
-2. WHEN Filter_Panel を開閉したとき, THE Target_Page SHALL Transition 型 `filter` で、ランキングの開閉と同じアニメーションを出す
+2. THE Filter_Dialog SHALL 開閉にアニメーションを付けない（確認の窓と同じ）
 3. THE Target_Page SHALL `view-transition-name` を全 Chat_Row には付けず、Transition の間だけ見えている範囲（画面内とその下 1 画面ぶん）の行と区切り線に付け、終わったら外す。Filter_Link には常に付ける（1000 行のログで計測と命名のコストを出さない）
-4. THE React の `<ViewTransition>` SHALL `filter`（と既存の `ranking`）以外の型と型なしの更新では何もしない。フィルタを足すときの演出の CSS は、その間だけ `<html>` に付ける属性で絞る（発言の到着、ページ読み込み時の Suspense の解決では動かない。ChatRoute の `RANKING_ONLY` と同じ考え方）
+4. THE React の `<ViewTransition>` SHALL 既存の `ranking` 以外の型と型なしの更新では何もしない（本機能は React の `<ViewTransition>` を増やさない）。フィルタを足すときの演出の CSS は、その間だけ `<html>` に付ける属性で絞る（発言の到着、ページ読み込み時の Suspense の解決では動かない。ChatRoute の `RANKING_ONLY` と同じ考え方）
 5. WHERE ブラウザが View Transitions に対応していないか `prefers-reduced-motion: reduce` のとき, THE Target_Page SHALL アニメーションなしで同じ結果にする
 
 ### Requirement 8: 品質
@@ -166,18 +166,18 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 1. THE 実装 SHALL React Compiler でコンパイルでき（Compiler_Check を通る）、`useCallback` / `useMemo` を新たに書かない
 2. THE `ChatLogList` / `ChatMessage` の `memo()` SHALL 維持する
 3. THE 実装 SHALL 依存パッケージを追加しない
-4. THE テスト SHALL Filter_Store、ダブルタップの判定（Fake Timers と Pointer Events）、一覧の絞り込み、Filter_Link と Filter_Panel を Vitest と Testing Library で確かめる
+4. THE テスト SHALL Filter_Store、ダブルタップの判定（Fake Timers と Pointer Events）、一覧の絞り込み、Filter_Link と Filter_Dialog を Vitest と Testing Library で確かめる
 
 ## Non-Goals
 
 - 正確な IP によるフィルタ（サーバー側の RPC やハッシュ列）。必要になったら別 spec にする
-- フィルタの対象を名前・トリップ・UA にすること、Filter_Panel から IP を手入力で足すこと
+- フィルタの対象を名前・トリップ・UA にすること、Filter_Dialog から IP を手入力で足すこと
 - 発言そのものの削除や通報、他の利用者への影響
 - 参加者一覧・ランキング・look の効果音にフィルタを反映すること
 - キーボードだけでフィルタを**追加**する操作（解除は Requirement 4.9 でキーボード操作できる）。全行をフォーカス可能に
   するとタブ順が壊れるため、v1 では入れない
 - ちゃなり（`/chanari/<id>/`）とツーショットチャット（`/chat/2shot/`）。フォームの部品が別で、「細字」の位置も違う
-- 入室前に Filter_Panel を開くこと（Filter_Link は入室後のフォームにしかない。入室前もフィルタ自体は効く）
+- 入室前に Filter_Dialog を開くこと（Filter_Link は入室後のフォームにしかない。入室前もフィルタ自体は効く）
 - Canary 限定の API（`onAnimationCancel`、Fragment Refs の拡張など）
 
 ## Success Metrics

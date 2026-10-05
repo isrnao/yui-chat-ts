@@ -2,7 +2,7 @@ import { Fragment, memo, useRef, useState } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 import type { IpFilter } from '@features/chat/hooks/useIpFilter';
-import { filterByIp } from '@features/chat/utils/ipFilter';
+import { filterByIp, namesForIp } from '@features/chat/utils/ipFilter';
 import { addFilteredIp, isFilterableIp } from '@features/chat/utils/ipFilterStore';
 import { tapHaptic } from '@features/chat/utils/haptics';
 import { nameRowsInView, runFilterTransition } from '@features/chat/utils/filterTransition';
@@ -76,10 +76,12 @@ function ChatLogList({
     setAnnouncement(`${ip} の発言を非表示にしました。「フィルタ」から解除できます。`);
     // 同じ IP の行がすべてフェードアウトし、下の行が上へ詰まる。「フィルタ(N)」は脈打つ（Requirement 7.1）。
     // 確認の窓を閉じるのも同じ更新に入れる
+    // フィルタした時点でその IP から発言している「おなまえ」も保存する（ログから流れても一覧に出せるように）
+    const names = namesForIp(chatLog, ip);
     runFilterTransition(
       () => {
         setPendingIp(null);
-        addFilteredIp(ip);
+        addFilteredIp(ip, names);
       },
       () => nameRowsInView(listRef.current)
     );

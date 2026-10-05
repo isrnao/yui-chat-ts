@@ -25,6 +25,25 @@ function speakerName(chat: Chat): string | null {
   return chat.name || null;
 }
 
+/** ログの中で、その伏せ字の IP から発言している「おなまえ」（新しい順、重複なし）。フィルタした時点の保存に使う */
+export function namesForIp(chatLog: readonly Chat[], ip: string): string[] {
+  const names = new Set<string>();
+  for (const chat of chatLog) {
+    if (chat.ip_masked !== ip) continue;
+    const name = speakerName(chat);
+    if (name) names.add(name);
+  }
+  return [...names];
+}
+
+/** 今のログで隠れている名前を先に、保存した名前をその後に、重複なく並べる（Filter_Panel の表示） */
+export function mergeNames(
+  current: readonly string[] | undefined,
+  saved: readonly string[] | undefined
+): string[] {
+  return [...new Set([...(current ?? []), ...(saved ?? [])])];
+}
+
 /**
  * フィルタ中の伏せ字の IP と一致する発言を除く（.kiro/specs/chat-ip-mute Requirement 5）。
  * 管理人の入退室メッセージも ip_masked が一致すれば隠す（起点にはできないが、入室者本人の IP を持つ）。

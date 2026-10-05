@@ -1,6 +1,6 @@
 import { useId } from 'react';
-import type { KeyboardEvent } from 'react';
 import Button from '@shared/components/Button';
+import ModalShell from '../shared/ModalShell';
 
 type Props = {
   /** フィルタする伏せ字の IP */
@@ -23,60 +23,45 @@ const SWITCH_ATTRIBUTE = { switch: '' };
  *
  * - ポインタでは透明な switch が「フィルタする」を受け持つ（ハプティック）。キーボードではボタン自体を押す
  *   （switch はタブ順と支援技術から外す）
- * - 開いたときは「やめる」にフォーカスする（うっかり確定しないように）。Esc と背景のクリックでやめる
+ * - 開いたときは「やめる」にフォーカスする（うっかり確定しないように）。Esc と背景のクリックでやめる（ModalShell）
  */
 export default function FilterConfirmDialog({ ip, onConfirm, onCancel }: Props) {
   const titleId = useId();
   const descriptionId = useId();
 
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      onCancel();
-    }
-  };
-
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-[var(--page-gap)]"
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel();
-      }}
-      onKeyDown={onKeyDown}
+    <ModalShell
+      role="alertdialog"
+      labelledBy={titleId}
+      describedBy={descriptionId}
+      onCancel={onCancel}
+      className="max-w-sm"
     >
-      <div
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        className="max-w-sm border-2 border-ie-gray [border-style:outset] bg-ie-bg p-3 font-yui text-sm text-[#222]"
-      >
-        <p id={titleId} className="font-bold">
-          {ip} の発言をフィルタ（非表示に）しますか？
-        </p>
-        <p id={descriptionId} className="mt-1">
-          同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。
-        </p>
-        <div className="mt-3 flex justify-end gap-2">
-          <span className="relative inline-block">
-            <Button type="button" onClick={onConfirm}>
-              フィルタする
-            </Button>
-            <input
-              type="checkbox"
-              {...SWITCH_ATTRIBUTE}
-              aria-hidden="true"
-              tabIndex={-1}
-              onChange={onConfirm}
-              data-testid="filter-confirm-haptic-switch"
-              className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
-            />
-          </span>
-          <Button type="button" onClick={onCancel} autoFocus>
-            やめる
+      <p id={titleId} className="font-bold">
+        {ip} の発言をフィルタ（非表示に）しますか？
+      </p>
+      <p id={descriptionId} className="mt-1">
+        同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。
+      </p>
+      <div className="mt-3 flex justify-end gap-2">
+        <span className="relative inline-block">
+          <Button type="button" onClick={onConfirm}>
+            フィルタする
           </Button>
-        </div>
+          <input
+            type="checkbox"
+            {...SWITCH_ATTRIBUTE}
+            aria-hidden="true"
+            tabIndex={-1}
+            onChange={onConfirm}
+            data-testid="filter-confirm-haptic-switch"
+            className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0"
+          />
+        </span>
+        <Button type="button" onClick={onCancel} autoFocus>
+          やめる
+        </Button>
       </div>
-    </div>
+    </ModalShell>
   );
 }

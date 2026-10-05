@@ -3,7 +3,7 @@ import { render, screen, cleanup, fireEvent, within } from '@testing-library/rea
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
 import { useIpFilter } from '@features/chat/hooks/useIpFilter';
-import { getSnapshot as getFilteredIps } from '@features/chat/utils/ipFilterStore';
+import { getFilteredIps, getSnapshot } from '@features/chat/utils/ipFilterStore';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -250,6 +250,8 @@ describe('ChatLogList', () => {
 
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       expect(getFilteredIps()).toEqual(['219.*.*.253']);
+      // フィルタした時点でその IP から発言していた「おなまえ」も保存する（管理人の入退室は本文の入室者）
+      expect(getSnapshot()[0]!.names).toEqual(['Taro', 'たろう']);
       expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
       expect(screen.queryByText(/Welcome to/)).not.toBeInTheDocument();
       expect(screen.getByText('B_FIRST')).toBeInTheDocument();

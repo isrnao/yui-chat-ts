@@ -5,6 +5,8 @@ export type IpFilter = {
   /** フィルタした伏せ字の IP。追加した順 */
   ips: readonly string[];
   set: ReadonlySet<string>;
+  /** フィルタした時点で保存した「おなまえ」（IP ごと、新しい順） */
+  savedNames?: ReadonlyMap<string, readonly string[]>;
 };
 
 /**
@@ -12,10 +14,15 @@ export type IpFilter = {
  * （.kiro/specs/chat-ip-mute Requirement 6.6）。
  */
 export function useIpFilter(): IpFilter {
-  const ips = useSyncExternalStore(
+  const entries = useSyncExternalStore(
     ipFilterStore.subscribe,
     ipFilterStore.getSnapshot,
     ipFilterStore.getServerSnapshot
   );
-  return { ips, set: new Set(ips) };
+  const ips = entries.map(({ ip }) => ip);
+  return {
+    ips,
+    set: new Set(ips),
+    savedNames: new Map(entries.map(({ ip, names }) => [ip, names])),
+  };
 }
