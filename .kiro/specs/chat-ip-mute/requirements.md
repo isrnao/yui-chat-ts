@@ -73,6 +73,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 9. THE Chat_Row SHALL 2 本目以降の指（`isPrimary` でないポインタ）と、マウスの主ボタン以外のタップを数えない
 10. WHERE Chat_Row が Mutable_Row のとき, THE Chat_Row SHALL ダブルタップでの拡大（`touch-action: manipulation`）と、マウスのダブルクリックでの単語の選択を止める。ピンチでの拡大と、長押し・ドラッグでの文字の選択はこれまでどおりできる
 11. THE Chat_Row SHALL 入室の前後どちらでもダブルタップでフィルタできる（入室前のログにも Filter_List を適用する）
+12. WHEN タッチでダブルタップが成立したとき, THE Chat_Row SHALL その touchend の既定の動作を止め、ブラウザが出す互換用の mousedown / click を出させない（そのクリックが、成立と同時に開いた Confirm_Dialog の背景やボタンに届き、窓がすぐ閉じたり押していないボタンが押されたりしないように。2026-10-05 の不具合）
 
 ### Requirement 2: フィルタの確認
 
@@ -83,7 +84,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 1. WHEN ダブルタップが成立したとき, THE Chat_Log_List SHALL Confirm_Dialog を出し、見出しに「<Masked_IP> の発言をフィルタ（非表示に）しますか？」、説明に「同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。」を表示する
 2. THE Confirm_Dialog SHALL `role="alertdialog"`・`aria-modal="true"` を持ち、見出しと説明を名前と説明に結び付け、開いたときは「やめる」にフォーカスする（うっかり確定しない）
 3. WHEN 閲覧者が「フィルタする」を選んだとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、その Masked_IP を Filter_List に追加する（Requirement 1.1）
-4. WHEN 閲覧者が「やめる」を押したか、Esc を押したか、窓の外（背景）を押したとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、何も変えない
+4. WHEN 閲覧者が「やめる」を押したか、Esc を押したか、窓の外（背景）を押したとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、何も変えない。背景で閉じるのは、背景の上で押し始めたクリックだけにする（窓を開いた操作の続きのクリックでは閉じない）
 5. THE Confirm_Dialog SHALL 「フィルタする」をポインタでは Haptic_Switch で、キーボードではボタンそのもので受け付ける。Haptic_Switch はタブ順と支援技術から外す（`tabindex="-1"`・`aria-hidden`）
 6. THE Chat_Row SHALL タップの間にアニメーション（背景の変化・縮み・進捗の表示）を出さない（2026-10-05 の決定）
 7. THE Chat_Row SHALL タップを数える状態を ref だけに持ち、タップで React の再レンダーを起こさない

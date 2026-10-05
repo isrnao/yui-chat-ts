@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { KeyboardEvent, ReactNode } from 'react';
 
 type Props = {
@@ -16,7 +17,9 @@ type Props = {
 /**
  * 旧来風の小さなモーダルの外枠（.kiro/specs/chat-ip-mute の確認の窓とフィルタの一覧で共有する）。
  * 画面全体を覆う半透明の背景の中央に、Button と同じ outset の枠の窓を出す。Esc（窓の上の keydown）と
- * 背景のクリックで onCancel を呼ぶ。最初のフォーカスは中身の autoFocus に任せる
+ * 背景のクリックで onCancel を呼ぶ。最初のフォーカスは中身の autoFocus に任せる。
+ * 背景のクリックで閉じるのは、背景の上で押し始めたときだけ。窓を開いた操作の続き（タッチの互換用の click など）が
+ * 背景に届いても閉じない
  */
 export default function ModalShell({
   role = 'dialog',
@@ -26,6 +29,9 @@ export default function ModalShell({
   className = '',
   children,
 }: Props) {
+  // 背景の上で押し始めたか。窓を開いた操作のクリックは、押し始めが窓の外（発言の行）なので閉じない
+  const pressedOnBackdropRef = useRef(false);
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key === 'Escape') {
       event.stopPropagation();
@@ -36,8 +42,13 @@ export default function ModalShell({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-[var(--page-gap)]"
+      onPointerDown={(event) => {
+        pressedOnBackdropRef.current = event.target === event.currentTarget;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onCancel();
+        const pressedOnBackdrop = pressedOnBackdropRef.current;
+        pressedOnBackdropRef.current = false;
+        if (pressedOnBackdrop && event.target === event.currentTarget) onCancel();
       }}
       onKeyDown={onKeyDown}
     >

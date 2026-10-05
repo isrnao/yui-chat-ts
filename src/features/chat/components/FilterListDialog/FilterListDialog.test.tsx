@@ -85,7 +85,9 @@ describe('FilterListDialog', () => {
     render(<FilterListDialog ips={[]} hiddenCounts={new Map()} onClose={onClose} />);
     fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    fireEvent.click(screen.getByRole('dialog').parentElement!);
+    const backdrop = screen.getByRole('dialog').parentElement!;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
     fireEvent.click(screen.getByText(/フィルタしている IP はありません/));
     expect(onClose).toHaveBeenCalledTimes(3);
   });

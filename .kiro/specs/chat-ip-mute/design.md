@@ -119,6 +119,12 @@ export function useDoubleTap(options: {
   24px 以内なら成立して `onDoubleTap(event.currentTarget)` を呼ぶ。そうでなければ 1 回目として覚える（R1.6）
 - `pointercancel` で数え直す
 - `onMouseDown` で `event.detail >= 2`（2 回目のクリック）の既定の動作を止め、ダブルクリックで単語が選択されないようにする（R1.10）
+- タッチ（`pointerType === 'touch'`）で成立したときは印を付け、続く `onTouchEnd` で `preventDefault()` する（R1.12）。
+  タッチでは `pointerup` の後にブラウザが互換用の `mousedown` / `click` を、その時点で指の下にある要素へ出す。成立と同時に
+  確認の窓が開くので、そのクリックが窓の背景に届いて窓がすぐ閉じていた（2026-10-05 の不具合「大量にフィルタしていると途中で
+  確認の窓が開かなくなる」。行が詰まるたびにタップの位置と窓の位置関係が変わり、背景に当たると開いた瞬間に閉じる。
+  「フィルタする」や「やめる」に当たると押していないのに押されることもあった）。React は `touchend` を passive にしないので
+  `preventDefault` が効く。マウスのダブルクリックでは、2 回目の `click` は押した行に届くので起きない
 - 時刻は `Date.now()`。テストでは Fake Timers で進める
 
 ### `utils/haptics.ts`（新規）
@@ -204,6 +210,8 @@ const chats = visible.slice(0, windowRows);
 確認の窓とフィルタの一覧で共有するモーダルの外枠。画面全体を覆う半透明の背景の中央に、`Button` と同じ outset の枠の窓を
 出す。`role`（`dialog` / `alertdialog`）・`aria-modal`・`aria-labelledby` / `aria-describedby` を付け、Esc（窓の上の
 keydown）と背景のクリックで `onCancel` を呼ぶ。最初のフォーカスは中身の `autoFocus` に任せる。
+背景のクリックで閉じるのは、背景の上で `pointerdown` したときだけにする（R2.4。窓を開いた操作の続きのクリックが背景に
+届いても閉じない。`useDoubleTap` の touchend の抑止と二重の守り）。
 
 ### `FilterListDialog`（新規、`components/FilterListDialog/`）
 
@@ -267,6 +275,10 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
   位置に最初から出る
 - 当初は Web Animations で 1 行だけ高さを縮めていたが（`collapseRowThen`）、同じ IP のほかの行は縮み終わってから一気に
   消えていた。View Transition にまとめ、すべての該当行を同時にフェードアウトさせる形にした
+
+既知の制限: View Transition の間（約 250ms）は、ブラウザが画面全体を擬似要素で覆い、タップはページ全体（`html`）に届く。
+そのため演出の最中にダブルタップしても反応しない（終われば反応する）。`::view-transition { pointer-events: none }` を
+付けても Chrome では行に届かなかった（2026-10-05 に確認）。
 
 Chrome（ヘッドレス、`Animation.setPlaybackRate` で 1/10 に遅らせて撮影）で確かめた結果（Task 4.3、2026-10-05）:
 入室前のログ 10 行のうち同じ IP の 6 行（管理人の入退室を含む）が半透明に薄れ、下の 2 行が下から上へ詰まり、終わった後は
