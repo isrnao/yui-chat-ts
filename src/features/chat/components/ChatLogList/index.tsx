@@ -1,10 +1,11 @@
-import { Fragment, memo, useState } from 'react';
+import { Fragment, memo, useRef, useState } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 import type { IpFilter } from '@features/chat/hooks/useIpFilter';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import { addFilteredIp, isFilterableIp } from '@features/chat/utils/ipFilterStore';
 import { tapHaptic } from '@features/chat/utils/haptics';
+import { runFilterTransition } from '@features/chat/utils/filterTransition';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
@@ -66,17 +67,34 @@ function ChatLogList({
   const deferOffscreen = chats.length > DEFER_OFFSCREEN_ROWS;
   // ダブルタップでフィルタしたことを支援技術に伝える（画面には出さない。Requirement 4.11）
   const [announcement, setAnnouncement] = useState('');
-  // 確認の窓を出している伏せ字の IP（Requirement 2）
+  // 確認の窓を出している伏せ字の IP（Requirement 2）。ダブルタップした行の要素は描画に使わないので ref に持つ
+  // （View Transition の名前を付けるためだけに使う。state に入れると書き換えられない）
   const [pendingIp, setPendingIp] = useState<string | null>(null);
-  const requestFilter = (ip: string) => setPendingIp(ip);
+  const pendingRowRef = useRef<HTMLElement | null>(null);
+  const requestFilter = (ip: string, row: HTMLElement) => {
+    pendingRowRef.current = row;
+    setPendingIp(ip);
+  };
+  const cancelFilter = () => {
+    pendingRowRef.current = null;
+    setPendingIp(null);
+  };
   const confirmFilter = () => {
     const ip = pendingIp;
+    const row = pendingRowRef.current;
     if (ip === null) return;
     // 「フィルタする」を押した瞬間に振動させる。iOS は確認の窓の switch が鳴らす（Requirement 3）
     tapHaptic();
     setAnnouncement(`${ip} の発言を非表示にしました。「フィルタ」から解除できます。`);
-    setPendingIp(null);
-    addFilteredIp(ip);
+    pendingRowRef.current = null;
+    // 消える行にだけ View Transition の名前を付ける（全行に付けると 1000 行で重い。Requirement 7.3）。
+    // 行は更新で消えるので名前は外さない。確認の窓を閉じるのも同じ更新に入れ、窓が消えるのと行が消えるのを揃える
+    if (row) row.style.viewTransitionName = 'chat-row-filtering';
+    // ダブルタップした行が縮んで消え、「フィルタ(N)」が脈打つ（Requirement 7.1）
+    runFilterTransition(() => {
+      setPendingIp(null);
+      addFilteredIp(ip);
+    });
   };
 
   if (isLoading) {
@@ -126,11 +144,7 @@ function ChatLogList({
         </Fragment>
       ))}
       {pendingIp !== null && (
-        <FilterConfirmDialog
-          ip={pendingIp}
-          onConfirm={confirmFilter}
-          onCancel={() => setPendingIp(null)}
-        />
+        <FilterConfirmDialog ip={pendingIp} onConfirm={confirmFilter} onCancel={cancelFilter} />
       )}
     </div>
   );

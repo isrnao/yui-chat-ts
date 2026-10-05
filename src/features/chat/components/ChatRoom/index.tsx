@@ -301,7 +301,8 @@ export default function ChatRoom({
         {onToggleFilter && (
           <button
             type="button"
-            className="ml-2 text-green-700 underline cursor-pointer"
+            // filter-link は View Transition の名前（App.css）。フィルタを足したときに件数が脈打つ
+            className="filter-link ml-2 text-green-700 underline cursor-pointer"
             onClick={onToggleFilter}
           >
             {filterCount > 0 ? `フィルタ(${filterCount})` : 'フィルタ'}

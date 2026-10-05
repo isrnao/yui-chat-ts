@@ -56,16 +56,16 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 8.1, 8.3_
 
 - [ ] 4. View Transition
-  - [ ] 4.1 `runFilterTransition`（`document.startViewTransition` + `flushSync`）を作り、「フィルタする」のあとに使う。消える行に `view-transition-name: chat-row-filtering`、Filter_Link に `filter-link` を付ける。確認の窓を閉じる更新も同じ `flushSync` に入れる
+  - [x] 4.1 `runFilterTransition`（`document.startViewTransition` + `flushSync`）を作り、「フィルタする」のあとに使う。消える行に `view-transition-name: chat-row-filtering`、Filter_Link に `filter-link` を付ける。確認の窓を閉じる更新も同じ `flushSync` に入れる
     - 外部ストアの更新は React の Transition にならないため、`startTransition` + `addTransitionType('mute')` は使わない（design.md「フィルタを足すときの View Transition」）
     - _Requirements: 7.1, 7.3, 7.4, 7.5_
-  - [ ]\* 4.2 `filterTransition.test.ts`（非対応・対応・動きを減らす設定・省かれたとき）
+  - [x]\* 4.2 `filterTransition.test.ts`（非対応・対応・動きを減らす設定・省かれたとき）
     - _Requirements: 7.1, 7.5_
   - [ ] 4.3 Chrome で確かめる: 消える行が縮んで消える、Filter_Link が脈打つ、root は動かない、発言の到着や Suspense の解決では動かない。結果を design.md に書く
     - _Requirements: 7.1, 7.4_
 
 - [ ] 5. 見た目と検収
-  - [ ] 5.1 `App.css` に `[data-filter-transition]` の間のアニメーションを足す。タップの間の見た目は入れない
+  - [x] 5.1 `App.css` に `[data-filter-transition]` の間のアニメーションを足す。タップの間の見た目は入れない
     - _Requirements: 2.6, 7.5_
   - [ ]\* 5.2 Storybook: `FilterPanel` の 0 / 1 / 3 件、`FilterConfirmDialog`
     - _Requirements: 2.1, 4.5_
