@@ -24,6 +24,21 @@ describe('FilterPanel', () => {
     expect(screen.queryByRole('button', { name: 'すべて解除' })).not.toBeInTheDocument();
   });
 
+  it('IP に紐づく「おなまえ」を並べる。今のログになければ —', () => {
+    render(
+      <FilterPanel
+        ips={['219.*.*.253', '2001:*']}
+        hiddenCounts={new Map([['219.*.*.253', 3]])}
+        hiddenNames={new Map([['219.*.*.253', ['たろう', 'じろう']]])}
+      />
+    );
+    expect(screen.getByRole('columnheader', { name: 'おなまえ' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('row', { name: /219\.\*\.\*\.253 たろう、じろう 3 件/ })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /2001:\* — 0 件/ })).toBeInTheDocument();
+  });
+
   it('現在のログに一致する発言がなければ 0 件', () => {
     render(<FilterPanel ips={['2001:*']} hiddenCounts={new Map()} />);
     expect(screen.getByText('0 件')).toBeInTheDocument();

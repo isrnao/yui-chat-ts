@@ -29,6 +29,25 @@ describe('filterByIp', () => {
     expect(result.hiddenTotal).toBe(3);
   });
 
+  it('IP ごとに隠した発言の「おなまえ」を、新しい順で重複なく集める。管理人は本文の入室者、巫女は数えない', () => {
+    const log = [
+      chat('1', 'a', { name: 'たろう' }),
+      chat('2', 'a', {
+        name: '管理人',
+        message: 'じろう さん、Welcome to お気楽チャット☆',
+        metadata: { version: 1, kind: 'admin' },
+      }),
+      chat('3', 'a', { name: '巫女', metadata: { version: 1, kind: 'fortune' } }),
+      chat('4', 'a', { name: 'たろう' }),
+      chat('5', 'b', { name: 'はなこ' }),
+      chat('6', 'c', { name: 'さぶろう' }),
+    ];
+    const result = filterByIp(log, new Set(['a', 'b']));
+    expect(result.hiddenNames.get('a')).toEqual(['たろう', 'じろう']);
+    expect(result.hiddenNames.get('b')).toEqual(['はなこ']);
+    expect(result.hiddenNames.has('c')).toBe(false);
+  });
+
   it('順序を保ち、隠した件数の合計は元の件数から残った件数を引いたもの', () => {
     const ips = ['a', 'b', 'c', '', '*'];
     fc.assert(

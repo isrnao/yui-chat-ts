@@ -84,7 +84,12 @@ Compiler に任せる（手でメモ化しない）。ルートで 1 回呼び�
 export function filterByIp(
   chatLog: readonly Chat[],
   filtered: ReadonlySet<string>
-): { visible: readonly Chat[]; hiddenCounts: ReadonlyMap<string, number>; hiddenTotal: number };
+): {
+  visible: readonly Chat[];
+  hiddenCounts: ReadonlyMap<string, number>;
+  hiddenNames: ReadonlyMap<string, readonly string[]>; // 隠した発言の「おなまえ」。新しい順で重複なし
+  hiddenTotal: number;
+};
 ```
 
 - `filtered.size === 0` のときは `chatLog` をそのまま返す（コピーしない。Success Metrics の「空のとき同じ」）
@@ -186,7 +191,7 @@ const chats = visible.slice(0, windowRows);
 
 - props に `filterCount?: number` と `onToggleFilter?: () => void` を足す。`onToggleFilter` があるときだけ、4 行目の
   「細字」の `label` の後ろに Filter_Link を出す（R4.1, R4.2）
-- Filter_Link は `<button type="button">` を旧来のリンクの見た目（`text-green-700 underline`）で描く。文言は
+- Filter_Link は `<button type="button">` を、「細字」と同じ黒（文字色を指定せず親から受け継ぐ）に下線を付けて描く。文言は
   `filterCount ? \`フィルタ(${filterCount})\` : 'フィルタ'`
 - Filter_Link にはクラス `filter-link` を付け、CSS で `view-transition-name: filter-link` を常に付ける（ChatRoom はページに
   1 つなので名前は重ならない）
@@ -203,7 +208,9 @@ type Props = {
 ```
 
 - ランキングと同じ旧来風の見た目。見出し「フィルタ」（押すとログに戻るリンク、R4.5）
-- 表: Masked_IP / 隠れている発言（件）/ [解除]。2 件以上で [すべて解除]（R4.5〜R4.7）
+- 表: Masked_IP / おなまえ / 隠れている発言（件）/ [解除]。2 件以上で [すべて解除]（R4.5〜R4.7）。「おなまえ」は
+  `hiddenNames` を「、」で並べ、なければ「—」。管理人の入退室メッセージの名前は `utils/adminMessage.ts` の
+  `splitAdminMessage`（`ChatMessage` と共有）で本文から取る
 - 空のときの案内文（R4.8）。下に「IP は一部を伏せた値で比べるため、別の人の発言も一緒に隠れることがあります」の注記
 - 解除は `removeFilteredIp` / `clearFilteredIps` を直接呼ぶ（Transition にしない。パネルの中で行が消えるだけ）
 

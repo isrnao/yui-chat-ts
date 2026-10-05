@@ -99,7 +99,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const roomRanking = useRoomRanking(roomId, showRanking);
   // フィルタした伏せ字の IP（chat-ip-mute）。編集画面の件数はログ一覧と同じ純粋関数で数える
   const ipFilter = useIpFilter();
-  const { hiddenCounts } = filterByIp(chatLog, ipFilter.set);
+  const { hiddenCounts, hiddenNames } = filterByIp(chatLog, ipFilter.set);
 
   useLookSound(roomId);
 
@@ -226,6 +226,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                   <FilterPanel
                     ips={ipFilter.ips}
                     hiddenCounts={hiddenCounts}
+                    hiddenNames={hiddenNames}
                     onBack={closeFilterAnimated}
                   />
                 </div>

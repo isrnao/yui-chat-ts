@@ -76,7 +76,7 @@ export default function AllRoomsRoute() {
       setShowFilter(next);
     });
   const ipFilter = useIpFilter();
-  const { hiddenCounts } = filterByIp(chatLog, ipFilter.set);
+  const { hiddenCounts, hiddenNames } = filterByIp(chatLog, ipFilter.set);
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
@@ -220,6 +220,7 @@ export default function AllRoomsRoute() {
                     <FilterPanel
                       ips={ipFilter.ips}
                       hiddenCounts={hiddenCounts}
+                      hiddenNames={hiddenNames}
                       onBack={() => switchFilterAnimated(false)}
                     />
                   </div>

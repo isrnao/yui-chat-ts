@@ -107,10 +107,10 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 #### Acceptance Criteria
 
 1. WHILE 入室している間, THE ChatRoom SHALL 4 行目の「細字」チェックボックスの右に Filter_Link を表示する
-2. THE Filter_Link SHALL Filter_List が空なら「フィルタ」、空でなければ件数を付けた「フィルタ(N)」と表示する
+2. THE Filter_Link SHALL Filter_List が空なら「フィルタ」、空でなければ件数を付けた「フィルタ(N)」と表示する。文字色は「細字」と同じ黒（親から受け継ぐ）にし、下線を付ける
 3. WHEN 閲覧者が Filter_Link を押したとき, THE Target_Page SHALL 下段のログを隠して Filter_Panel を表示する。ログは `<Activity>` で残し、戻ったときにスクロール位置を保つ
 4. WHILE Filter_Panel を表示している間に Filter_Link をもう一度押したとき, THE Target_Page SHALL ログ表示に戻る
-5. THE Filter_Panel SHALL 見出し（押すとログ表示に戻るリンク）と、Filter_List の Masked_IP を追加した順に並べ、それぞれに「現在のログで隠れている発言の数」と「解除」ボタンを出す
+5. THE Filter_Panel SHALL 見出し（押すとログ表示に戻るリンク）と、Filter_List の Masked_IP を追加した順に並べ、それぞれに「おなまえ」「現在のログで隠れている発言の数」「解除」ボタンを出す。「おなまえ」は現在のログで隠れている発言の発言者を新しい順に重複なく「、」で並べる（管理人の入退室メッセージは本文の入室者の名前、巫女は数えない。ログにないときは「—」）
 6. WHEN 閲覧者が「解除」を押したとき, THE Filter_Panel SHALL その Masked_IP を Filter_List から取り除く。ログに戻ると該当する発言が表示される
 7. WHERE Filter_List が 2 件以上のとき, THE Filter_Panel SHALL 「すべて解除」ボタンを出す
 8. WHILE Filter_List が空の間, THE Filter_Panel SHALL 「フィルタしている IP はありません。発言の行をダブルタップ（ダブルクリック）すると、同じ IP の発言を非表示にできます。」と表示する

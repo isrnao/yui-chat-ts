@@ -211,6 +211,8 @@ describe('ChatRoom', () => {
       const link = screen.getByRole('button', { name: 'フィルタ' });
       const boldLabel = screen.getByText('細字').closest('label');
       expect(boldLabel?.nextElementSibling).toBe(link);
+      // 「細字」と同じ黒（文字色を指定せず親から受け継ぐ）
+      expect(link.className).not.toMatch(/\btext-(?:green|blue)-/);
       fireEvent.click(link);
       expect(onToggleFilter).toHaveBeenCalledTimes(1);
     });

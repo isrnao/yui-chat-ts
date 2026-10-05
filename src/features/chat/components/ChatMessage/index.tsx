@@ -7,6 +7,7 @@ import type { Chat } from '@features/chat/types';
 import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
 import { ROW_UUID_ATTR } from '@features/chat/utils/filterTransition';
+import { splitAdminMessage } from '@features/chat/utils/adminMessage';
 
 type Props = {
   chat: Chat;
@@ -133,17 +134,6 @@ function MessageBody({ message, chat }: { message: string; chat: Chat }) {
       )}
     </span>
   );
-}
-
-/**
- * レガシーの管理人メッセージから「ユーザー名」部分を抽出する。
- * 例: "薄ら紅 さん、Welcome to お気楽チャット☆" → { userName: '薄ら紅', rest: 'さん、Welcome to...' }
- * 例: "薄ら紅さん、またきておくれやすぅ。" → { userName: '薄ら紅', rest: 'さん、...' }
- */
-function splitAdminMessage(message: string): { userName: string; rest: string } | null {
-  const match = message.match(/^(.+?)\s?(さん[、,].+)$/);
-  if (!match) return null;
-  return { userName: match[1].trim(), rest: match[2] };
 }
 
 const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;

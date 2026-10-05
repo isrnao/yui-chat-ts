@@ -5,6 +5,8 @@ type Props = {
   ips: readonly string[];
   /** 現在のログで、伏せ字の IP ごとに隠れている発言の数（filterByIp の結果） */
   hiddenCounts: ReadonlyMap<string, number>;
+  /** 現在のログで、伏せ字の IP ごとに隠れている発言の「おなまえ」（filterByIp の結果） */
+  hiddenNames?: ReadonlyMap<string, readonly string[]>;
   /** 見出しのリンクからログ表示へ戻る */
   onBack?: () => void;
 };
@@ -14,7 +16,7 @@ type Props = {
  * 見た目はランキング（ChatRanking）と同じ素の見出しと table に合わせる。
  * 解除はストアを直接書き換える。ログは Activity の中で残っているので、戻ったときには反映済みになる。
  */
-export default function FilterPanel({ ips, hiddenCounts, onBack }: Props) {
+export default function FilterPanel({ ips, hiddenCounts, hiddenNames, onBack }: Props) {
   return (
     <div className="font-yui text-black">
       <h3 className="my-[1em] text-[1.17em] font-bold">
@@ -40,6 +42,7 @@ export default function FilterPanel({ ips, hiddenCounts, onBack }: Props) {
               <thead>
                 <tr>
                   <th className="whitespace-nowrap p-px text-center font-bold">IP</th>
+                  <th className="whitespace-nowrap p-px text-center font-bold">おなまえ</th>
                   <th className="whitespace-nowrap p-px text-center font-bold">隠れている発言</th>
                   <th className="p-px" aria-label="操作" />
                 </tr>
@@ -48,6 +51,7 @@ export default function FilterPanel({ ips, hiddenCounts, onBack }: Props) {
                 {ips.map((ip) => (
                   <tr key={ip}>
                     <td className="whitespace-nowrap p-px">{ip}</td>
+                    <td className="p-px">{hiddenNames?.get(ip)?.join('、') || '—'}</td>
                     <td className="whitespace-nowrap p-px text-right">
                       {hiddenCounts.get(ip) ?? 0} 件
                     </td>

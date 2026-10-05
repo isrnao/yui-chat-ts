@@ -1,14 +1,29 @@
 import type { Chat } from '@features/chat/types';
+import { splitAdminMessage } from './adminMessage';
 
 export type IpFilterResult = {
   /** 残った発言。元の順序のまま */
   visible: readonly Chat[];
   /** 伏せ字の IP ごとの、隠した発言の数 */
   hiddenCounts: ReadonlyMap<string, number>;
+  /** 伏せ字の IP ごとの、隠した発言の「おなまえ」。新しい発言の順で重複なし */
+  hiddenNames: ReadonlyMap<string, readonly string[]>;
   hiddenTotal: number;
 };
 
 const NO_HIDDEN: ReadonlyMap<string, number> = new Map();
+const NO_NAMES: ReadonlyMap<string, readonly string[]> = new Map();
+
+/**
+ * 隠した発言の「おなまえ」。管理人の入退室メッセージは本文の「○○さん、…」から入室者の名前を取る。
+ * 巫女（おみくじの結果）は呼び出した人の名前を持たないので数えない
+ */
+function speakerName(chat: Chat): string | null {
+  const kind = chat.metadata?.kind;
+  if (kind === 'fortune') return null;
+  if (kind === 'admin') return splitAdminMessage(chat.message)?.userName || null;
+  return chat.name || null;
+}
 
 /**
  * フィルタ中の伏せ字の IP と一致する発言を除く（.kiro/specs/chat-ip-mute Requirement 5）。
@@ -19,16 +34,23 @@ export function filterByIp(
   chatLog: readonly Chat[],
   filtered: ReadonlySet<string>
 ): IpFilterResult {
-  if (filtered.size === 0) return { visible: chatLog, hiddenCounts: NO_HIDDEN, hiddenTotal: 0 };
+  if (filtered.size === 0) {
+    return { visible: chatLog, hiddenCounts: NO_HIDDEN, hiddenNames: NO_NAMES, hiddenTotal: 0 };
+  }
 
   const visible: Chat[] = [];
   const hiddenCounts = new Map<string, number>();
+  const names = new Map<string, Set<string>>();
   for (const chat of chatLog) {
-    if (chat.ip_masked && filtered.has(chat.ip_masked)) {
-      hiddenCounts.set(chat.ip_masked, (hiddenCounts.get(chat.ip_masked) ?? 0) + 1);
+    const ip = chat.ip_masked;
+    if (ip && filtered.has(ip)) {
+      hiddenCounts.set(ip, (hiddenCounts.get(ip) ?? 0) + 1);
+      const name = speakerName(chat);
+      if (name) names.set(ip, (names.get(ip) ?? new Set()).add(name));
     } else {
       visible.push(chat);
     }
   }
-  return { visible, hiddenCounts, hiddenTotal: chatLog.length - visible.length };
+  const hiddenNames = new Map([...names].map(([ip, set]) => [ip, [...set]] as const));
+  return { visible, hiddenCounts, hiddenNames, hiddenTotal: chatLog.length - visible.length };
 }
