@@ -5,7 +5,7 @@ import type { IpFilter } from '@features/chat/hooks/useIpFilter';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import { addFilteredIp, isFilterableIp } from '@features/chat/utils/ipFilterStore';
 import { tapHaptic } from '@features/chat/utils/haptics';
-import { collapseRowThen, runFilterTransition } from '@features/chat/utils/filterTransition';
+import { nameRowsInView, runFilterTransition } from '@features/chat/utils/filterTransition';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
@@ -63,30 +63,26 @@ function ChatLogList({
   const deferOffscreen = chats.length > DEFER_OFFSCREEN_ROWS;
   // ダブルタップでフィルタしたことを支援技術に伝える（画面には出さない。Requirement 4.11）
   const [announcement, setAnnouncement] = useState('');
-  // 確認の窓を出している伏せ字の IP（Requirement 2）。ダブルタップした行の要素は描画に使わないので ref に持つ
-  // （縮めて消すアニメーションのためだけに使う。state に入れると書き換えられない）
+  // 確認の窓を出している伏せ字の IP（Requirement 2）
   const [pendingIp, setPendingIp] = useState<string | null>(null);
-  const pendingRowRef = useRef<HTMLElement | null>(null);
-  const requestFilter = (ip: string, row: HTMLElement) => {
-    pendingRowRef.current = row;
-    setPendingIp(ip);
-  };
-  const cancelFilter = () => {
-    pendingRowRef.current = null;
-    setPendingIp(null);
-  };
+  // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
+  const listRef = useRef<HTMLDivElement>(null);
+  const requestFilter = (ip: string) => setPendingIp(ip);
   const confirmFilter = () => {
     const ip = pendingIp;
-    const row = pendingRowRef.current;
     if (ip === null) return;
     // 「フィルタする」を押した瞬間に振動させる。iOS は確認の窓の switch が鳴らす（Requirement 3）
     tapHaptic();
     setAnnouncement(`${ip} の発言を非表示にしました。「フィルタ」から解除できます。`);
-    pendingRowRef.current = null;
-    setPendingIp(null);
-    // ダブルタップした行が上下に縮んで消え（下の行もせり上がる）、縮み終わってからフィルタを反映する。
-    // 反映では「フィルタ(N)」が脈打つ（Requirement 7.1）。同じ IP のほかの行はこのとき消える
-    collapseRowThen(row, () => runFilterTransition(() => addFilteredIp(ip)));
+    // 同じ IP の行がすべてフェードアウトし、下の行が上へ詰まる。「フィルタ(N)」は脈打つ（Requirement 7.1）。
+    // 確認の窓を閉じるのも同じ更新に入れる
+    runFilterTransition(
+      () => {
+        setPendingIp(null);
+        addFilteredIp(ip);
+      },
+      () => nameRowsInView(listRef.current)
+    );
   };
 
   if (isLoading) {
@@ -95,6 +91,7 @@ function ChatLogList({
 
   return (
     <div
+      ref={listRef}
       className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
       data-testid="chat-log-list"
     >
@@ -136,7 +133,11 @@ function ChatLogList({
         </Fragment>
       ))}
       {pendingIp !== null && (
-        <FilterConfirmDialog ip={pendingIp} onConfirm={confirmFilter} onCancel={cancelFilter} />
+        <FilterConfirmDialog
+          ip={pendingIp}
+          onConfirm={confirmFilter}
+          onCancel={() => setPendingIp(null)}
+        />
       )}
     </div>
   );

@@ -18,7 +18,7 @@
    取り合うため、文字の上を避けて空白部分だけで判定する必要があった。ダブルタップならその取り合いがなく、行のどこを
    押しても反応できる（2026-10-05 の決定）。リンク・ボタンの上だけは数えない
 4. **タップでは再レンダーしない。** タップの時刻と位置は ref に持つ。成立したときだけコールバックを呼ぶ
-5. **View Transition は狭く使う。** 名前を付けるのは Filter_Link だけ。消える行は Web Animations で高さを縮める。行ごとに `<ViewTransition>` で
+5. **View Transition は狭く使う。** 名前を付けるのは、見えている範囲の行と区切り線（終わったら外す）と Filter_Link だけ。行ごとに `<ViewTransition>` で
    包むと、React が全行の位置を計測するため 1000 行で重くなる（R7.3）
 6. **下段の切り替えはランキングと同じ形にする。** ChatRoute は `showRanking: boolean` を `panel: 'log' | 'ranking' | 'filter'`
    に置き換え、ログを `<Activity>` で残す。AllRoomsRoute には `showFilter` を足す
@@ -163,17 +163,20 @@ const chats = visible.slice(0, windowRows);
 - `ParticipantsList` には今までどおり `chatLog`（未フィルタ）を渡す（R5.5）
 - 0 件のとき、`hiddenTotal > 0` なら「表示できる発言はありません（N 件をフィルタ中）。」（R5.6）
 - Mutable_Row は `!chat.optimistic && isFilterableIp(chat.ip_masked)`。管理人・巫女の行も含む（R1.7）
-- `onFilterIp(ip, row)` は確認の窓を開くだけ。IP を state（`pendingIp`）、行の要素を ref に持つ。行の要素は描画に使わず、
-  縮めて消すアニメーションのためだけに使う（state に入れると React Compiler が書き換えを許さない）
+- `onFilterIp(ip)` は確認の窓を開くだけ。IP を state（`pendingIp`）に持つ
 - 「フィルタする」（R2.3, R3.2, R4.11, R7.1）
 
   ```ts
   () => {
     tapHaptic(); // Android など。iOS は Haptic_Switch が鳴らす
     announce(ip);
-    setPendingIp(null); // 窓はすぐ閉じる
-    // 行と下の区切り線を上下に縮め、縮み終わってからフィルタを反映する（「フィルタ(N)」が脈打つ）
-    collapseRowThen(row, () => runFilterTransition(() => addFilteredIp(ip)));
+    runFilterTransition(
+      () => {
+        setPendingIp(null); // 窓を閉じるのも同じ更新に入れる
+        addFilteredIp(ip);
+      },
+      () => nameRowsInView(listRef.current) // 見えている行に名前を付ける。終わったら外す
+    );
   };
   ```
 
@@ -224,7 +227,6 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
 フィルタの一覧を React の state に写すと、外部ストアにした理由（別タブとの同期、SSG）が崩れる。そこで、この演出だけは
 `runFilterTransition` で `document.startViewTransition` を直接呼び、`flushSync` で反映する。
 
-- View Transition は「フィルタ(N)」の件数が変わるところ（`filter-link`）だけに使う
 - 型（`types`）は Chrome 125 / Safari 18.2 からで、それより前の対応ブラウザにオブジェクトを渡すと例外になるため、
   コールバックの形で呼び、CSS は `<html data-filter-transition>` で絞る
 - 動きを減らす設定と非対応のブラウザでは、そのまま更新する
@@ -232,18 +234,29 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
 - パネルの開閉（`filter` / `ranking`）はこれまでどおり React の `startTransition` + `addTransitionType`。こちらは
   React の state（`panel`）の更新なので動く
 
-### 行が上下に縮んで消える動き（`collapseRowThen`、同じファイル）
+### 同じ IP の行がフェードアウトし、下の行が上へ詰まる動き（`nameRowsInView`、同じファイル）
 
-当初は View Transition で行の「画像」を縮めていた（`::view-transition-old(chat-row-filtering)`）。しかし View Transition
-では新しい状態（行が消え、下の行が詰まった状態）がすぐ表示され、その上に古い行の画像が重なって縮むので、縮んでいる間は
-下の行の文字と重なり、下の行も一気に詰まって見えた。上下に縮める動き（2026-10-05 の要望）にするため、行そのものを縮める。
+ブラウザの View Transition は、名前を付けた要素のうち新しい状態にないものをその場でフェードアウトし、両方にあるものを
+古い位置から新しい位置へ動かす（既定の動き）。名前のない要素はページ全体（root）の画像に含まれ、一気に詰まる。そこで
+「フィルタする」を押した直前に、見えている行に一意の名前を付ける（2026-10-05 の要望）。
 
-- `collapseRowThen(row, done)` は、行と、そのすぐ下の区切り線（`<hr>`）の高さ・上下の余白・上下の padding・上下の枠線・
-  不透明度を、`getComputedStyle` の今の値から 0 まで 200ms で `element.animate`（`fill: 'forwards'`）する。
-  `overflow: hidden` にして中身がはみ出さないようにする。下の行はレイアウトに沿って一緒にせり上がる
-- 縮み終わってから `done` で `addFilteredIp` を反映する。同じ IP のほかの行はこのとき消える
-- Web Animations がない・動きを減らす設定・行がないときは、その場で `done` を呼ぶ（jsdom のテストでも同期のまま）
-- 途中で行がなくなって cancel されても `Promise.allSettled` で `done` を呼ぶ
+- 行の外枠には `data-chat-uuid`（`ROW_UUID_ATTR`）を付けておく（`ChatMessage`）
+- `nameRowsInView(container)` は、一覧の中の行を上から見て、画面内とその下 1 画面ぶんの行に `filter-row-<uuid>`、
+  そのすぐ下の区切り線（`<hr>`）に `filter-hr-<uuid>` を付け、外す関数を返す。行は新しい順に上から並ぶので、範囲より
+  下に出たところで打ち切る。uuid の識別子に使えない文字は `_` にする
+- `runFilterTransition(update, prepare)` は、古い状態を撮る前に `prepare`（`nameRowsInView`）を呼び、Transition が
+  終わったら返した関数で名前を外す。非対応のブラウザと動きを減らす設定では `prepare` を呼ばない
+- 同じ IP の行はすべて名前を持ったまま新しい状態から消えるので、そろってフェードアウトする。残る行は下から上へ動く。
+  確認の窓を閉じる更新も同じ `flushSync` に入れる（窓は名前がないので root と一緒に消える）
+- 全行に名前を付けると 1000 行で重いので、見えている範囲だけにする（R7.3）。範囲の外から上がってくる行は、詰まった
+  位置に最初から出る
+- 当初は Web Animations で 1 行だけ高さを縮めていたが（`collapseRowThen`）、同じ IP のほかの行は縮み終わってから一気に
+  消えていた。View Transition にまとめ、すべての該当行を同時にフェードアウトさせる形にした
+
+Chrome（ヘッドレス、`Animation.setPlaybackRate` で 1/10 に遅らせて撮影）で確かめた結果（Task 4.3、2026-10-05）:
+入室前のログ 10 行のうち同じ IP の 6 行（管理人の入退室を含む）が半透明に薄れ、下の 2 行が下から上へ詰まり、終わった後は
+名前と `<html>` の属性がすべて外れていた。入室後の「フィルタ(N)」の脈打ちと、発言の到着や Suspense の解決で動かないことは、本番の DB に入室メッセージを書かない
+ように入室しなかったため、まだ確かめていない。
 
 ### CSS（`App.css` に追加）
 
@@ -268,15 +281,15 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
 
 1. 行を 1 回タップ → `useDoubleTap` が時刻と位置を ref に覚える（再レンダーなし）
 2. 300ms 以内にもう一度タップ → Confirm_Dialog を開く（「やめる」・Esc・背景で閉じて終わり）
-3. 指で「フィルタする」（Haptic_Switch。iOS はここでハプティック）→ `tapHaptic()` → 支援技術への通知 → 窓を閉じる →
-   `collapseRowThen` で行と区切り線を 200ms で上下に縮める（下の行もせり上がる）
-4. 縮み終わったら `runFilterTransition` → `document.startViewTransition` のコールバックの中の
-   `flushSync(() => addFilteredIp(ip))` で localStorage に書き、同期で再レンダー → `filterByIp` で同じ IP の行が消え、
-   Filter_Link が「フィルタ(N)」になって軽く脈打つ。root は動かさない
+3. 指で「フィルタする」（Haptic_Switch。iOS はここでハプティック）→ `tapHaptic()` → 支援技術への通知 →
+   `runFilterTransition` → 見えている行と区切り線に名前を付ける（`nameRowsInView`）→ `document.startViewTransition` が
+   古い状態を撮り、コールバックの中の `flushSync` で窓を閉じて `addFilteredIp(ip)` を反映する
+4. `filterByIp` で同じ IP の行が消える。名前の付いた該当行はそろってフェードアウトし、残る行は下から上へ詰まる。
+   Filter_Link は「フィルタ(N)」になって軽く脈打つ。root は動かさない。終わったら名前を外す
 5. Filter_Link → `addTransitionType('filter')` → `panel = 'filter'` → ランキングと同じアニメーションで Filter_Panel へ
 6. 「解除」→ `removeFilteredIp(ip)` → パネルの行が消える。ログに戻ると（Activity の中ですでに再計算済み）発言が見える
 
-入室前は ChatRoom がないので Filter_Link はなく、行が上下に縮んで消える動きだけになる。
+入室前は ChatRoom がないので Filter_Link はなく、行がフェードアウトして詰まる動きだけになる。
 
 ## 決定事項
 
@@ -289,21 +302,22 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
 
 ## テスト戦略
 
-| 対象                      | 種類                | 確かめること                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ipFilterStore`           | 単体                | 追加・重複無視・50 件で古いものを捨てる・壊れた保存値・空文字と `*` を捨てる・解除・すべて解除・別タブの `storage` イベント                                                                                                                                                                                                                                          |
-| `filterByIp`              | 単体 + fast-check   | 順序を保つ、隠した件数の合計 = 元の件数 − 残った件数、空集合なら同じ参照                                                                                                                                                                                                                                                                                             |
-| `useDoubleTap`            | Hook（Fake Timers） | 300ms 以内で成立（文字の上でも）、間が空くと不成立、位置が離れると不成立、タップの途中で動くと数え直し、`pointercancel`、リンクの上は数えない、2 本目の指・右ボタン・`enabled` でない、2 回目の mousedown を止める                                                                                                                                                   |
-| `tapHaptic`               | 単体                | `vibrate` なし・例外・`false` で投げない                                                                                                                                                                                                                                                                                                                             |
-| `FilterConfirmDialog`     | コンポーネント      | 見出しと説明、`alertdialog`、「やめる」にフォーカス、switch が `type=checkbox`・`switch` 属性・`tabindex=-1`・`aria-hidden` でボタンに重なる、switch とボタンで確定、やめる・Esc・背景でやめる                                                                                                                                                                       |
-| `runFilterTransition`     | 単体                | 非対応なら即更新、対応なら Transition の中で更新し終わるまで属性、動きを減らす設定、省かれても未処理の reject を出さない                                                                                                                                                                                                                                             |
-| `collapseRowThen`         | 単体                | Web Animations がなければ即 done、行と区切り線を高さ 0 まで縮めて終わってから done、動きを減らす設定、行がないとき                                                                                                                                                                                                                                                   |
-| `ChatLogList`             | コンポーネント      | ダブルタップで確認の窓、「やめる」なら何もしない、「フィルタする」で同じ Masked_IP の行が消え振動する（ダブルタップの時点では振動しない）、管理人の入退室と巫女の行は呼び出した人の IP でフィルタできる、IP が空の行（受付返信など）・`*` の行・楽観的な行は反応しない、`windowRows` はフィルタ後、参加者一覧は変わらない、0 件の文言、`ipFilter` なしなら従来どおり |
-| `ChatRoom`                | コンポーネント      | 「細字」の右に Filter_Link、件数の表示、`onToggleFilter` がなければ出ない                                                                                                                                                                                                                                                                                            |
-| `FilterPanel`             | コンポーネント      | 件数、解除、すべて解除（2 件以上のときだけ）、空の案内、`aria-label`                                                                                                                                                                                                                                                                                                 |
-| ChatRoute / AllRoomsRoute | 結合                | Filter_Link で開閉、ランキングを開くと閉じる、更新と送信で閉じる、ログのスクロール位置が戻る                                                                                                                                                                                                                                                                         |
-| Compiler_Check            | 既存                | 新しいファイルが `CompileError` を出さない                                                                                                                                                                                                                                                                                                                           |
-| Storybook                 | 任意                | `FilterPanel` の 0 / 1 / 3 件                                                                                                                                                                                                                                                                                                                                        |
+| 対象                             | 種類                | 確かめること                                                                                                                                                                                                                                                                                                                                                         |
+| -------------------------------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ipFilterStore`                  | 単体                | 追加・重複無視・50 件で古いものを捨てる・壊れた保存値・空文字と `*` を捨てる・解除・すべて解除・別タブの `storage` イベント                                                                                                                                                                                                                                          |
+| `filterByIp`                     | 単体 + fast-check   | 順序を保つ、隠した件数の合計 = 元の件数 − 残った件数、空集合なら同じ参照                                                                                                                                                                                                                                                                                             |
+| `useDoubleTap`                   | Hook（Fake Timers） | 300ms 以内で成立（文字の上でも）、間が空くと不成立、位置が離れると不成立、タップの途中で動くと数え直し、`pointercancel`、リンクの上は数えない、2 本目の指・右ボタン・`enabled` でない、2 回目の mousedown を止める                                                                                                                                                   |
+| `tapHaptic`                      | 単体                | `vibrate` なし・例外・`false` で投げない                                                                                                                                                                                                                                                                                                                             |
+| `FilterConfirmDialog`            | コンポーネント      | 見出しと説明、`alertdialog`、「やめる」にフォーカス、switch が `type=checkbox`・`switch` 属性・`tabindex=-1`・`aria-hidden` でボタンに重なる、switch とボタンで確定、やめる・Esc・背景でやめる                                                                                                                                                                       |
+| `runFilterTransition`            | 単体                | 非対応なら即更新、対応なら Transition の中で更新し終わるまで属性、動きを減らす設定、省かれても未処理の reject を出さない                                                                                                                                                                                                                                             |
+| `nameRowsInView`                 | 単体                | 見えている行とその下 1 画面ぶんの行・区切り線にだけ一意の名前、範囲の外で打ち切り、外す関数、識別子に使えない文字、外枠なし                                                                                                                                                                                                                                          |
+| `runFilterTransition` の prepare | 単体                | 古い状態を撮る前に呼び、終わったら外す。非対応なら呼ばない                                                                                                                                                                                                                                                                                                           |
+| `ChatLogList`                    | コンポーネント      | ダブルタップで確認の窓、「やめる」なら何もしない、「フィルタする」で同じ Masked_IP の行が消え振動する（ダブルタップの時点では振動しない）、管理人の入退室と巫女の行は呼び出した人の IP でフィルタできる、IP が空の行（受付返信など）・`*` の行・楽観的な行は反応しない、`windowRows` はフィルタ後、参加者一覧は変わらない、0 件の文言、`ipFilter` なしなら従来どおり |
+| `ChatRoom`                       | コンポーネント      | 「細字」の右に Filter_Link、件数の表示、`onToggleFilter` がなければ出ない                                                                                                                                                                                                                                                                                            |
+| `FilterPanel`                    | コンポーネント      | 件数、解除、すべて解除（2 件以上のときだけ）、空の案内、`aria-label`                                                                                                                                                                                                                                                                                                 |
+| ChatRoute / AllRoomsRoute        | 結合                | Filter_Link で開閉、ランキングを開くと閉じる、更新と送信で閉じる、ログのスクロール位置が戻る                                                                                                                                                                                                                                                                         |
+| Compiler_Check                   | 既存                | 新しいファイルが `CompileError` を出さない                                                                                                                                                                                                                                                                                                                           |
+| Storybook                        | 任意                | `FilterPanel` の 0 / 1 / 3 件                                                                                                                                                                                                                                                                                                                                        |
 
 jsdom には `PointerEvent` も `document.startViewTransition` もないので、テストの中で用意するかスタブする。見た目と実機の
 挙動は Task 5.3 で手で確かめる。

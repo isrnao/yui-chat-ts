@@ -6,6 +6,7 @@ import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
 import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
+import { ROW_UUID_ATTR } from '@features/chat/utils/filterTransition';
 
 type Props = {
   chat: Chat;
@@ -256,10 +257,15 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
 
   // ダブルタップできる行だけに handlers とクラスを付ける（クラスはダブルタップでの拡大を止める CSS）。
   // 管理人の入退室メッセージも、入室した本人の IP を持つのでフィルタできる
-  const rowProps: RowProps =
+  // data-chat-uuid は、フィルタの View Transition で見えている行に名前を付けるときの目印（filterTransition.ts）
+  const rowProps: RowProps & { [ROW_UUID_ATTR]: string } =
     onFilterIp !== undefined
-      ? { className: `${rowClassName(deferOffscreen)} chat-row-filterable`, ...doubleTap }
-      : { className: rowClassName(deferOffscreen) };
+      ? {
+          className: `${rowClassName(deferOffscreen)} chat-row-filterable`,
+          [ROW_UUID_ATTR]: chat.uuid,
+          ...doubleTap,
+        }
+      : { className: rowClassName(deferOffscreen), [ROW_UUID_ATTR]: chat.uuid };
 
   if (chat.metadata?.kind === 'admin') {
     return (

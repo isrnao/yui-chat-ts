@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
-  COLLAPSE_MS,
   FILTER_TRANSITION_ATTR,
-  collapseRowThen,
+  ROW_UUID_ATTR,
+  nameRowsInView,
   runFilterTransition,
 } from './filterTransition';
 
@@ -74,81 +74,94 @@ describe('runFilterTransition', () => {
   });
 });
 
-describe('collapseRowThen', () => {
+describe('nameRowsInView', () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
     document.body.innerHTML = '';
   });
 
-  /** 行と、そのすぐ下の区切り線を置く */
-  function mountRow() {
-    const row = document.createElement('div');
-    const divider = document.createElement('hr');
-    document.body.append(row, divider);
-    return { row, divider };
-  }
-
-  /** Web Animations を差し替え、finish() で縮み終わったことにする */
-  function stubAnimate() {
-    let finish = () => {};
-    const finished = new Promise<void>((resolve) => {
-      finish = resolve;
+  /** 行（高さ 20px）と区切り線を top の位置に並べる。jsdom はレイアウトを持たないので矩形を差し替える */
+  function mountRows(tops: number[]) {
+    const container = document.createElement('div');
+    const rows = tops.map((top, i) => {
+      const row = document.createElement('div');
+      row.setAttribute(ROW_UUID_ATTR, `0190a000-0000-7000-8000-00000000000${i}`);
+      row.getBoundingClientRect = () => ({ top, bottom: top + 20 }) as DOMRect;
+      const divider = document.createElement('hr');
+      container.append(row, divider);
+      return { row, divider };
     });
-    const animate = vi.fn(() => ({ finished }));
-    Object.defineProperty(HTMLElement.prototype, 'animate', { configurable: true, value: animate });
-    return { animate, finish };
+    document.body.append(container);
+    return { container, rows };
   }
 
+  it('見えている行とその下 1 画面ぶんの行・区切り線にだけ一意の名前を付け、返した関数で外す', () => {
+    const height = window.innerHeight;
+    const { container, rows } = mountRows([-100, 10, height + 10, height * 2 + 10]);
+
+    const unname = nameRowsInView(container);
+
+    expect(rows[0]!.row.style.viewTransitionName).toBe('');
+    expect(rows[1]!.row.style.viewTransitionName).toBe(
+      'filter-row-0190a000-0000-7000-8000-000000000001'
+    );
+    expect(rows[1]!.divider.style.viewTransitionName).toBe(
+      'filter-hr-0190a000-0000-7000-8000-000000000001'
+    );
+    expect(rows[2]!.row.style.viewTransitionName).toContain('filter-row-');
+    // 2 画面より下は付けない（そこで打ち切る）
+    expect(rows[3]!.row.style.viewTransitionName).toBe('');
+
+    unname();
+    expect(rows[1]!.row.style.viewTransitionName).toBe('');
+    expect(rows[1]!.divider.style.viewTransitionName).toBe('');
+  });
+
+  it('uuid の CSS の識別子に使えない文字は _ にする', () => {
+    const { container, rows } = mountRows([0]);
+    rows[0]!.row.setAttribute(ROW_UUID_ATTR, 'optimistic:1.2');
+    nameRowsInView(container);
+    expect(rows[0]!.row.style.viewTransitionName).toBe('filter-row-optimistic_1_2');
+  });
+
+  it('外枠がなければ何もしない', () => {
+    expect(() => nameRowsInView(null)()).not.toThrow();
+  });
+});
+
+describe('runFilterTransition の prepare', () => {
   afterEach(() => {
-    delete (HTMLElement.prototype as { animate?: unknown }).animate;
+    delete (document as { startViewTransition?: unknown }).startViewTransition;
+    document.documentElement.removeAttribute(FILTER_TRANSITION_ATTR);
   });
 
-  it('Web Animations がなければ、その場で done を呼ぶ', () => {
-    const { row } = mountRow();
-    const done = vi.fn();
-    collapseRowThen(row, done);
-    expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it('行と区切り線を高さ 0 まで縮め、縮み終わってから done を呼ぶ', async () => {
-    const { row, divider } = mountRow();
-    const { animate, finish } = stubAnimate();
-    const done = vi.fn();
-
-    collapseRowThen(row, done);
-
-    expect(animate).toHaveBeenCalledTimes(2);
-    const [keyframes, options] = animate.mock.calls[0] as unknown as [
-      Record<string, string>[],
-      Record<string, unknown>,
-    ];
-    expect(keyframes[keyframes.length - 1]).toMatchObject({
-      height: '0px',
-      marginBottom: '0px',
-      opacity: '0',
+  it('古い状態を撮る前に prepare を呼び、終わったら返した関数を呼ぶ。非対応なら呼ばない', async () => {
+    const order: string[] = [];
+    const unprepare = vi.fn(() => order.push('unprepare'));
+    const prepare = vi.fn(() => {
+      order.push('prepare');
+      return unprepare;
     });
-    expect(options).toMatchObject({ duration: COLLAPSE_MS, fill: 'forwards' });
-    expect(animate.mock.contexts).toEqual([row, divider]);
-    expect(row.style.overflow).toBe('hidden');
-    expect(done).not.toHaveBeenCalled();
 
+    runFilterTransition(() => order.push('update'), prepare);
+    expect(prepare).not.toHaveBeenCalled();
+
+    let finish = () => {};
+    Object.assign(document, {
+      startViewTransition: vi.fn((callback: () => void) => {
+        order.push('capture');
+        callback();
+        return {
+          ready: Promise.resolve(),
+          finished: new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+        };
+      }),
+    });
+    order.length = 0;
+    runFilterTransition(() => order.push('update'), prepare);
     finish();
-    await vi.waitFor(() => expect(done).toHaveBeenCalledTimes(1));
-  });
-
-  it('動きを減らす設定では縮めずに done を呼ぶ', () => {
-    const { row } = mountRow();
-    const { animate } = stubAnimate();
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
-    const done = vi.fn();
-    collapseRowThen(row, done);
-    expect(animate).not.toHaveBeenCalled();
-    expect(done).toHaveBeenCalledTimes(1);
-  });
-
-  it('行がないときは、その場で done を呼ぶ', () => {
-    const done = vi.fn();
-    collapseRowThen(null, done);
-    expect(done).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(unprepare).toHaveBeenCalledTimes(1));
+    expect(order).toEqual(['prepare', 'capture', 'update', 'unprepare']);
   });
 });

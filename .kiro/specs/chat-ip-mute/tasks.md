@@ -56,13 +56,13 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 8.1, 8.3_
 
 - [ ] 4. View Transition
-  - [x] 4.1 `runFilterTransition`（`document.startViewTransition` + `flushSync`）を作り、「フィルタする」のあとに使う。Filter_Link に `filter-link` を付ける。その前に `collapseRowThen` で行と区切り線を上下に縮める（2026-10-05 の要望で、View Transition で行の画像を縮める形から変えた）
+  - [x] 4.1 `runFilterTransition`（`document.startViewTransition` + `flushSync`）を作り、「フィルタする」のあとに使う。見えている行と区切り線に一意の名前を付け（`nameRowsInView`、終わったら外す）、Filter_Link に `filter-link` を付ける。同じ IP の行はフェードアウトし、下の行は上へ詰まる（2026-10-05 の要望）
     - 外部ストアの更新は React の Transition にならないため、`startTransition` + `addTransitionType('mute')` は使わない（design.md「フィルタを足すときの View Transition」）
     - _Requirements: 7.1, 7.3, 7.4, 7.5_
   - [x]\* 4.2 `filterTransition.test.ts`（非対応・対応・動きを減らす設定・省かれたとき）
-    - `collapseRowThen` のテスト（Web Animations なし・あり・動きを減らす設定・行なし）も足す
+    - `nameRowsInView` と `prepare` のテストも足す
     - _Requirements: 7.1, 7.5_
-  - [ ] 4.3 Chrome で確かめる: 行が上下に縮んで消え、下の行がせり上がる、Filter_Link が脈打つ、root は動かない、発言の到着や Suspense の解決では動かない。結果を design.md に書く
+  - [ ] 4.3 Chrome で確かめる: 同じ IP の行がフェードアウトし、下の行が上へ詰まる、Filter_Link が脈打つ、root は動かない、発言の到着や Suspense の解決では動かない。結果を design.md に書く
     - _Requirements: 7.1, 7.4_
 
 - [ ] 5. 見た目と検収

@@ -5,6 +5,7 @@ export const FILTER_TRANSITION_ATTR = 'data-filter-transition';
 
 /**
  * フィルタの追加を View Transition でアニメーションする（.kiro/specs/chat-ip-mute Requirement 7.1）。
+ * prepare は古い状態を撮る前に呼び、返した関数は Transition が終わったら呼ぶ（名前を付けて外すため）。
  *
  * フィルタの一覧は外部ストア（useSyncExternalStore）にある。React は外部ストアの更新を startTransition の
  * 中でも同期の更新として扱い、<ViewTransition> は Transition の更新でしか動かないので、ここでは
@@ -15,7 +16,7 @@ export const FILTER_TRANSITION_ATTR = 'data-filter-transition';
  * - 非対応のブラウザと、動きを減らす設定ではアニメーションなしで更新する（Requirement 7.5）
  * - 同じ名前の要素が 2 つある（2 本の指で別の行を押していた）などで省かれても、更新そのものは行われる
  */
-export function runFilterTransition(update: () => void): void {
+export function runFilterTransition(update: () => void, prepare?: () => () => void): void {
   const reduceMotion =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (typeof document.startViewTransition !== 'function' || reduceMotion) {
@@ -25,75 +26,56 @@ export function runFilterTransition(update: () => void): void {
 
   const root = document.documentElement;
   root.setAttribute(FILTER_TRANSITION_ATTR, '');
+  // 古い状態を撮る前に名前を付け（nameRowsInView）、終わったら外す
+  const unprepare = prepare?.();
   const transition = document.startViewTransition(() => {
     flushSync(update);
   });
   // 省かれたときに ready は reject される。未処理の reject として報告させない
   transition.ready.catch(() => {});
-  const cleanup = () => root.removeAttribute(FILTER_TRANSITION_ATTR);
+  const cleanup = () => {
+    root.removeAttribute(FILTER_TRANSITION_ATTR);
+    unprepare?.();
+  };
   transition.finished.then(cleanup, cleanup);
 }
 
-/** 行が上下に縮んで消えるまでの時間（ms） */
-export const COLLAPSE_MS = 200;
+/** 発言の行に付ける属性。値は発言の uuid（ChatMessage が付ける） */
+export const ROW_UUID_ATTR = 'data-chat-uuid';
 
-/** 縮める CSS プロパティ。box-sizing は Tailwind の preflight で border-box */
-const COLLAPSED = {
-  height: '0px',
-  marginTop: '0px',
-  marginBottom: '0px',
-  paddingTop: '0px',
-  paddingBottom: '0px',
-  borderTopWidth: '0px',
-  borderBottomWidth: '0px',
-  opacity: '0',
-};
-
-function collapseKeyframes(element: HTMLElement): Keyframe[] {
-  const style = getComputedStyle(element);
-  return [
-    {
-      height: `${element.getBoundingClientRect().height}px`,
-      marginTop: style.marginTop,
-      marginBottom: style.marginBottom,
-      paddingTop: style.paddingTop,
-      paddingBottom: style.paddingBottom,
-      borderTopWidth: style.borderTopWidth,
-      borderBottomWidth: style.borderBottomWidth,
-      opacity: '1',
-    },
-    COLLAPSED,
-  ];
-}
+/** view-transition-name に使えるよう、uuid を CSS の識別子の文字だけにする */
+const toIdent = (value: string) => value.replace(/[^A-Za-z0-9_-]/g, '_');
 
 /**
- * フィルタする行を上下に縮めて消し、縮み終わってから done を呼ぶ（.kiro/specs/chat-ip-mute Requirement 7.1）。
+ * 画面内とその下 1 画面ぶんの行と、そのすぐ下の区切り線（<hr>）に一意の View Transition の名前を付け、
+ * 名前を外す関数を返す（.kiro/specs/chat-ip-mute Requirement 7.1 / 7.3）。
  *
- * View Transition で行の「画像」を縮めると、下の行は先に詰まり、縮んでいる間は画像と重なって見える。
- * ここでは行そのものの高さを Web Animations で 0 にするので、下の行も一緒にせり上がる。
- * 行のすぐ下の区切り線（<hr>）も一緒に縮める。アニメーションできない環境（Web Animations がない・動きを減らす設定）
- * では、その場で done を呼ぶ
+ * 名前を付けた要素は、ブラウザの既定の動きで、新しい状態にないもの（フィルタした行）はその場でフェードアウトし、
+ * 両方にあるもの（残る行）は古い位置から新しい位置へ動く。こうして消える行の下の行が上へ詰まる。
+ * 名前のない要素はページ全体（root）の画像に含まれて一気に詰まるので、見えている行には名前が要る。
+ * 全行に付けると 1000 行で重いので、見えている範囲（と、下から上がってくる 1 画面ぶん）に限る。
+ * 行は新しい順に上から並ぶので、範囲より下に出たところで打ち切る
  */
-export function collapseRowThen(row: HTMLElement | null, done: () => void): void {
-  const reduceMotion =
-    typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!row || typeof row.animate !== 'function' || reduceMotion) {
-    done();
-    return;
+export function nameRowsInView(container: HTMLElement | null): () => void {
+  if (!container) return () => {};
+  const limit = window.innerHeight * 2;
+  const named: HTMLElement[] = [];
+  const name = (element: HTMLElement, value: string) => {
+    element.style.viewTransitionName = value;
+    named.push(element);
+  };
+
+  for (const row of container.querySelectorAll<HTMLElement>(`[${ROW_UUID_ATTR}]`)) {
+    const rect = row.getBoundingClientRect();
+    if (rect.top > limit) break;
+    if (rect.bottom < 0) continue;
+    const id = toIdent(row.getAttribute(ROW_UUID_ATTR) ?? '');
+    name(row, `filter-row-${id}`);
+    const divider = row.nextElementSibling;
+    if (divider instanceof HTMLHRElement) name(divider, `filter-hr-${id}`);
   }
 
-  const divider = row.nextElementSibling instanceof HTMLHRElement ? row.nextElementSibling : null;
-  const animations = [row, divider]
-    .filter((element): element is HTMLElement => element !== null)
-    .map((element) => {
-      const keyframes = collapseKeyframes(element);
-      element.style.overflow = 'hidden';
-      return element.animate(keyframes, {
-        duration: COLLAPSE_MS,
-        easing: 'ease-in',
-        fill: 'forwards',
-      });
-    });
-  // 途中で行がなくなった（ログの取り直しなど）ときに cancel されても、フィルタは反映する
-  void Promise.allSettled(animations.map((animation) => animation.finished)).then(done);
+  return () => {
+    for (const element of named) element.style.viewTransitionName = '';
+  };
 }
