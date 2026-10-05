@@ -41,18 +41,18 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
   - [x] 2.6 `pnpm typecheck` / `pnpm lint` / `pnpm test`（Compiler_Check を含む）/ `pnpm build:prod` を通す
     - _Requirements: 8.1, 8.3_
 
-- [ ] 3. ダブルタップ・確認の窓・振動
-  - [ ] 3.1 `src/features/chat/hooks/useDoubleTap.ts` を作る（Pointer Events、300ms・24px・タップ中 10px、リンクとボタンの上は数えない、2 本目の指と右ボタンは数えない、2 回目の mousedown を止める）
+- [x] 3. ダブルタップ・確認の窓・振動
+  - [x] 3.1 `src/features/chat/hooks/useDoubleTap.ts` を作る（Pointer Events、300ms・24px・タップ中 10px、リンクとボタンの上は数えない、2 本目の指と右ボタンは数えない、2 回目の mousedown を止める）
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.9, 1.10_
-  - [ ] 3.2 `src/features/chat/utils/haptics.ts` の `tapHaptic` を作る
+  - [x] 3.2 `src/features/chat/utils/haptics.ts` の `tapHaptic` を作る
     - _Requirements: 3.2, 3.3, 3.4_
-  - [ ] 3.3 `components/FilterConfirmDialog` を作る（`alertdialog`、「やめる」にフォーカス、Esc と背景でやめる、「フィルタする」に透明な `<input type="checkbox" switch>` を重ねる）
+  - [x] 3.3 `components/FilterConfirmDialog` を作る（`alertdialog`、「やめる」にフォーカス、Esc と背景でやめる、「フィルタする」に透明な `<input type="checkbox" switch>` を重ねる）
     - _Requirements: 2.1, 2.2, 2.4, 2.5, 3.1, 3.3_
-  - [ ] 3.4 `ChatMessage` に `onFilterIp` を足し、`ChatLogList` が Mutable_Row にだけ渡す。`chat-row-filterable`（`touch-action: manipulation`）。ダブルタップで確認の窓を開き、「フィルタする」で `tapHaptic()` → 通知 → `addFilteredIp(ip)`（View Transition は Task 4 で足す）
+  - [x] 3.4 `ChatMessage` に `onFilterIp` を足し、`ChatLogList` が Mutable_Row にだけ渡す。`chat-row-filterable`（`touch-action: manipulation`）。ダブルタップで確認の窓を開き、「フィルタする」で `tapHaptic()` → 通知 → `addFilteredIp(ip)`（View Transition は Task 4 で足す）
     - _Requirements: 1.1, 1.2, 1.7, 1.8, 1.10, 1.11, 2.3, 2.7, 3.2, 3.5, 4.11, 8.2_
-  - [ ]\* 3.5 テスト: `useDoubleTap.test.tsx`（Fake Timers）、`haptics.test.ts`、`FilterConfirmDialog.test.tsx`、`ChatLogList.test.tsx` にダブルタップの結合テスト（文字の上で反応する、「やめる」で何もしない、「フィルタする」で隠れて振動する、ダブルタップの時点では振動しない、管理人行・`*` の行・楽観的な行は反応しない）
+  - [x]\* 3.5 テスト: `useDoubleTap.test.tsx`（Fake Timers）、`haptics.test.ts`、`FilterConfirmDialog.test.tsx`、`ChatLogList.test.tsx` にダブルタップの結合テスト（文字の上で反応する、「やめる」で何もしない、「フィルタする」で隠れて振動する、ダブルタップの時点では振動しない、管理人行・`*` の行・楽観的な行は反応しない）
     - _Requirements: 1.3, 1.4, 1.5, 1.6, 1.8, 1.9, 2.1〜2.5, 3.1〜3.5, 8.4_
-  - [ ] 3.6 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
+  - [x] 3.6 `pnpm typecheck` / `pnpm lint` / `pnpm test` / `pnpm build:prod` を通す
     - _Requirements: 8.1, 8.3_
 
 - [ ] 4. View Transition

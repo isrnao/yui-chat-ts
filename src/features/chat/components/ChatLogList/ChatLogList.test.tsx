@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react';
 import ChatLogList from './index';
 import type { Chat } from '@features/chat/types';
+import { useIpFilter } from '@features/chat/hooks/useIpFilter';
+import { getSnapshot as getFilteredIps } from '@features/chat/utils/ipFilterStore';
 
 vi.mock('@shared/utils/format', () => ({
   formatTime: (t: number) => `TIME(${t})`,
@@ -165,6 +167,127 @@ describe('ChatLogList', () => {
       expect(
         screen.getByText('表示できる発言はありません（4 件をフィルタ中）。')
       ).toBeInTheDocument();
+    });
+  });
+  describe('ダブルタップでフィルタする（chat-ip-mute）', () => {
+    /** jsdom には PointerEvent がないので、テストの中でだけ用意する */
+    class TestPointerEvent extends MouseEvent {
+      pointerId: number;
+      constructor(
+        type: string,
+        init: ConstructorParameters<typeof MouseEvent>[1] & { pointerId?: number } = {}
+      ) {
+        super(type, { bubbles: true, cancelable: true, ...init });
+        this.pointerId = init.pointerId ?? 1;
+      }
+    }
+
+    /** ルートと同じく、ストアからフィルタを読んで渡す */
+    function WithStore({ log }: { log: Chat[] }) {
+      const ipFilter = useIpFilter();
+      return <ChatLogList chatLog={log} windowRows={10} ipFilter={ipFilter} />;
+    }
+
+    const rowOf = (text: string) => screen.getByText(text).closest('div.mb-1')!;
+    /** 2 回タップする。行の中の要素（文字）を押しても、行の handlers にバブリングする */
+    const doubleTap = (target: Element) => {
+      for (let i = 0; i < 2; i += 1) {
+        fireEvent.pointerDown(target, { button: 0, pointerId: 1, clientX: 50, clientY: 5 });
+        fireEvent.pointerUp(target, { button: 0, pointerId: 1, clientX: 50, clientY: 5 });
+      }
+    };
+
+    beforeEach(() => {
+      localStorage.clear();
+      vi.stubGlobal('PointerEvent', TestPointerEvent);
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      vi.restoreAllMocks();
+    });
+
+    it('ダブルタップすると確認の窓を出し、「やめる」ならフィルタしない', () => {
+      const log: Chat[] = [
+        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
+      ];
+      render(<WithStore log={log} />);
+
+      doubleTap(rowOf('A_FIRST'));
+
+      const dialog = screen.getByRole('alertdialog', {
+        name: '219.*.*.253 の発言をフィルタ（非表示に）しますか？',
+      });
+      fireEvent.click(within(dialog).getByRole('button', { name: 'やめる' }));
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(getFilteredIps()).toEqual([]);
+      expect(screen.getByText('A_FIRST')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('');
+    });
+
+    it('文字の上をダブルタップして「フィルタする」を押すと、同じ伏せ字の IP の発言がすべて隠れ、支援技術に知らせる', () => {
+      const log: Chat[] = [
+        { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
+        { ...chatLog[0]!, uuid: 'b1', message: 'B_FIRST', ip_masked: '2001:*' },
+        {
+          ...chatLog[0]!,
+          uuid: 'a2',
+          message: 'たろう さん、Welcome to お気楽チャット☆',
+          name: '管理人',
+          ip_masked: '219.*.*.253',
+          metadata: { version: 1, kind: 'admin' },
+        },
+      ];
+      render(<WithStore log={log} />);
+
+      const vibrate = vi.fn(() => true);
+      vi.stubGlobal('navigator', { ...navigator, vibrate });
+
+      doubleTap(screen.getByText('A_FIRST'));
+      expect(vibrate).not.toHaveBeenCalled();
+      // 指では「フィルタする」に重ねた透明な switch を押す（iOS のハプティック）。ほかの端末は vibrate
+      fireEvent.click(screen.getByTestId('filter-confirm-haptic-switch'));
+      expect(vibrate).toHaveBeenCalledTimes(1);
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(getFilteredIps()).toEqual(['219.*.*.253']);
+      expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Welcome to/)).not.toBeInTheDocument();
+      expect(screen.getByText('B_FIRST')).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(
+        '219.*.*.253 の発言を非表示にしました。「フィルタ」から解除できます。'
+      );
+    });
+
+    it('管理人の行・IP が分からない行・送信中の行はダブルタップに反応しない', () => {
+      const log: Chat[] = [
+        {
+          ...chatLog[0]!,
+          uuid: 'admin',
+          message: 'たろう さん、Welcome to お気楽チャット☆',
+          name: '管理人',
+          ip_masked: '219.*.*.253',
+          metadata: { version: 1, kind: 'admin' },
+        },
+        { ...chatLog[0]!, uuid: 'star', message: 'STAR', ip_masked: '*' },
+        { ...chatLog[0]!, uuid: 'empty', message: 'EMPTY', ip_masked: '' },
+        { ...chatLog[0]!, uuid: 'opt', message: 'SENDING', optimistic: true },
+      ];
+      render(<WithStore log={log} />);
+
+      for (const text of ['STAR', 'EMPTY', 'SENDING']) {
+        expect(rowOf(text)).not.toHaveClass('chat-row-filterable');
+        doubleTap(rowOf(text));
+      }
+      doubleTap(screen.getByText(/Welcome to/).closest('div.mb-1')!);
+      expect(getFilteredIps()).toEqual([]);
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('ipFilter を渡さないページではダブルタップに反応しない', () => {
+      render(<ChatLogList chatLog={chatLog} windowRows={10} />);
+      expect(rowOf('Hello')).not.toHaveClass('chat-row-filterable');
+      doubleTap(rowOf('Hello'));
+      expect(getFilteredIps()).toEqual([]);
     });
   });
 });
