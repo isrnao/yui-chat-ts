@@ -1,6 +1,8 @@
 import { Fragment, memo } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
+import type { IpFilter } from '@features/chat/hooks/useIpFilter';
+import { filterByIp } from '@features/chat/utils/ipFilter';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import Divider from '../shared/Divider';
@@ -20,6 +22,11 @@ type Props = {
   loadError?: boolean;
   /** 失敗の表示から取り直す */
   onRetry?: () => void;
+  /**
+   * フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。渡したページ（通常の部屋・全部屋まとめ）でだけ
+   * 一致する発言を隠す。ちゃなりは渡さないので従来どおり
+   */
+  ipFilter?: IpFilter;
 };
 
 function ChatLogList({
@@ -31,10 +38,15 @@ function ChatLogList({
   hideParticipants,
   loadError = false,
   onRetry,
+  ipFilter,
 }: Props) {
+  // フィルタした発言を除いてから表示行数ぶんを切り出す（chat-ip-mute Requirement 5.1）。
   // 並び順は Room_Log_Store が保ち、楽観的な発言は先頭に重なる。発言が届くたびに
-  // 全体を並べ直さないよう、ここでは切り出すだけにする（Requirement 17）
-  const chats = chatLog.slice(0, windowRows);
+  // 全体を並べ直さないよう、ここでは取り除いて切り出すだけにする（Requirement 17）
+  const { visible, hiddenTotal } = ipFilter
+    ? filterByIp(chatLog, ipFilter.set)
+    : { visible: chatLog, hiddenTotal: 0 };
+  const chats = visible.slice(0, windowRows);
   const deferOffscreen = chats.length > DEFER_OFFSCREEN_ROWS;
 
   if (isLoading) {
@@ -60,7 +72,11 @@ function ChatLogList({
         </div>
       )}
       {chats.length === 0 && !loadError && (
-        <div className="text-gray-400 py-3">まだ発言はありません。</div>
+        <div className="text-gray-400 py-3">
+          {hiddenTotal > 0
+            ? `表示できる発言はありません（${hiddenTotal} 件をフィルタ中）。`
+            : 'まだ発言はありません。'}
+        </div>
       )}
       {chats.map((c) => (
         <Fragment key={c.uuid}>

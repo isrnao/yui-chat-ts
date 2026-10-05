@@ -130,4 +130,41 @@ describe('ChatLogList', () => {
     expect(rowOf('ROW_0')?.className).toContain('[content-visibility:auto]');
     expect(rowOf('ROW_200')?.className).toContain('[content-visibility:auto]');
   });
+  describe('IP のフィルタ（chat-ip-mute）', () => {
+    const log = (): Chat[] => [
+      { ...chatLog[0]!, uuid: 'a1', message: 'A_FIRST', ip_masked: '219.*.*.253' },
+      { ...chatLog[0]!, uuid: 'b1', message: 'B_FIRST', ip_masked: '2001:*' },
+      { ...chatLog[0]!, uuid: 'a2', message: 'A_SECOND', ip_masked: '219.*.*.253' },
+      { ...chatLog[0]!, uuid: 'b2', message: 'B_SECOND', ip_masked: '2001:*' },
+    ];
+    const filterOf = (...ips: string[]) => ({ ips, set: new Set(ips) });
+
+    it('一致する発言を隠し、表示行数はフィルタの後で数える', () => {
+      render(<ChatLogList chatLog={log()} windowRows={2} ipFilter={filterOf('219.*.*.253')} />);
+      expect(screen.queryByText('A_FIRST')).not.toBeInTheDocument();
+      expect(screen.queryByText('A_SECOND')).not.toBeInTheDocument();
+      expect(screen.getByText('B_FIRST')).toBeInTheDocument();
+      expect(screen.getByText('B_SECOND')).toBeInTheDocument();
+    });
+
+    it('ipFilter を渡さないページ（ちゃなり）では隠さない', () => {
+      render(<ChatLogList chatLog={log()} windowRows={10} />);
+      expect(screen.getByText('A_FIRST')).toBeInTheDocument();
+    });
+
+    it('参加者一覧にはフィルタを反映しない', () => {
+      render(<ChatLogList chatLog={chatLog} windowRows={10} ipFilter={filterOf('test-ip')} />);
+      expect(screen.queryByText('Hello')).not.toBeInTheDocument();
+      expect(screen.getAllByText(/Taro/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('すべて隠れたときは、フィルタ中の件数を出す', () => {
+      render(
+        <ChatLogList chatLog={log()} windowRows={10} ipFilter={filterOf('219.*.*.253', '2001:*')} />
+      );
+      expect(
+        screen.getByText('表示できる発言はありません（4 件をフィルタ中）。')
+      ).toBeInTheDocument();
+    });
+  });
 });

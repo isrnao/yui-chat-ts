@@ -14,31 +14,31 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
 
 ## Tasks
 
-- [ ] 1. フィルタの一覧（Filter_Store）と絞り込み
-  - [ ] 1.1 `src/features/chat/utils/ipFilterStore.ts` を作る（`createPersistentStore`、キー `yui-chat-muted-ips`）
+- [x] 1. フィルタの一覧（Filter_Store）と絞り込み
+  - [x] 1.1 `src/features/chat/utils/ipFilterStore.ts` を作る（`createPersistentStore`、キー `yui-chat-muted-ips`）
     - `isFilterableIp` / `addFilteredIp` / `removeFilteredIp` / `clearFilteredIps`、`parse` で文字列以外・空文字・`*`・重複を捨て末尾 50 件にする
     - _Requirements: 1.7, 6.1, 6.3, 6.4, 6.5, 6.6_
-  - [ ] 1.2 `src/features/chat/hooks/useIpFilter.ts` を作る（`useSyncExternalStore`）
+  - [x] 1.2 `src/features/chat/hooks/useIpFilter.ts` を作る（`useSyncExternalStore`）
     - _Requirements: 6.2, 6.6_
-  - [ ] 1.3 `src/features/chat/utils/ipFilter.ts` の `filterByIp` を作る（順序を保つ、Masked_IP ごとの件数、空集合なら同じ参照、管理人行も隠す）
+  - [x] 1.3 `src/features/chat/utils/ipFilter.ts` の `filterByIp` を作る（順序を保つ、Masked_IP ごとの件数、空集合なら同じ参照、管理人行も隠す）
     - _Requirements: 5.1, 5.2, 5.3, 5.4_
-  - [ ]\* 1.4 `ipFilterStore.test.ts` と `ipFilter.test.ts`（fast-check で順序と件数の性質）
+  - [x]\* 1.4 `ipFilterStore.test.ts` と `ipFilter.test.ts`（fast-check で順序と件数の性質）
     - _Requirements: 5.1, 5.2, 6.3, 6.4, 6.5, 8.4_
 
-- [ ] 2. 一覧・「フィルタ」リンク・編集画面
-  - [ ] 2.1 `ChatLogList` に `ipFilter` を足し、`filterByIp` → `slice(windowRows)` にする。`ParticipantsList` には未フィルタのログを渡す。0 件の文言
+- [x] 2. 一覧・「フィルタ」リンク・編集画面
+  - [x] 2.1 `ChatLogList` に `ipFilter` を足し、`filterByIp` → `slice(windowRows)` にする。`ParticipantsList` には未フィルタのログを渡す。0 件の文言
     - `ipFilter` がないとき（ちゃなり）は従来どおり
     - _Requirements: 5.1, 5.5, 5.6, 5.8_
-  - [ ] 2.2 `ChatRoom` に `filterCount` / `onToggleFilter` を足し、「細字」の右に Filter_Link を出す
+  - [x] 2.2 `ChatRoom` に `filterCount` / `onToggleFilter` を足し、「細字」の右に Filter_Link を出す
     - _Requirements: 4.1, 4.2, 4.9_
-  - [ ] 2.3 `components/FilterPanel` を作る（見出しのリンク、表、解除、すべて解除、空の案内、`aria-label`）
+  - [x] 2.3 `components/FilterPanel` を作る（見出しのリンク、表、解除、すべて解除、空の案内、`aria-label`）
     - _Requirements: 4.5, 4.6, 4.7, 4.8, 4.9_
-  - [ ] 2.4 ChatRoute の `showRanking` を `panel: 'log' | 'ranking' | 'filter'` にし、`RANKING_ONLY` を `PANEL_ONLY` に広げる。AllRoomsRoute に `panel` と `<Activity>` を足す。どちらも `useIpFilter` を呼んで配る
+  - [x] 2.4 ChatRoute の `showRanking` を `panel: 'log' | 'ranking' | 'filter'` にし、`RANKING_ONLY` を `PANEL_ONLY` に広げる。AllRoomsRoute に `panel` と `<Activity>` を足す。どちらも `useIpFilter` を呼んで配る
     - 「更新」と発言の送信で閉じる、ランキングを開くと閉じる
     - _Requirements: 4.3, 4.4, 4.10, 4.12, 5.7, 7.2, 7.4_
-  - [ ]\* 2.5 テスト: `ChatLogList`（Filter_List を先に入れた状態で行が消える、`windowRows` はフィルタ後、参加者一覧は変わらない、`ipFilter` なしなら従来どおり）、`ChatRoom`（Filter_Link）、`FilterPanel`、ChatRoute / AllRoomsRoute の開閉
+  - [x]\* 2.5 テスト: `ChatLogList`（Filter_List を先に入れた状態で行が消える、`windowRows` はフィルタ後、参加者一覧は変わらない、`ipFilter` なしなら従来どおり）、`ChatRoom`（Filter_Link）、`FilterPanel`、ChatRoute / AllRoomsRoute の開閉
     - _Requirements: 4.1〜4.12, 5.1, 5.5, 5.6, 5.8, 8.4_
-  - [ ] 2.6 `pnpm typecheck` / `pnpm lint` / `pnpm test`（Compiler_Check を含む）/ `pnpm build:prod` を通す
+  - [x] 2.6 `pnpm typecheck` / `pnpm lint` / `pnpm test`（Compiler_Check を含む）/ `pnpm build:prod` を通す
     - _Requirements: 8.1, 8.3_
 
 - [ ] 3. ダブルタップ・確認の窓・振動
