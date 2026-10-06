@@ -10,7 +10,7 @@ import { playNotificationSound, stopNotificationSound } from '@features/chat/uti
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
 import { isBlankMessage } from '@features/chat/utils/chatAllSend';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
-import { createAdminChat, useChatSender } from '@features/chat/hooks/useChatSender';
+import { useChatSender } from '@features/chat/hooks/useChatSender';
 import type { AvatarId, Chat, ChatMetadata } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
@@ -63,7 +63,7 @@ export function useChatSession({
   measurement: ConversationMeasurement;
 }) {
   const [entered, setEntered] = useState(false);
-  const { send, sendUserMessage, sendFortuneIfCommand } = useChatSender({
+  const { sendUserMessage, sendAdminEvent, sendFortuneIfCommand } = useChatSender({
     addOptimistic,
     mergeChat: store.applySaved,
   });
@@ -97,15 +97,13 @@ export function useChatSession({
       if (!silent) {
         // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
         const { visitCount, previousLogin } = getSettingsSnapshot();
-        await send(
-          sessionRoomId,
-          createAdminChat({
-            roomId: sessionRoomId,
-            message: `${name} さん、Welcome to お気楽チャット☆`,
-            userColor: color,
-            extraMetadata: { visitCount, lastLogin: previousLogin },
-          })
-        );
+        await sendAdminEvent(sessionRoomId, {
+          event: 'enter',
+          name,
+          color,
+          visitCount,
+          lastLogin: previousLogin,
+        });
       }
 
       const entryContext = measurement.onEntered();
@@ -130,13 +128,9 @@ export function useChatSession({
     measurement.onExited();
 
     // 退室の名前と色は、呼び出し元が入力欄を戻す前の値を使う
-    const farewell = createAdminChat({
-      roomId: sessionRoomId,
-      message: `${identity.name}さん、またきておくれやすぅ。`,
-      userColor: identity.color,
-    });
+    const farewell = { event: 'exit', name: identity.name, color: identity.color } as const;
     setEntered(false);
-    await send(sessionRoomId, farewell);
+    await sendAdminEvent(sessionRoomId, farewell);
   };
 
   /** 送信するメッセージの metadata。全部屋まとめはアイデンティティのアバターと書式を足す */

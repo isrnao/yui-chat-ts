@@ -9,7 +9,16 @@
 // - triage は期限付きで動かし、成功・失敗・期限切れのどれでも finally で 2 回目の flush を行う。
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { checkSayInput, sanitizeMetadata, type InputErrorCode } from './schema.ts';
+import { buildAdminChat, ADMIN_FALLBACK_USER_COLOR, type AdminEvent } from './messages.ts';
+import {
+  checkName,
+  checkSayInput,
+  normalizeColor,
+  OPTIMISTIC_NONCE_MAX,
+  sanitizeMetadata,
+  VISIT_COUNT_MAX,
+  type InputErrorCode,
+} from './schema.ts';
 import { shouldTriage, triageAdminChat, type TriageTrace } from './triage.ts';
 import {
   parseTraceparent,
@@ -53,7 +62,7 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
 
 /** 要求の誤り。文言はクライアントが code から選ぶ（`{ "error": { "code": "invalid_name" } }`） */
 // 5xx の本文は変えない（.kiro/specs/observability-new-relic design.md の R4.4 は取りやめ）
-type ErrorCode = InputErrorCode | 'method_not_allowed' | 'invalid_json';
+type ErrorCode = InputErrorCode | 'method_not_allowed' | 'invalid_json' | 'invalid_op';
 
 function reject(code: ErrorCode, status: number, cors: Record<string, string>): Response {
   return json({ error: { code } }, status, cors);
@@ -82,6 +91,8 @@ function resolveClientIp(req: Request): string {
 // クライアントが詐称・上書きできないよう、永続化するフィールドを限定する。
 // uuid / time / deleted / ip / ua はここで受け付けない。
 interface SaveChatBody {
+  /** say（省略時。利用者の発言）/ enter / exit（入退室。管理人の発言をサーバーが作る） */
+  op?: unknown;
   room_id?: unknown;
   name?: unknown;
   color?: unknown;
@@ -89,6 +100,19 @@ interface SaveChatBody {
   system?: unknown;
   email?: unknown;
   metadata?: unknown;
+  /** 入室だけ: 訪問回数と前回のログイン（端末の中の値。範囲に丸める） */
+  visit_count?: unknown;
+  last_login?: unknown;
+  /** 入退室: 楽観的な行と突き合わせる nonce */
+  nonce?: unknown;
+}
+
+type ChatOp = 'say' | AdminEvent;
+
+function readOp(value: unknown): ChatOp | null {
+  // 既定値を使うのは省略したときだけ。null を含め、知らない値は invalid_op
+  if (value === undefined || value === 'say') return 'say';
+  return value === 'enter' || value === 'exit' ? value : null;
 }
 
 function isNonEmptyString(value: unknown): value is string {
@@ -146,6 +170,87 @@ export function readAuthorKey(headers: Headers): string | null {
   return /^[A-Za-z0-9_-]{43}$/.test(key) ? key : null;
 }
 
+/** 保存する行（ip / ua は後で足す）と、検証の結果 */
+type Plan =
+  | {
+      rows: Omit<ChatRow, 'ip' | 'ua'>[];
+      /** enforce のときに拒否するコード */
+      error: InputErrorCode | null;
+      violations: string[];
+      dropped: string[];
+    }
+  /** 型・必須の誤り（記録だけの期間も拒否する） */
+  | { missing: InputErrorCode };
+
+/** 利用者の発言（op: say） */
+function planSay(body: SaveChatBody & { room_id: string; name: string }): Plan {
+  if (typeof body.message !== 'string' || body.message.trim().length === 0) {
+    return { missing: 'invalid_message' };
+  }
+  const input = checkSayInput({
+    name: body.name,
+    message: body.message,
+    color: body.color,
+    email: body.email,
+  });
+  // metadata は許可リストで作り直す（拒否はしない）。知らないキー・範囲外の値は落として記録する
+  const metadata = sanitizeMetadata(body.metadata, Date.now());
+  return {
+    rows: [
+      {
+        room_id: body.room_id,
+        name: body.name,
+        // 色は拒否せず置き換えるだけなので、記録だけの期間も規則に合わせる
+        // （DB の CHECK 制約 chats_color_check は NOT VALID でも新しい行には効く）
+        color: input.value.color,
+        message: body.message,
+        system: typeof body.system === 'boolean' ? body.system : false,
+        email: typeof body.email === 'string' ? body.email : null,
+        metadata: metadata.value,
+        author: true,
+      },
+    ],
+    error: input.error,
+    violations: input.violations,
+    dropped: metadata.dropped,
+  };
+}
+
+function clampInt(value: unknown, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.min(Math.max(Math.trunc(value), 0), max);
+}
+
+/**
+ * 入退室の管理人の発言（op: enter / exit、Issue #180）。文言と metadata はサーバーが messages.ts で作る。
+ * 名前・色・訪問回数・前回のログインだけを受け取り、範囲を確かめる（端末の中の値なので本人確認は無い）。
+ */
+function planAdmin(
+  event: AdminEvent,
+  body: SaveChatBody & { room_id: string; name: string }
+): Plan {
+  const violations = checkName(body.name);
+  const nonce =
+    typeof body.nonce === 'string' && [...body.nonce].length <= OPTIMISTIC_NONCE_MAX
+      ? body.nonce
+      : undefined;
+  const dropped = body.nonce !== undefined && nonce === undefined ? ['nonce'] : [];
+  const chat = buildAdminChat({
+    event,
+    name: body.name,
+    color: normalizeColor(body.color) ?? ADMIN_FALLBACK_USER_COLOR,
+    visitCount: clampInt(body.visit_count, VISIT_COUNT_MAX),
+    lastLogin: clampInt(body.last_login, Date.now()),
+    nonce,
+  });
+  return {
+    rows: [{ room_id: body.room_id, email: null, ...chat, author: false }],
+    error: violations.length > 0 ? 'invalid_name' : null,
+    violations,
+    dropped,
+  };
+}
+
 /** 行を順に保存する。1 回の要求で複数行（おみくじの巫女の返事など）を書くときも往復は 1 回 */
 async function writeChats(
   supabase: SupabaseClient,
@@ -169,9 +274,9 @@ async function writeChats(
     .select('uuid,room_id,time,ip_masked,ua,color,metadata,rooms(triage)');
   if (error || !data) return { data: null, error };
   return {
-    data: (data as unknown as (Omit<SavedRow, 'triage'> & { rooms: { triage: boolean } | null })[]).map(
-      ({ rooms, ...saved }) => ({ ...saved, triage: rooms?.triage === true })
-    ),
+    data: (
+      data as unknown as (Omit<SavedRow, 'triage'> & { rooms: { triage: boolean } | null })[]
+    ).map(({ rooms, ...saved }) => ({ ...saved, triage: rooms?.triage === true })),
     error: null,
   };
 }
@@ -274,6 +379,12 @@ async function saveChat(
     return { response: reject('invalid_json', 400, cors) };
   }
 
+  const chatOp = readOp(body.op);
+  if (!chatOp) {
+    return { response: reject('invalid_op', 400, cors) };
+  }
+  server.setAttribute('chat.op', chatOp);
+
   // 型と必須（name / message / room_id）。これは「記録だけ」の期間も拒否する（以前から拒否していた）
   if (!isNonEmptyString(body.room_id)) {
     return { response: reject('invalid_room_id', 400, cors) };
@@ -282,40 +393,37 @@ async function saveChat(
   if (!isNonEmptyString(body.name)) {
     return { response: reject('invalid_name', 400, cors) };
   }
-  if (typeof body.message !== 'string' || body.message.trim().length === 0) {
-    return { response: reject('invalid_message', 400, cors) };
-  }
 
-  // 上限と形式（schema.ts）。違反は記録し、enforce のときだけ拒否する
   const mode = readInputMode(deps.env);
-  const input = checkSayInput({
-    name: body.name,
-    message: body.message,
-    color: body.color,
-    email: body.email,
-  });
-  if (input.violations.length > 0) {
-    server.setAttribute('chat.input.violations', input.violations.join(','));
+  const recordViolations = (violations: string[]) => {
+    if (violations.length === 0) return;
+    server.setAttribute('chat.input.violations', violations.join(','));
     tracer.log('WARN', 'save_chat.input_violation', server.context, {
       'chat.operation.id': op.id,
-      'chat.room_id': body.room_id,
-      'chat.input.violations': input.violations.join(','),
+      'chat.room_id': body.room_id as string,
+      'chat.input.violations': violations.join(','),
       'chat.input.mode': mode,
     });
+  };
+  const planned =
+    chatOp === 'say'
+      ? planSay(body as SaveChatBody & { room_id: string; name: string })
+      : planAdmin(chatOp, body as SaveChatBody & { room_id: string; name: string });
+  if ('missing' in planned) {
+    return { response: reject(planned.missing, 400, cors) };
   }
-  // metadata は許可リストで作り直す（拒否はしない）。知らないキー・範囲外の値は落として記録する
-  const metadata = sanitizeMetadata(body.metadata, Date.now());
-  if (metadata.dropped.length > 0) {
-    server.setAttribute('chat.metadata.dropped', metadata.dropped.join(','));
+  recordViolations(planned.violations);
+  if (planned.dropped.length > 0) {
+    server.setAttribute('chat.metadata.dropped', planned.dropped.join(','));
     tracer.log('WARN', 'save_chat.metadata_dropped', server.context, {
       'chat.operation.id': op.id,
       'chat.room_id': body.room_id,
-      'chat.metadata.dropped': metadata.dropped.join(',').slice(0, 500),
+      'chat.metadata.dropped': planned.dropped.join(',').slice(0, 500),
     });
   }
-  if (mode === 'enforce' && input.error) {
-    server.setAttribute('error.code', input.error);
-    return { response: reject(input.error, 400, cors) };
+  if (mode === 'enforce' && planned.error) {
+    server.setAttribute('error.code', planned.error);
+    return { response: reject(planned.error, 400, cors) };
   }
 
   const supabaseUrl = deps.env('SUPABASE_URL');
@@ -333,19 +441,9 @@ async function saveChat(
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
   // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
-  const row: Omit<ChatRow, 'author'> = {
-    room_id: body.room_id,
-    name: body.name,
-    // 色は拒否せず置き換えるだけなので、記録だけの期間も規則に合わせる
-    // （DB の CHECK 制約 chats_color_check は NOT VALID でも新しい行には効く）
-    color: input.value.color,
-    message: body.message,
-    system: typeof body.system === 'boolean' ? body.system : false,
-    email: typeof body.email === 'string' ? body.email : null,
-    metadata: metadata.value,
-    ip: resolveClientIp(req),
-    ua: req.headers.get('user-agent') ?? '',
-  };
+  const observed = { ip: resolveClientIp(req), ua: req.headers.get('user-agent') ?? '' };
+  const rows: ChatRow[] = planned.rows.map((row) => ({ ...row, ...observed }));
+  const row = rows[0];
 
   const db = tracer.startSpan('db insert chats', server.context, SpanKind.CLIENT, {
     'db.system.name': 'postgresql',
@@ -358,7 +456,7 @@ async function saveChat(
   try {
     result = injectedFault(deps, op)
       ? { data: null, error: { code: 'FAULT', message: 'injected fault (SAVE_CHAT_FAULT_INJECT)' } }
-      : await writeChats(supabase, writePath, [{ ...row, author: true }], authorKey);
+      : await writeChats(supabase, writePath, rows, authorKey);
   } catch (err) {
     db.failException('db_insert_failed', err);
     db.end();

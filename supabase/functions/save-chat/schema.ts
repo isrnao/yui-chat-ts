@@ -117,6 +117,14 @@ export interface InputCheck {
   value: SayInput;
 }
 
+/** 名前の違反（前後の空白を除いて 1〜NAME_MAX コードポイント）。入退室（op: enter / exit）でも使う */
+export function checkName(name: string): string[] {
+  const length = countCodePoints(name.trim());
+  if (length === 0) return ['name_blank'];
+  if (length > NAME_MAX) return ['name_too_long'];
+  return [];
+}
+
 /**
  * 名前・発言・色・メールを確かめる。room_id は別（rooms 表で確かめる）。
  * 型が違う・空のものは呼び出し側が先に弾いている前提で、ここでは上限と形式を見る。
@@ -134,9 +142,7 @@ export function checkSayInput(input: {
     error ??= code;
   };
 
-  const nameLength = countCodePoints(input.name.trim());
-  if (nameLength === 0) reject('invalid_name', 'name_blank');
-  else if (nameLength > NAME_MAX) reject('invalid_name', 'name_too_long');
+  for (const violation of checkName(input.name)) reject('invalid_name', violation);
 
   const messageLength = countGraphemes(input.message);
   if (input.message.trim().length === 0) reject('invalid_message', 'message_blank');

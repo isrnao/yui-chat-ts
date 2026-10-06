@@ -193,6 +193,38 @@ describe('saveChat', () => {
       await expect(chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1))).rejects.toThrow('boom');
     });
 
+    it('入退室（admin）は op で送り、文言や metadata は送らない（サーバーが作る）', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({ data: { uuid: 'u', room_id: ROOM_ID, time: 1 }, error: null });
+
+      const chatApi = await import('./saveChat');
+      const chat = chatApi.createOptimisticChat({
+        room_id: ROOM_ID,
+        name: '管理人',
+        color: '#ffffff',
+        message: 'ゆい さん、Welcome to お気楽チャット☆',
+        system: true,
+        ip_masked: '',
+        ua: '',
+        metadata: { version: 1, kind: 'admin' },
+      });
+      await chatApi.saveChatLogOptimistic(ROOM_ID, chat, {
+        admin: { event: 'enter', name: 'ゆい', color: '#f00', visitCount: 4, lastLogin: 9 },
+      });
+
+      expect(invoke.mock.calls[0][1].body).toEqual({
+        op: 'enter',
+        room_id: ROOM_ID,
+        name: 'ゆい',
+        color: '#f00',
+        visit_count: 4,
+        last_login: 9,
+        nonce: chat.metadata?.optimisticNonce,
+      });
+    });
+
     it('サーバーが置き換えた色で確定させる（Realtime の正規化済みの行を上書きしない）', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;

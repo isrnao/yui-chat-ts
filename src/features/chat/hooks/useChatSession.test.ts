@@ -96,10 +96,11 @@ describe('useChatSession', () => {
       await entering;
     });
 
+    // 楽観的な表示は同じ文言で出し、サーバーには op: enter で名前と色だけを送る（文言はサーバーが作る）
     expect(saveChatLogOptimistic).toHaveBeenCalledWith(
       'superbeginner',
       expect.objectContaining({ message: 'ゆい さん、Welcome to お気楽チャット☆' }),
-      undefined
+      { admin: expect.objectContaining({ event: 'enter', name: 'ゆい', color: '#ff69b4' }) }
     );
     expect(measurement.onJoinStarted).toHaveBeenCalledWith('superbeginner');
     expect(trackEvent).toHaveBeenCalledWith(
