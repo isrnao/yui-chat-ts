@@ -13,13 +13,22 @@ const SLOW_OPERATION_MS = 3000;
  */
 export async function retryWithBackoff<T>(
   fn: (attempt: number) => Promise<T>,
-  { attempts = 3, baseDelayMs = 1000 }: { attempts?: number; baseDelayMs?: number } = {}
+  {
+    attempts = 3,
+    baseDelayMs = 1000,
+    shouldRetry = () => true,
+  }: {
+    attempts?: number;
+    baseDelayMs?: number;
+    /** false を返したエラーは再試行せずにそのまま投げる（入力の誤りなど、繰り返しても通らないもの） */
+    shouldRetry?: (error: unknown) => boolean;
+  } = {}
 ): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
       return await fn(attempt);
     } catch (error) {
-      if (attempt >= attempts) throw error;
+      if (attempt >= attempts || !shouldRetry(error)) throw error;
       const waitTime = baseDelayMs * Math.pow(2, attempt - 1);
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }

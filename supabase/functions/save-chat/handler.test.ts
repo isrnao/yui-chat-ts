@@ -443,3 +443,61 @@ Deno.test(
     }
   })
 );
+
+Deno.test(
+  '入力の規則: 記録だけ（既定）なら違反を記録して保存する。色だけは置き換える',
+  async () => {
+    const t = setup();
+    const res = await t.handler(post({ ...chat, name: 'あ'.repeat(25), color: 'あか' }));
+    assertEquals(res.status, 200);
+    assertEquals(t.inserts[0].name, 'あ'.repeat(25));
+    assertEquals(t.inserts[0].color, '#ff69b4');
+    await t.settle();
+    const log = t.logs.find((l) => l.body.stringValue === 'save_chat.input_violation')!;
+    assertEquals(log.severityText, 'WARN');
+    assertEquals(log.attributes['chat.input.violations'], 'name_too_long,color_replaced');
+    assertEquals(log.attributes['chat.input.mode'], 'log');
+  }
+);
+
+Deno.test('入力の規則: enforce なら code を付けて拒否する', async () => {
+  const t = setup({ env: { SAVE_CHAT_INPUT_MODE: 'enforce' } });
+  const tooLong = await t.handler(post({ ...chat, message: 'a'.repeat(121) }));
+  assertEquals(tooLong.status, 400);
+  assertEquals(await tooLong.json(), { error: { code: 'invalid_message' } });
+  assertEquals(t.inserts.length, 0);
+
+  const recolored = await t.handler(post({ ...chat, color: 'あか' }));
+  assertEquals(recolored.status, 200);
+  assertEquals(t.inserts[0].color, '#ff69b4');
+  await t.settle();
+});
+
+Deno.test('入力の規則: 違反が無ければ記録しない', async () => {
+  const t = setup();
+  assertEquals((await t.handler(post(chat))).status, 200);
+  await t.settle();
+  assertEquals(t.logs.filter((l) => l.body.stringValue === 'save_chat.input_violation').length, 0);
+});
+
+Deno.test('型と必須の誤りは記録だけの期間も code で拒否する', async () => {
+  const t = setup();
+  assertEquals(await (await t.handler(post({ ...chat, room_id: '' }))).json(), {
+    error: { code: 'invalid_room_id' },
+  });
+  assertEquals(await (await t.handler(post({ ...chat, name: '' }))).json(), {
+    error: { code: 'invalid_name' },
+  });
+  assertEquals(await (await t.handler(post({ ...chat, message: '  ' }))).json(), {
+    error: { code: 'invalid_message' },
+  });
+  const notObject = await t.handler(
+    new Request('https://example.supabase.co/functions/v1/save-chat', {
+      method: 'POST',
+      body: 'null',
+    })
+  );
+  assertEquals(await notObject.json(), { error: { code: 'invalid_json' } });
+  assertEquals(t.inserts.length, 0);
+  await t.settle();
+});

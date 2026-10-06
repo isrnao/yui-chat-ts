@@ -2,6 +2,8 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
+import type { InputErrorCode } from '../inputRules';
+import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
 /**
@@ -16,6 +18,49 @@ import { retryWithBackoff, warnIfSlow } from './retry';
 interface SaveOperation {
   id: string;
   attempt: number;
+}
+
+/**
+ * save-chat が入力の誤りで拒否したときのコード（`{ "error": { "code": "invalid_name" } }`）と、画面に出す文言。
+ * 文言はクライアントが選ぶ（サーバーはコードだけを返す）。
+ */
+const INPUT_ERROR_MESSAGES: Record<InputErrorCode, string> = {
+  invalid_room_id: 'この部屋には発言できません。',
+  invalid_name: 'おなまえを確かめてください（24文字以内）。',
+  invalid_message: '発言を確かめてください（120文字以内）。',
+  invalid_email: 'E-Mail/URLを確かめてください（64文字以内）。',
+};
+
+/** 入力の誤りで拒否された保存。繰り返しても通らないので再試行しない */
+export class SaveChatRejectedError extends UserFacingError {
+  readonly code: InputErrorCode;
+  constructor(code: InputErrorCode) {
+    super(INPUT_ERROR_MESSAGES[code]);
+    this.name = 'SaveChatRejectedError';
+    this.code = code;
+  }
+}
+
+function isInputErrorCode(value: unknown): value is InputErrorCode {
+  return (
+    typeof value === 'string' && Object.prototype.hasOwnProperty.call(INPUT_ERROR_MESSAGES, value)
+  );
+}
+
+/**
+ * functions-js の FunctionsHttpError は context に Response を持つ。400 の本文から入力の誤りの
+ * コードを読む。読めなければ null（ほかの失敗と同じく扱う）。
+ */
+async function readRejection(error: unknown): Promise<InputErrorCode | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (!(context instanceof Response) || context.status !== 400) return null;
+  try {
+    const body: unknown = await context.clone().json();
+    const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
+    return isInputErrorCode(code) ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
@@ -44,7 +89,11 @@ async function invokeSaveChat(
       'x-chat-attempt': String(operation.attempt),
     },
   });
-  if (error) throw new Error(`Failed to save chat: ${error.message}`);
+  if (error) {
+    const rejected = await readRejection(error);
+    if (rejected) throw new SaveChatRejectedError(rejected);
+    throw new Error(`Failed to save chat: ${error.message}`);
+  }
   const result: unknown = data;
   if (typeof result === 'object' && result !== null && 'error' in result) {
     throw new Error(`Failed to save chat: ${String((result as { error: unknown }).error)}`);
@@ -85,35 +134,38 @@ async function saveChatWithRetry(
   operationId: string,
   onSaved: () => void
 ): Promise<Chat> {
-  return retryWithBackoff(async (attempt) => {
-    const result = await invokeSaveChat(
-      {
-        room_id: roomId,
-        name: chat.name,
-        color: chat.color,
-        message: chat.message,
-        system: chat.system,
-        email: chat.email,
-        metadata: chat.metadata ?? null,
-      },
-      { id: operationId, attempt }
-    );
+  return retryWithBackoff(
+    async (attempt) => {
+      const result = await invokeSaveChat(
+        {
+          room_id: roomId,
+          name: chat.name,
+          color: chat.color,
+          message: chat.message,
+          system: chat.system,
+          email: chat.email,
+          metadata: chat.metadata ?? null,
+        },
+        { id: operationId, attempt }
+      );
 
-    onSaved();
+      onSaved();
 
-    return {
-      ...chat,
-      uuid: result.uuid,
-      room_id: result.room_id ?? roomId,
-      time: result.time,
-      // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
-      // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
-      // 送信者だけ IP / ブラウザ行が消える。
-      ip_masked: result.ip_masked ?? chat.ip_masked,
-      ua: result.ua ?? chat.ua,
-      optimistic: false,
-    };
-  });
+      return {
+        ...chat,
+        uuid: result.uuid,
+        room_id: result.room_id ?? roomId,
+        time: result.time,
+        // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+        // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+        // 送信者だけ IP / ブラウザ行が消える。
+        ip_masked: result.ip_masked ?? chat.ip_masked,
+        ua: result.ua ?? chat.ua,
+        optimistic: false,
+      };
+    },
+    { shouldRetry: (error) => !(error instanceof SaveChatRejectedError) }
+  );
 }
 
 // 楽観的更新用の高速バージョン

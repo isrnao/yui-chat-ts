@@ -9,6 +9,7 @@
 // - triage は期限付きで動かし、成功・失敗・期限切れのどれでも finally で 2 回目の flush を行う。
 
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { checkSayInput, type InputErrorCode } from './schema.ts';
 import { shouldTriage, triageAdminChat, type TriageTrace } from './triage.ts';
 import {
   parseTraceparent,
@@ -48,6 +49,24 @@ function json(body: unknown, status: number, cors: Record<string, string>): Resp
     status,
     headers: { ...cors, 'Content-Type': 'application/json' },
   });
+}
+
+/** 要求の誤り。文言はクライアントが code から選ぶ（`{ "error": { "code": "invalid_name" } }`） */
+// 5xx の本文は変えない（.kiro/specs/observability-new-relic design.md の R4.4 は取りやめ）
+type ErrorCode = InputErrorCode | 'method_not_allowed' | 'invalid_json';
+
+function reject(code: ErrorCode, status: number, cors: Record<string, string>): Response {
+  return json({ error: { code } }, status, cors);
+}
+
+/**
+ * 入力の規則（schema.ts）の扱い。`enforce` で拒否し、それ以外（既定）は違反を記録するだけで
+ * 今までどおり保存する（docs/SERVER_SIDE_LOGIC_REFACTORING.md S1 の「記録だけ」の期間）。
+ */
+export type InputMode = 'log' | 'enforce';
+
+export function readInputMode(env: (key: string) => string | undefined): InputMode {
+  return env('SAVE_CHAT_INPUT_MODE') === 'enforce' ? 'enforce' : 'log';
 }
 
 // x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
@@ -158,26 +177,51 @@ async function saveChat(
 ): Promise<Outcome> {
   const { tracer } = deps;
   if (req.method !== 'POST') {
-    return { response: json({ error: 'Method not allowed' }, 405, cors) };
+    return { response: reject('method_not_allowed', 405, cors) };
   }
 
   let body: SaveChatBody;
   try {
     body = await req.json();
   } catch {
-    return { response: json({ error: 'Invalid JSON body' }, 400, cors) };
+    return { response: reject('invalid_json', 400, cors) };
+  }
+  if (typeof body !== 'object' || body === null) {
+    return { response: reject('invalid_json', 400, cors) };
   }
 
-  // 最低限のバリデーション（name / message / room_id 必須）。
+  // 型と必須（name / message / room_id）。これは「記録だけ」の期間も拒否する（以前から拒否していた）
   if (!isNonEmptyString(body.room_id)) {
-    return { response: json({ error: 'room_id is required' }, 400, cors) };
+    return { response: reject('invalid_room_id', 400, cors) };
   }
   server.setAttribute('chat.room_id', body.room_id);
   if (!isNonEmptyString(body.name)) {
-    return { response: json({ error: 'name is required' }, 400, cors) };
+    return { response: reject('invalid_name', 400, cors) };
   }
   if (typeof body.message !== 'string' || body.message.trim().length === 0) {
-    return { response: json({ error: 'message is required' }, 400, cors) };
+    return { response: reject('invalid_message', 400, cors) };
+  }
+
+  // 上限と形式（schema.ts）。違反は記録し、enforce のときだけ拒否する
+  const mode = readInputMode(deps.env);
+  const input = checkSayInput({
+    name: body.name,
+    message: body.message,
+    color: body.color,
+    email: body.email,
+  });
+  if (input.violations.length > 0) {
+    server.setAttribute('chat.input.violations', input.violations.join(','));
+    tracer.log('WARN', 'save_chat.input_violation', server.context, {
+      'chat.operation.id': op.id,
+      'chat.room_id': body.room_id,
+      'chat.input.violations': input.violations.join(','),
+      'chat.input.mode': mode,
+    });
+  }
+  if (mode === 'enforce' && input.error) {
+    server.setAttribute('error.code', input.error);
+    return { response: reject(input.error, 400, cors) };
   }
 
   const supabaseUrl = deps.env('SUPABASE_URL');
@@ -194,7 +238,9 @@ async function saveChat(
   const row = {
     room_id: body.room_id,
     name: body.name,
-    color: typeof body.color === 'string' ? body.color : '',
+    // 色は拒否せず置き換えるだけなので、記録だけの期間も規則に合わせる
+    // （DB の CHECK 制約 chats_color_check は NOT VALID でも新しい行には効く）
+    color: input.value.color,
     message: body.message,
     system: typeof body.system === 'boolean' ? body.system : false,
     email: typeof body.email === 'string' ? body.email : null,

@@ -5,6 +5,7 @@ import Input from '@shared/components/Input';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { AVATAR_IDS } from '@features/chat/types';
+import { EMAIL_MAX, NAME_MAX } from '@features/chat/inputRules';
 import type { AvatarId } from '@features/chat/types';
 
 type EntryFormProps = {
@@ -84,7 +85,7 @@ export default function EntryForm({
             id={nameId}
             name="name"
             value={name}
-            maxLength={24}
+            maxLength={NAME_MAX}
             size={20}
             onChange={(e: ChangeEvent<HTMLInputElement>) => {
               setName(e.target.value);
@@ -172,7 +173,7 @@ export default function EntryForm({
             id={emailId}
             name="email"
             value={email}
-            maxLength={64}
+            maxLength={EMAIL_MAX}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             autoComplete="email"
             placeholder="任意"
