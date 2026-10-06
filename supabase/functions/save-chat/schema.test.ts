@@ -13,6 +13,7 @@ import {
   METADATA_MAX_BYTES,
   normalizeColor,
   OPTIMISTIC_NONCE_MAX,
+  isReservedName,
   sanitizeMetadata,
   VISIT_COUNT_MAX,
 } from './schema.ts';
@@ -216,4 +217,15 @@ Deno.test('metadata: 落としたものの記録は件数と長さを上限で�
     dropped.every((entry) => entry.length <= METADATA_DROPPED_ENTRY_MAX),
     true
   );
+});
+
+Deno.test('予約名: NFKC に正規化し、空白を除いて「管理人」「巫女」と比べる', () => {
+  for (const name of ['管理人', '巫女', ' 管 理 人 ', '管理　人', '管理⼈', '巫\t女']) {
+    assertEquals(isReservedName(name), true, name);
+  }
+  for (const name of ['管理人さん', 'ゆい', '巫女っ子', '管理']) {
+    assertEquals(isReservedName(name), false, name);
+  }
+  assertEquals(checkSayInput({ ...ok, name: ' 管理人 ' }).error, 'reserved_name');
+  assertEquals(checkSayInput({ ...ok, name: ' 管理人 ' }).violations, ['name_reserved']);
 });

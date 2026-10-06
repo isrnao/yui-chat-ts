@@ -4,6 +4,16 @@
  * 並行した呼び出しで互いに上書きしていた）。
  */
 
+/**
+ * 繰り返しても通らない失敗（オフライン・認証エラーなど）。retryWithBackoff は既定でこれを再試行しない。
+ */
+export class NonRetryableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NonRetryableError';
+  }
+}
+
 /** この時間を超えた API 呼び出しを警告する */
 const SLOW_OPERATION_MS = 3000;
 
@@ -16,11 +26,14 @@ export async function retryWithBackoff<T>(
   {
     attempts = 3,
     baseDelayMs = 1000,
-    shouldRetry = () => true,
+    shouldRetry = (error) => !(error instanceof NonRetryableError),
   }: {
     attempts?: number;
     baseDelayMs?: number;
-    /** false を返したエラーは再試行せずにそのまま投げる（入力の誤りなど、繰り返しても通らないもの） */
+    /**
+     * false を返したエラーは再試行せずにそのまま投げる（入力の誤りなど、繰り返しても通らないもの）。
+     * 既定は NonRetryableError 以外を再試行する
+     */
     shouldRetry?: (error: unknown) => boolean;
   } = {}
 ): Promise<T> {

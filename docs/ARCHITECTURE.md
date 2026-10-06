@@ -297,8 +297,8 @@ useRoomLog(getRoomLogStore(roomId)) → useSyncExternalStore が store を購読
     │   → 既存 channel があれば共有、なければ生成
     │
     └─ loadRecentChatLogs(roomId, limit)（chatQueries.ts。キャッシュは持たない）
-        ├─ オフライン → mockChatData (room_id を付与) を返却
-        ├─ 401 / JWT エラー → mockChatData にフォールバック
+        ├─ オフライン → 取りに行かずに失敗（再試行しない）
+        ├─ 401 / JWT エラー → 再試行せずに失敗
         └─ Supabase SELECT
              - 列: uuid, room_id, name, color, message, time, system, email, ip_masked, ua, metadata
                (ip の生値は転送から除外)
@@ -379,13 +379,13 @@ store はサーバーで確定した行だけを新しい順（uuid v7 の降順
 
 ### 7.1 features/chat/api の構成
 
-| モジュール        | 主なエクスポート                                                                   | 役割                                                                                                                                                        |
-| ----------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                                                                                |
-| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearMyChats` | chats の読み取りと、RPC `clear_my_chats` による自分の発言の論理削除（書いた端末の鍵で照合）。キャッシュは持たない。オフライン・401 時は mockChatData を返す |
-| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                   | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成                                                                |
-| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs`                                  | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                                                                                   |
-| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                  | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                                                                                      |
+| モジュール        | 主なエクスポート                                                                   | 役割                                                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                                                                                                      |
+| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearMyChats` | chats の読み取りと、RPC `clear_my_chats` による自分の発言の論理削除（書いた端末の鍵で照合）。キャッシュは持たない。オフライン・401 は再試行せずに失敗させる（偽のログは出さない） |
+| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                   | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成                                                                                      |
+| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs`                                  | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                                                                                                         |
+| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                  | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                                                                                                            |
 
 以前は `chatLogResource.ts`（5 分の TTL キャッシュ、進行中のリクエストの共有、paging、世代管理）と
 `chatApi.ts`（保存・削除・ランキング・Realtime・互換ラッパー）に分かれていましたが、画面遷移が全ページ読み込み
@@ -562,15 +562,19 @@ type Chat = {
 
 ```
 navigator.onLine === false
-    → loadRecentChatLogs が mockChatData（room_id 付与）を返す
+    → loadRecentChatLogs / loadChatRanking は取りに行かずに失敗する（再試行しない）
+    → 画面は「チャットログの読み込みに失敗しました。[再読み込み]」を出す
     → ネットワーク復旧時に自動再取得（Realtime の再接続で Room_Log_Store が取り直す）
+
+以前は偽のログ（mockChatData:「ゆい > こんにちは！チャットへようこそ✨」など）を返していたが、本物の会話と
+見分けがつかず誰かがいるように見えるのでやめた（Issue #188）。
 ```
 
 ### 11.2 認証エラー対応
 
 ```
 Supabase 401 / JWT エラー
-    → mockChatData にフォールバック（サービス継続）
+    → 再試行せずに失敗し、オフラインと同じく失敗の表示と [再読み込み] を出す
 ```
 
 ### 11.3 Supabase 未設定
