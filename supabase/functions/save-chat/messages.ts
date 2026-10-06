@@ -2,8 +2,8 @@
 // 同じ関数を使う（docs/SERVER_SIDE_LOGIC_REFACTORING.md の S5、Issue #180）。
 //
 // import を持たない。Deno（Edge Function）と Vitest（Web）の両方から読むため。
-// 文言を変えると参加者一覧（useParticipants の正規表現）と表示（splitAdminMessage）が古い行を読めなくなるので、
-// 変えるときは metadata の構造（Issue #183）で読む形になってから行う。
+// 誰が入った・出たかは metadata の event / subject に構造で書く（Issue #183）。クライアントは構造で読み、
+// 構造の無い古い行だけを本文の正規表現で読む。本文の文言は今のままにする（古いクライアントが正規表現で読むため）。
 
 export const ADMIN_NAME = '管理人';
 export const ADMIN_COLOR = '#ffffff';
@@ -47,6 +47,10 @@ export interface AdminChat {
     visitCount?: number;
     lastLogin?: number;
     optimisticNonce?: string;
+    /** 入室か退室か（Issue #183）。サーバーが作る発言だけに付く */
+    event: AdminEvent;
+    /** 入退室した人（Issue #183） */
+    subject: { name: string; color: string };
   };
 }
 
@@ -58,6 +62,8 @@ export function buildAdminChat(input: AdminChatInput): AdminChat {
     kind: 'admin',
     userColor: input.color,
     fontStyle: { bold: true },
+    event: input.event,
+    subject: { name: input.name, color: input.color },
   };
   if (input.event === 'enter') {
     if (input.visitCount !== undefined) metadata.visitCount = input.visitCount;

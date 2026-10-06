@@ -1,13 +1,11 @@
 import { useDeferredValue } from 'react';
 import type { Chat, Participant } from '@features/chat/types';
-
-const WELCOME_PATTERN = /^(.+?)\sさん、Welcome to/;
-const EXIT_PATTERN = /^(.+?)さん、またきておくれやすぅ/;
+import { readAdminEvent } from '@features/chat/utils/adminMessage';
 
 /**
  * 基準時刻 `now` から見て直近5分以内のメッセージから参加者リストを抽出する。
- * 通常発言に加え、管理人の入室メッセージ（"{name} さん、Welcome to..."）も参加者として計上する。
- * 退室メッセージ（"{name}さん、またきておくれやすぅ"）が後に来た場合は除外する。
+ * 通常発言に加え、管理人の入室メッセージも参加者として計上し、退室メッセージが後に来た場合は除外する。
+ * 誰が入った・出たかは metadata の event / subject（構造）で読み、構造の無い古い行だけ本文で読む（readAdminEvent）。
  *
  * 時刻は引数で受け取る純粋関数にしている。関数の中で Date.now() を呼ぶと、React Compiler の
  * メモ化で結果が chatLog の変化まで固定され、発言がないと 5 分を過ぎた人が残り続けていた。
@@ -26,20 +24,11 @@ export function getRecentParticipants(chatLog: Chat[], now: number): Participant
 
   for (const c of recentChats) {
     if (c.metadata?.kind === 'admin') {
-      // 管理人の入室メッセージから参加者を抽出
-      const enterMatch = c.message.match(WELCOME_PATTERN);
-      if (enterMatch) {
-        const name = enterMatch[1].trim();
-        const color = c.metadata.userColor ?? '#333333';
-        map.set(name, { uuid: c.uuid, name, color });
-        continue;
-      }
-      // 退室メッセージなら参加者から除外
-      const exitMatch = c.message.match(EXIT_PATTERN);
-      if (exitMatch) {
-        const name = exitMatch[1].trim();
-        map.delete(name);
-        continue;
+      const admin = readAdminEvent(c);
+      if (admin?.event === 'enter') {
+        map.set(admin.name, { uuid: c.uuid, name: admin.name, color: admin.color ?? '#333333' });
+      } else if (admin?.event === 'exit') {
+        map.delete(admin.name);
       }
     } else if (c.name && c.color && !c.system) {
       // 通常発言: 発言者を参加者として登録

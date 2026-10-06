@@ -7,7 +7,7 @@ import type { Chat } from '@features/chat/types';
 import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
 import { ROW_UUID_ATTR } from '@features/chat/utils/filterTransition';
-import { splitAdminMessage } from '@features/chat/utils/adminMessage';
+import { readAdminEvent, splitAdminMessage } from '@features/chat/utils/adminMessage';
 import {
   FILTER_NAME_ATTR,
   FILTER_TARGET_ATTR,
@@ -221,8 +221,13 @@ function AdminMessage({
 }) {
   const avatar = chat.metadata?.avatar;
   const userColor = chat.metadata?.userColor ?? '#ff69b4';
-  const split = splitAdminMessage(chat.message);
-  const isWelcome = WELCOME_PATTERN.test(chat.message);
+  // 誰が入った・出たかは metadata の構造で読み、構造の無い古い行だけ本文で読む（Issue #183）
+  // （入退室と読めない管理人の発言は、以前と同じく本文で分ける）
+  const admin = readAdminEvent(chat);
+  const split = admin
+    ? { userName: admin.name, rest: admin.rest }
+    : splitAdminMessage(chat.message);
+  const isWelcome = admin ? admin.event === 'enter' : WELCOME_PATTERN.test(chat.message);
   const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (

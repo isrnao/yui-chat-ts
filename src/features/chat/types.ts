@@ -74,6 +74,10 @@ export type ChatMetadata = {
    * echo されて返るため、temp UUID と savedChat の同一性判定の強い鍵として使える。
    */
   optimisticNonce?: string;
+  /** 入退室の管理人の発言だけ: 入室か退室か（サーバーが書く。Issue #183） */
+  event?: 'enter' | 'exit';
+  /** 入退室の管理人の発言だけ: 入退室した人（サーバーが書く。Issue #183） */
+  subject?: { name: string; color: string };
 };
 
 // --- チャットメッセージ ---

@@ -104,6 +104,18 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.optimisticNonce = input.optimisticNonce;
     }
 
+    // 入退室の構造（サーバーが管理人の発言にだけ書く。利用者の発言では save-chat が落とす）
+    if (input.event === 'enter' || input.event === 'exit') {
+      const subject = input.subject;
+      if (isRecord(subject) && typeof subject.name === 'string' && subject.name !== '') {
+        result.event = input.event;
+        result.subject = {
+          name: subject.name,
+          color: typeof subject.color === 'string' ? subject.color : '',
+        };
+      }
+    }
+
     return result;
   } catch {
     return undefined;
