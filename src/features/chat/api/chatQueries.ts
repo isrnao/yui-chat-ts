@@ -130,6 +130,10 @@ export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise
       .order('last_time', { ascending: false });
 
     if (error) {
+      // 認証エラーは繰り返しても通らないので再試行しない（loadRecentChatLogs と同じ）
+      if (error.code === '401' || error.message.includes('JWT')) {
+        throw new NonRetryableError(`Supabase auth error: ${error.message} (${error.code})`);
+      }
       throw new Error(`Supabase ranking query error: ${error.message} (${error.code})`);
     }
 
