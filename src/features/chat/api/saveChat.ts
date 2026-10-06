@@ -5,7 +5,7 @@ import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import type { AdminEvent } from '../serverMessages';
 import type { InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
-import { normalizeChat } from '../utils/normalizeMetadata';
+import { normalizeChat, normalizeChatMetadata } from '../utils/normalizeMetadata';
 import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
@@ -74,6 +74,10 @@ interface SaveChatResponse {
   time: number;
   ip_masked?: string;
   ua?: string;
+  /** 保存した色（サーバーが読めない色を既定の色に置き換える） */
+  color?: string;
+  /** 保存した metadata（サーバーが許可リストで作り直したもの） */
+  metadata?: unknown;
   /** 同じ要求でサーバーが保存した発言（おみくじの巫女の返事）。表示に要る列を含む */
   extra?: unknown[];
 }
@@ -110,7 +114,7 @@ async function invokeSaveChat(
       'x-chat-operation-id': operation.id,
       'x-chat-attempt': String(operation.attempt),
       // 書いた端末の鍵。clear（clear_my_chats）で自分の発言だけを消すために、サーバーが発言と結び付ける
-      'x-chat-author-key': getAuthorKey(),
+      'x-chat-author-key': await getAuthorKey(),
     },
   });
   if (error) {
@@ -190,30 +194,35 @@ async function saveChatWithRetry(
         email: chat.email,
         metadata: chat.metadata ?? null,
       };
-  return retryWithBackoff(
-    async (attempt) => {
-      const result = await invokeSaveChat(payload, { id: operationId, attempt });
-
-      onSaved();
-      if (onExtra && Array.isArray(result.extra) && result.extra.length > 0) {
-        onExtra(result.extra.map((row) => ({ ...normalizeChat(row), optimistic: false })));
-      }
-
-      return {
-        ...chat,
-        uuid: result.uuid,
-        room_id: result.room_id ?? roomId,
-        time: result.time,
-        // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
-        // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
-        // 送信者だけ IP / ブラウザ行が消える。
-        ip_masked: result.ip_masked ?? chat.ip_masked,
-        ua: result.ua ?? chat.ua,
-        optimistic: false,
-      };
-    },
+  // 再試行するのは保存の要求だけ。応答の扱い（onExtra など）で投げても、保存済みの要求を繰り返さない
+  // （insert_chat は操作 ID で重複を除かないので、繰り返すと同じ発言が何行も残る）
+  const result = await retryWithBackoff(
+    (attempt) => invokeSaveChat(payload, { id: operationId, attempt }),
     { shouldRetry: (error) => !(error instanceof SaveChatRejectedError) }
   );
+
+  onSaved();
+  if (onExtra && Array.isArray(result.extra) && result.extra.length > 0) {
+    onExtra(result.extra.map((row) => ({ ...normalizeChat(row), optimistic: false })));
+  }
+
+  return {
+    ...chat,
+    uuid: result.uuid,
+    room_id: result.room_id ?? roomId,
+    time: result.time,
+    // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+    // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+    // 送信者だけ IP / ブラウザ行が消える。
+    ip_masked: result.ip_masked ?? chat.ip_masked,
+    ua: result.ua ?? chat.ua,
+    // サーバーが置き換えた色で確定させる。送った値のままにすると、Realtime で先に届いた
+    // 正規化済みの行を後着の応答が上書きし、送信者だけ別の色になる
+    color: result.color ?? chat.color,
+    // metadata も同じく、サーバーが許可リストで作り直したものにする
+    metadata: 'metadata' in result ? normalizeChatMetadata(result.metadata) : chat.metadata,
+    optimistic: false,
+  };
 }
 
 // 楽観的更新用の高速バージョン

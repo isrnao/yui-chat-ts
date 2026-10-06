@@ -682,6 +682,11 @@ Deno.test('op: 知らない op は 400 invalid_op、message の無い enter は�
   assertEquals(await (await t.handler(post({ ...chat, op: 'delete' }))).json(), {
     error: { code: 'invalid_op' },
   });
+  // 明示的な null も既定値（say）にはしない
+  assertEquals(await (await t.handler(post({ ...chat, op: null }))).json(), {
+    error: { code: 'invalid_op' },
+  });
+  assertEquals(t.rpcCalls.length, 0);
   const res = await t.handler(post({ op: 'enter', room_id: 'main', name: 'ゆい', color: '#fff' }));
   assertEquals(res.status, 200);
   await t.settle();
@@ -773,6 +778,32 @@ Deno.test(
     await t.settle();
     const log = t.logs.find((l) => l.body.stringValue === 'save_chat.metadata_dropped')!;
     assertEquals(log.attributes['chat.metadata.dropped'], 'unknown:event,unknown:subject');
+  }
+);
+
+Deno.test(
+  'おみくじ: 以前の Web が送る巫女の返事は、記録だけの期間も拒否する（返事が 2 件にならない）',
+  async () => {
+    const t = setup();
+    const legacy = {
+      room_id: 'main',
+      name: '巫女',
+      color: 'hotpink',
+      message: '大吉で〜す。＞たろうさん',
+      system: true,
+      metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+    };
+    const res = await t.handler(post(legacy));
+    assertEquals(res.status, 400);
+    assertEquals(await res.json(), { error: { code: 'reserved_name' } });
+    // kind だけ付けた形・system と名前だけの形も同じ
+    assertEquals(
+      (await t.handler(post({ ...chat, metadata: { version: 1, kind: 'fortune' } }))).status,
+      400
+    );
+    assertEquals((await t.handler(post({ ...chat, name: '巫女', system: true }))).status, 400);
+    assertEquals(t.rpcCalls.length, 0);
+    await t.settle();
   }
 );
 

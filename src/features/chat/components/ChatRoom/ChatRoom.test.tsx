@@ -143,6 +143,15 @@ describe('ChatRoom', () => {
     expect(screen.queryByText(/Failed to/)).not.toBeInTheDocument();
   });
 
+  it('[消す] の失敗（削除対象の発言がありません）も発言と同じ場所に表示する', async () => {
+    props.onSend = vi.fn(() => Promise.reject(new UserFacingError('削除対象の発言がありません')));
+    render(<ChatRoom {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: '消す' }));
+
+    expect(await screen.findByText('削除対象の発言がありません')).toBeInTheDocument();
+    expect(props.onSend).toHaveBeenCalledWith('clear', expect.anything());
+  });
+
   it('利用者向けのエラー（UserFacingError）は文言をそのまま表示する', async () => {
     props.onSend = vi.fn(() => Promise.reject(new UserFacingError('削除対象の発言がありません')));
     render(<ChatRoom {...props} />);

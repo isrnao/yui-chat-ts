@@ -8,6 +8,8 @@ import {
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
+  METADATA_DROPPED_ENTRY_MAX,
+  METADATA_DROPPED_MAX,
   METADATA_MAX_BYTES,
   normalizeColor,
   OPTIMISTIC_NONCE_MAX,
@@ -46,6 +48,10 @@ Deno.test('発言: 1〜120 grapheme（絵文字・結合文字は 1 文字）', 
     'invalid_message'
   );
   assertEquals(checkSayInput({ ...ok, message: ' \n ' }).violations, ['message_blank']);
+  // 結合文字を重ねた 1 grapheme は 120 grapheme 以内でも、DB の上限（2000 コードポイント）を超えれば拒否する
+  const heavy = 'a' + '\u0301'.repeat(2000);
+  assertEquals(countGraphemes(heavy), 1);
+  assertEquals(checkSayInput({ ...ok, message: heavy }).error, 'invalid_message');
 });
 
 Deno.test(
@@ -125,7 +131,6 @@ Deno.test('metadata: 知らないキーと範囲外の値を落とす', () => {
       userColor: 'url(javascript:x)',
       optimisticNonce: 'x'.repeat(65),
       html: '<script>',
-      __proto__: { polluted: true },
     },
     NOW
   );
@@ -187,6 +192,31 @@ Deno.test('metadata: 作り直した値は常に 2KB に収まる', () => {
   ).value;
   const bytes = new TextEncoder().encode(JSON.stringify(largest)).length;
   assertEquals(bytes <= METADATA_MAX_BYTES, true);
+});
+
+Deno.test(
+  'metadata: JSON の "__proto__" キーは own property として届くので、知らないキーとして落とす',
+  () => {
+    // オブジェクトリテラルの __proto__ は prototype を変える構文なので、req.json() と同じく JSON.parse で作る
+    const input = JSON.parse('{"version":1,"__proto__":{"polluted":true},"avatar":"hoshi1"}');
+    const result = sanitizeMetadata(input, NOW);
+    assertEquals(result.value, { version: 1, avatar: 'hoshi1' });
+    assertEquals(result.dropped, ['unknown:__proto__']);
+    assertEquals(Object.getPrototypeOf(result.value), Object.prototype);
+    assertEquals(({} as Record<string, unknown>).polluted, undefined);
+  }
+);
+
+Deno.test('metadata: 落としたものの記録は件数と長さを上限で切る', () => {
+  const input: Record<string, unknown> = { version: 1 };
+  for (let i = 0; i < 1000; i++) input[`k${i}${'x'.repeat(200)}`] = i;
+  const { dropped } = sanitizeMetadata(input, NOW);
+  assertEquals(dropped.length, METADATA_DROPPED_MAX + 1);
+  assertEquals(dropped.at(-1), 'truncated');
+  assertEquals(
+    dropped.every((entry) => entry.length <= METADATA_DROPPED_ENTRY_MAX),
+    true
+  );
 });
 
 Deno.test('予約名: NFKC に正規化し、空白を除いて「管理人」「巫女」と比べる', () => {
