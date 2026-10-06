@@ -204,8 +204,8 @@ const chats = visible.slice(0, windowRows);
   「細字」の `label` の後ろに Filter_Link を出す（R4.1, R4.2）
 - Filter_Link は `<button type="button">` を、「細字」と同じ黒（文字色を指定せず親から受け継ぐ）に下線を付けて描く。文言は
   `filterCount ? \`フィルタ(${filterCount})\` : 'フィルタ'`
-- Filter_Link にはクラス `filter-link` を付け、CSS で `view-transition-name: filter-link` を常に付ける（ChatRoom はページに
-  1 つなので名前は重ならない）
+- Filter_Link には View Transition の名前を付けない。ページ全体（root）に含まれ、root は動かさないので、フィルタを足しても
+  件数はアニメーションなしでその場で変わる（当初は脈打たせていたが、2026-10-06 の要望でやめた）
 
 ### `ModalShell`（新規、`components/shared/ModalShell/`）
 
@@ -293,7 +293,7 @@ Transition（と Suspense・`useDeferredValue`）の更新でしか動かない�
 
 Chrome（ヘッドレス、`Animation.setPlaybackRate` で 1/10 に遅らせて撮影）で確かめた結果（Task 4.3、2026-10-05）:
 入室前のログ 10 行のうち同じ IP の 6 行（管理人の入退室を含む）が半透明に薄れ、下の 2 行が下から上へ詰まり、終わった後は
-名前と `<html>` の属性がすべて外れていた。入室後の「フィルタ(N)」の脈打ちと、発言の到着や Suspense の解決で動かないことは、本番の DB に入室メッセージを書かない
+名前と `<html>` の属性がすべて外れていた。発言の到着や Suspense の解決で動かないことは、本番の DB に入室メッセージを書かない
 ように入室しなかったため、まだ確かめていない。
 
 ### CSS（`App.css` に追加）
@@ -303,16 +303,10 @@ Chrome（ヘッドレス、`Animation.setPlaybackRate` で 1/10 に遅らせて�
 .chat-row-filterable {
   touch-action: manipulation;
 }
-.filter-link {
-  view-transition-name: filter-link;
-}
 :root[data-filter-transition]::view-transition-old(root),
 :root[data-filter-transition]::view-transition-new(root) {
   animation: none;
-} /* ページ全体は動かさない */
-:root[data-filter-transition]::view-transition-new(filter-link) {
-  animation: filter-link-pulse 320ms ease-out;
-}
+} /* ページ全体（「フィルタ(N)」のリンクを含む）は動かさない */
 ```
 
 ## データフロー
@@ -323,7 +317,7 @@ Chrome（ヘッドレス、`Animation.setPlaybackRate` で 1/10 に遅らせて�
    `runFilterTransition` → 見えている行と区切り線に名前を付ける（`nameRowsInView`）→ `document.startViewTransition` が
    古い状態を撮り、コールバックの中の `flushSync` で窓を閉じて `addFilteredIp(ip)` を反映する
 4. `filterByIp` で同じ IP の行が消える。名前の付いた該当行はそろってフェードアウトし、残る行は下から上へ詰まる。
-   Filter_Link は「フィルタ(N)」になって軽く脈打つ。root は動かさない。終わったら名前を外す
+   Filter_Link は「フィルタ(N)」になる（動かさない）。root は動かさない。終わったら名前を外す
 5. Filter_Link → `showFilter = true` → FilterListDialog（モーダル）
 6. 「解除」→ `removeFilteredIp(ip)` → 一覧の行が消え、後ろのログに発言がその場で戻る
 

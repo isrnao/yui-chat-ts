@@ -127,7 +127,7 @@ function ChatLogList({
     setAnnouncement(announceText(pending));
     // IP はフィルタした時点でその IP から発言している「おなまえ」も保存する（ログから流れても一覧に出せるように）
     const names = pending.kind === 'ip' ? namesForIp(chatLog, pending.ip) : [];
-    // 当たる行がすべてフェードアウトし、下の行が上へ詰まる。「フィルタ(N)」は脈打つ（Requirement 7.1）。
+    // 当たる行がすべてフェードアウトし、下の行が上へ詰まる（Requirement 7.1）。
     // 確認の窓を閉じるのも同じ更新に入れる
     runFilterTransition(
       () => {
