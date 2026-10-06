@@ -771,12 +771,13 @@ hourCycle: 'h23' })`。ログは SSG しないので、サーバーとクライ�
 ### 10. 既存機能との整合（Requirement 15 / 16）
 
 - **トップの参加人数**（`src/features/top/api/roomCountsApi.ts`）: 公開ログで数える部屋から `2shot` を外し
-  （RPC の結果・404 時の行取得の URL・行の集計）、`two_shot_lobby()` の待機中を 1 人、満室を 2 人として数える
+  （RPC の結果）、`two_shot_lobby()` の待機中を 1 人、満室を 2 人として数える
   （`countTwoShotSeats`。トップに two-shot の部品を載せないため最小限だけ読む）。
-  R14 の `room_participant_counts(since_ms)` と 404 時の行取得は実装済み。
+  R14 の `room_participant_counts(since_ms)` は実装済み。RPC が無いとき（404）に発言の行を取得してクライアントで
+  数える経路（`buildRoomCountsUrl` / `aggregateCountsFromRows`）は、RPC が本番に適用済みなので消した（Issue #187）。
+  404 もほかの失敗と同じく空にする。
   既存 RPC は通常部屋用のままにし、`two_shot_lobby()` を並行取得してツーショットの人数だけを合流する。
-  `toRoomCountMap` と `aggregateCountsFromRows` の両方で公開 `chats` の `2shot` を除外し、旧フォールバック URL の
-  対象からも外す。独立した失敗として扱い、ロビーが失敗しても通常部屋の人数は残す（2shot は既存 UI の 0 人表示）。
+  `toRoomCountMap` で公開 `chats` の `2shot` を除外する。独立した失敗として扱い、ロビーが失敗しても通常部屋の人数は残す（2shot は既存 UI の 0 人表示）。
   ロビーだけ成功した場合も 2shot の人数は表示する。旧 RPC を変更しないので、切り替え PR の revert だけで旧集計に戻せる。
 - **紹介文・注意書き**: 2 人だけの会話、新しい Guest に以前の会話を渡さないこと、個人情報や出会い目的の投稿への注意を記す。
   Q4(b) を採用したので「部屋を閉じると消えます」とだけ案内せず、画面のログは閉鎖で消えるが通報対応用の控えを 30 日保存する
