@@ -225,6 +225,48 @@ describe('saveChat', () => {
       });
     });
 
+    it('応答の extra（おみくじの巫女の返事）を onExtra に渡す', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: {
+          uuid: 'u',
+          room_id: ROOM_ID,
+          time: 1,
+          extra: [
+            {
+              uuid: 'miko',
+              room_id: ROOM_ID,
+              time: 2,
+              ip_masked: '',
+              ua: '',
+              name: '巫女',
+              color: 'hotpink',
+              message: '大吉で〜す。＞user-1さん',
+              system: true,
+              metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+            },
+          ],
+        },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const onExtra = vi.fn();
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1), { onExtra });
+
+      expect(onExtra).toHaveBeenCalledWith([
+        expect.objectContaining({
+          uuid: 'miko',
+          name: '巫女',
+          system: true,
+          optimistic: false,
+          metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+        }),
+      ]);
+    });
+
     it('入力の誤りで拒否されたら（400 + code）再試行せず、code に合う文言で投げる', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;

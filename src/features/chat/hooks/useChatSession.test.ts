@@ -100,7 +100,9 @@ describe('useChatSession', () => {
     expect(saveChatLogOptimistic).toHaveBeenCalledWith(
       'superbeginner',
       expect.objectContaining({ message: 'ゆい さん、Welcome to お気楽チャット☆' }),
-      { admin: expect.objectContaining({ event: 'enter', name: 'ゆい', color: '#ff69b4' }) }
+      expect.objectContaining({
+        admin: expect.objectContaining({ event: 'enter', name: 'ゆい', color: '#ff69b4' }),
+      })
     );
     expect(measurement.onJoinStarted).toHaveBeenCalledWith('superbeginner');
     expect(trackEvent).toHaveBeenCalledWith(

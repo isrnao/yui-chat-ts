@@ -84,7 +84,11 @@ describe('useChatSender', () => {
     expect(operationId).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
     );
-    expect(saveChatLogOptimistic).toHaveBeenCalledWith('superbeginner', chat, { operationId });
+    expect(saveChatLogOptimistic).toHaveBeenCalledWith(
+      'superbeginner',
+      chat,
+      expect.objectContaining({ operationId })
+    );
     expect(mergeChat).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'server-uuid' }));
   });
 
@@ -103,17 +107,8 @@ describe('useChatSender', () => {
     expect(saveChatLogOptimistic).toHaveBeenCalledWith(
       'superbeginner',
       expect.objectContaining({ name: '管理人' }),
-      { admin: input }
+      expect.objectContaining({ admin: input })
     );
-  });
-
-  it('巫女メッセージは send-chat として記録しない', async () => {
-    const { result } = setup();
-    await act(async () => {
-      await result.current.sendFortuneIfCommand('superbeginner', 'おみくじ', 'ゆい');
-    });
-    expect(saveChatLogOptimistic).toHaveBeenCalledTimes(1);
-    expect(recordSendChat).not.toHaveBeenCalled();
   });
 
   it('send は楽観表示してから保存結果でマージする', async () => {
@@ -133,40 +128,37 @@ describe('useChatSender', () => {
     expect(mergeChat).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'server-uuid' }));
   });
 
-  it('おみくじコマンド以外では巫女メッセージを送らない', async () => {
-    const { result, addOptimistic } = setup();
-
-    await act(async () => {
-      await result.current.sendFortuneIfCommand('superbeginner', 'こんにちは', 'ゆい');
-    });
-
-    expect(addOptimistic).not.toHaveBeenCalled();
-  });
-
-  it('おみくじコマンドなら巫女メッセージを続けて送る', async () => {
-    const { result, addOptimistic } = setup();
-
-    await act(async () => {
-      await result.current.sendFortuneIfCommand('superbeginner', 'おみくじ', 'ゆい');
-    });
-
-    expect(addOptimistic).toHaveBeenCalledTimes(1);
-    expect(addOptimistic.mock.calls[0][0]).toMatchObject({
+  it('同じ要求でサーバーが保存した発言（おみくじの巫女の返事）もログへマージする', async () => {
+    const miko = {
+      uuid: 'miko-uuid',
+      room_id: 'superbeginner' as const,
+      name: '巫女',
+      color: 'hotpink',
+      message: '大吉で〜す。＞ゆいさん',
+      time: 2,
       system: true,
-      metadata: { kind: 'fortune', avatar: 'miko1' },
+      ip_masked: '',
+      ua: '',
+    };
+    vi.mocked(saveChatLogOptimistic).mockImplementationOnce((_roomId, chat, options) => {
+      options?.onExtra?.([miko]);
+      return Promise.resolve({ ...chat, uuid: 'server-uuid', optimistic: false });
     });
-  });
-
-  it('巫女メッセージの保存失敗はサイレントに無視する', async () => {
-    const { saveChatLogOptimistic } = await import('@features/chat/api/saveChat');
-    vi.mocked(saveChatLogOptimistic).mockRejectedValueOnce(new Error('boom'));
-
-    const { result } = setup();
+    const { result, mergeChat } = setup();
+    const chat = {
+      ...createAdminChat({ roomId: 'superbeginner', event: 'enter', name: 'ゆい', color: '#000' }),
+      name: 'ゆい',
+      message: 'おみくじ',
+      system: false,
+    };
 
     await act(async () => {
-      await expect(
-        result.current.sendFortuneIfCommand('superbeginner', 'おみくじ', 'ゆい')
-      ).resolves.toBeUndefined();
+      await result.current.sendUserMessage('superbeginner', chat);
     });
+
+    expect(mergeChat).toHaveBeenCalledWith(miko);
+    expect(mergeChat).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'server-uuid' }));
+    // 巫女の返事のために 2 回目の保存はしない（往復 1 回）
+    expect(saveChatLogOptimistic).toHaveBeenCalledTimes(1);
   });
 });

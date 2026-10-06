@@ -1,6 +1,11 @@
 // deno test --allow-env --allow-read supabase/functions/save-chat/
 import { assertEquals } from 'jsr:@std/assert@1';
-import { buildAdminChat } from './messages.ts';
+import {
+  buildAdminChat,
+  buildFortuneChat,
+  FORTUNE_MESSAGES,
+  isFortuneCommand,
+} from './messages.ts';
 
 // 以前の Web（useChatSession.enter / exit + createAdminChat）が保存していた内容。1 文字も変えない
 Deno.test('入室: 以前の Web が作っていた文言と metadata と同じ', () => {
@@ -56,4 +61,18 @@ Deno.test('退室: 以前の Web が作っていた文言と metadata と同じ�
       },
     }
   );
+});
+
+Deno.test('おみくじ: 以前の Web（fortuneBot.ts）と同じ形', () => {
+  assertEquals(FORTUNE_MESSAGES.length, 12);
+  assertEquals(buildFortuneChat('ゆい', 0), {
+    name: '巫女',
+    color: 'hotpink',
+    message:
+      '大吉で〜す。うまい話が転がり込んできます。仕事は早目に片付けて出かけましょう。＞ゆいさん',
+    system: true,
+    metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+  });
+  assertEquals(isFortuneCommand('　おみくじ\n'), true);
+  assertEquals(isFortuneCommand('おみくじ!'), false);
 });

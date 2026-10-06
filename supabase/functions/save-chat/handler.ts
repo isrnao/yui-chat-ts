@@ -9,7 +9,14 @@
 // - triage は期限付きで動かし、成功・失敗・期限切れのどれでも finally で 2 回目の flush を行う。
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { buildAdminChat, ADMIN_FALLBACK_USER_COLOR, type AdminEvent } from './messages.ts';
+import {
+  ADMIN_FALLBACK_USER_COLOR,
+  buildAdminChat,
+  buildFortuneChat,
+  FORTUNE_MESSAGES,
+  isFortuneCommand,
+  type AdminEvent,
+} from './messages.ts';
 import {
   checkName,
   checkSayInput,
@@ -37,6 +44,8 @@ export interface HandlerDeps {
   environment: string;
   /** triage 全体の期限（spec R3.10） */
   triageDeadlineMs?: number;
+  /** 0 以上 1 未満の乱数（おみくじの運勢を選ぶ）。テストで固定する。既定は Math.random */
+  random?: () => number;
 }
 
 // プリフライトが要求したヘッダ（Access-Control-Request-Headers）をそのまま許可に
@@ -179,8 +188,14 @@ type Plan =
   /** 型・必須の誤り（記録だけの期間も拒否する） */
   | { missing: InputErrorCode };
 
-/** 利用者の発言（op: say） */
-function planSay(body: SaveChatBody & { room_id: string; name: string }): Plan {
+/**
+ * 利用者の発言（op: say）。本文が「おみくじ」なら、巫女の返事も同じ要求で保存する（Issue #181）。
+ * insert_chat は配列の順に入れるので、巫女の返事は必ず利用者の発言の後に並ぶ。
+ */
+function planSay(
+  body: SaveChatBody & { room_id: string; name: string },
+  pickFortune: () => number
+): Plan {
   if (typeof body.message !== 'string' || body.message.trim().length === 0) {
     return { missing: 'invalid_message' };
   }
@@ -206,6 +221,16 @@ function planSay(body: SaveChatBody & { room_id: string; name: string }): Plan {
         metadata: metadata.value,
         author: true,
       },
+      ...(isFortuneCommand(body.message)
+        ? [
+            {
+              room_id: body.room_id,
+              ...buildFortuneChat(body.name, pickFortune()),
+              email: null,
+              author: false,
+            },
+          ]
+        : []),
     ],
     error: input.error,
     violations: input.violations,
@@ -404,7 +429,9 @@ async function saveChat(
   };
   const planned =
     chatOp === 'say'
-      ? planSay(body as SaveChatBody & { room_id: string; name: string })
+      ? planSay(body as SaveChatBody & { room_id: string; name: string }, () =>
+          Math.floor((deps.random ?? Math.random)() * FORTUNE_MESSAGES.length)
+        )
       : planAdmin(chatOp, body as SaveChatBody & { room_id: string; name: string });
   if ('missing' in planned) {
     return { response: reject(planned.missing, 400, cors) };
@@ -468,7 +495,7 @@ async function saveChat(
     return { response: reject('invalid_room_id', 400, cors) };
   }
   const data = result.data?.[0];
-  if (error || !data) {
+  if (error || !data || (result.data?.length ?? 0) < rows.length) {
     db.failDb('db_insert_failed', error ?? {});
     db.end();
     tracer.log('ERROR', 'save_chat.db_insert_failed', db.context, {
@@ -492,6 +519,18 @@ async function saveChat(
   // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
   // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
   const { triage: triageRoom, ...saved } = data;
+  // 同じ要求で保存したサーバーの発言（巫女の返事）。クライアントは Realtime を待たずにログへ入れる
+  const extra = rows.slice(1).map((chat, i) => {
+    const { triage: _triage, ...savedExtra } = result.data![i + 1];
+    return {
+      ...savedExtra,
+      name: chat.name,
+      color: chat.color,
+      message: chat.message,
+      system: chat.system,
+      metadata: chat.metadata,
+    };
+  });
   const triage = shouldTriage({ ...row, triageRoom });
   server.setAttribute('chat.triage', triage);
   const target = {
@@ -502,7 +541,7 @@ async function saveChat(
     message: row.message,
   };
   return {
-    response: json(saved, 200, cors),
+    response: json(extra.length > 0 ? { ...saved, extra } : saved, 200, cors),
     background: triage
       ? () =>
           runTriage(tracer, server.context, deps.triageDeadlineMs ?? 45_000, (trace) =>

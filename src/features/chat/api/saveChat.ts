@@ -2,9 +2,10 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
-import type { AdminEvent } from '../adminMessages';
+import type { AdminEvent } from '../serverMessages';
 import type { InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
+import { normalizeChat } from '../utils/normalizeMetadata';
 import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
@@ -66,6 +67,16 @@ async function readRejection(error: unknown): Promise<InputErrorCode | null> {
 }
 
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
+interface SaveChatResponse {
+  uuid: string;
+  room_id: RoomId;
+  time: number;
+  ip_masked?: string;
+  ua?: string;
+  /** 同じ要求でサーバーが保存した発言（おみくじの巫女の返事）。表示に要る列を含む */
+  extra?: unknown[];
+}
+
 type SaveChatPayload =
   | {
       op?: 'say';
@@ -91,13 +102,7 @@ type SaveChatPayload =
 async function invokeSaveChat(
   payload: SaveChatPayload,
   operation: SaveOperation
-): Promise<{
-  uuid: string;
-  room_id: RoomId;
-  time: number;
-  ip_masked?: string;
-  ua?: string;
-}> {
+): Promise<SaveChatResponse> {
   const { data, error } = await supabase.functions.invoke('save-chat', {
     body: payload,
     headers: {
@@ -124,13 +129,7 @@ async function invokeSaveChat(
   ) {
     throw new Error('Failed to save chat: unexpected response from Edge Function');
   }
-  return result as {
-    uuid: string;
-    room_id: RoomId;
-    time: number;
-    ip_masked?: string;
-    ua?: string;
-  };
+  return result as SaveChatResponse;
 }
 
 export interface SaveChatOptions {
@@ -145,6 +144,11 @@ export interface SaveChatOptions {
    * 入退室した人の名前・色・訪問の情報と nonce だけを送る（文言と metadata はサーバーが作る）。
    */
   admin?: AdminEventInput;
+  /**
+   * 同じ要求でサーバーが保存した発言（おみくじの巫女の返事、Issue #181）を受け取る。保存の応答の extra に入っている。
+   * Realtime でも届くが uuid で重ならない。
+   */
+  onExtra?: (chats: Chat[]) => void;
 }
 
 export interface AdminEventInput {
@@ -163,7 +167,7 @@ async function saveChatWithRetry(
   roomId: RoomId,
   chat: Chat,
   operationId: string,
-  admin: AdminEventInput | undefined,
+  { admin, onExtra }: Pick<SaveChatOptions, 'admin' | 'onExtra'>,
   onSaved: () => void
 ): Promise<Chat> {
   const payload: SaveChatPayload = admin
@@ -190,6 +194,9 @@ async function saveChatWithRetry(
       const result = await invokeSaveChat(payload, { id: operationId, attempt });
 
       onSaved();
+      if (onExtra && Array.isArray(result.extra) && result.extra.length > 0) {
+        onExtra(result.extra.map((row) => ({ ...normalizeChat(row), optimistic: false })));
+      }
 
       return {
         ...chat,
@@ -213,10 +220,10 @@ async function saveChatWithRetry(
 export async function saveChatLogOptimistic(
   roomId: RoomId = DEFAULT_ROOM_ID,
   chat: Chat,
-  { operationId = generateOperationId(), admin }: SaveChatOptions = {}
+  { operationId = generateOperationId(), admin, onExtra }: SaveChatOptions = {}
 ): Promise<Chat> {
   const startTime = performance.now();
-  return saveChatWithRetry(roomId, chat, operationId, admin, () => {
+  return saveChatWithRetry(roomId, chat, operationId, { admin, onExtra }, () => {
     warnIfSlow('saveChatLogOptimistic', startTime);
   });
 }
