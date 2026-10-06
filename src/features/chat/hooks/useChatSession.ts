@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { broadcastLookEvent, broadcastUnlookEvent } from '@features/chat/api/realtime';
 import { clearMyChats } from '@features/chat/api/chatQueries';
 import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
@@ -14,6 +13,7 @@ import { useChatSender } from '@features/chat/hooks/useChatSender';
 import type { AvatarId, Chat, ChatMetadata } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
+import { rememberOwnChat } from '@features/chat/utils/ownMessages';
 
 /**
  * 送信先。部屋単位のビューはその部屋へ、全部屋まとめは返信先の部屋へ発言する。
@@ -180,6 +180,8 @@ export function useChatSession({
     });
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
+    // Realtime の echo（保存の応答より先に届くことがある）を自分の発言と見分けるため、送る前に覚える
+    rememberOwnChat(optimistic);
 
     const savedChat = await sendUserMessage(sendTo, optimistic);
     if (trackedCommand) {
@@ -189,15 +191,14 @@ export function useChatSession({
       measurement.onOwnMessageSaved(savedChat);
     }
 
-    // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信（部屋単位のビューだけ）
+    // look/unlook: 自分の音は保存の完了で鳴らす（部屋単位のビューだけ）。ほかの参加者には、保存された発言の
+    // INSERT が Realtime で届いて鳴る（useLookSound）。自分の echo では鳴らないよう、送る前に nonce を覚えている
     if (target.kind === 'room') {
       if (trimmed === 'look') {
         // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
         void playNotificationSound().catch(() => {});
-        broadcastLookEvent(sendTo, savedChat.uuid);
       } else if (trimmed === 'unlook') {
         stopNotificationSound();
-        broadcastUnlookEvent(sendTo);
       }
     }
   };

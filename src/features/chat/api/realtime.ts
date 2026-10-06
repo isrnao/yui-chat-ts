@@ -12,8 +12,9 @@ const TABLE = 'chats';
 // 同 room に対する複数 subscribe (StrictMode の二重 mount 含む) を
 // 同一 channel 上の listener Set に集約することで、
 // `chats-postgres-${roomId}` 等の channel 名衝突と leak を回避する。
-
-export type LookEvent = { type: 'look'; messageId: string } | { type: 'unlook' };
+//
+// look / unlook の通知音は、以前は broadcast の channel（chats-broadcast-<room>）で送っていた。今は保存された
+// 発言の INSERT から鳴らす（useLookSound、Issue #184）ので、部屋のページが張る channel は 1 つだけ。
 
 /**
  * Realtime 購読の接続状態。
@@ -25,7 +26,6 @@ export type RealtimeStatus = 'connecting' | 'connected' | 'disconnected';
 
 type PostgresListener = (chat: Chat) => void;
 type StatusListener = (status: RealtimeStatus) => void;
-type LookListener = (event: LookEvent) => void;
 
 // Postgres Changes (INSERT) の購読 registry
 type PostgresEntry = {
@@ -35,13 +35,6 @@ type PostgresEntry = {
   status: RealtimeStatus;
 };
 const postgresEntries = new Map<RoomId, PostgresEntry>();
-
-// Broadcast (look/unlook) の購読 registry
-type BroadcastEntry = {
-  channel: RealtimeChannel;
-  listeners: Set<LookListener>;
-};
-const broadcastEntries = new Map<RoomId, BroadcastEntry>();
 
 function createPostgresEntry(roomId: RoomId): PostgresEntry {
   const listeners = new Set<PostgresListener>();
@@ -71,27 +64,6 @@ function createPostgresEntry(roomId: RoomId): PostgresEntry {
       for (const listener of statusListeners) listener(next);
     });
 
-  return entry;
-}
-
-function createBroadcastEntry(roomId: RoomId): BroadcastEntry {
-  const listeners = new Set<LookListener>();
-  const channel = supabase
-    .channel(`chats-broadcast-${roomId}`)
-    .on('broadcast', { event: 'look' }, (payload) => {
-      const event = payload.payload as LookEvent;
-      for (const listener of listeners) listener(event);
-    })
-    .subscribe();
-  return { channel, listeners };
-}
-
-function getOrCreateBroadcastEntry(roomId: RoomId): BroadcastEntry {
-  let entry = broadcastEntries.get(roomId);
-  if (!entry) {
-    entry = createBroadcastEntry(roomId);
-    broadcastEntries.set(roomId, entry);
-  }
   return entry;
 }
 
@@ -136,49 +108,6 @@ export function subscribeChatLogs(
         postgresEntries.delete(roomId);
       }
     },
-  };
-}
-
-// --- Broadcast: look/unlook イベント ---
-
-// send-only 利用 (listener 0) で起こした channel は send 後に明示破棄する。
-// onLookBroadcast 経路で listener が既に存在する場合は通常の refCount cleanup に任せる。
-function sendBroadcastLookPayload(roomId: RoomId, payload: LookEvent): void {
-  const hadListeners = (broadcastEntries.get(roomId)?.listeners.size ?? 0) > 0;
-  const entry = getOrCreateBroadcastEntry(roomId);
-  // channel.send は Promise を返す。listener が居なかった場合は送信完了後に
-  // (= 他に listener が追加されていないことを確認したうえで) channel を破棄する。
-  void Promise.resolve(entry.channel.send({ type: 'broadcast', event: 'look', payload })).finally(
-    () => {
-      if (hadListeners) return;
-      const current = broadcastEntries.get(roomId);
-      if (!current) return;
-      if (current.listeners.size > 0) return; // 送信中に listener が登録されていたら維持
-      void supabase.removeChannel(current.channel);
-      broadcastEntries.delete(roomId);
-    }
-  );
-}
-
-export function broadcastLookEvent(roomId: RoomId, messageId: string): void {
-  sendBroadcastLookPayload(roomId, { type: 'look', messageId });
-}
-
-export function broadcastUnlookEvent(roomId: RoomId): void {
-  sendBroadcastLookPayload(roomId, { type: 'unlook' });
-}
-
-export function onLookBroadcast(roomId: RoomId, callback: LookListener): () => void {
-  const entry = getOrCreateBroadcastEntry(roomId);
-  entry.listeners.add(callback);
-  return () => {
-    const current = broadcastEntries.get(roomId);
-    if (!current) return;
-    current.listeners.delete(callback);
-    if (current.listeners.size === 0) {
-      void supabase.removeChannel(current.channel);
-      broadcastEntries.delete(roomId);
-    }
   };
 }
 

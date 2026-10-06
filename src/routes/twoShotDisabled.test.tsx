@@ -22,9 +22,6 @@ vi.mock('@features/chat/api/chatQueries', () => ({
 vi.mock('@features/chat/api/realtime', () => ({
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
   subscribeAllRoomsChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
-  broadcastLookEvent: vi.fn(),
-  broadcastUnlookEvent: vi.fn(),
-  onLookBroadcast: vi.fn(() => vi.fn()),
 }));
 vi.mock('@features/chat/utils/webAudioPlayer', () => ({
   playNotificationSound: vi.fn(),

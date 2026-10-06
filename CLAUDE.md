@@ -110,8 +110,10 @@ Realtime**, not BroadcastChannel:
 - Message delivery: `subscribeChatLogs` in `api/realtime.ts` subscribes to Postgres `postgres_changes`
   (INSERT on the `chats` table, filtered by `room_id`). New messages from any user/device are
   pushed to all clients. `Room_Log_Store` (`api/roomLogStore.ts`) wires this up; `useRoomLog` reads it.
-- look/unlook notifications: Supabase Realtime **broadcast** channel (`broadcastLookEvent` /
-  `onLookBroadcast`).
+- look/unlook notifications: driven by the saved message's Realtime INSERT. `useLookSound(store)`
+  listens to `Room_Log_Store.onInsert` and plays/stops on `look` / `unlook`, skipping the tab's own
+  echoes (`utils/ownMessages.ts`); the sender plays its own sound when the save completes. There is no
+  broadcast channel any more (a room page joins only `chats-postgres-<room>`).
 - Note: the Web BroadcastChannel API is **not** used anywhere in this app; the former
   `src/shared/hooks/useBroadcastChannel.ts` was removed as dead code.
 
@@ -171,8 +173,8 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
   Requires the Supabase secrets `JEV_API_TOKEN` and `GITHUB_TOKEN`; if either is missing, triage
   is skipped and saving still works.
 - **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`.
-- **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages; a broadcast channel
-  for look/unlook events. See the "Real-time delivery" section above.
+- **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages and for look/unlook
+  sounds. See the "Real-time delivery" section above.
 
 ## Two-shot chat (`/chat/2shot/`)
 

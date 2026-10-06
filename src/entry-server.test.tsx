@@ -30,7 +30,6 @@ vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
 vi.mock('@features/chat/api/realtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/chat/api/realtime')>()),
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
-  onLookBroadcast: vi.fn(() => vi.fn()),
 }));
 
 /** hydration の不一致は console.error で報告される */

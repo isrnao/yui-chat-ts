@@ -41,7 +41,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const store = getRoomLogStore(roomId);
   const { chatLog, isLoading, loadError, realtimeStatus, addOptimistic, reload, expand } =
     useRoomLog(store, measurement.onRealtimeChat);
-  useLookSound(roomId);
+  useLookSound(store);
 
   const { settings, updateSettings } = useChanariSettings(roomId);
   // 入室の失敗は ChanariEntryForm ではなくここで持つ（入室中はフォームがアンマウントされるため）

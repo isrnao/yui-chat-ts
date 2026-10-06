@@ -14,7 +14,6 @@ vi.mock('@features/chat/api/chatQueries', async (importOriginal) => ({
 vi.mock('@features/chat/api/realtime', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/chat/api/realtime')>()),
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),
-  onLookBroadcast: vi.fn(() => vi.fn()),
 }));
 vi.mock('@features/chat/api/saveChat', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/chat/api/saveChat')>()),
