@@ -30,6 +30,7 @@ interface SaveOperation {
 const INPUT_ERROR_MESSAGES: Record<InputErrorCode, string> = {
   invalid_room_id: 'この部屋には発言できません。',
   invalid_name: 'おなまえを確かめてください（24文字以内）。',
+  reserved_name: 'その名前は使えません。',
   invalid_message: '発言を確かめてください（120文字以内）。',
   invalid_email: 'E-Mail/URLを確かめてください（64文字以内）。',
 };

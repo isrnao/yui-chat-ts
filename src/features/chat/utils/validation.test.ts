@@ -34,4 +34,10 @@ describe('validateName', () => {
     expect(validateName(' Alice ')).toBeNull(); // スペースも文字数に含まれる
     expect(validateName('Alice Bob')).toBeNull();
   });
+
+  it('予約名（管理人・巫女）は使えない。全角・空白の揺れも同じ', () => {
+    expect(validateName('管理人')).toBe('その名前は使えません');
+    expect(validateName(' 巫 女 ')).toBe('その名前は使えません');
+    expect(validateName('管理人さん')).toBeNull();
+  });
 });
