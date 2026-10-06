@@ -4,6 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
+    <!-- ページ間の遷移（ドキュメント間の View Transitions、App.css の @view-transition）は、ブラウザが
+         遷移先の描画の前に省くことがある。そのときブラウザ自身の Promise が「Transition was skipped」の
+         AbortError で reject され、ページからは受け取れない（pagereveal の viewTransition が null）ため、
+         未処理の Promise のエラーとして報告される（部屋への遷移の数回に 1 回。New Relic にも JS エラーとして
+         載る）。アニメーションが無くなるだけで遷移は成立しているので、この理由のものだけ受け止める。
+         監視のエージェントより先に登録する必要があるので、head の先頭に置く -->
+    <script>
+      addEventListener('unhandledrejection', function (event) {
+        var reason = event.reason;
+        if (
+          reason &&
+          reason.name === 'AbortError' &&
+          /transition was skipped/i.test(String(reason.message))
+        ) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
+      });
+    </script>
+
     <!-- Performance optimizations -->
     <!-- Supabase への接続を先に張る。ホストは VITE_SUPABASE_URL から生成する
          (Vite の HTML env 置換)。直書きするとプロジェクト差し替え時に置き去りになり、
@@ -43,12 +63,12 @@
     <title>２０代チャット（なりきり） | お気楽チャットTS</title>
     <meta name="title" content="２０代チャット（なりきり） | お気楽チャットTS" />
     <meta name="description" content="20代のための雑談部屋です。仕事や恋愛、お金や将来のことまで、社会に出たばかりの世代ならではの悩みや楽しみを同年代と気軽に話せる場所です。登録不要ですぐ参加できます。" />
-    <link rel="canonical" href="https://www.okiraku.chat/chat/20generations" />
+    <link rel="canonical" href="https://www.okiraku.chat/chat/20generations/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="お気楽チャットTS" />
     <meta property="og:title" content="２０代チャット（なりきり） | お気楽チャットTS" />
     <meta property="og:description" content="20代のための雑談部屋です。仕事や恋愛、お金や将来のことまで、社会に出たばかりの世代ならではの悩みや楽しみを同年代と気軽に話せる場所です。登録不要ですぐ参加できます。" />
-    <meta property="og:url" content="https://www.okiraku.chat/chat/20generations" />
+    <meta property="og:url" content="https://www.okiraku.chat/chat/20generations/" />
     <meta property="og:image" content="https://www.okiraku.chat/ogp.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
@@ -157,13 +177,27 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-CQFPM-Wc.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/preload-helper-06-Ifowc.js">
-    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-85cJk-Nr.js">
-    <link rel="modulepreload" crossorigin href="/assets/vendor-react-PtOnU0bv.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-CPfJY0-4.css">
-  <link rel="modulePreload" crossorigin href="/assets/ChanariRoute-BHL5EhA3.js" /><link rel="stylesheet" crossorigin href="/assets/ChanariRoute-DuVaZswF.css" /><link rel="modulePreload" crossorigin href="/assets/useConversationMeasurement-CydVRL5f.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-supabase-B2uO1yEo.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-iceberg-js-BnbBMeTe.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-uuid-nWLgsjFV.js" /><link rel="modulePreload" crossorigin href="/assets/newRelic-BsK1Xbx2.js" /><link rel="modulePreload" crossorigin href="/assets/useLookSound-D7Mp4c6v.js" /></head>
+    <!-- 部屋へのリンクは、ポインタを乗せた・押し始めた時点で遷移先の HTML を先読みする
+         （Speculation Rules の prefetch、eagerness: moderate）。画面遷移は全ページ読み込みの
+         ままで、非対応のブラウザ（Safari / Firefox）では何も起きない
+         （.kiro/specs/react-2026-refactoring Requirement 16） -->
+    <script type="speculationrules">
+      {
+        "prefetch": [
+          {
+            "where": { "href_matches": ["/chat/*", "/chanari/*"] },
+            "eagerness": "moderate"
+          }
+        ]
+      }
+    </script>
+    <script type="module" crossorigin src="/assets/index-BCROdv8I.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/preload-helper-W-LeW0C5.js">
+    <link rel="modulepreload" crossorigin href="/assets/rolldown-runtime-9SAPJn0b.js">
+    <link rel="modulepreload" crossorigin href="/assets/vendor-react-CLdGdEQI.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-D60nyB6A.css">
+  <link rel="modulePreload" crossorigin href="/assets/ChanariRoute-CukjLaYt.js" /><link rel="stylesheet" crossorigin href="/assets/ChanariRoute-DuVaZswF.css" /><link rel="modulePreload" crossorigin href="/assets/entryError-BsBWLweO.js" /><link rel="modulePreload" crossorigin href="/assets/vendor-supabase-C1xw818a.js" /><link rel="modulePreload" crossorigin href="/assets/newRelic-jXCaBmlv.js" /><link rel="modulePreload" crossorigin href="/assets/useLookSound-S057HuFV.js" /><link rel="modulePreload" crossorigin href="/assets/roomSeo-D_Jv2pVp.js" /></head>
   <body>
-    <div id="root" data-ssg="1"><!--$--><main class="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main"><div class="splitter-panes flex flex-1 flex-col bg-transparent min-h-0 h-full" style="--splitter-top-base:30%;--splitter-top-desktop:30%"><div class="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]" style="height:var(--splitter-top-h);min-height:100px"><div class="chanari-scope"><div id="chat-topheader"><div id="chat-topheader-left"><a href="/">お気楽チャットトップへ</a><span>ヽ(。д。)ﾉ常連さん募集中～！</span></div></div><div id="header"><p id="desc">20代のための雑談部屋です。仕事や恋愛、お金や将来のことまで、社会に出たばかりの世代ならではの悩みや楽しみを同年代と気軽に話せる場所です。登録不要ですぐ参加できます。</p><h1 id="ctitle">２０代チャット</h1></div><form name="f4" id="main2"><input type="hidden" name="sid" value=""/><div class="chanari-form-row">おなまえ<input type="text" size="10" maxLength="20" value=""/> <!-- -->名前色<!-- --> <input type="text" size="7" value="#ff69b4"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="名前色カラーピッカー" value="#ff69b4"/></label> <!-- -->発言色<!-- --> <input type="text" size="7" value="#000000"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="発言色カラーピッカー" value="#000000"/></label></div><div><input type="submit" value="チャットに参加する"/></div></form></div></div><div role="separator" aria-label="上下の領域を分割するバー" aria-description="上下の境界です。矢印キーで調整できます" aria-orientation="horizontal" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" tabindex="0" class="bleed-x cursor-row-resize outline-none"><hr class="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full"/></div><div class="overflow-y-auto min-h-0" style="height:calc(100% - var(--splitter-top-h));min-height:100px"><!--$--><div class="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div><!--/$--></div></div></main><!--/$--></div>
+    <div id="root" data-ssg="1"><!--$--><main class="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main"><div class="splitter-panes flex flex-1 flex-col bg-transparent min-h-0 h-full" style="--splitter-top-base:30%;--splitter-top-desktop:30%"><div class="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]" style="height:var(--splitter-top-h);min-height:100px"><div class="chanari-scope"><div id="chat-topheader"><div id="chat-topheader-left"><a href="/">お気楽チャットトップへ</a><span>ヽ(。д。)ﾉ常連さん募集中～！</span></div></div><div id="header"><p id="desc">20代のための雑談部屋です。仕事や恋愛、お金や将来のことまで、社会に出たばかりの世代ならではの悩みや楽しみを同年代と気軽に話せる場所です。登録不要ですぐ参加できます。</p><h1 id="ctitle">２０代チャット</h1></div><form name="f4" id="main2"><input type="hidden" name="sid" value=""/><div class="chanari-form-row">おなまえ<input type="text" size="10" maxLength="20" value=""/> <!-- -->名前色<!-- --> <input type="text" size="7" value="#ff69b4"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="名前色カラーピッカー" value="#ff69b4"/></label> <!-- -->発言色<!-- --> <input type="text" size="7" value="#000000"/><label style="cursor:pointer;display:inline-block;vertical-align:middle"><span aria-hidden="true">🌈</span><input type="color" class="sr-only" aria-label="発言色カラーピッカー" value="#000000"/></label></div><div><input type="submit" value="チャットに参加する"/></div></form></div></div><div role="separator" aria-label="上下の領域を分割するバー" aria-description="上下の境界です。矢印キーで調整できます" aria-orientation="horizontal" aria-valuenow="30" aria-valuemin="0" aria-valuemax="100" tabindex="0" style="touch-action:none" class="bleed-x cursor-row-resize outline-none"><hr class="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full"/></div><div class="overflow-y-auto min-h-0" style="height:calc(100% - var(--splitter-top-h));min-height:100px"><!--$--><div class="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div><!--/$--></div></div></main><!--/$--></div>
   </body>
 </html>
