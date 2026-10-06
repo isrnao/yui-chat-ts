@@ -53,10 +53,12 @@ REVOKE ALL ON FUNCTION public.author_key_hash(text) FROM public, anon, authentic
 --   author = true の行だけ chat_authors に鍵のハッシュを書く（巫女の返事などサーバーが作る行は false）
 -- p_author_key: x-chat-author-key の値。NULL や形の合わない値なら chat_authors に書かない
 --
--- 返す値: 入れた行の uuid / room_id / time / ip_masked / ua と、部屋の triage（save-chat の振り分けに使う）。
+-- 返す値: 入れた行の uuid / room_id / time / ip_masked / ua / color / metadata と、部屋の triage（save-chat の振り分けに使う）。
 -- 部屋の確かめは chats の外部キーとトリガー chats_room_enabled が行う（23503 / YC001）。
 CREATE OR REPLACE FUNCTION public.insert_chat(p_chats jsonb, p_author_key text DEFAULT NULL)
-RETURNS TABLE (uuid uuid, room_id text, "time" bigint, ip_masked text, ua text, triage boolean)
+RETURNS TABLE (
+  uuid uuid, room_id text, "time" bigint, ip_masked text, ua text, color text, metadata jsonb, triage boolean
+)
 LANGUAGE plpgsql
 SET search_path = ''
 AS $$
@@ -94,6 +96,8 @@ BEGIN
     "time" := v_saved."time";
     ip_masked := v_saved.ip_masked;
     ua := v_saved.ua;
+    color := v_saved.color;
+    metadata := v_saved.metadata;
     triage := coalesce((SELECT r.triage FROM public.rooms AS r WHERE r.id = v_saved.room_id), false);
     RETURN NEXT;
   END LOOP;

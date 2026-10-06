@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
 import type { Chat } from '@features/chat/types';
-import { countWordMatches, filterByIp } from './ipFilter';
+import { countWordMatches, filterByIp, speakerName } from './ipFilter';
+import { buildAdminChat } from '../serverMessages';
 
 function chat(uuid: string, ip: string, extra: Partial<Chat> = {}): Chat {
   return { uuid, time: 0, name: 'n', color: '#000', message: 'm', ip_masked: ip, ua: '', ...extra };
@@ -89,5 +90,44 @@ describe('filterByIp', () => {
         }
       )
     );
+  });
+});
+
+describe('speakerName（入退室は metadata の構造で読む。Issue #183）', () => {
+  it('構造のある入退室の行は、名前に「さん、」を含んでも subject の名前にする', () => {
+    const admin = {
+      ...chat('1', 'a'),
+      ...buildAdminChat({ event: 'exit', name: 'Aさん、B', color: '#f00' }),
+    };
+    expect(speakerName(admin)).toBe('Aさん、B');
+  });
+
+  it('構造のある行は、文言が変わっても subject の名前にする', () => {
+    const admin = {
+      ...chat('1', 'a'),
+      ...buildAdminChat({ event: 'enter', name: 'ゆい', color: '#f00' }),
+      message: 'ようこそ',
+    };
+    expect(speakerName(admin)).toBe('ゆい');
+  });
+
+  it('構造の無い古い行は本文で読む', () => {
+    const legacy = chat('1', 'a', {
+      message: 'たろう さん、Welcome to お気楽チャット☆',
+      metadata: { version: 1, kind: 'admin' },
+    });
+    expect(speakerName(legacy)).toBe('たろう');
+  });
+
+  it('名前のフィルタで、構造のある入退室の行も隠す', () => {
+    const admin = {
+      ...chat('1', 'a'),
+      ...buildAdminChat({ event: 'enter', name: 'Aさん、B', color: '#f00' }),
+    };
+    const result = filterByIp([admin, chat('2', 'b', { name: 'A' })], {
+      set: new Set(),
+      names: new Set(['Aさん、B']),
+    });
+    expect(result.visible.map((c) => c.uuid)).toEqual(['2']);
   });
 });

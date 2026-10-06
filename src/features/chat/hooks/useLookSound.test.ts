@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
-import type { RoomLogStore } from '@features/chat/api/roomLogStore';
+import { act, renderHook } from '@testing-library/react';
+import { createRoomLogStore, type RoomLogStore } from '@features/chat/api/roomLogStore';
 import type { Chat } from '@features/chat/types';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { forgetOwnChatsForTest, rememberOwnChat } from '@features/chat/utils/ownMessages';
@@ -73,11 +73,42 @@ describe('useLookSound（保存された発言の INSERT から鳴らす、Issue
     expect(stopNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('取得（fetch）で入った発言は onInsert に来ないので鳴らない。アンマウントで登録を外す', () => {
+  it('アンマウントで登録を外す', () => {
     const { store, listeners } = fakeStore();
     const { unmount } = renderHook(() => useLookSound(store));
     expect(listeners.size).toBe(1);
     unmount();
     expect(listeners.size).toBe(0);
+  });
+
+  it('実際の Room_Log_Store で、取得（初回・reload）で入った過去の look / unlook では鳴らさない', async () => {
+    const pending: Array<(chats: Chat[]) => void> = [];
+    let realtimeInsert: ((chat: Chat) => void) | null = null;
+    const store = createRoomLogStore({
+      initialLimit: 10,
+      fetch: () => new Promise<Chat[]>((resolve) => pending.push(resolve)),
+      subscribe: (onInsert) => {
+        realtimeInsert = onInsert;
+        return { unsubscribe: () => {} };
+      },
+    });
+    const unsubscribeStore = store.subscribe(() => {});
+    renderHook(() => useLookSound(store));
+
+    await act(async () => {
+      pending.shift()!([chat('look'), chat('unlook')]);
+    });
+    store.reload();
+    await act(async () => {
+      pending.shift()!([chat('look'), chat('look'), chat('unlook')]);
+    });
+    expect(store.getSnapshot().chats.map((c) => c.message)).toEqual(['look', 'look', 'unlook']);
+    expect(playNotificationSound).not.toHaveBeenCalled();
+    expect(stopNotificationSound).not.toHaveBeenCalled();
+
+    // Realtime の INSERT なら鳴る
+    act(() => realtimeInsert!(chat('look')));
+    expect(playNotificationSound).toHaveBeenCalledTimes(1);
+    unsubscribeStore();
   });
 });
