@@ -2,6 +2,13 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { resolveRouteFollowingRedirects } from '../../routes/resolveRoute';
 import { matchTwoShotRoute } from './routing';
 
+// ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
+// このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
+vi.mock('@features/chat/rooms', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/rooms')>()),
+  TWO_SHOT_CHAT_ENABLED: true,
+}));
+
 describe('matchTwoShotRoute', () => {
   afterEach(() => {
     vi.unstubAllEnvs();

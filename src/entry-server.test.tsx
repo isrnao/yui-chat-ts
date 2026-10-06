@@ -6,6 +6,13 @@ import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
 import { render, renderToHtml } from './entry-server';
 
+// ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
+// このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
+vi.mock('@features/chat/rooms', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@features/chat/rooms')>()),
+  TWO_SHOT_CHAT_ENABLED: true,
+}));
+
 vi.mock('@features/top/api/roomCountsApi', () => ({
   fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
 }));

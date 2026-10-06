@@ -24,7 +24,12 @@ import {
   injectRoutePreload,
   injectSsgMarkup,
 } from '../src/shared/utils/prerenderHtml.ts';
-import { CHAT_ROOMS, getListableRoomIds, TWO_SHOT_ROOM_ID } from '../src/features/chat/rooms.ts';
+import {
+  CHAT_ROOMS,
+  getListableRoomIds,
+  TWO_SHOT_CHAT_ENABLED,
+  TWO_SHOT_ROOM_ID,
+} from '../src/features/chat/rooms.ts';
 import { buildRoomPath, buildChanariPath } from '../src/shared/utils/roomSeo.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -81,9 +86,10 @@ function resolveChunkPaths(entryKey: string): string[] {
   });
 }
 
-// ツーショットチャット ('2shot') は通常の部屋の画面ではないので、下で別に描く
+// ツーショットチャット ('2shot') は通常の部屋の画面ではないので、下で別に描く。
+// 止めている間（TWO_SHOT_CHAT_ENABLED が false）は通常の部屋として描く
 const enabledRoomIds = getListableRoomIds().filter(
-  (id) => CHAT_ROOMS[id].enabled && id !== TWO_SHOT_ROOM_ID
+  (id) => CHAT_ROOMS[id].enabled && (!TWO_SHOT_CHAT_ENABLED || id !== TWO_SHOT_ROOM_ID)
 );
 
 // enabled な全部屋 + 全部屋まとめビュー ('all')
@@ -138,7 +144,8 @@ for (const roomId of chanariTargets) {
 // ツーショットチャット (`/chat/2shot/`)。入口 (空室状況と入室の入力欄) を SSG し、
 // TwoShotRoute のチャンクだけを先読みさせる (ChatRoute のチャンクや部屋紹介は出さない)。
 // 入口の SSG はブラウザの API に触れないので、描画エラーが出れば render がビルドを止める。
-{
+// 止めている間は上の通常の部屋として描いたので、ここでは描かない。
+if (TWO_SHOT_CHAT_ENABLED) {
   const assets = resolveChunkPaths('src/routes/TwoShotRoute.tsx');
   if (assets.length === 0) {
     console.error('✖ manifest に src/routes/TwoShotRoute.tsx のチャンクがありません。');
@@ -163,5 +170,9 @@ writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
 console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);
-console.log(`✔ prerendered two-shot → ${distDir}/${buildOutputRelativePath(TWO_SHOT_ROOM_ID)}`);
+console.log(
+  TWO_SHOT_CHAT_ENABLED
+    ? `✔ prerendered two-shot → ${distDir}/${buildOutputRelativePath(TWO_SHOT_ROOM_ID)}`
+    : '✔ two-shot は停止中のため、/chat/2shot/ は通常の部屋として描画'
+);
 console.log('✔ SSG: dist/index.html + 各部屋ページ');
