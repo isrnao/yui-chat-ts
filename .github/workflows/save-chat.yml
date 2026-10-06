@@ -1,0 +1,55 @@
+# .github/workflows/save-chat.yml
+# 発言の保存（Edge Function save-chat）と chats テーブルの検証。どれか 1 つでも失敗したら落とす。
+# ci.yml は Deno と DB のテストを走らせず、Vitest も continue-on-error なので、サーバーの規則の保証には使わない
+# （docs/SERVER_SIDE_LOGIC_REFACTORING.md §9 の P1、Issue #175）。
+name: save-chat
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'supabase/functions/save-chat/**'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - 'scripts/smoke-save-chat-edge.sh'
+      - '.github/workflows/save-chat.yml'
+
+jobs:
+  deno:
+    name: Deno（Edge Function）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # 関数のフォルダの deno.json（import map）を読ませるため、そこで実行する
+      - name: Check
+        working-directory: supabase/functions/save-chat
+        run: deno check --no-lock index.ts
+      - name: Test
+        working-directory: supabase/functions/save-chat
+        run: deno test --no-lock --allow-env --allow-read .
+
+  database:
+    name: 実 DB（マイグレーションと chats の pgTAP）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start database
+        run: supabase db start
+      # two_shot.sql は two-shot.yml が走らせる
+      - name: Test
+        run: supabase test db supabase/tests/chats.sql
+
+  edge-smoke:
+    name: Edge Runtime での起動確認
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke
+        run: bash scripts/smoke-save-chat-edge.sh
