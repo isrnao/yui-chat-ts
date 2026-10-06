@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(37);
+SELECT plan(44);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -21,6 +21,9 @@ SELECT
     'pgtap_room' AS room,
     floor(extract(epoch FROM now()) * 1000)::bigint AS now_ms;
 GRANT SELECT ON t TO anon, authenticated, service_role;
+
+-- テスト用の部屋（chats.room_id は rooms の外部キー。Issue #178）
+INSERT INTO public.rooms (id, category, enabled) VALUES ('pgtap_room', 'beginner', true), ('pgtap_closed', 'beginner', false);
 
 -- service_role（save-chat と同じ権限）で行を入れる
 SET LOCAL ROLE service_role;
@@ -233,6 +236,37 @@ SELECT lives_ok(
 SELECT lives_ok(
     $$INSERT INTO public.chats (room_id, name, color, message, metadata) VALUES ('pgtap_room', 'a', '#fff', 'x', NULL)$$,
     'metadata は無くてもよい'
+);
+RESET ROLE;
+
+-- 8. 部屋（Issue #178）------------------------------------------------------------
+
+SELECT is((SELECT count(*)::int FROM public.rooms WHERE id NOT LIKE 'pgtap%'), 82, 'rooms は rooms.ts の 82 部屋');
+SELECT is(
+    (SELECT array_agg(id) FROM public.rooms WHERE triage), ARRAY['com_sb'], 'triage の対象は管理者チャットだけ'
+);
+SET LOCAL ROLE anon;
+SELECT is((SELECT enabled FROM public.rooms WHERE id = 'superbeginner'), true, 'anon は部屋の一覧を読める');
+SELECT throws_ok(
+    $$INSERT INTO public.rooms (id, category, enabled) VALUES ('x', 'beginner', true)$$,
+    '42501', NULL, 'anon は部屋を足せない'
+);
+RESET ROLE;
+
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('no_such_room', 'a', '#fff', 'x')$$,
+    '23503', NULL, '知らない部屋には保存できない（外部キー）'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_closed', 'a', '#fff', 'x')$$,
+    'YC001', NULL, '閉じた部屋には保存できない（トリガー）'
+);
+SELECT is(
+    (SELECT r.triage FROM public.chats AS c JOIN public.rooms AS r ON r.id = c.room_id
+        WHERE c.room_id = 'pgtap_room' LIMIT 1),
+    false,
+    '発言から部屋の triage を引ける（save-chat が埋め込む rooms(triage)）'
 );
 RESET ROLE;
 

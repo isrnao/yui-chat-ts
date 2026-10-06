@@ -25,6 +25,17 @@ const room = `rt_probe_${crypto.randomUUID().slice(0, 8)}`;
 const anon = createClient(url, anonKey);
 const admin = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
 
+// chats.room_id は rooms の外部キーなので、確認用の部屋を作ってから書く（最後に消す）
+{
+  const { error } = await admin
+    .from('rooms')
+    .insert({ id: room, category: 'beginner', enabled: true });
+  if (error) {
+    console.error(`✖ rooms insert: ${error.message}`);
+    Deno.exit(1);
+  }
+}
+
 let resolveRow: (row: Record<string, unknown>) => void;
 const received = new Promise<Record<string, unknown>>((resolve) => (resolveRow = resolve));
 let subscribed = false;
@@ -85,5 +96,6 @@ try {
   exitCode = 1;
 } finally {
   await admin.from('chats').delete().eq('room_id', room);
+  await admin.from('rooms').delete().eq('id', room);
 }
 Deno.exit(exitCode);
