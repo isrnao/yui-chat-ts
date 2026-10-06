@@ -169,6 +169,22 @@ describe('chatQueries', () => {
       expect(supabase.from).not.toHaveBeenCalled();
     });
 
+    it('ランキングも認証エラーのときは再試行せずに失敗する', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        order: vi.fn(() => query),
+        then: (resolve: (value: unknown) => unknown) =>
+          resolve({ data: null, error: { message: 'JWT expired', code: '401' } }),
+      };
+      (supabase.from as Mock).mockReset().mockReturnValue(query);
+
+      const { loadChatRanking } = await import('./chatQueries');
+      await expect(loadChatRanking(ROOM_ID)).rejects.toThrow('JWT expired');
+      expect(supabase.from).toHaveBeenCalledTimes(1);
+    });
+
     it('認証エラーのときは再試行せずに失敗する（偽のログを返さない）', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       (supabase.from as Mock)
