@@ -501,3 +501,18 @@ Deno.test('型と必須の誤りは記録だけの期間も code で拒否する
   assertEquals(t.inserts.length, 0);
   await t.settle();
 });
+
+Deno.test('metadata は許可リストで作り直して保存し、落としたものを記録する', async () => {
+  const t = setup();
+  const res = await t.handler(
+    post({
+      ...chat,
+      metadata: { version: 1, avatar: 'hoshi2', optimisticNonce: 'n-1', evil: 'x'.repeat(5000) },
+    })
+  );
+  assertEquals(res.status, 200);
+  assertEquals(t.inserts[0].metadata, { version: 1, avatar: 'hoshi2', optimisticNonce: 'n-1' });
+  await t.settle();
+  const log = t.logs.find((l) => l.body.stringValue === 'save_chat.metadata_dropped')!;
+  assertEquals(log.attributes['chat.metadata.dropped'], 'unknown:evil');
+});

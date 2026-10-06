@@ -1,28 +1,21 @@
 import type { RoomId } from './rooms';
+import {
+  AVATAR_IDS as SCHEMA_AVATAR_IDS,
+  FONT_COLOR_NAMES,
+  type AvatarId as SchemaAvatarId,
+  type FontColorName as SchemaFontColorName,
+  type FontSize as SchemaFontSize,
+  type MetadataKind,
+} from './inputRules';
 
 // --- フォントスタイル ---
+// 値の一覧は save-chat の許可リスト（schema.ts）が正。サーバーはこれ以外の値を保存しない
 
-export type FontSize = 1 | 2 | 3 | 4 | 5;
+export type FontSize = SchemaFontSize;
 
-export const FONT_COLOR_NAMES = [
-  'black',
-  'gray',
-  'silver',
-  'white',
-  'red',
-  'hotpink',
-  'orange',
-  'gold',
-  'yellow',
-  'lime',
-  'green',
-  'aqua',
-  'blue',
-  'navy',
-  'purple',
-] as const;
+export { FONT_COLOR_NAMES };
 
-export type FontColorName = (typeof FONT_COLOR_NAMES)[number];
+export type FontColorName = SchemaFontColorName;
 
 export const FONT_COLOR_CSS: Record<FontColorName, string> = {
   black: '#000000',
@@ -58,38 +51,9 @@ export type FontStyleMetadata = {
 
 // --- アバター（キャラアイコン）---
 
-export type AvatarId =
-  | 'none'
-  | 'hoshi1'
-  | 'hoshi2'
-  | 'hoshi3'
-  | 'hoshi4'
-  | 'hoshi5'
-  | 'hoshi6'
-  | 'hoshi7'
-  | 'hoshi8'
-  | 'miko1'
-  | 'tuki1'
-  | 'tuki2'
-  | 'tuki3'
-  | 'tuki4';
+export type AvatarId = SchemaAvatarId;
 
-export const AVATAR_IDS: readonly AvatarId[] = [
-  'none',
-  'hoshi1',
-  'hoshi2',
-  'hoshi3',
-  'hoshi4',
-  'hoshi5',
-  'hoshi6',
-  'hoshi7',
-  'hoshi8',
-  'miko1',
-  'tuki1',
-  'tuki2',
-  'tuki3',
-  'tuki4',
-] as const;
+export const AVATAR_IDS: readonly AvatarId[] = SCHEMA_AVATAR_IDS;
 
 // --- チャットメタデータ ---
 
@@ -97,7 +61,7 @@ export type ChatMetadata = {
   version: 1;
   fontStyle?: FontStyleMetadata;
   avatar?: Exclude<AvatarId, 'none'>;
-  kind?: 'normal' | 'fortune' | 'admin';
+  kind?: MetadataKind;
   /** 管理人メッセージ用: 対象ユーザーの色（レガシーの orangered 等を再現） */
   userColor?: string;
   /** 入室メッセージ用: そのユーザーの訪問回数（レガシーの "49回目" 表示） */

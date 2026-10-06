@@ -9,7 +9,7 @@
 // - triage は期限付きで動かし、成功・失敗・期限切れのどれでも finally で 2 回目の flush を行う。
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { checkSayInput, type InputErrorCode } from './schema.ts';
+import { checkSayInput, sanitizeMetadata, type InputErrorCode } from './schema.ts';
 import { shouldTriage, triageAdminChat, type TriageTrace } from './triage.ts';
 import {
   parseTraceparent,
@@ -219,6 +219,16 @@ async function saveChat(
       'chat.input.mode': mode,
     });
   }
+  // metadata は許可リストで作り直す（拒否はしない）。知らないキー・範囲外の値は落として記録する
+  const metadata = sanitizeMetadata(body.metadata, Date.now());
+  if (metadata.dropped.length > 0) {
+    server.setAttribute('chat.metadata.dropped', metadata.dropped.join(','));
+    tracer.log('WARN', 'save_chat.metadata_dropped', server.context, {
+      'chat.operation.id': op.id,
+      'chat.room_id': body.room_id,
+      'chat.metadata.dropped': metadata.dropped.join(',').slice(0, 500),
+    });
+  }
   if (mode === 'enforce' && input.error) {
     server.setAttribute('error.code', input.error);
     return { response: reject(input.error, 400, cors) };
@@ -244,7 +254,7 @@ async function saveChat(
     message: body.message,
     system: typeof body.system === 'boolean' ? body.system : false,
     email: typeof body.email === 'string' ? body.email : null,
-    metadata: body.metadata ?? null,
+    metadata: metadata.value,
     ip: resolveClientIp(req),
     ua: req.headers.get('user-agent') ?? '',
   };
