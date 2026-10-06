@@ -57,7 +57,10 @@ SELECT ok(
     NOT has_column_privilege('authenticated', 'public.chats', 'ip', 'SELECT'), 'authenticated は ip を読めない'
 );
 SELECT ok(has_column_privilege('anon', 'public.chats', 'ip_masked', 'SELECT'), 'anon は ip_masked を読める');
-SELECT ok(has_column_privilege('anon', 'public.chats', 'deleted', 'UPDATE'), 'anon は deleted だけ UPDATE できる');
+SELECT ok(
+    NOT has_column_privilege('anon', 'public.chats', 'deleted', 'UPDATE'),
+    'anon は deleted も UPDATE できない（clear は clear_my_chats。Issue #179）'
+);
 SELECT ok(NOT has_column_privilege('anon', 'public.chats', 'message', 'UPDATE'), 'anon は message を UPDATE できない');
 
 -- 3. anon の読み書き ------------------------------------------------------------
@@ -80,21 +83,26 @@ SELECT throws_ok(
     '42501', NULL, 'anon は deleted 以外の列を UPDATE できない'
 );
 
--- public-update: 未削除 → 削除 の遷移だけを許す
-SELECT lives_ok(
-    $$UPDATE public.chats SET deleted = true WHERE room_id = 'pgtap_room' AND message = 'again'$$,
-    'anon は deleted を true にできる'
-);
+-- clear は clear_my_chats だけ（Issue #179）。名前と部屋で他人の発言も消せた PATCH の経路は閉じている
 SELECT throws_ok(
-    $$UPDATE public.chats SET deleted = false WHERE room_id = 'pgtap_room' AND message = 'hello'$$,
-    '42501', NULL, 'anon は未削除の行を deleted = false のまま更新できない（WITH CHECK）'
+    $$UPDATE public.chats SET deleted = true WHERE room_id = 'pgtap_room' AND message = 'again'$$,
+    '42501', NULL, 'anon は deleted を true にできない'
 );
-UPDATE public.chats SET deleted = false WHERE room_id = 'pgtap_room' AND message = 'again';
 RESET ROLE;
 SELECT ok(
-    (SELECT deleted FROM public.chats WHERE room_id = 'pgtap_room' AND message = 'again'),
-    '削除済みの行は anon が元に戻せない（USING で対象外）'
+    NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'chats' AND policyname = 'public-update'),
+    'public-update ポリシーは無い'
 );
+SET LOCAL ROLE authenticated;
+SELECT throws_ok(
+    $$UPDATE public.chats SET deleted = true WHERE room_id = 'pgtap_room'$$,
+    '42501', NULL, 'authenticated も UPDATE できない'
+);
+RESET ROLE;
+-- 以降の集計のテストのために、1 件を消しておく（運営の削除と同じく service_role で）
+SET LOCAL ROLE service_role;
+UPDATE public.chats SET deleted = true WHERE room_id = 'pgtap_room' AND message = 'again';
+RESET ROLE;
 
 -- 4. 既定値 -------------------------------------------------------------------
 
