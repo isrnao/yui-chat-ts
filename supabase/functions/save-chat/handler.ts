@@ -21,9 +21,11 @@ import {
 import {
   checkName,
   checkSayInput,
+  nameErrorCode,
   normalizeColor,
   OPTIMISTIC_NONCE_MAX,
   sanitizeMetadata,
+  takeServerOnlyMetadata,
   VISIT_COUNT_MAX,
   type InputErrorCode,
 } from './schema.ts';
@@ -81,6 +83,8 @@ function reject(code: ErrorCode, status: number, cors: Record<string, string>): 
 /**
  * 入力の規則（schema.ts）の扱い。`enforce` で拒否し、それ以外（既定）は違反を記録するだけで
  * 今までどおり保存する（docs/SERVER_SIDE_LOGIC_REFACTORING.md S1 の「記録だけ」の期間）。
+ * enforce では、利用者の発言の system を false に、サーバーだけが使う metadata を取り除き、予約名を拒否する
+ * （Issue #182・#177 の 2 段階目）。
  */
 export type InputMode = 'log' | 'enforce';
 
@@ -198,7 +202,8 @@ type Plan =
  */
 function planSay(
   body: SaveChatBody & { room_id: string; name: string },
-  pickFortune: () => number
+  pickFortune: () => number,
+  mode: InputMode
 ): Plan {
   if (typeof body.message !== 'string' || body.message.trim().length === 0) {
     return { missing: 'invalid_message' };
@@ -217,6 +222,12 @@ function planSay(
   });
   // metadata は許可リストで作り直す（拒否はしない）。知らないキー・範囲外の値は落として記録する
   const metadata = sanitizeMetadata(body.metadata, Date.now());
+  // system と、サーバーが作る発言だけの metadata（kind: admin / fortune など）は利用者の発言では使わせない
+  // （Issue #182）。記録だけの期間は保存して記録し、enforce で system は false に、metadata は取り除く。
+  // 以前の Web は入退室・おみくじをこの経路で送っていたので、切り替えから 1 日以上たってから enforce にする
+  const enforce = mode === 'enforce';
+  const serverOnly = takeServerOnlyMetadata(metadata.value, enforce);
+  const clientSystem = body.system === true;
   return {
     rows: [
       {
@@ -226,7 +237,7 @@ function planSay(
         // （DB の CHECK 制約 chats_color_check は NOT VALID でも新しい行には効く）
         color: input.value.color,
         message: body.message,
-        system: typeof body.system === 'boolean' ? body.system : false,
+        system: clientSystem && !enforce,
         email: typeof body.email === 'string' ? body.email : null,
         metadata: metadata.value,
         author: true,
@@ -243,7 +254,11 @@ function planSay(
         : []),
     ],
     error: input.error,
-    violations: input.violations,
+    violations: [
+      ...input.violations,
+      ...(clientSystem ? ['system_from_client'] : []),
+      ...serverOnly,
+    ],
     dropped: metadata.dropped,
   };
 }
@@ -283,7 +298,7 @@ function planAdmin(
   });
   return {
     rows: [{ room_id: body.room_id, email: null, ...chat, author: false }],
-    error: violations.length > 0 ? 'invalid_name' : null,
+    error: violations.length > 0 ? nameErrorCode(violations[0]) : null,
     violations,
     dropped,
   };
@@ -445,8 +460,10 @@ async function saveChat(
   };
   const planned =
     chatOp === 'say'
-      ? planSay(body as SaveChatBody & { room_id: string; name: string }, () =>
-          Math.floor((deps.random ?? Math.random)() * FORTUNE_MESSAGES.length)
+      ? planSay(
+          body as SaveChatBody & { room_id: string; name: string },
+          () => Math.floor((deps.random ?? Math.random)() * FORTUNE_MESSAGES.length),
+          mode
         )
       : planAdmin(chatOp, body as SaveChatBody & { room_id: string; name: string });
   if ('missing' in planned) {
