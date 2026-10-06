@@ -9,4 +9,6 @@
 
 DROP POLICY IF EXISTS "public-update" ON public.chats;
 
+-- テーブルの権限を取り消すと、その表の列の権限（baseline の GRANT UPDATE ("deleted")）も一緒に取り消される
+-- （PostgreSQL の REVOKE の仕様）。supabase/tests/chats.sql が列の権限も残っていないことを確かめる
 REVOKE UPDATE ON TABLE public.chats FROM anon, authenticated;

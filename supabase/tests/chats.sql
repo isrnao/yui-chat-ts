@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(63);
+SELECT plan(64);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -62,6 +62,13 @@ SELECT ok(
     'anon は deleted も UPDATE できない（clear は clear_my_chats。Issue #179）'
 );
 SELECT ok(NOT has_column_privilege('anon', 'public.chats', 'message', 'UPDATE'), 'anon は message を UPDATE できない');
+SELECT is(
+    (SELECT count(*)::int FROM information_schema.column_privileges
+        WHERE table_schema = 'public' AND table_name = 'chats'
+          AND grantee IN ('anon', 'authenticated') AND privilege_type = 'UPDATE'),
+    0,
+    '列単位の UPDATE の権限も残っていない（テーブルの REVOKE で列の権限も取り消される）'
+);
 
 -- 3. anon の読み書き ------------------------------------------------------------
 
