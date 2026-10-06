@@ -5,7 +5,14 @@ import FilterConfirmDialog from './index';
 function setup() {
   const onConfirm = vi.fn();
   const onCancel = vi.fn();
-  render(<FilterConfirmDialog ip="219.*.*.253" onConfirm={onConfirm} onCancel={onCancel} />);
+  render(
+    <FilterConfirmDialog
+      title="219.*.*.253 の発言をフィルタ（非表示に）しますか？"
+      description="同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。"
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
   return { onConfirm, onCancel };
 }
 
@@ -49,9 +56,34 @@ describe('FilterConfirmDialog', () => {
     const { onCancel, onConfirm } = setup();
     fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
     fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
-    fireEvent.click(screen.getByRole('alertdialog').parentElement!);
+    const backdrop = screen.getByRole('alertdialog').parentElement!;
+    fireEvent.pointerDown(backdrop);
+    fireEvent.click(backdrop);
     fireEvent.click(screen.getByText(/同じ IP の発言/));
     expect(onCancel).toHaveBeenCalledTimes(3);
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('開いた操作の続きのクリック（タッチの互換用の click）が背景に届いても閉じない', () => {
+    // タッチのダブルタップで開くと、その指の下に窓の背景が来る。押し始めは発言の行なので、背景の上で
+    // pointerdown は起きていない
+    const { onCancel } = setup();
+    fireEvent.click(screen.getByRole('alertdialog').parentElement!);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('confirmDisabled のときは「フィルタする」も switch も押せない', () => {
+    const onConfirm = vi.fn();
+    render(
+      <FilterConfirmDialog
+        title="t"
+        description="d"
+        confirmDisabled
+        onConfirm={onConfirm}
+        onCancel={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'フィルタする' })).toBeDisabled();
+    expect(screen.getByTestId('filter-confirm-haptic-switch')).toBeDisabled();
   });
 });

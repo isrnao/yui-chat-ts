@@ -118,3 +118,36 @@ body {
 .chat-row-filterable {
   touch-action: manipulation;
 }
+
+/* 確認の窓で「フィルタする」を押したときの View Transition（Requirement 7.1）。タップの間の
+   アニメーションは出さない（Requirement 2.6）。runFilterTransition が <html> に data-filter-transition を
+   付けている間だけ効く。見えている行には一意の名前が付いており（nameRowsInView）、ブラウザの既定の動きで、
+   フィルタした行はフェードアウトし、残る行は下から上へ詰まる。ページ全体（root）は動かさず、「フィルタ(N)」が軽く脈打つ */
+.filter-link {
+  view-transition-name: filter-link;
+}
+
+:root[data-filter-transition]::view-transition-old(root),
+:root[data-filter-transition]::view-transition-new(root) {
+  animation: none;
+}
+
+:root[data-filter-transition]::view-transition-group(*) {
+  animation-duration: 250ms;
+  animation-timing-function: ease-out;
+}
+
+:root[data-filter-transition]::view-transition-new(filter-link) {
+  animation: filter-link-pulse 320ms ease-out;
+}
+
+:root[data-filter-transition]::view-transition-old(filter-link) {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes filter-link-pulse {
+  40% {
+    transform: scale(1.25);
+  }
+}
