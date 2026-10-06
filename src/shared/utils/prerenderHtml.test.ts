@@ -218,7 +218,6 @@ describe('renderTwoShotHtml', () => {
     const seo = buildTwoShotSeo(null);
     expect(html).toContain(`<meta name="description" content="${seo.description}" />`);
     expect(seo.description).toBe(buildRoomSeo('2shot').description);
-    expect(seo.description).toContain('2人にだけ見え');
     const jsonLd = JSON.parse(
       html.match(/<script type="application\/ld\+json" data-page-jsonld>(.*?)<\/script>/)![1]
     );

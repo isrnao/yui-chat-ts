@@ -1,4 +1,4 @@
-import { TWO_SHOT_ROOM_ID } from '@features/chat/rooms';
+import { TWO_SHOT_CHAT_ENABLED, TWO_SHOT_ROOM_ID } from '@features/chat/rooms';
 import { buildChatRoomPath } from '@features/chat/routing';
 
 export type TwoShotRouteMatch = { type: 'two-shot' } | { type: 'redirect'; to: string };
@@ -11,8 +11,15 @@ export type TwoShotRouteMatch = { type: 'two-shot' } | { type: 'redirect'; to: s
  * - それ以外 → null（既存の matchChanariRoute / matchRoute に任せる）
  *
  * BASE_URL はパスの区切りごとに比べて取り除く（`/app` の base で `/application/...` を誤って削らない）。
+ *
+ * ツーショットチャットを止めている間（TWO_SHOT_CHAT_ENABLED が false）は常に null を返し、`/chat/2shot/` と
+ * `/chanari/2shot/` を通常の部屋として開く。enabled はテストで切り替えるための引数
  */
-export function matchTwoShotRoute(pathname: string): TwoShotRouteMatch | null {
+export function matchTwoShotRoute(
+  pathname: string,
+  enabled: boolean = TWO_SHOT_CHAT_ENABLED
+): TwoShotRouteMatch | null {
+  if (!enabled) return null;
   const base = import.meta.env.BASE_URL.split('/').filter(Boolean);
   const segments = pathname.split('/').filter(Boolean);
   if (base.some((part, index) => segments[index] !== part)) return null;

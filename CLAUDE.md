@@ -176,6 +176,14 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
 
 ## Two-shot chat (`/chat/2shot/`)
 
+> **Currently disabled (hotfix).** `TWO_SHOT_CHAT_ENABLED` in `src/features/chat/rooms.ts` is `false` while the
+> chat/message feature is reviewed against the Telecommunications Business Act (電気通信事業法). While disabled,
+> `matchTwoShotRoute` returns `null`, so `/chat/2shot/` and `/chanari/2shot/` open as **normal public rooms**
+> (messages go to `chats`), the room description says so, the top page counts `2shot` from public logs, and
+> `prerender-rooms.ts` renders it as a normal room. Tests for the enabled behaviour mock the flag to `true`;
+> `src/routes/twoShotDisabled.test.tsx` covers the disabled state. The `two-shot` Edge Function and tables are
+> untouched. To re-enable, set the flag to `true` and delete `twoShotDisabled.test.tsx`.
+
 Spec: `.kiro/specs/two-shot-chat/`. A private 1-on-1 chat that reproduces the original CGI's UI
 (frames, tables, quirks-mode spacing) in React. The lobby (entry form + room list) matches the archived
 old okiraku-chat `2shot.php` pixel for pixel (12 rooms `チャットルーム01`–`12`, pink tables, top frame fixed at

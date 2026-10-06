@@ -1,4 +1,9 @@
-import { getListableRoomIds, TWO_SHOT_ROOM_ID, type RoomId } from '@features/chat/rooms';
+import {
+  getListableRoomIds,
+  TWO_SHOT_CHAT_ENABLED,
+  TWO_SHOT_ROOM_ID,
+  type RoomId,
+} from '@features/chat/rooms';
 import type { ChatMetadata } from '@features/chat/types';
 
 /** 直近の参加者カウントを返す辞書型 (未取得のルームはキーに存在しない) */
@@ -17,10 +22,13 @@ type ChatRow = {
 /**
  * 公開ログ（`chats`）の発言者で数える部屋。ツーショットチャットの会話は `chats` に入らないので、
  * `2shot` は席に着いている人数（two_shot_lobby()）で数え、公開ログに残る過去の発言では数えない
- * （.kiro/specs/two-shot-chat Requirement 16.1）。
+ * （.kiro/specs/two-shot-chat Requirement 16.1）。ツーショットチャットを止めている間は `2shot` も通常の部屋なので、
+ * ほかの部屋と同じく公開ログで数える
  */
 function getPublicCountRoomIds(): RoomId[] {
-  return getListableRoomIds().filter((id) => id !== TWO_SHOT_ROOM_ID);
+  return TWO_SHOT_CHAT_ENABLED
+    ? getListableRoomIds().filter((id) => id !== TWO_SHOT_ROOM_ID)
+    : [...getListableRoomIds()];
 }
 
 /** Supabase 環境変数が不足している等で実行できない状況かを判定する */
@@ -135,7 +143,8 @@ export async function fetchRoomParticipantCounts(
 
   const [publicCounts, twoShotSeated] = await Promise.all([
     fetchPublicCounts(baseUrl, since, headers),
-    fetchTwoShotSeated(baseUrl, headers),
+    // 止めている間は席の人数を問い合わせない（`2shot` は公開ログで数える）
+    TWO_SHOT_CHAT_ENABLED ? fetchTwoShotSeated(baseUrl, headers) : Promise.resolve(0),
   ]);
   return twoShotSeated > 0 ? { ...publicCounts, [TWO_SHOT_ROOM_ID]: twoShotSeated } : publicCounts;
 }
