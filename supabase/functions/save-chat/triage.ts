@@ -1,4 +1,4 @@
-// 管理者チャット（com_sb）の問い合わせ振り分け。
+// 管理者チャット（rooms.triage = true の部屋。今は com_sb）の問い合わせ振り分け。
 //
 // save-chat が発言を保存したあと、バックグラウンド（EdgeRuntime.waitUntil）で呼ばれる。
 // JEV（okiraku-api の choice-v1 プリセット）で発言を bug / question / cr / chat に分類し、
@@ -17,8 +17,6 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { formatTraceparent, SpanKind, type Span, type Tracer } from './telemetry.ts';
-
-export const TRIAGE_ROOM_ID = 'com_sb';
 
 const JEV_ENDPOINT = 'https://api.okiraku.chat/api/v1/evaluate';
 const GITHUB_REPO = 'isrnao/yui-chat-ts';
@@ -195,13 +193,17 @@ function dbSpan(trace: TriageTrace, name: string, operation: string): Span {
 }
 
 // 直近 1 時間に Bot が返した受付メッセージ数で上限判定する（別テーブルを持たないため）。
-async function isRateLimited(supabase: SupabaseClient, trace: TriageTrace): Promise<boolean> {
+async function isRateLimited(
+  supabase: SupabaseClient,
+  roomId: string,
+  trace: TriageTrace
+): Promise<boolean> {
   const span = dbSpan(trace, 'db select chats', 'select');
   try {
     const { count, error } = await supabase
       .from('chats')
       .select('uuid', { count: 'exact', head: true })
-      .eq('room_id', TRIAGE_ROOM_ID)
+      .eq('room_id', roomId)
       .eq('system', true)
       .like('message', `${CR_REPLY_MESSAGE}%`)
       .gte('time', Date.now() - 60 * 60 * 1000);
@@ -267,7 +269,7 @@ async function handleFeatureRequest(
     trace.span.setAttribute('triage.outcome', 'below_threshold');
     return;
   }
-  if (await isRateLimited(supabase, trace)) {
+  if (await isRateLimited(supabase, target.room_id, trace)) {
     trace.span.setAttribute('triage.outcome', 'rate_limited');
     console.warn('[triage] rate limited; skipped issue creation for', target.uuid);
     return;
@@ -277,10 +279,16 @@ async function handleFeatureRequest(
   trace.span.setAttribute('triage.outcome', 'issue_created');
 }
 
-export function shouldTriage(row: { room_id: string; system: boolean; message: string }): boolean {
-  return (
-    row.room_id === TRIAGE_ROOM_ID && !row.system && row.message.trim().length <= MAX_MESSAGE_LENGTH
-  );
+/**
+ * 振り分ける発言か。対象の部屋は rooms.triage で決める（save-chat が保存の応答に埋め込んで受け取る）。
+ * 今は管理者チャット（com_sb）だけが triage = true。
+ */
+export function shouldTriage(row: {
+  triageRoom: boolean;
+  system: boolean;
+  message: string;
+}): boolean {
+  return row.triageRoom && !row.system && row.message.trim().length <= MAX_MESSAGE_LENGTH;
 }
 
 /** 失敗しても発言の保存には影響させない（ログとスパンにだけ残す） */

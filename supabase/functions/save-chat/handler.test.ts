@@ -14,6 +14,8 @@ interface FakeDbOptions {
   insertError?: { code: string; message: string };
   insertThrows?: boolean;
   delayMs?: number;
+  /** 埋め込んだ rooms(triage) の値。省略時は com_sb だけ true */
+  triage?: boolean;
 }
 
 function fakeSupabase(options: FakeDbOptions = {}) {
@@ -28,7 +30,14 @@ function fakeSupabase(options: FakeDbOptions = {}) {
             if (options.insertThrows) throw new TypeError('connection reset');
             if (options.insertError) return { data: null, error: options.insertError };
             return {
-              data: { uuid: crypto.randomUUID(), room_id: row.room_id, time: 1 },
+              data: {
+                uuid: crypto.randomUUID(),
+                room_id: row.room_id,
+                time: 1,
+                ip_masked: '',
+                ua: '',
+                rooms: { triage: options.triage ?? row.room_id === 'com_sb' },
+              },
               error: null,
             };
           };
@@ -516,3 +525,37 @@ Deno.test('metadata は許可リストで作り直して保存し、落とした
   const log = t.logs.find((l) => l.body.stringValue === 'save_chat.metadata_dropped')!;
   assertEquals(log.attributes['chat.metadata.dropped'], 'unknown:evil');
 });
+
+Deno.test(
+  '部屋: 知らない部屋（外部キー）と閉じた部屋（トリガー）は 400 invalid_room_id',
+  async () => {
+    for (const code of ['23503', 'YC001']) {
+      const t = setup({ insertError: { code, message: 'rejected' } });
+      const res = await t.handler(post(chat));
+      assertEquals(res.status, 400);
+      assertEquals(await res.json(), { error: { code: 'invalid_room_id' } });
+      const spans = await t.settle();
+      assertEquals(byName(spans, 'POST save-chat').attributes['error.code'], 'invalid_room_id');
+      // 4xx はサーバーの失敗にしない
+      assertEquals(byName(spans, 'POST save-chat').status, undefined);
+    }
+  }
+);
+
+Deno.test(
+  '部屋: 保存の応答に埋め込んだ rooms は返さず、triage の対象は rooms.triage で決める',
+  async () => {
+    const off = setup({ triage: false });
+    const res = await off.handler(post({ ...chat, room_id: 'com_sb' }));
+    const body = await res.json();
+    assertEquals('rooms' in body, false);
+    assertEquals(typeof body.uuid, 'string');
+    const spans = await off.settle();
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], false);
+
+    const on = setup({ triage: true });
+    await on.handler(post({ ...chat, room_id: 'other', system: true }));
+    // system の発言は rooms.triage でも振り分けない
+    assertEquals(byName(await on.settle(), 'POST save-chat').attributes['chat.triage'], false);
+  }
+);

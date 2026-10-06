@@ -95,6 +95,19 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
+/** 保存の応答（rooms は埋め込んだ部屋の行。クライアントには返さない） */
+interface SavedRow {
+  uuid: string;
+  room_id: string;
+  time: number;
+  ip_masked: string;
+  ua: string;
+  rooms?: { triage: boolean } | null;
+}
+
+/** 23503: chats_room_id_fkey（知らない部屋）、YC001: chats_room_enabled（閉じた部屋） */
+const ROOM_REJECTED = new Set(['23503', 'YC001']);
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface Operation {
@@ -265,7 +278,10 @@ async function saveChat(
     'db.collection.name': 'chats',
     ...operationAttributes(op),
   });
-  let result: { data: { uuid: string } | null; error: { code?: string; message?: string } | null };
+  let result: {
+    data: SavedRow | null;
+    error: { code?: string; message?: string } | null;
+  };
   try {
     result = injectedFault(deps, op)
       ? { data: null, error: { code: 'FAULT', message: 'injected fault (SAVE_CHAT_FAULT_INJECT)' } }
@@ -274,7 +290,8 @@ async function saveChat(
           .insert(row)
           // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
           // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
-          .select('uuid,room_id,time,ip_masked,ua')
+          // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む（往復は増えない）
+          .select('uuid,room_id,time,ip_masked,ua,rooms(triage)')
           .single();
   } catch (err) {
     db.failException('db_insert_failed', err);
@@ -283,6 +300,12 @@ async function saveChat(
     throw err;
   }
   const { data, error } = result;
+  // 知らない部屋（外部キー）・閉じた部屋（トリガー chats_room_enabled）は入力の誤りとして返す
+  if (error && ROOM_REJECTED.has(error.code ?? '')) {
+    db.end();
+    server.setAttribute('error.code', 'invalid_room_id');
+    return { response: reject('invalid_room_id', 400, cors) };
+  }
   if (error || !data) {
     db.failDb('db_insert_failed', error ?? {});
     db.end();
@@ -306,7 +329,8 @@ async function saveChat(
 
   // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
   // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
-  const triage = shouldTriage(row);
+  const { rooms, ...saved } = data;
+  const triage = shouldTriage({ ...row, triageRoom: rooms?.triage === true });
   server.setAttribute('chat.triage', triage);
   const target = {
     uuid: data.uuid,
@@ -316,7 +340,7 @@ async function saveChat(
     message: row.message,
   };
   return {
-    response: json(data, 200, cors),
+    response: json(saved, 200, cors),
     background: triage
       ? () =>
           runTriage(tracer, server.context, deps.triageDeadlineMs ?? 45_000, (trace) =>

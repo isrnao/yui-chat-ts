@@ -25,20 +25,40 @@ const room = `rt_probe_${crypto.randomUUID().slice(0, 8)}`;
 const anon = createClient(url, anonKey);
 const admin = createClient(url, serviceRoleKey, { auth: { persistSession: false } });
 
-const received = new Promise<Record<string, unknown>>((resolve, reject) => {
-  anon
-    .channel(`check-${room}`)
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'chats', filter: `room_id=eq.${room}` },
-      (payload) => resolve(payload.new as Record<string, unknown>)
-    )
-    // 最初の join はトークンの用意より先に走って CHANNEL_ERROR になることがあり、realtime-js が
-    // 自動で join し直す。ここでは SUBSCRIBED だけを待ち、来なければ下の期限で落とす
-    .subscribe(async (status) => {
-      if (status !== 'SUBSCRIBED') return;
-      // 購読の登録が Realtime の中で行き渡るまで少し待つ
-      await new Promise((r) => setTimeout(r, 1000));
+// chats.room_id は rooms の外部キーなので、確認用の部屋を作ってから書く（最後に消す）
+{
+  const { error } = await admin
+    .from('rooms')
+    .insert({ id: room, category: 'beginner', enabled: true });
+  if (error) {
+    console.error(`✖ rooms insert: ${error.message}`);
+    Deno.exit(1);
+  }
+}
+
+let resolveRow: (row: Record<string, unknown>) => void;
+const received = new Promise<Record<string, unknown>>((resolve) => (resolveRow = resolve));
+let subscribed = false;
+
+anon
+  .channel(`check-${room}`)
+  .on(
+    'postgres_changes',
+    { event: 'INSERT', schema: 'public', table: 'chats', filter: `room_id=eq.${room}` },
+    (payload) => resolveRow(payload.new as Record<string, unknown>)
+  )
+  // 最初の join はトークンの用意より先に走って CHANNEL_ERROR になることがあり、realtime-js が
+  // 自動で join し直す。ここでは SUBSCRIBED だけを待ち、来なければ下の期限で落とす
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') subscribed = true;
+  });
+
+// 購読の登録が Realtime の中で行き渡るまでに書いた行は届かないことがあるので、届くまで数秒おきに書き直す
+async function insertUntilReceived(): Promise<void> {
+  let done = false;
+  void received.then(() => (done = true));
+  while (!done) {
+    if (subscribed) {
       const { error } = await admin.from('chats').insert({
         room_id: room,
         name: 'probe',
@@ -47,15 +67,18 @@ const received = new Promise<Record<string, unknown>>((resolve, reject) => {
         ip: '203.0.113.77',
         ua: 'probe-ua',
       });
-      if (error) reject(new Error(`insert: ${error.message}`));
-    });
-});
+      if (error) throw new Error(`insert: ${error.message}`);
+    }
+    await new Promise((r) => setTimeout(r, subscribed ? 3000 : 500));
+  }
+}
 
 let exitCode = 0;
 try {
   const row = await Promise.race([
     received,
-    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 20_000)),
+    insertUntilReceived().then(() => received),
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 30_000)),
   ]);
   const leaked = HIDDEN.filter((column) => column in row);
   console.log(`届いた列: ${Object.keys(row).sort().join(', ')}`);
@@ -73,5 +96,6 @@ try {
   exitCode = 1;
 } finally {
   await admin.from('chats').delete().eq('room_id', room);
+  await admin.from('rooms').delete().eq('id', room);
 }
 Deno.exit(exitCode);

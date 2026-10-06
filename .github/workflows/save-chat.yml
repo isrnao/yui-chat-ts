@@ -9,6 +9,8 @@ on:
     types: [opened, reopened, synchronize]
     paths:
       - 'supabase/functions/save-chat/**'
+      - 'src/features/chat/rooms.ts'
+      - 'src/features/chat/roomsTable.test.ts'
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
@@ -17,6 +19,21 @@ on:
       - '.github/workflows/save-chat.yml'
 
 jobs:
+  rooms:
+    name: rooms.ts と rooms 表の一致
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - name: Install pnpm
+        run: npm install -g pnpm
+      - name: Install dependencies
+        run: pnpm install
+      - name: Test
+        run: pnpm exec vitest run src/features/chat/roomsTable.test.ts --coverage.enabled=false
+
   deno:
     name: Deno（Edge Function）
     runs-on: ubuntu-latest
