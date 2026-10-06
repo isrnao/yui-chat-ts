@@ -5,9 +5,8 @@ import {
   type AdminEventInput,
   type SaveChatOptions,
 } from '@features/chat/api/saveChat';
-import { ADMIN_FALLBACK_USER_COLOR, buildAdminChat } from '@features/chat/adminMessages';
+import { ADMIN_FALLBACK_USER_COLOR, buildAdminChat } from '@features/chat/serverMessages';
 import { normalizeColor } from '@features/chat/inputRules';
-import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { generateOperationId } from '@shared/utils/uuid';
 import type { Chat } from '@features/chat/types';
@@ -61,7 +60,11 @@ export function useChatSender({
       startTransition(async () => {
         addOptimistic(chat);
         try {
-          const savedChat = await saveChatLogOptimistic(roomId, chat, options);
+          const savedChat = await saveChatLogOptimistic(roomId, chat, {
+            ...options,
+            // 同じ要求で保存されたサーバーの発言（おみくじの巫女の返事）。Realtime を待たずにログへ入れる
+            onExtra: (extra) => startTransition(() => extra.forEach((saved) => mergeChat(saved))),
+          });
           // await の後は Transition の文脈が切れるので、もう一度包む
           startTransition(() => mergeChat(savedChat));
           resolve(savedChat);
@@ -75,7 +78,7 @@ export function useChatSender({
   /**
    * 利用者自身の発言を送る。送信操作の ID をここで 1 つ発行し、Browser の send-chat
    * インタラクションと save-chat（x-chat-operation-id）で共有する（spec R5.5 / R5.8）。
-   * 入退室の管理人メッセージや巫女メッセージは利用者の操作ではないので send を使い、
+   * 入退室の管理人メッセージは利用者の操作ではないので send を使い、
    * send-chat として記録しない。記録は同期的に行い、送信のイベントの中でインタラクションに結びつける。
    */
   const sendUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
@@ -90,32 +93,5 @@ export function useChatSender({
   const sendAdminEvent = (roomId: RoomId, input: AdminEventInput): Promise<Chat> =>
     send(roomId, createAdminChat({ roomId, ...input }), { admin: input });
 
-  /**
-   * おみくじコマンドだった場合に巫女メッセージを続けて投稿する。
-   * 巫女メッセージの保存失敗はユーザー発言の成否に影響しないためサイレントに無視する。
-   */
-  const sendFortuneIfCommand = async (roomId: RoomId, message: string, senderName: string) => {
-    if (!isFortuneCommand(message)) return;
-    try {
-      const fortune = generateFortune(senderName);
-      await send(
-        roomId,
-        createOptimisticChat({
-          room_id: roomId,
-          name: fortune.senderName,
-          color: fortune.color,
-          message: fortune.message,
-          client_time: Date.now(),
-          system: true,
-          ip_masked: '',
-          ua: '',
-          metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
-        })
-      );
-    } catch {
-      // 巫女メッセージの保存失敗はサイレントに無視
-    }
-  };
-
-  return { send, sendUserMessage, sendAdminEvent, sendFortuneIfCommand };
+  return { send, sendUserMessage, sendAdminEvent };
 }

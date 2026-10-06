@@ -7,7 +7,7 @@ import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
-import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
+import { isFortuneCommand } from '@features/chat/serverMessages';
 import { isBlankMessage } from '@features/chat/utils/chatAllSend';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
 import { useChatSender } from '@features/chat/hooks/useChatSender';
@@ -63,7 +63,7 @@ export function useChatSession({
   measurement: ConversationMeasurement;
 }) {
   const [entered, setEntered] = useState(false);
-  const { sendUserMessage, sendAdminEvent, sendFortuneIfCommand } = useChatSender({
+  const { sendUserMessage, sendAdminEvent } = useChatSender({
     addOptimistic,
     mergeChat: store.applySaved,
   });
@@ -200,8 +200,6 @@ export function useChatSession({
         broadcastUnlookEvent(sendTo);
       }
     }
-
-    await sendFortuneIfCommand(sendTo, message, identity.name);
   };
 
   return { entered, enter, exit, send: sendMessage };

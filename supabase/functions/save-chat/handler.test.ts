@@ -75,7 +75,11 @@ function fakeSupabase(options: FakeDbOptions = {}) {
 }
 
 function setup(
-  options: FakeDbOptions & { env?: Record<string, string>; environment?: string } = {}
+  options: FakeDbOptions & {
+    env?: Record<string, string>;
+    environment?: string;
+    random?: () => number;
+  } = {}
 ) {
   const exported: FinishedSpan[][] = [];
   const logs: ExportedLog[] = [];
@@ -129,6 +133,7 @@ function setup(
     },
     environment: options.environment ?? 'local',
     triageDeadlineMs: 200,
+    random: options.random,
   };
   return {
     handler: createHandler(deps),
@@ -694,3 +699,91 @@ Deno.test('op: 入退室の名前も上限を確かめる（enforce で拒否）
   assertEquals(t.rpcCalls.length, 0);
   await t.settle();
 });
+
+Deno.test(
+  'おみくじ: 利用者の発言と巫女の返事を 1 回の insert_chat で、この順に保存する',
+  async () => {
+    // 0.99 → 最後の運勢
+    const t = setup({ random: () => 0.99 });
+    const res = await t.handler(
+      post(
+        { ...chat, message: ' おみくじ ', metadata: { version: 1, optimisticNonce: 'n' } },
+        {
+          'x-chat-author-key': AUTHOR_KEY,
+        }
+      )
+    );
+    assertEquals(res.status, 200);
+    assertEquals(t.rpcCalls.length, 1);
+    const rows = t.rpcCalls[0].args.p_chats as Row[];
+    assertEquals(
+      rows.map((r) => [r.name, r.system, r.author]),
+      [
+        ['たろう', false, true],
+        ['巫女', true, false],
+      ]
+    );
+    assertEquals(
+      rows[1].message,
+      '大吉で〜す。情報の聞き漏らしないか確認しませう。普段より順調に運び一段落します。＞たろうさん'
+    );
+    assertEquals(rows[1].color, 'hotpink');
+    assertEquals(rows[1].metadata, {
+      version: 1,
+      kind: 'fortune',
+      avatar: 'miko1',
+      fontStyle: { bold: true },
+    });
+
+    // 応答: 利用者の行に、巫女の行を extra として付ける（表示に要る列を含む）
+    const body = await res.json();
+    assertEquals(body.extra.length, 1);
+    assertEquals(body.extra[0].name, '巫女');
+    assertEquals(body.extra[0].message, rows[1].message);
+    assertEquals(body.extra[0].system, true);
+    assertEquals(typeof body.extra[0].uuid, 'string');
+    assertEquals('triage' in body.extra[0], false);
+    await t.settle();
+  }
+);
+
+Deno.test('おみくじ: 完全に一致しない発言では巫女を出さない', async () => {
+  const t = setup();
+  const res = await t.handler(post({ ...chat, message: 'おみくじひいた' }));
+  assertEquals('extra' in (await res.json()), false);
+  assertEquals((t.rpcCalls[0].args.p_chats as Row[]).length, 1);
+  await t.settle();
+});
+
+Deno.test('おみくじ: 保存に失敗すれば利用者の発言ごと失敗する（巫女だけ欠けない）', async () => {
+  const t = setup({ insertError: { code: '57014', message: 'timeout' } });
+  const res = await t.handler(post({ ...chat, message: 'おみくじ' }));
+  assertEquals(res.status, 500);
+  await t.settle();
+});
+
+Deno.test(
+  'おみくじ: 以前の Web が送る巫女の返事は、記録だけの期間も拒否する（返事が 2 件にならない）',
+  async () => {
+    const t = setup();
+    const legacy = {
+      room_id: 'main',
+      name: '巫女',
+      color: 'hotpink',
+      message: '大吉で〜す。＞たろうさん',
+      system: true,
+      metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+    };
+    const res = await t.handler(post(legacy));
+    assertEquals(res.status, 400);
+    assertEquals(await res.json(), { error: { code: 'reserved_name' } });
+    // kind だけ付けた形・system と名前だけの形も同じ
+    assertEquals(
+      (await t.handler(post({ ...chat, metadata: { version: 1, kind: 'fortune' } }))).status,
+      400
+    );
+    assertEquals((await t.handler(post({ ...chat, name: '巫女', system: true }))).status, 400);
+    assertEquals(t.rpcCalls.length, 0);
+    await t.settle();
+  }
+);

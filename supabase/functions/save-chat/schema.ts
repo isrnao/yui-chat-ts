@@ -23,6 +23,7 @@ export const DEFAULT_COLOR = '#ff69b4';
 export type InputErrorCode =
   | 'invalid_room_id'
   | 'invalid_name'
+  | 'reserved_name'
   | 'invalid_message'
   | 'invalid_email';
 

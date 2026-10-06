@@ -2,10 +2,10 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
-import type { AdminEvent } from '../adminMessages';
+import type { AdminEvent } from '../serverMessages';
 import type { InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
-import { normalizeChatMetadata } from '../utils/normalizeMetadata';
+import { normalizeChat, normalizeChatMetadata } from '../utils/normalizeMetadata';
 import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
@@ -30,6 +30,7 @@ interface SaveOperation {
 const INPUT_ERROR_MESSAGES: Record<InputErrorCode, string> = {
   invalid_room_id: 'この部屋には発言できません。',
   invalid_name: 'おなまえを確かめてください（24文字以内）。',
+  reserved_name: 'その名前は使えません。',
   invalid_message: '発言を確かめてください（120文字以内）。',
   invalid_email: 'E-Mail/URLを確かめてください（64文字以内）。',
 };
@@ -67,6 +68,20 @@ async function readRejection(error: unknown): Promise<InputErrorCode | null> {
 }
 
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
+interface SaveChatResponse {
+  uuid: string;
+  room_id: RoomId;
+  time: number;
+  ip_masked?: string;
+  ua?: string;
+  /** 保存した色（サーバーが読めない色を既定の色に置き換える） */
+  color?: string;
+  /** 保存した metadata（サーバーが許可リストで作り直したもの） */
+  metadata?: unknown;
+  /** 同じ要求でサーバーが保存した発言（おみくじの巫女の返事）。表示に要る列を含む */
+  extra?: unknown[];
+}
+
 type SaveChatPayload =
   | {
       op?: 'say';
@@ -92,17 +107,7 @@ type SaveChatPayload =
 async function invokeSaveChat(
   payload: SaveChatPayload,
   operation: SaveOperation
-): Promise<{
-  uuid: string;
-  room_id: RoomId;
-  time: number;
-  ip_masked?: string;
-  ua?: string;
-  /** 保存した色（サーバーが読めない色を既定の色に置き換える） */
-  color?: string;
-  /** 保存した metadata（サーバーが許可リストで作り直したもの） */
-  metadata?: unknown;
-}> {
+): Promise<SaveChatResponse> {
   const { data, error } = await supabase.functions.invoke('save-chat', {
     body: payload,
     headers: {
@@ -129,15 +134,7 @@ async function invokeSaveChat(
   ) {
     throw new Error('Failed to save chat: unexpected response from Edge Function');
   }
-  return result as {
-    uuid: string;
-    room_id: RoomId;
-    time: number;
-    ip_masked?: string;
-    ua?: string;
-    color?: string;
-    metadata?: unknown;
-  };
+  return result as SaveChatResponse;
 }
 
 export interface SaveChatOptions {
@@ -152,6 +149,11 @@ export interface SaveChatOptions {
    * 入退室した人の名前・色・訪問の情報と nonce だけを送る（文言と metadata はサーバーが作る）。
    */
   admin?: AdminEventInput;
+  /**
+   * 同じ要求でサーバーが保存した発言（おみくじの巫女の返事、Issue #181）を受け取る。保存の応答の extra に入っている。
+   * Realtime でも届くが uuid で重ならない。
+   */
+  onExtra?: (chats: Chat[]) => void;
 }
 
 export interface AdminEventInput {
@@ -170,7 +172,7 @@ async function saveChatWithRetry(
   roomId: RoomId,
   chat: Chat,
   operationId: string,
-  admin: AdminEventInput | undefined,
+  { admin, onExtra }: Pick<SaveChatOptions, 'admin' | 'onExtra'>,
   onSaved: () => void
 ): Promise<Chat> {
   const payload: SaveChatPayload = admin
@@ -192,32 +194,35 @@ async function saveChatWithRetry(
         email: chat.email,
         metadata: chat.metadata ?? null,
       };
-  return retryWithBackoff(
-    async (attempt) => {
-      const result = await invokeSaveChat(payload, { id: operationId, attempt });
-
-      onSaved();
-
-      return {
-        ...chat,
-        uuid: result.uuid,
-        room_id: result.room_id ?? roomId,
-        time: result.time,
-        // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
-        // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
-        // 送信者だけ IP / ブラウザ行が消える。
-        ip_masked: result.ip_masked ?? chat.ip_masked,
-        ua: result.ua ?? chat.ua,
-        // サーバーが置き換えた色で確定させる。送った値のままにすると、Realtime で先に届いた
-        // 正規化済みの行を後着の応答が上書きし、送信者だけ別の色になる
-        color: result.color ?? chat.color,
-        // metadata も同じく、サーバーが許可リストで作り直したものにする
-        metadata: 'metadata' in result ? normalizeChatMetadata(result.metadata) : chat.metadata,
-        optimistic: false,
-      };
-    },
+  // 再試行するのは保存の要求だけ。応答の扱い（onExtra など）で投げても、保存済みの要求を繰り返さない
+  // （insert_chat は操作 ID で重複を除かないので、繰り返すと同じ発言が何行も残る）
+  const result = await retryWithBackoff(
+    (attempt) => invokeSaveChat(payload, { id: operationId, attempt }),
     { shouldRetry: (error) => !(error instanceof SaveChatRejectedError) }
   );
+
+  onSaved();
+  if (onExtra && Array.isArray(result.extra) && result.extra.length > 0) {
+    onExtra(result.extra.map((row) => ({ ...normalizeChat(row), optimistic: false })));
+  }
+
+  return {
+    ...chat,
+    uuid: result.uuid,
+    room_id: result.room_id ?? roomId,
+    time: result.time,
+    // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+    // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+    // 送信者だけ IP / ブラウザ行が消える。
+    ip_masked: result.ip_masked ?? chat.ip_masked,
+    ua: result.ua ?? chat.ua,
+    // サーバーが置き換えた色で確定させる。送った値のままにすると、Realtime で先に届いた
+    // 正規化済みの行を後着の応答が上書きし、送信者だけ別の色になる
+    color: result.color ?? chat.color,
+    // metadata も同じく、サーバーが許可リストで作り直したものにする
+    metadata: 'metadata' in result ? normalizeChatMetadata(result.metadata) : chat.metadata,
+    optimistic: false,
+  };
 }
 
 // 楽観的更新用の高速バージョン
@@ -225,10 +230,10 @@ async function saveChatWithRetry(
 export async function saveChatLogOptimistic(
   roomId: RoomId = DEFAULT_ROOM_ID,
   chat: Chat,
-  { operationId = generateOperationId(), admin }: SaveChatOptions = {}
+  { operationId = generateOperationId(), admin, onExtra }: SaveChatOptions = {}
 ): Promise<Chat> {
   const startTime = performance.now();
-  return saveChatWithRetry(roomId, chat, operationId, admin, () => {
+  return saveChatWithRetry(roomId, chat, operationId, { admin, onExtra }, () => {
     warnIfSlow('saveChatLogOptimistic', startTime);
   });
 }
