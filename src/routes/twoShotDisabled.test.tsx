@@ -6,7 +6,7 @@ import { resolveRouteFollowingRedirects } from './resolveRoute';
 import { getRoomMeta, TWO_SHOT_CHAT_ENABLED } from '@features/chat/rooms';
 import { loadRecentChatLogs } from '@features/chat/api/chatQueries';
 import { fetchLobby } from '@features/two-shot-chat/api/twoShotApi';
-import { buildRoomCountsUrl } from '@features/top/api/roomCountsApi';
+import { toRoomCountMap } from '@features/top/api/roomCountsApi';
 
 /**
  * ツーショットチャットを一時的に止めている間（hotfix、rooms.ts の TWO_SHOT_CHAT_ENABLED が false）は、
@@ -64,8 +64,7 @@ describe('ツーショットチャットを止めている間（hotfix）', () =
   });
 
   it('トップの人数は、2shot もほかの部屋と同じく公開ログから数える', () => {
-    const url = new URL(buildRoomCountsUrl('https://example.supabase.co', 0));
-    expect(url.searchParams.get('room_id')).toMatch(/[(,]2shot[,)]/);
+    expect(toRoomCountMap([{ room_id: '2shot', participants: 2 }])).toEqual({ '2shot': 2 });
   });
 
   it('/chat/2shot/ を開くと通常のチャットの入室画面を出し、ツーショットチャットの API は呼ばない', async () => {
