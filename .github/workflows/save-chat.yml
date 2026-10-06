@@ -13,6 +13,7 @@ on:
       - 'supabase/tests/**'
       - 'supabase/config.toml'
       - 'scripts/smoke-save-chat-edge.sh'
+      - 'scripts/check-realtime-columns.ts'
       - '.github/workflows/save-chat.yml'
 
 jobs:
@@ -45,6 +46,26 @@ jobs:
       # two_shot.sql は two-shot.yml が走らせる
       - name: Test
         run: supabase test db supabase/tests/chats.sql
+
+  realtime:
+    name: Realtime（anon に読めない列が届かない）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # Realtime を含めて起動する（使わないサービスは省く）
+      - name: Start Supabase
+        run: supabase start -x studio,mailpit,vector,imgproxy,storage-api,logflare,supavisor,edge-runtime
+      # chats.ip が anon の postgres_changes に届かないこと（Issue #186）
+      - name: Check
+        run: |
+          eval "$(supabase status -o env | sed -n 's/^API_URL=/SUPABASE_URL=/p; s/^ANON_KEY=/SUPABASE_ANON_KEY=/p; s/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/p' | sed 's/^/export /')"
+          deno run --no-lock --allow-net --allow-env scripts/check-realtime-columns.ts
 
   edge-smoke:
     name: Edge Runtime での起動確認
