@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { broadcastLookEvent, broadcastUnlookEvent } from '@features/chat/api/realtime';
-import { clearChatLogsByName } from '@features/chat/api/chatQueries';
+import { clearMyChats } from '@features/chat/api/chatQueries';
 import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
@@ -8,7 +8,7 @@ import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
-import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend';
+import { isBlankMessage } from '@features/chat/utils/chatAllSend';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
 import { createAdminChat, useChatSender } from '@features/chat/hooks/useChatSender';
 import type { AvatarId, Chat, ChatMetadata } from '@features/chat/types';
@@ -162,23 +162,13 @@ export function useChatSession({
     }
 
     if (trimmed === 'clear') {
-      if (target.kind === 'all') {
-        // 表示中のログから削除対象を判定する（全部屋まとめは返信先の部屋の自分の発言だけ）
-        const hasTargets = store
-          .getSnapshot()
-          .chats.some((c) => isClearTarget(c, sendTo, identity.name));
-        if (!hasTargets) throw new UserFacingError('削除対象の発言がありません');
-      }
-      await clearChatLogsByName(sendTo, identity.name);
+      // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
+      // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
+      const cleared = await clearMyChats(sendTo, identity.name);
       trackEvent('command_used', { room_id: sendTo, command: 'clear' });
-      // 部屋単位のログはその部屋の発言だけなので名前で消す（room_id を持たない旧データも消すため）
-      store.update((chats) =>
-        chats.filter((c) =>
-          target.kind === 'room'
-            ? c.name !== identity.name
-            : !isClearTarget(c, sendTo, identity.name)
-        )
-      );
+      if (cleared.length === 0) throw new UserFacingError('削除対象の発言がありません');
+      const removed = new Set(cleared);
+      store.update((chats) => chats.filter((c) => !removed.has(c.uuid)));
       return;
     }
 

@@ -17,7 +17,7 @@ vi.mock('@features/chat/api/chatQueries', () => ({
   loadRecentChatLogs: vi.fn().mockResolvedValue([]),
   loadAllRoomsChatLogs: vi.fn().mockResolvedValue([]),
   loadChatRanking: vi.fn().mockResolvedValue([]),
-  clearChatLogsByName: vi.fn().mockResolvedValue(undefined),
+  clearMyChats: vi.fn().mockResolvedValue([]),
 }));
 vi.mock('@features/chat/api/realtime', () => ({
   subscribeChatLogs: vi.fn(() => ({ unsubscribe: vi.fn() })),

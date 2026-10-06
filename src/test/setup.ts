@@ -32,6 +32,7 @@ vi.mock('@shared/supabaseClient', () => ({
         neq: vi.fn().mockResolvedValue({}),
       }),
     }),
+    rpc: vi.fn().mockResolvedValue({ data: [], error: null }),
     channel: vi.fn().mockReturnValue({
       on: vi.fn().mockReturnThis(),
       subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }),

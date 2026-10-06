@@ -7,6 +7,10 @@ import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import { MESSAGE_MAX } from '@features/chat/inputRules';
 
+/** [消す] の説明。消せるのはこのブラウザで書いた発言だけ（書いた端末の鍵で照合する。Issue #179） */
+const CLEAR_BUTTON_TITLE =
+  'このブラウザで書いた自分の発言を消します。ブラウザのデータを消した後や、別のブラウザ・端末で書いた発言は消せません。';
+
 const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
 export type ChatRoomProps = {
@@ -185,7 +189,12 @@ export default function ChatRoom({
           <Button type="submit" disabled={isPending}>
             発言
           </Button>
-          <Button type="button" onClick={handleClear} disabled={isPending}>
+          <Button
+            type="button"
+            onClick={handleClear}
+            disabled={isPending}
+            title={CLEAR_BUTTON_TITLE}
+          >
             消す
           </Button>
           {userName && (

@@ -3,6 +3,7 @@ import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import type { InputErrorCode } from '../inputRules';
+import { getAuthorKey } from '../utils/authorKey';
 import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
@@ -87,6 +88,8 @@ async function invokeSaveChat(
     headers: {
       'x-chat-operation-id': operation.id,
       'x-chat-attempt': String(operation.attempt),
+      // 書いた端末の鍵。clear（clear_my_chats）で自分の発言だけを消すために、サーバーが発言と結び付ける
+      'x-chat-author-key': getAuthorKey(),
     },
   });
   if (error) {

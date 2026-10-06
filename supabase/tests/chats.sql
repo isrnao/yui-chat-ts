@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(44);
+SELECT plan(63);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -269,6 +269,116 @@ SELECT is(
     '発言から部屋の triage を引ける（save-chat が埋め込む rooms(triage)）'
 );
 RESET ROLE;
+
+-- 9. insert_chat と clear_my_chats（Issue #179）------------------------------------
+
+-- 鍵は base64url の 43 文字
+CREATE TEMP TABLE k AS SELECT repeat('A', 43) AS mine, repeat('B', 43) AS other;
+GRANT SELECT ON k TO anon, authenticated, service_role;
+
+SELECT ok(
+    NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'chat_authors'
+    ),
+    'chat_authors は Realtime の publication に入っていない'
+);
+SELECT ok(NOT has_table_privilege('anon', 'public.chat_authors', 'SELECT'), 'anon は chat_authors を読めない');
+SELECT ok(
+    NOT has_function_privilege('anon', 'public.insert_chat(jsonb, text)', 'EXECUTE'), 'anon は insert_chat を呼べない'
+);
+SELECT ok(
+    has_function_privilege('anon', 'public.clear_my_chats(text, text, text)', 'EXECUTE'), 'anon は clear_my_chats を呼べる'
+);
+
+SET LOCAL ROLE service_role;
+CREATE TEMP TABLE saved AS
+SELECT * FROM public.insert_chat(
+    jsonb_build_array(
+        jsonb_build_object('room_id', 'pgtap_room', 'name', 'carol', 'color', '#123', 'message', 'おみくじ',
+            'ip', '198.51.100.7', 'ua', 'ua-c', 'author', true, 'metadata', jsonb_build_object('version', 1)),
+        jsonb_build_object('room_id', 'pgtap_room', 'name', '巫女', 'color', 'hotpink', 'message', '大吉で〜す。',
+            'system', true, 'author', false)
+    ),
+    (SELECT mine FROM k)
+);
+RESET ROLE;
+
+SELECT is((SELECT count(*)::int FROM saved), 2, 'insert_chat は配列の行をすべて入れて返す');
+SELECT ok(
+    (SELECT (array_agg(uuid ORDER BY ord))[1] < (array_agg(uuid ORDER BY ord))[2]
+        FROM (SELECT uuid, row_number() OVER () AS ord FROM saved) AS s),
+    '配列の順に並ぶ（巫女の返事は発言の後）'
+);
+SELECT is(
+    (SELECT ip_masked FROM saved LIMIT 1), '198.*.*.7', 'insert_chat は ip_masked を返す'
+);
+SELECT is((SELECT bool_or(triage) FROM saved), false, 'insert_chat は部屋の triage を返す');
+SELECT is(
+    (SELECT count(*)::int FROM public.chat_authors WHERE chat_uuid IN (SELECT uuid FROM saved)),
+    1,
+    'author = true の行だけ鍵のハッシュを書く'
+);
+SELECT is(
+    (SELECT system FROM public.chats WHERE uuid = (SELECT uuid FROM saved OFFSET 1 LIMIT 1)),
+    true,
+    'system を保存する'
+);
+
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+    $$SELECT * FROM public.insert_chat('[{"room_id":"no_such_room","name":"a","color":"#fff","message":"x"}]')$$,
+    '23503', NULL, 'insert_chat も知らない部屋を止める'
+);
+SELECT throws_ok($$SELECT * FROM public.insert_chat('[]')$$, '22023', NULL, '空の配列は誤り');
+SELECT is(
+    (SELECT count(*)::int FROM public.insert_chat(
+        '[{"room_id":"pgtap_room","name":"carol","color":"#fff","message":"鍵なし","author":true}]', 'short')),
+    1,
+    '形の合わない鍵でも保存はする'
+);
+RESET ROLE;
+SELECT is(
+    (SELECT count(*)::int FROM public.chat_authors AS a JOIN public.chats AS c ON c.uuid = a.chat_uuid
+        WHERE c.message = '鍵なし'),
+    0,
+    '形の合わない鍵は chat_authors に書かない'
+);
+
+-- 同じ名前の他人（別の鍵）と、鍵の無い古い発言を用意する
+SET LOCAL ROLE service_role;
+SELECT * FROM public.insert_chat(
+    '[{"room_id":"pgtap_room","name":"carol","color":"#fff","message":"なりすまし","author":true}]',
+    (SELECT other FROM k)
+);
+INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'carol', '#fff', '移行前');
+RESET ROLE;
+
+SET LOCAL ROLE anon;
+SELECT is(
+    cardinality(public.clear_my_chats('pgtap_room', 'carol', (SELECT other FROM k))),
+    1,
+    '別の鍵では自分の 1 件だけ消える'
+);
+SELECT is(
+    cardinality(public.clear_my_chats('pgtap_room', 'carol', (SELECT mine FROM k))),
+    1,
+    '自分の鍵で、部屋と名前が一致する未削除の発言だけ消える（件数を返す）'
+);
+SELECT is(
+    cardinality(public.clear_my_chats('pgtap_room', 'carol', (SELECT mine FROM k))),
+    0,
+    '消した後にもう一度呼ぶと 0 件'
+);
+SELECT is(
+    cardinality(public.clear_my_chats('pgtap_room', 'carol', 'short')), 0, '形の合わない鍵では何も消えない'
+);
+RESET ROLE;
+SELECT is(
+    (SELECT array_agg(message ORDER BY uuid) FROM public.chats WHERE room_id = 'pgtap_room' AND name = 'carol' AND NOT deleted),
+    ARRAY['鍵なし', '移行前'],
+    '鍵の無い発言（移行前を含む）は消えない'
+);
 
 SELECT * FROM finish();
 ROLLBACK;

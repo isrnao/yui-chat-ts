@@ -83,41 +83,34 @@ describe('chatQueries', () => {
     });
   });
 
-  describe('clearChatLogsByName', () => {
-    it('issues a logical delete (update deleted=true) scoped to the room and name', async () => {
-      // Supabase クエリビルダのチェイン: .update().eq().eq() を辿って await されることを再現する。
-      const eqName = vi.fn(() => Promise.resolve({ error: null }));
-      const eqRoom = vi.fn(() => ({ eq: eqName }));
-      const update = vi.fn(() => ({ eq: eqRoom }));
-
+  describe('clearMyChats', () => {
+    it('clear_my_chats を部屋・名前・この端末の鍵で呼び、消した uuid を返す', async () => {
       const { supabase } = await import('@shared/supabaseClient');
-      const from = supabase.from as Mock;
-      from.mockReset();
-      from.mockReturnValue({ update });
+      const rpc = supabase.rpc as Mock;
+      rpc.mockReset();
+      rpc.mockResolvedValue({ data: ['u2', 'u1'], error: null });
 
       const chatApi = await import('./chatQueries');
-      await chatApi.clearChatLogsByName(ROOM_ID, 'ゆい');
+      const { getAuthorKey } = await import('../utils/authorKey');
+      await expect(chatApi.clearMyChats(ROOM_ID, 'ゆい')).resolves.toEqual(['u2', 'u1']);
 
-      // hard delete ではなく update({ deleted: true }) で呼ばれること
-      expect(update).toHaveBeenCalledTimes(1);
-      expect(update).toHaveBeenCalledWith({ deleted: true });
-      // 部屋と名前で絞る
-      expect(eqRoom).toHaveBeenCalledWith('room_id', ROOM_ID);
-      expect(eqName).toHaveBeenCalledWith('name', 'ゆい');
+      expect(rpc).toHaveBeenCalledWith('clear_my_chats', {
+        p_room_id: ROOM_ID,
+        p_name: 'ゆい',
+        p_author_key: getAuthorKey(),
+      });
+      // 名前で絞った UPDATE（他人の発言も消せた以前の経路）は使わない
+      expect(supabase.from).not.toHaveBeenCalledWith('chats');
     });
 
     it('throws when supabase reports an error', async () => {
-      const eqName = vi.fn(() => Promise.resolve({ error: { message: 'boom', code: '42' } }));
-      const eqRoom = vi.fn(() => ({ eq: eqName }));
-      const update = vi.fn(() => ({ eq: eqRoom }));
-
       const { supabase } = await import('@shared/supabaseClient');
-      const from = supabase.from as Mock;
-      from.mockReset();
-      from.mockReturnValue({ update });
+      const rpc = supabase.rpc as Mock;
+      rpc.mockReset();
+      rpc.mockResolvedValue({ data: null, error: { message: 'boom', code: '42' } });
 
       const chatApi = await import('./chatQueries');
-      await expect(chatApi.clearChatLogsByName(ROOM_ID, 'ゆい')).rejects.toThrow(/boom/);
+      await expect(chatApi.clearMyChats(ROOM_ID, 'ゆい')).rejects.toThrow(/boom/);
     });
   });
 

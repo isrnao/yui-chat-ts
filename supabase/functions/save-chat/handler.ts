@@ -95,14 +95,83 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
-/** 保存の応答（rooms は埋め込んだ部屋の行。クライアントには返さない） */
+/** 保存した行（triage は部屋の rooms.triage。クライアントには返さない） */
 interface SavedRow {
   uuid: string;
   room_id: string;
   time: number;
   ip_masked: string;
   ua: string;
-  rooms?: { triage: boolean } | null;
+  triage: boolean;
+}
+
+interface ChatRow {
+  room_id: string;
+  name: string;
+  color: string;
+  message: string;
+  system: boolean;
+  email: string | null;
+  metadata: unknown;
+  ip: string;
+  ua: string;
+  /** 書いた端末の鍵を chat_authors に残すか（利用者の発言だけ true） */
+  author: boolean;
+}
+
+interface WriteResult {
+  data: SavedRow[] | null;
+  error: { code?: string; message?: string } | null;
+}
+
+/**
+ * DB への書き込みの経路。既定は RPC insert_chat（chats と chat_authors を 1 回で書く。Issue #179）。
+ * SAVE_CHAT_WRITE=insert で以前の PostgREST の INSERT に戻せる（insert_chat に不具合があったときの逃げ道。
+ * この経路では chat_authors を書かないので、その間の発言は clear で消せない）。
+ */
+export type WritePath = 'rpc' | 'insert';
+
+export function readWritePath(env: (key: string) => string | undefined): WritePath {
+  return env('SAVE_CHAT_WRITE') === 'insert' ? 'insert' : 'rpc';
+}
+
+/**
+ * x-chat-author-key（端末ごとの 32 バイトの乱数を base64url にした 43 文字）。形が違えば null で、
+ * その発言は後から clear で消せない。形の最終的な確かめと SHA-256 は DB（author_key_hash）が行う。
+ */
+export function readAuthorKey(headers: Headers): string | null {
+  const key = headers.get('x-chat-author-key')?.trim() ?? '';
+  return /^[A-Za-z0-9_-]{43}$/.test(key) ? key : null;
+}
+
+/** 行を順に保存する。1 回の要求で複数行（おみくじの巫女の返事など）を書くときも往復は 1 回 */
+async function writeChats(
+  supabase: SupabaseClient,
+  path: WritePath,
+  rows: ChatRow[],
+  authorKey: string | null
+): Promise<WriteResult> {
+  if (path === 'rpc') {
+    const { data, error } = await supabase.rpc('insert_chat', {
+      p_chats: rows,
+      p_author_key: authorKey,
+    });
+    return { data: (data as SavedRow[] | null) ?? null, error };
+  }
+  const { data, error } = await supabase
+    .from('chats')
+    .insert(rows.map(({ author: _author, ...row }) => row))
+    // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
+    // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
+    // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む
+    .select('uuid,room_id,time,ip_masked,ua,rooms(triage)');
+  if (error || !data) return { data: null, error };
+  return {
+    data: (data as unknown as (Omit<SavedRow, 'triage'> & { rooms: { triage: boolean } | null })[]).map(
+      ({ rooms, ...saved }) => ({ ...saved, triage: rooms?.triage === true })
+    ),
+    error: null,
+  };
 }
 
 /** 23503: chats_room_id_fkey（知らない部屋）、YC001: chats_room_enabled（閉じた部屋） */
@@ -255,10 +324,14 @@ async function saveChat(
   }
 
   const supabase = deps.createSupabase(supabaseUrl, serviceRoleKey);
+  const writePath = readWritePath(deps.env);
+  server.setAttribute('chat.write_path', writePath);
+  const authorKey = readAuthorKey(req.headers);
+  server.setAttribute('chat.author_key', authorKey !== null);
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
   // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
-  const row = {
+  const row: Omit<ChatRow, 'author'> = {
     room_id: body.room_id,
     name: body.name,
     // 色は拒否せず置き換えるだけなので、記録だけの期間も規則に合わせる
@@ -276,36 +349,28 @@ async function saveChat(
     'db.system.name': 'postgresql',
     'db.operation.name': 'insert',
     'db.collection.name': 'chats',
+    'db.stored_procedure.name': writePath === 'rpc' ? 'insert_chat' : undefined,
     ...operationAttributes(op),
   });
-  let result: {
-    data: SavedRow | null;
-    error: { code?: string; message?: string } | null;
-  };
+  let result: WriteResult;
   try {
     result = injectedFault(deps, op)
       ? { data: null, error: { code: 'FAULT', message: 'injected fault (SAVE_CHAT_FAULT_INJECT)' } }
-      : await supabase
-          .from('chats')
-          .insert(row)
-          // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
-          // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
-          // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む（往復は増えない）
-          .select('uuid,room_id,time,ip_masked,ua,rooms(triage)')
-          .single();
+      : await writeChats(supabase, writePath, [{ ...row, author: true }], authorKey);
   } catch (err) {
     db.failException('db_insert_failed', err);
     db.end();
     server.fail('db_insert_failed');
     throw err;
   }
-  const { data, error } = result;
+  const { error } = result;
   // 知らない部屋（外部キー）・閉じた部屋（トリガー chats_room_enabled）は入力の誤りとして返す
   if (error && ROOM_REJECTED.has(error.code ?? '')) {
     db.end();
     server.setAttribute('error.code', 'invalid_room_id');
     return { response: reject('invalid_room_id', 400, cors) };
   }
+  const data = result.data?.[0];
   if (error || !data) {
     db.failDb('db_insert_failed', error ?? {});
     db.end();
@@ -329,8 +394,8 @@ async function saveChat(
 
   // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
   // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
-  const { rooms, ...saved } = data;
-  const triage = shouldTriage({ ...row, triageRoom: rooms?.triage === true });
+  const { triage: triageRoom, ...saved } = data;
+  const triage = shouldTriage({ ...row, triageRoom });
   server.setAttribute('chat.triage', triage);
   const target = {
     uuid: data.uuid,

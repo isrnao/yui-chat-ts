@@ -1,5 +1,6 @@
 import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
+import { getAuthorKey } from '../utils/authorKey';
 import { mockChatData, isOnline } from '@features/chat/utils/fallback';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
@@ -79,19 +80,22 @@ export async function loadAllRoomsChatLogs(limit = 200): Promise<Chat[]> {
   return (data ?? []).map(normalizeChat);
 }
 
-// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
-export async function clearChatLogsByName(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  name: string
-): Promise<void> {
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ deleted: true })
-    .eq('room_id', roomId)
-    .eq('name', name);
+/**
+ * この端末で書いた自分の発言を消す（clear コマンドと [消す]、Issue #179）。
+ *
+ * SQL 関数 clear_my_chats が、書いた端末の鍵（authorKey.ts）・部屋・名前が一致し、まだ消していない行だけを消す。
+ * 同じ名前の他人の発言や、鍵の無い移行前の発言は消えない。消した行の uuid を返す（空なら消す発言が無かった）。
+ */
+export async function clearMyChats(roomId: RoomId, name: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('clear_my_chats', {
+    p_room_id: roomId,
+    p_name: name,
+    p_author_key: getAuthorKey(),
+  });
   if (error) {
     throw new Error(`Failed to clear chat logs: ${error.message}`);
   }
+  return Array.isArray(data) ? data.filter((uuid): uuid is string => typeof uuid === 'string') : [];
 }
 
 type ChatRankingRow = {
