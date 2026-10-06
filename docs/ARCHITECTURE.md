@@ -381,13 +381,13 @@ store はサーバーで確定した行だけを新しい順（uuid v7 の降順
 
 ### 7.1 features/chat/api の構成
 
-| モジュール        | 主なエクスポート                                                                             | 役割                                                                                         |
-| ----------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                          | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                 |
-| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearChatLogsByName`    | chats の読み取りと論理削除。キャッシュは持たない。オフライン・401 時は mockChatData を返す   |
-| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                             | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成 |
-| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs` / `broadcastLookEvent` / `onLookBroadcast` | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                    |
-| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                            | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                       |
+| モジュール        | 主なエクスポート                                                                             | 役割                                                                                                                                                        |
+| ----------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                          | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                                                                                |
+| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearMyChats`           | chats の読み取りと、RPC `clear_my_chats` による自分の発言の論理削除（書いた端末の鍵で照合）。キャッシュは持たない。オフライン・401 時は mockChatData を返す |
+| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                             | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成                                                                |
+| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs` / `broadcastLookEvent` / `onLookBroadcast` | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                                                                                   |
+| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                            | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                                                                                      |
 
 以前は `chatLogResource.ts`（5 分の TTL キャッシュ、進行中のリクエストの共有、paging、世代管理）と
 `chatApi.ts`（保存・削除・ランキング・Realtime・互換ラッパー）に分かれていましたが、画面遷移が全ページ読み込み

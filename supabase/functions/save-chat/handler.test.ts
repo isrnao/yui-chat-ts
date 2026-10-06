@@ -20,31 +20,39 @@ interface FakeDbOptions {
 
 function fakeSupabase(options: FakeDbOptions = {}) {
   const inserts: Row[] = [];
+  const rpcCalls: { name: string; args: Row }[] = [];
+  const saved = (row: Row) => ({
+    uuid: crypto.randomUUID(),
+    room_id: row.room_id,
+    time: 1,
+    ip_masked: '',
+    ua: '',
+  });
+  const triageOf = (row: Row) => options.triage ?? row.room_id === 'com_sb';
+  const run = async <T>(make: () => T) => {
+    if (options.delayMs) await new Promise((r) => setTimeout(r, options.delayMs));
+    if (options.insertThrows) throw new TypeError('connection reset');
+    if (options.insertError) return { data: null, error: options.insertError };
+    return { data: make(), error: null };
+  };
   const client = {
+    // save-chat の既定の経路（insert_chat）
+    rpc(name: string, args: Row) {
+      rpcCalls.push({ name, args });
+      const rows = args.p_chats as Row[];
+      inserts.push(...rows);
+      return run(() => rows.map((row) => ({ ...saved(row), triage: triageOf(row) })));
+    },
     from(_table: string) {
       return {
-        insert(row: Row) {
-          inserts.push(row);
-          const result = async () => {
-            if (options.delayMs) await new Promise((r) => setTimeout(r, options.delayMs));
-            if (options.insertThrows) throw new TypeError('connection reset');
-            if (options.insertError) return { data: null, error: options.insertError };
-            return {
-              data: {
-                uuid: crypto.randomUUID(),
-                room_id: row.room_id,
-                time: 1,
-                ip_masked: '',
-                ua: '',
-                rooms: { triage: options.triage ?? row.room_id === 'com_sb' },
-              },
-              error: null,
-            };
-          };
+        // SAVE_CHAT_WRITE=insert の経路（配列）と、triage の管理人の返信（1 行を直接 await）
+        insert(input: Row | Row[]) {
+          const rows = Array.isArray(input) ? input : [input];
+          inserts.push(...rows);
+          const result = () =>
+            run(() => rows.map((row) => ({ ...saved(row), rooms: { triage: triageOf(row) } })));
           const query = {
-            select: () => query,
-            single: result,
-            // replyAsAdmin は insert(...) を直接 await する
+            select: () => result(),
             then: (ok: (v: unknown) => unknown, ng: (e: unknown) => unknown) =>
               result()
                 .then(({ error }) => ({ error }), undefined)
@@ -63,7 +71,7 @@ function fakeSupabase(options: FakeDbOptions = {}) {
       };
     },
   };
-  return { client: client as unknown as SupabaseClient, inserts };
+  return { client: client as unknown as SupabaseClient, inserts, rpcCalls };
 }
 
 function setup(
@@ -128,6 +136,7 @@ function setup(
     logs,
     pending,
     inserts: db.inserts,
+    rpcCalls: db.rpcCalls,
     /** waitUntil に登録された処理が終わるまで待ち、送られたスパンを平らにして返す */
     async settle() {
       await Promise.all(pending);
@@ -559,3 +568,45 @@ Deno.test(
     assertEquals(byName(await on.settle(), 'POST save-chat').attributes['chat.triage'], false);
   }
 );
+
+const AUTHOR_KEY = 'A'.repeat(43);
+
+Deno.test('書き込み: insert_chat に利用者の発言を author 付きで渡し、鍵も渡す', async () => {
+  const t = setup();
+  const res = await t.handler(post(chat, { 'x-chat-author-key': AUTHOR_KEY }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals('triage' in body, false);
+  assertEquals(t.rpcCalls.length, 1);
+  assertEquals(t.rpcCalls[0].name, 'insert_chat');
+  assertEquals(t.rpcCalls[0].args.p_author_key, AUTHOR_KEY);
+  const [row] = t.rpcCalls[0].args.p_chats as Row[];
+  assertEquals(row.author, true);
+  assertEquals(row.ip, '203.0.113.9');
+  const spans = await t.settle();
+  const server = byName(spans, 'POST save-chat');
+  assertEquals(server.attributes['chat.write_path'], 'rpc');
+  assertEquals(server.attributes['chat.author_key'], true);
+  assertEquals(byName(spans, 'db insert chats').attributes['db.stored_procedure.name'], 'insert_chat');
+});
+
+Deno.test('書き込み: 形の違う鍵は渡さない（保存はする）', async () => {
+  const t = setup();
+  const res = await t.handler(post(chat, { 'x-chat-author-key': 'short' }));
+  assertEquals(res.status, 200);
+  assertEquals(t.rpcCalls[0].args.p_author_key, null);
+  await t.settle();
+});
+
+Deno.test('書き込み: SAVE_CHAT_WRITE=insert なら以前の INSERT の経路に戻せる', async () => {
+  const t = setup({ env: { SAVE_CHAT_WRITE: 'insert' } });
+  const res = await t.handler(post({ ...chat, room_id: 'com_sb' }, { 'x-chat-author-key': AUTHOR_KEY }));
+  assertEquals(res.status, 200);
+  const body = await res.json();
+  assertEquals('rooms' in body, false);
+  assertEquals(t.rpcCalls.length, 0);
+  assertEquals('author' in t.inserts[0], false);
+  const spans = await t.settle();
+  assertEquals(byName(spans, 'POST save-chat').attributes['chat.write_path'], 'insert');
+  assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], true);
+});

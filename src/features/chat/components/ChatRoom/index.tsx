@@ -1,4 +1,12 @@
-import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
+import {
+  startTransition,
+  useId,
+  useRef,
+  useEffect,
+  useState,
+  useActionState,
+  type ChangeEvent,
+} from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
@@ -6,6 +14,10 @@ import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import { MESSAGE_MAX } from '@features/chat/inputRules';
+
+/** [消す] の説明。消せるのはこのブラウザで書いた発言だけ（書いた端末の鍵で照合する。Issue #179） */
+const CLEAR_BUTTON_TITLE =
+  'このブラウザで書いた自分の発言を消します。ブラウザのデータを消した後や、別のブラウザ・端末で書いた発言は消せません。';
 
 const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
@@ -122,9 +134,12 @@ export default function ChatRoom({
   }, [isPending]);
 
   const handleClear = () => {
-    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）
+    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）。
+    // 発言フォームと同じ Action に通し、「削除対象の発言がありません」などの失敗を同じ場所に出す
     setMessage('');
-    void onSend('clear').catch(() => {});
+    const formData = new FormData();
+    formData.set('message', 'clear');
+    startTransition(() => formAction(formData));
   };
 
   return (
@@ -185,7 +200,12 @@ export default function ChatRoom({
           <Button type="submit" disabled={isPending}>
             発言
           </Button>
-          <Button type="button" onClick={handleClear} disabled={isPending}>
+          <Button
+            type="button"
+            onClick={handleClear}
+            disabled={isPending}
+            title={CLEAR_BUTTON_TITLE}
+          >
             消す
           </Button>
           {userName && (

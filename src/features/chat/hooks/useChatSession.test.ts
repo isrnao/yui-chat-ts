@@ -6,7 +6,7 @@ import { useChatSession, type SessionTarget } from './useChatSession';
 import { trackEvent } from '@shared/utils/analytics';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { saveChatLogOptimistic } from '@features/chat/api/saveChat';
-import { clearChatLogsByName } from '@features/chat/api/chatQueries';
+import { clearMyChats } from '@features/chat/api/chatQueries';
 import { broadcastLookEvent } from '@features/chat/api/realtime';
 
 vi.mock('@features/chat/api/saveChat', () => ({
@@ -21,7 +21,7 @@ vi.mock('@features/chat/api/saveChat', () => ({
   })),
 }));
 vi.mock('@features/chat/api/chatQueries', () => ({
-  clearChatLogsByName: vi.fn(() => Promise.resolve()),
+  clearMyChats: vi.fn(() => Promise.resolve(['mine'])),
 }));
 vi.mock('@features/chat/api/realtime', () => ({
   broadcastLookEvent: vi.fn(),
@@ -168,9 +168,10 @@ describe('useChatSession', () => {
     expect(broadcastLookEvent).not.toHaveBeenCalled();
   });
 
-  it('部屋単位の clear は自分の発言をログから取り除く', async () => {
+  it('clear はサーバーが消した発言だけをログから取り除く（同じ名前の別の発言は残す）', async () => {
     const { result, store } = setup({ kind: 'room', roomId: 'superbeginner' }, [
       chat({ uuid: 'mine', name: 'ゆい' }),
+      chat({ uuid: 'same-name-other-device', name: 'ゆい' }),
       chat({ uuid: 'other', name: 'たろう' }),
     ]);
     await flush();
@@ -178,20 +179,26 @@ describe('useChatSession', () => {
     await act(async () => {
       await result.current.send('clear');
     });
-    expect(clearChatLogsByName).toHaveBeenCalledWith('superbeginner', 'ゆい');
-    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual(['other']);
+    expect(clearMyChats).toHaveBeenCalledWith('superbeginner', 'ゆい');
+    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual([
+      'same-name-other-device',
+      'other',
+    ]);
   });
 
-  it('全部屋まとめの clear は対象がなければエラーにし、削除しない', async () => {
-    const { result } = setup({ kind: 'all', replyTo: 'superbeginner' }, [
-      chat({ uuid: 'elsewhere', name: 'ゆい', room_id: 'com_sb' }),
+  it('全部屋まとめの clear は返信先の部屋で消し、消えた件数が 0 ならエラーにする', async () => {
+    vi.mocked(clearMyChats).mockResolvedValueOnce([]);
+    // 手元のログに自分の発言があっても、サーバーが 0 件なら「削除対象の発言がありません」
+    const { result, store } = setup({ kind: 'all', replyTo: 'superbeginner' }, [
+      chat({ uuid: 'mine', name: 'ゆい', room_id: 'superbeginner' }),
     ]);
     await flush();
 
     await act(async () => {
       await expect(result.current.send('clear')).rejects.toThrow('削除対象の発言がありません');
     });
-    expect(clearChatLogsByName).not.toHaveBeenCalled();
+    expect(clearMyChats).toHaveBeenCalledWith('superbeginner', 'ゆい');
+    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual(['mine']);
   });
 
   it('cut と空の発言は保存しない', async () => {

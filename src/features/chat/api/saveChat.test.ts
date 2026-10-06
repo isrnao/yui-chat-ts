@@ -178,6 +178,9 @@ describe('saveChat', () => {
       expect(headers).toHaveLength(2);
       expect(headers[1]['x-chat-operation-id']).toBe(headers[0]['x-chat-operation-id']);
       expect(headers.map((h) => h['x-chat-attempt'])).toEqual(['1', '2']);
+      // 書いた端末の鍵を毎回送る（clear で自分の発言だけを消すため）
+      expect(headers[0]['x-chat-author-key']).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(headers[1]['x-chat-author-key']).toBe(headers[0]['x-chat-author-key']);
     });
 
     it('Edge Function がエラーを返したら例外を投げる', async () => {
