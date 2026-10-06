@@ -157,26 +157,27 @@ describe('chatQueries', () => {
       expect(supabase.from).toHaveBeenCalledTimes(2);
     });
 
-    it('オフラインのときは部屋の既定のログを返す', async () => {
+    // 偽のログ（mock）は出さない（Issue #188）。画面は「読み込みに失敗しました。[再読み込み]」を出す
+    it('オフラインのときは取りに行かず、再試行せずに失敗する（偽のログを返さない）', async () => {
       Object.defineProperty(navigator, 'onLine', { value: false, configurable: true });
       const { supabase } = await import('@shared/supabaseClient');
       (supabase.from as Mock).mockReset();
 
-      const { loadRecentChatLogs } = await import('./chatQueries');
-      const logs = await loadRecentChatLogs(ROOM_ID, 2);
-      expect(logs).toHaveLength(2);
-      expect(logs.every((c) => c.room_id === ROOM_ID)).toBe(true);
+      const { loadRecentChatLogs, loadChatRanking } = await import('./chatQueries');
+      await expect(loadRecentChatLogs(ROOM_ID, 2)).rejects.toThrow('Offline');
+      await expect(loadChatRanking(ROOM_ID)).rejects.toThrow('Offline');
       expect(supabase.from).not.toHaveBeenCalled();
     });
 
-    it('認証エラーのときは既定のログを返す', async () => {
+    it('認証エラーのときは再試行せずに失敗する（偽のログを返さない）', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       (supabase.from as Mock)
         .mockReset()
         .mockReturnValue(queryMock({ data: null, error: { message: 'JWT expired', code: '401' } }));
 
       const { loadRecentChatLogs } = await import('./chatQueries');
-      await expect(loadRecentChatLogs(ROOM_ID, 3)).resolves.toHaveLength(3);
+      await expect(loadRecentChatLogs(ROOM_ID, 3)).rejects.toThrow('JWT expired');
+      expect(supabase.from).toHaveBeenCalledTimes(1);
     });
 
     it('それ以外のエラーは再試行したうえで投げる', async () => {
