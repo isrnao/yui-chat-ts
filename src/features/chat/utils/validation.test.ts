@@ -13,6 +13,8 @@ describe('validateName', () => {
 
   it('should return error message for empty name', () => {
     expect(validateName('')).toBe('おなまえは必須です');
+    // 空白だけの名前は save-chat も拒否する
+    expect(validateName(' 　')).toBe('おなまえは必須です');
   });
 
   it('should return error message for name longer than 24 characters', () => {

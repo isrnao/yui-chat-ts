@@ -591,16 +591,16 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 
 ## 12. セキュリティ
 
-| 項目              | 対応                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| ブラウザ接続      | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続                       |
-| INSERT境界        | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行                               |
-| Edge Function     | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持 |
-| IP／UA            | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開     |
-| 秘密値            | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない         |
-| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定                                           |
-| 入力validation    | 名前必須・24文字以内などをEdgeでも検証                                                        |
-| 本番build         | `console.log`削除、source map無効化                                                           |
+| 項目              | 対応                                                                                                                                                                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ブラウザ接続      | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続                                                                                                                                                                                        |
+| INSERT境界        | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行                                                                                                                                                                                                |
+| Edge Function     | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持                                                                                                                                                                  |
+| IP／UA            | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開                                                                                                                                                                      |
+| 秘密値            | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない                                                                                                                                                                          |
+| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定                                                                                                                                                                                                            |
+| 入力validation    | 上限と形式は`save-chat/schema.ts`が正（名前24コードポイント・発言120 grapheme・メール64文字、色は読めなければ`#ff69b4`）。画面も同じ値を使う。`SAVE_CHAT_INPUT_MODE=enforce`で拒否（`{ error: { code } }`）、未設定は違反を記録だけ。DBのCHECK制約が最後の防壁 |
+| 本番build         | `console.log`削除、source map無効化                                                                                                                                                                                                                            |
 
 ---
 

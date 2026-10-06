@@ -5,6 +5,7 @@ import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
+import { MESSAGE_MAX } from '@features/chat/inputRules';
 
 const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
@@ -221,7 +222,7 @@ export default function ChatRoom({
             id={messageId}
             name="message"
             value={message}
-            maxLength={120}
+            maxLength={MESSAGE_MAX}
             size={60}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)}
             disabled={isPending}

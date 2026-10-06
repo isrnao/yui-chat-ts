@@ -189,6 +189,67 @@ describe('saveChat', () => {
       const chatApi = await import('./saveChat');
       await expect(chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1))).rejects.toThrow('boom');
     });
+
+    it('サーバーが置き換えた色で確定させる（Realtime の正規化済みの行を上書きしない）', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'u', room_id: ROOM_ID, time: 1, color: '#ff69b4' },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, { ...makeChat(1), color: 'あか' });
+      expect(saved.color).toBe('#ff69b4');
+    });
+
+    it('入力の誤りで拒否されたら（400 + code）再試行せず、code に合う文言で投げる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(JSON.stringify({ error: { code: 'invalid_message' } }), {
+            status: 400,
+          }),
+        },
+      });
+
+      const chatApi = await import('./saveChat');
+      const { UserFacingError } = await import('../utils/userFacingError');
+      const result = chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+      await expect(result).rejects.toBeInstanceOf(UserFacingError);
+      await expect(result).rejects.toMatchObject({
+        code: 'invalid_message',
+        message: '発言を確かめてください（120文字以内）。',
+      });
+      expect(invoke).toHaveBeenCalledTimes(1);
+    });
+
+    it('400 でも code が読めなければ、ほかの失敗と同じく扱う', async () => {
+      vi.useFakeTimers();
+      try {
+        const { supabase } = await import('@shared/supabaseClient');
+        const invoke = supabase.functions.invoke as Mock;
+        invoke.mockReset();
+        invoke.mockResolvedValue({
+          data: null,
+          error: { message: 'bad', context: new Response('not json', { status: 400 }) },
+        });
+
+        const chatApi = await import('./saveChat');
+        const result = chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+        const settled = expect(result).rejects.toThrow('Failed to save chat: bad');
+        await vi.runAllTimersAsync();
+        await settled;
+        expect(invoke).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe('createOptimisticChat', () => {

@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(26);
+SELECT plan(33);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -143,7 +143,7 @@ RESET ROLE;
 -- 管理人の発言の除き方: system が false でも metadata.kind = admin なら人数から除く
 SET LOCAL ROLE service_role;
 INSERT INTO public.chats (room_id, name, color, message, system, metadata)
-VALUES ('pgtap_room', '偽の管理人', '', 'x', false, '{"kind":"admin"}');
+VALUES ('pgtap_room', '偽の管理人', '#000', 'x', false, '{"kind":"admin"}');
 RESET ROLE;
 SET LOCAL ROLE anon;
 SELECT is(
@@ -173,6 +173,43 @@ SELECT is(
     (SELECT count(*)::int FROM public.room_participant_counts(0) WHERE room_id = 'pgtap_room_none'),
     0,
     '発言の無い部屋は返らない'
+);
+RESET ROLE;
+
+-- 6. 入力の CHECK 制約（Issue #176）---------------------------------------------
+
+SELECT is(
+    (SELECT array_agg(conname::text ORDER BY conname) FROM pg_constraint
+        WHERE conrelid = 'public.chats'::regclass AND contype = 'c'),
+    ARRAY['chats_color_check', 'chats_email_check', 'chats_message_check', 'chats_name_check'],
+    'chats に入力の CHECK 制約がある'
+);
+
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', repeat('a', 65), '#fff', 'x')$$,
+    '23514', NULL, '名前は 64 文字まで'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'a', '#fff', '')$$,
+    '23514', NULL, '空の発言は保存できない'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'a', '#fff', repeat('a', 2001))$$,
+    '23514', NULL, '発言は 2000 文字まで'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'a', 'red;x', 'x')$$,
+    '23514', NULL, '色は英数字と # だけ'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, email) VALUES ('pgtap_room', 'a', '#fff', 'x', repeat('a', 257))$$,
+    '23514', NULL, 'メールは 256 文字まで'
+);
+SELECT lives_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, email)
+      VALUES ('pgtap_room', repeat('😀', 64), 'lightgoldenrodyellow', repeat('😀', 2000), repeat('a', 256))$$,
+    '上限ちょうどの値は保存できる（char_length はコードポイントで数える）'
 );
 RESET ROLE;
 
