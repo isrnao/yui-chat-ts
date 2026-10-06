@@ -17,7 +17,8 @@
 --   WHERE r.id IS NULL GROUP BY c.room_id;
 --
 -- 性能: 挿入ごとに 82 行の表の主キーを引く（外部キーとトリガーで 2 回。常にメモリにある）。外部キーは rooms の行に
--- KEY SHARE のロックを取るが、rooms はほぼ更新しないので待ちは起きない。
+-- KEY SHARE、トリガーは SHARE のロックを取る。SHARE 同士は競合しないので発言どうしは待たない。rooms はほぼ更新しないので
+-- 閉じる更新との待ちもまず起きない。
 
 CREATE TABLE public.rooms (
     id text PRIMARY KEY,
@@ -122,13 +123,19 @@ GRANT SELECT ON public.rooms TO anon, authenticated;
 ALTER TABLE public.chats
     ADD CONSTRAINT chats_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms (id) NOT VALID;
 
--- 閉じた部屋への新しい発言を止める。外部キーでは enabled を見られないのでトリガーで行う
+-- 閉じた部屋への新しい発言を止める。外部キーでは enabled を見られないのでトリガーで行う。
+-- 部屋の行を FOR SHARE で読み、enabled = false への更新と発言の INSERT を直列化する（ただの SELECT だと、
+-- 閉じる更新のコミット前の true を読んだ発言がそのままコミットできる。外部キーの KEY SHARE は非キー列の
+-- 更新と競合しないので、これだけでは防げない）。知らない部屋は外部キーが 23503 で止める
 CREATE OR REPLACE FUNCTION public.chats_room_enabled() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
+DECLARE
+  v_enabled boolean;
 BEGIN
-  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = NEW.room_id AND NOT enabled) THEN
+  SELECT enabled INTO v_enabled FROM public.rooms WHERE id = NEW.room_id FOR SHARE;
+  IF v_enabled IS FALSE THEN
     RAISE EXCEPTION 'room % is disabled', NEW.room_id USING ERRCODE = 'YC001';
   END IF;
   RETURN NEW;
