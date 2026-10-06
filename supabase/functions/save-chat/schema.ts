@@ -165,3 +165,177 @@ export function checkSayInput(input: {
 
   return { error, violations, value: { name: input.name, message: input.message, color, email } };
 }
+
+// --- metadata（Issue #177、docs/SERVER_SIDE_LOGIC_REFACTORING.md の S2）---
+//
+// save-chat は受け取った metadata をこの許可リストで作り直してから保存する。知らないキーと範囲外の値は落とす。
+// 拒否はしない（落とした内容は記録する）。Web の normalizeChatMetadata も同じ一覧を使う。
+
+export const FONT_SIZES = [1, 2, 3, 4, 5] as const;
+export type FontSize = (typeof FONT_SIZES)[number];
+
+/** 文字の色（ChatRoom の選択肢） */
+export const FONT_COLOR_NAMES = [
+  'black',
+  'gray',
+  'silver',
+  'white',
+  'red',
+  'hotpink',
+  'orange',
+  'gold',
+  'yellow',
+  'lime',
+  'green',
+  'aqua',
+  'blue',
+  'navy',
+  'purple',
+] as const;
+export type FontColorName = (typeof FONT_COLOR_NAMES)[number];
+
+/** キャラアイコン。'none' は「付けない」で、metadata には保存しない */
+export const AVATAR_IDS = [
+  'none',
+  'hoshi1',
+  'hoshi2',
+  'hoshi3',
+  'hoshi4',
+  'hoshi5',
+  'hoshi6',
+  'hoshi7',
+  'hoshi8',
+  'miko1',
+  'tuki1',
+  'tuki2',
+  'tuki3',
+  'tuki4',
+] as const;
+export type AvatarId = (typeof AVATAR_IDS)[number];
+
+export const METADATA_KINDS = ['normal', 'fortune', 'admin'] as const;
+export type MetadataKind = (typeof METADATA_KINDS)[number];
+
+export const OPTIMISTIC_NONCE_MAX = 64;
+export const VISIT_COUNT_MAX = 1_000_000;
+/** 作り直した metadata の JSON の上限（DB の CHECK 制約 chats_metadata_check と同じ値） */
+export const METADATA_MAX_BYTES = 2048;
+/** 落としたものの記録の件数と 1 件の長さの上限（超えた分は 'truncated' 1 件にまとめる） */
+export const METADATA_DROPPED_MAX = 20;
+export const METADATA_DROPPED_ENTRY_MAX = 64;
+
+export interface ChatMetadataShape {
+  version: 1;
+  fontStyle?: { fontSize?: FontSize; fontColor?: FontColorName; bold?: boolean };
+  avatar?: Exclude<AvatarId, 'none'>;
+  kind?: MetadataKind;
+  userColor?: string;
+  visitCount?: number;
+  lastLogin?: number;
+  optimisticNonce?: string;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function includes<T extends string | number>(list: readonly T[], value: unknown): value is T {
+  return (list as readonly unknown[]).includes(value);
+}
+
+export interface MetadataCheck {
+  /** 保存する metadata。元が無い・読めないときは null */
+  value: ChatMetadataShape | null;
+  /** 落としたキー・値（記録用）。例: `unknown:foo`、`fontStyle.fontSize` */
+  dropped: string[];
+}
+
+/**
+ * metadata を許可リストで作り直す。`now` は lastLogin の上限（ミリ秒）。
+ *
+ * 今の Web は入退室・おみくじで kind・userColor・visitCount・lastLogin を自分で付けて送っているので、
+ * 1 段階目ではこれらも受け付ける（2 段階目で、サーバーが作る発言だけに限る）。
+ */
+export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
+  // 記録は件数と長さに上限を付ける（未知のキーの数と長さはクライアントが決められるため）
+  const dropped: string[] = [];
+  let truncated = false;
+  const drop = (entry: string) => {
+    if (dropped.length < METADATA_DROPPED_MAX)
+      dropped.push(entry.slice(0, METADATA_DROPPED_ENTRY_MAX));
+    else truncated = true;
+  };
+  if (input === null || input === undefined) return { value: null, dropped };
+  if (!isRecord(input)) return { value: null, dropped: ['not_object'] };
+  if (input.version !== 1) return { value: null, dropped: ['version'] };
+
+  const value: ChatMetadataShape = { version: 1 };
+  const known = new Set([
+    'version',
+    'fontStyle',
+    'avatar',
+    'kind',
+    'userColor',
+    'visitCount',
+    'lastLogin',
+    'optimisticNonce',
+  ]);
+  for (const key of Object.keys(input)) if (!known.has(key)) drop(`unknown:${key}`);
+
+  if (input.fontStyle !== undefined) {
+    if (isRecord(input.fontStyle)) {
+      const style = input.fontStyle;
+      const fontStyle: NonNullable<ChatMetadataShape['fontStyle']> = {};
+      for (const key of Object.keys(style)) {
+        if (key !== 'fontSize' && key !== 'fontColor' && key !== 'bold') {
+          drop(`unknown:fontStyle.${key}`);
+        }
+      }
+      if (includes(FONT_SIZES, style.fontSize)) fontStyle.fontSize = style.fontSize;
+      else if (style.fontSize !== undefined) drop('fontStyle.fontSize');
+      if (includes(FONT_COLOR_NAMES, style.fontColor)) fontStyle.fontColor = style.fontColor;
+      else if (style.fontColor !== undefined) drop('fontStyle.fontColor');
+      if (typeof style.bold === 'boolean') fontStyle.bold = style.bold;
+      else if (style.bold !== undefined) drop('fontStyle.bold');
+      if (Object.keys(fontStyle).length > 0) value.fontStyle = fontStyle;
+    } else {
+      drop('fontStyle');
+    }
+  }
+
+  if (includes(AVATAR_IDS, input.avatar) && input.avatar !== 'none') value.avatar = input.avatar;
+  else if (input.avatar !== undefined && input.avatar !== 'none') drop('avatar');
+
+  if (includes(METADATA_KINDS, input.kind)) value.kind = input.kind;
+  else if (input.kind !== undefined) drop('kind');
+
+  if (input.userColor !== undefined) {
+    const color = normalizeColor(input.userColor);
+    if (color) value.userColor = color;
+    else drop('userColor');
+  }
+
+  // 端末の中の値なので、範囲に丸めるだけ
+  if (typeof input.visitCount === 'number' && Number.isFinite(input.visitCount)) {
+    value.visitCount = Math.min(Math.max(Math.trunc(input.visitCount), 0), VISIT_COUNT_MAX);
+  } else if (input.visitCount !== undefined) {
+    drop('visitCount');
+  }
+  if (typeof input.lastLogin === 'number' && Number.isFinite(input.lastLogin)) {
+    value.lastLogin = Math.min(Math.max(Math.trunc(input.lastLogin), 0), now);
+  } else if (input.lastLogin !== undefined) {
+    drop('lastLogin');
+  }
+
+  if (
+    typeof input.optimisticNonce === 'string' &&
+    countCodePoints(input.optimisticNonce) <= OPTIMISTIC_NONCE_MAX
+  ) {
+    value.optimisticNonce = input.optimisticNonce;
+  } else if (input.optimisticNonce !== undefined) {
+    drop('optimisticNonce');
+  }
+
+  if (truncated) dropped.push('truncated');
+  return { value, dropped };
+}

@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(33);
+SELECT plan(37);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -181,7 +181,7 @@ RESET ROLE;
 SELECT is(
     (SELECT array_agg(conname::text ORDER BY conname) FROM pg_constraint
         WHERE conrelid = 'public.chats'::regclass AND contype = 'c'),
-    ARRAY['chats_color_check', 'chats_email_check', 'chats_message_check', 'chats_name_check'],
+    ARRAY['chats_color_check', 'chats_email_check', 'chats_message_check', 'chats_metadata_check', 'chats_name_check'],
     'chats に入力の CHECK 制約がある'
 );
 
@@ -210,6 +210,29 @@ SELECT lives_ok(
     $$INSERT INTO public.chats (room_id, name, color, message, email)
       VALUES ('pgtap_room', repeat('😀', 64), 'lightgoldenrodyellow', repeat('😀', 2000), repeat('a', 256))$$,
     '上限ちょうどの値は保存できる（char_length はコードポイントで数える）'
+);
+RESET ROLE;
+
+-- 7. metadata の CHECK 制約（Issue #177）-----------------------------------------
+
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, metadata) VALUES ('pgtap_room', 'a', '#fff', 'x', '[1]')$$,
+    '23514', NULL, 'metadata は JSON のオブジェクトだけ'
+);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, metadata)
+      VALUES ('pgtap_room', 'a', '#fff', 'x', jsonb_build_object('pad', repeat(md5(random()::text), 100)))$$,
+    '23514', NULL, 'metadata は 2KB まで'
+);
+SELECT lives_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, metadata)
+      VALUES ('pgtap_room', 'a', '#fff', 'x', '{"version":1,"avatar":"hoshi1","optimisticNonce":"n"}')$$,
+    '普通の metadata は保存できる'
+);
+SELECT lives_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message, metadata) VALUES ('pgtap_room', 'a', '#fff', 'x', NULL)$$,
+    'metadata は無くてもよい'
 );
 RESET ROLE;
 

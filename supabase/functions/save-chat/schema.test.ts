@@ -8,7 +8,13 @@ import {
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
+  METADATA_DROPPED_ENTRY_MAX,
+  METADATA_DROPPED_MAX,
+  METADATA_MAX_BYTES,
   normalizeColor,
+  OPTIMISTIC_NONCE_MAX,
+  sanitizeMetadata,
+  VISIT_COUNT_MAX,
 } from './schema.ts';
 
 const ok = { name: 'ゆい', message: 'こんにちは', color: '#ff69b4', email: null };
@@ -87,4 +93,127 @@ Deno.test('最初の違反のコードを返し、違反はすべて記録する
   });
   assertEquals(result.error, 'invalid_name');
   assertEquals(result.violations, ['name_too_long', 'message_too_long', 'color_replaced']);
+});
+
+const NOW = 1_800_000_000_000;
+
+Deno.test('metadata: 今の Web が送る形はそのまま通る', () => {
+  const say = {
+    version: 1,
+    fontStyle: { fontSize: 3, fontColor: 'hotpink', bold: true },
+    avatar: 'tuki2',
+    optimisticNonce: crypto.randomUUID(),
+  } as const;
+  assertEquals(sanitizeMetadata(say, NOW), { value: say, dropped: [] });
+  const enter = {
+    version: 1,
+    avatar: 'hoshi1',
+    kind: 'admin',
+    userColor: '#00ffff',
+    fontStyle: { bold: true },
+    visitCount: 49,
+    lastLogin: NOW - 1000,
+    optimisticNonce: 'n',
+  } as const;
+  assertEquals(sanitizeMetadata(enter, NOW), { value: enter, dropped: [] });
+  assertEquals(sanitizeMetadata(null, NOW), { value: null, dropped: [] });
+  assertEquals(sanitizeMetadata(undefined, NOW), { value: null, dropped: [] });
+});
+
+Deno.test('metadata: 知らないキーと範囲外の値を落とす', () => {
+  const result = sanitizeMetadata(
+    {
+      version: 1,
+      fontStyle: { fontSize: 9, fontColor: 'pink', bold: 'yes', shadow: 1 },
+      avatar: 'evil',
+      kind: 'owner',
+      userColor: 'url(javascript:x)',
+      optimisticNonce: 'x'.repeat(65),
+      html: '<script>',
+    },
+    NOW
+  );
+  assertEquals(result.value, { version: 1 });
+  assertEquals(result.dropped, [
+    'unknown:html',
+    'unknown:fontStyle.shadow',
+    'fontStyle.fontSize',
+    'fontStyle.fontColor',
+    'fontStyle.bold',
+    'avatar',
+    'kind',
+    'userColor',
+    'optimisticNonce',
+  ]);
+  // avatar の none は「付けない」なので、落としたとは数えない
+  assertEquals(sanitizeMetadata({ version: 1, avatar: 'none' }, NOW), {
+    value: { version: 1 },
+    dropped: [],
+  });
+});
+
+Deno.test('metadata: visitCount と lastLogin は範囲に丸める', () => {
+  assertEquals(
+    sanitizeMetadata({ version: 1, visitCount: 1e12, lastLogin: NOW + 1e9 }, NOW).value,
+    { version: 1, visitCount: VISIT_COUNT_MAX, lastLogin: NOW }
+  );
+  assertEquals(sanitizeMetadata({ version: 1, visitCount: -3.7, lastLogin: -1 }, NOW).value, {
+    version: 1,
+    visitCount: 0,
+    lastLogin: 0,
+  });
+  assertEquals(sanitizeMetadata({ version: 1, visitCount: '49' }, NOW).dropped, ['visitCount']);
+});
+
+Deno.test('metadata: version が 1 でない・オブジェクトでないものは保存しない', () => {
+  assertEquals(sanitizeMetadata({ version: 2, avatar: 'hoshi1' }, NOW), {
+    value: null,
+    dropped: ['version'],
+  });
+  assertEquals(sanitizeMetadata([1, 2], NOW), { value: null, dropped: ['not_object'] });
+  assertEquals(sanitizeMetadata('x', NOW), { value: null, dropped: ['not_object'] });
+});
+
+Deno.test('metadata: 作り直した値は常に 2KB に収まる', () => {
+  const largest = sanitizeMetadata(
+    {
+      version: 1,
+      fontStyle: { fontSize: 5, fontColor: 'silver', bold: false },
+      avatar: 'hoshi8',
+      kind: 'fortune',
+      userColor: 'lightgoldenrodyellow',
+      visitCount: VISIT_COUNT_MAX,
+      lastLogin: NOW,
+      optimisticNonce: '😀'.repeat(OPTIMISTIC_NONCE_MAX),
+      padding: 'x'.repeat(100_000),
+    },
+    NOW
+  ).value;
+  const bytes = new TextEncoder().encode(JSON.stringify(largest)).length;
+  assertEquals(bytes <= METADATA_MAX_BYTES, true);
+});
+
+Deno.test(
+  'metadata: JSON の "__proto__" キーは own property として届くので、知らないキーとして落とす',
+  () => {
+    // オブジェクトリテラルの __proto__ は prototype を変える構文なので、req.json() と同じく JSON.parse で作る
+    const input = JSON.parse('{"version":1,"__proto__":{"polluted":true},"avatar":"hoshi1"}');
+    const result = sanitizeMetadata(input, NOW);
+    assertEquals(result.value, { version: 1, avatar: 'hoshi1' });
+    assertEquals(result.dropped, ['unknown:__proto__']);
+    assertEquals(Object.getPrototypeOf(result.value), Object.prototype);
+    assertEquals(({} as Record<string, unknown>).polluted, undefined);
+  }
+);
+
+Deno.test('metadata: 落としたものの記録は件数と長さを上限で切る', () => {
+  const input: Record<string, unknown> = { version: 1 };
+  for (let i = 0; i < 1000; i++) input[`k${i}${'x'.repeat(200)}`] = i;
+  const { dropped } = sanitizeMetadata(input, NOW);
+  assertEquals(dropped.length, METADATA_DROPPED_MAX + 1);
+  assertEquals(dropped.at(-1), 'truncated');
+  assertEquals(
+    dropped.every((entry) => entry.length <= METADATA_DROPPED_ENTRY_MAX),
+    true
+  );
 });
