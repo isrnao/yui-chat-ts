@@ -110,7 +110,8 @@ interface SaveChatBody {
 type ChatOp = 'say' | AdminEvent;
 
 function readOp(value: unknown): ChatOp | null {
-  if (value === undefined || value === null || value === 'say') return 'say';
+  // 既定値を使うのは省略したときだけ。null を含め、知らない値は invalid_op
+  if (value === undefined || value === 'say') return 'say';
   return value === 'enter' || value === 'exit' ? value : null;
 }
 

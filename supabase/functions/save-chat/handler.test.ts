@@ -675,6 +675,11 @@ Deno.test('op: 知らない op は 400 invalid_op、message の無い enter は�
   assertEquals(await (await t.handler(post({ ...chat, op: 'delete' }))).json(), {
     error: { code: 'invalid_op' },
   });
+  // 明示的な null も既定値（say）にはしない
+  assertEquals(await (await t.handler(post({ ...chat, op: null }))).json(), {
+    error: { code: 'invalid_op' },
+  });
+  assertEquals(t.rpcCalls.length, 0);
   const res = await t.handler(post({ op: 'enter', room_id: 'main', name: 'ゆい', color: '#fff' }));
   assertEquals(res.status, 200);
   await t.settle();
