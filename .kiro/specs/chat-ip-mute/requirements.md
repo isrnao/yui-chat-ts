@@ -115,7 +115,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 5. THE Filter_Dialog SHALL Filter_List の Masked_IP を追加した順に、1 件 1 行で並べる。各行は「おなまえ」を上に、その下に小さく「<Masked_IP>・<現在のログで隠れている発言の数> 件」を、右に「解除」を置く（幅の狭い窓に収める）。「おなまえ」は現在のログで隠れている発言の発言者を新しい順に重複なく並べ、その後ろにフィルタした時点で保存した名前（Requirement 6.7）を重複なく続けて「、」で区切る（管理人の入退室メッセージは本文の入室者の名前、巫女は数えない。どちらにもないときは「—」）。行が多いときは窓の中でスクロールする
 6. WHEN 閲覧者が「解除」を押したとき, THE Filter_Dialog SHALL その Masked_IP を Filter_List から取り除く。該当する発言はその場でログに戻る
 7. WHERE Filter_List が 2 件以上のとき, THE Filter_Dialog SHALL 「すべて解除」ボタンを出す
-8. WHILE Filter_List が空の間, THE Filter_Dialog SHALL 「フィルタしている IP はありません。発言の行をダブルタップ（ダブルクリック）すると、同じ IP の発言を非表示にできます。」と表示する
+8. WHILE Filter_List が空の間, THE Filter_Dialog SHALL 「フィルタしているものはありません。」と表示する（#168 の Copilot Autofix に合わせ、操作の説明は省く）
 9. THE Filter_Link と「解除」「すべて解除」「閉じる」 SHALL キーボードで操作でき、「解除」の `aria-label` は「<Masked_IP> のフィルタを解除」とする
 10. WHEN 退室したとき, THE Target_Page SHALL Filter_Dialog を閉じる
 11. WHEN ダブルタップで Masked_IP が Filter_List に追加されたとき, THE Chat_Log_List SHALL 「<Masked_IP> の発言を非表示にしました。「フィルタ」から解除できます。」を `role="status"` の領域で通知する（画面には出さず、支援技術にだけ伝える）
