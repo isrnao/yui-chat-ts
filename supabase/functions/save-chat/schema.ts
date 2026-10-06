@@ -18,6 +18,7 @@ export const DEFAULT_COLOR = '#ff69b4';
 export type InputErrorCode =
   | 'invalid_room_id'
   | 'invalid_name'
+  | 'reserved_name'
   | 'invalid_message'
   | 'invalid_email';
 
@@ -117,7 +118,27 @@ export function checkName(name: string): string[] {
   const length = countCodePoints(name.trim());
   if (length === 0) return ['name_blank'];
   if (length > NAME_MAX) return ['name_too_long'];
+  if (isReservedName(name)) return ['name_reserved'];
   return [];
+}
+
+/** 名前の違反を拒否のコードにする（予約名は reserved_name、それ以外は invalid_name） */
+export function nameErrorCode(violation: string): InputErrorCode {
+  return violation === 'name_reserved' ? 'reserved_name' : 'invalid_name';
+}
+
+// --- 予約名（Issue #182、docs/SERVER_SIDE_LOGIC_REFACTORING.md の S3・D4）---
+
+/** サーバーが作る発言だけが使う名前（入退室の管理人、おみくじの巫女、triage の返信） */
+export const RESERVED_NAMES: readonly string[] = ['管理人', '巫女'];
+
+/**
+ * 予約名か。NFKC に正規化し（全角・半角・互換文字の揺れを畳む）、空白をすべて除いてから比べる。
+ * 例: 「管 理 人」「 巫女 」「管理⼈」（康熙部首）も予約名
+ */
+export function isReservedName(name: string): boolean {
+  const folded = name.normalize('NFKC').replace(/\s+/g, '');
+  return RESERVED_NAMES.includes(folded);
 }
 
 /**
@@ -137,7 +158,7 @@ export function checkSayInput(input: {
     error ??= code;
   };
 
-  for (const violation of checkName(input.name)) reject('invalid_name', violation);
+  for (const violation of checkName(input.name)) reject(nameErrorCode(violation), violation);
 
   const messageLength = countGraphemes(input.message);
   if (input.message.trim().length === 0) reject('invalid_message', 'message_blank');
@@ -234,6 +255,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function includes<T extends string | number>(list: readonly T[], value: unknown): value is T {
   return (list as readonly unknown[]).includes(value);
+}
+
+/**
+ * サーバーが作る発言（入退室・おみくじ）だけが使う metadata のキー。利用者の発言では受け付けない
+ * （#177 の 2 段階目）。kind は normal だけ利用者に許す。
+ */
+export const SERVER_ONLY_METADATA_KEYS = ['kind', 'userColor', 'visitCount', 'lastLogin'] as const;
+
+/**
+ * 利用者の発言の metadata から、サーバーだけが使う値を見つける（記録用の名前を返す）。
+ * `remove` が true なら取り除く（SAVE_CHAT_INPUT_MODE=enforce のとき）。
+ */
+export function takeServerOnlyMetadata(
+  metadata: ChatMetadataShape | null,
+  remove: boolean
+): string[] {
+  if (!metadata) return [];
+  const found: string[] = [];
+  for (const key of SERVER_ONLY_METADATA_KEYS) {
+    if (metadata[key] === undefined) continue;
+    if (key === 'kind' && metadata.kind === 'normal') continue;
+    found.push(`server_only:${key}`);
+    if (remove) delete metadata[key];
+  }
+  return found;
 }
 
 export interface MetadataCheck {

@@ -6,6 +6,7 @@ export {
   EMAIL_MAX,
   FONT_COLOR_NAMES,
   FONT_SIZES,
+  isReservedName,
   MESSAGE_MAX,
   METADATA_KINDS,
   NAME_MAX,

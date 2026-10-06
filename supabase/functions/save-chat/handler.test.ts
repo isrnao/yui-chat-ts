@@ -775,3 +775,85 @@ Deno.test(
     assertEquals(log.attributes['chat.metadata.dropped'], 'unknown:event,unknown:subject');
   }
 );
+
+const pretendAdmin = {
+  ...chat,
+  name: '管理人',
+  system: true,
+  metadata: {
+    version: 1,
+    kind: 'admin',
+    userColor: '#f00',
+    visitCount: 3,
+    lastLogin: 1,
+    avatar: 'hoshi1',
+  },
+};
+
+Deno.test(
+  'system と予約名（記録だけ）: 以前の Web の入退室のために保存は通し、違反を記録する',
+  async () => {
+    const t = setup();
+    const res = await t.handler(post(pretendAdmin));
+    assertEquals(res.status, 200);
+    assertEquals(t.inserts[0].system, true);
+    assertEquals((t.inserts[0].metadata as Row).kind, 'admin');
+    await t.settle();
+    const log = t.logs.find((l) => l.body.stringValue === 'save_chat.input_violation')!;
+    assertEquals(
+      log.attributes['chat.input.violations'],
+      'name_reserved,system_from_client,server_only:kind,server_only:userColor,server_only:visitCount,server_only:lastLogin'
+    );
+  }
+);
+
+Deno.test(
+  'system と予約名（enforce）: 予約名は reserved_name で拒否する（全角・空白の揺れも）',
+  async () => {
+    const t = setup({ env: { SAVE_CHAT_INPUT_MODE: 'enforce' } });
+    for (const name of ['管理人', ' 巫 女 ', '管理⼈']) {
+      const res = await t.handler(post({ ...chat, name }));
+      assertEquals(await res.json(), { error: { code: 'reserved_name' } }, name);
+    }
+    const enter = await t.handler(
+      post({ op: 'enter', room_id: 'main', name: '巫女', color: '#fff' })
+    );
+    assertEquals(await enter.json(), { error: { code: 'reserved_name' } });
+    assertEquals(t.rpcCalls.length, 0);
+    await t.settle();
+  }
+);
+
+Deno.test(
+  'system と予約名（enforce）: 利用者の発言は system: false、サーバーだけの metadata は取り除く',
+  async () => {
+    const t = setup({ env: { SAVE_CHAT_INPUT_MODE: 'enforce' } });
+    const res = await t.handler(post({ ...pretendAdmin, name: 'ゆい' }));
+    assertEquals(res.status, 200);
+    assertEquals(t.inserts[0].system, false);
+    assertEquals(t.inserts[0].metadata, { version: 1, avatar: 'hoshi1' });
+
+    // kind: normal は利用者にも許す
+    await t.handler(post({ ...chat, metadata: { version: 1, kind: 'normal' } }));
+    assertEquals(t.inserts[1].metadata, { version: 1, kind: 'normal' });
+    await t.settle();
+  }
+);
+
+Deno.test(
+  'system と予約名（enforce）: サーバーが作る入退室とおみくじは system: true のまま',
+  async () => {
+    const t = setup({ env: { SAVE_CHAT_INPUT_MODE: 'enforce' } });
+    await t.handler(post({ op: 'exit', room_id: 'main', name: 'ゆい', color: '#fff' }));
+    await t.handler(post({ ...chat, message: 'おみくじ' }));
+    assertEquals(
+      t.inserts.map((row) => [row.name, row.system]),
+      [
+        ['管理人', true],
+        ['たろう', false],
+        ['巫女', true],
+      ]
+    );
+    await t.settle();
+  }
+);
