@@ -220,6 +220,9 @@ export const OPTIMISTIC_NONCE_MAX = 64;
 export const VISIT_COUNT_MAX = 1_000_000;
 /** 作り直した metadata の JSON の上限（DB の CHECK 制約 chats_metadata_check と同じ値） */
 export const METADATA_MAX_BYTES = 2048;
+/** 落としたものの記録の件数と 1 件の長さの上限（超えた分は 'truncated' 1 件にまとめる） */
+export const METADATA_DROPPED_MAX = 20;
+export const METADATA_DROPPED_ENTRY_MAX = 64;
 
 export interface ChatMetadataShape {
   version: 1;
@@ -254,7 +257,14 @@ export interface MetadataCheck {
  * 1 段階目ではこれらも受け付ける（2 段階目で、サーバーが作る発言だけに限る）。
  */
 export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
+  // 記録は件数と長さに上限を付ける（未知のキーの数と長さはクライアントが決められるため）
   const dropped: string[] = [];
+  let truncated = false;
+  const drop = (entry: string) => {
+    if (dropped.length < METADATA_DROPPED_MAX)
+      dropped.push(entry.slice(0, METADATA_DROPPED_ENTRY_MAX));
+    else truncated = true;
+  };
   if (input === null || input === undefined) return { value: null, dropped };
   if (!isRecord(input)) return { value: null, dropped: ['not_object'] };
   if (input.version !== 1) return { value: null, dropped: ['version'] };
@@ -270,7 +280,7 @@ export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
     'lastLogin',
     'optimisticNonce',
   ]);
-  for (const key of Object.keys(input)) if (!known.has(key)) dropped.push(`unknown:${key}`);
+  for (const key of Object.keys(input)) if (!known.has(key)) drop(`unknown:${key}`);
 
   if (input.fontStyle !== undefined) {
     if (isRecord(input.fontStyle)) {
@@ -278,43 +288,43 @@ export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
       const fontStyle: NonNullable<ChatMetadataShape['fontStyle']> = {};
       for (const key of Object.keys(style)) {
         if (key !== 'fontSize' && key !== 'fontColor' && key !== 'bold') {
-          dropped.push(`unknown:fontStyle.${key}`);
+          drop(`unknown:fontStyle.${key}`);
         }
       }
       if (includes(FONT_SIZES, style.fontSize)) fontStyle.fontSize = style.fontSize;
-      else if (style.fontSize !== undefined) dropped.push('fontStyle.fontSize');
+      else if (style.fontSize !== undefined) drop('fontStyle.fontSize');
       if (includes(FONT_COLOR_NAMES, style.fontColor)) fontStyle.fontColor = style.fontColor;
-      else if (style.fontColor !== undefined) dropped.push('fontStyle.fontColor');
+      else if (style.fontColor !== undefined) drop('fontStyle.fontColor');
       if (typeof style.bold === 'boolean') fontStyle.bold = style.bold;
-      else if (style.bold !== undefined) dropped.push('fontStyle.bold');
+      else if (style.bold !== undefined) drop('fontStyle.bold');
       if (Object.keys(fontStyle).length > 0) value.fontStyle = fontStyle;
     } else {
-      dropped.push('fontStyle');
+      drop('fontStyle');
     }
   }
 
   if (includes(AVATAR_IDS, input.avatar) && input.avatar !== 'none') value.avatar = input.avatar;
-  else if (input.avatar !== undefined && input.avatar !== 'none') dropped.push('avatar');
+  else if (input.avatar !== undefined && input.avatar !== 'none') drop('avatar');
 
   if (includes(METADATA_KINDS, input.kind)) value.kind = input.kind;
-  else if (input.kind !== undefined) dropped.push('kind');
+  else if (input.kind !== undefined) drop('kind');
 
   if (input.userColor !== undefined) {
     const color = normalizeColor(input.userColor);
     if (color) value.userColor = color;
-    else dropped.push('userColor');
+    else drop('userColor');
   }
 
   // 端末の中の値なので、範囲に丸めるだけ
   if (typeof input.visitCount === 'number' && Number.isFinite(input.visitCount)) {
     value.visitCount = Math.min(Math.max(Math.trunc(input.visitCount), 0), VISIT_COUNT_MAX);
   } else if (input.visitCount !== undefined) {
-    dropped.push('visitCount');
+    drop('visitCount');
   }
   if (typeof input.lastLogin === 'number' && Number.isFinite(input.lastLogin)) {
     value.lastLogin = Math.min(Math.max(Math.trunc(input.lastLogin), 0), now);
   } else if (input.lastLogin !== undefined) {
-    dropped.push('lastLogin');
+    drop('lastLogin');
   }
 
   if (
@@ -323,8 +333,9 @@ export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
   ) {
     value.optimisticNonce = input.optimisticNonce;
   } else if (input.optimisticNonce !== undefined) {
-    dropped.push('optimisticNonce');
+    drop('optimisticNonce');
   }
 
+  if (truncated) dropped.push('truncated');
   return { value, dropped };
 }

@@ -8,6 +8,8 @@ import {
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
+  METADATA_DROPPED_ENTRY_MAX,
+  METADATA_DROPPED_MAX,
   METADATA_MAX_BYTES,
   normalizeColor,
   OPTIMISTIC_NONCE_MAX,
@@ -128,7 +130,6 @@ Deno.test('metadata: 知らないキーと範囲外の値を落とす', () => {
       userColor: 'url(javascript:x)',
       optimisticNonce: 'x'.repeat(65),
       html: '<script>',
-      __proto__: { polluted: true },
     },
     NOW
   );
@@ -190,4 +191,29 @@ Deno.test('metadata: 作り直した値は常に 2KB に収まる', () => {
   ).value;
   const bytes = new TextEncoder().encode(JSON.stringify(largest)).length;
   assertEquals(bytes <= METADATA_MAX_BYTES, true);
+});
+
+Deno.test(
+  'metadata: JSON の "__proto__" キーは own property として届くので、知らないキーとして落とす',
+  () => {
+    // オブジェクトリテラルの __proto__ は prototype を変える構文なので、req.json() と同じく JSON.parse で作る
+    const input = JSON.parse('{"version":1,"__proto__":{"polluted":true},"avatar":"hoshi1"}');
+    const result = sanitizeMetadata(input, NOW);
+    assertEquals(result.value, { version: 1, avatar: 'hoshi1' });
+    assertEquals(result.dropped, ['unknown:__proto__']);
+    assertEquals(Object.getPrototypeOf(result.value), Object.prototype);
+    assertEquals(({} as Record<string, unknown>).polluted, undefined);
+  }
+);
+
+Deno.test('metadata: 落としたものの記録は件数と長さを上限で切る', () => {
+  const input: Record<string, unknown> = { version: 1 };
+  for (let i = 0; i < 1000; i++) input[`k${i}${'x'.repeat(200)}`] = i;
+  const { dropped } = sanitizeMetadata(input, NOW);
+  assertEquals(dropped.length, METADATA_DROPPED_MAX + 1);
+  assertEquals(dropped.at(-1), 'truncated');
+  assertEquals(
+    dropped.every((entry) => entry.length <= METADATA_DROPPED_ENTRY_MAX),
+    true
+  );
 });
