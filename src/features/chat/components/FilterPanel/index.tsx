@@ -31,8 +31,7 @@ export default function FilterPanel({ ips, hiddenCounts, onBack }: Props) {
 
       {ips.length === 0 ? (
         <p className="my-[1em]">
-          フィルタしている IP はありません。発言の行をダブルタップ（ダブルクリック）すると、同じ IP
-          の発言を非表示にできます。
+          フィルタしている IP はありません。
         </p>
       ) : (
         <>
