@@ -60,7 +60,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 2. WHEN Masked_IP が Filter_List に追加されたとき, THE Chat_Log_List SHALL その Masked_IP と一致する Chat_Row をすべて表示から外す
 3. THE Chat_Row SHALL 文字の上・行の余白・アバター画像の上のどこでのダブルタップにも反応する
 4. WHEN 閲覧者が Interactive_Hit の位置でタップしたとき, THE Chat_Row SHALL そのタップを数えず、リンクやボタンの操作を妨げない
-5. WHEN 1 回のタップの中でポインタが Tap_Tolerance を超えて動いたか、`pointercancel` が起きたとき, THE Chat_Row SHALL 数え直す（スクロールでは成立しない）
+5. WHEN 1 回のタップの中でポインタが一度でも Tap_Tolerance を超えて動いたか、`pointercancel` が起きたとき, THE Chat_Row SHALL 数え直す（スクロールでは成立しない）。途中で大きく動かしてから押した位置へ戻して離しても、タップにしない
 6. WHEN 2 回目のタップが Double_Tap_Window を過ぎてからか、Double_Tap_Distance より離れた位置で起きたとき, THE Chat_Row SHALL 成立させず、それを新しい 1 回目として数える
 7. THE Chat_Row SHALL 次のすべてを満たすときだけ Mutable_Row とする
    - Target_Page に表示されている
@@ -83,9 +83,9 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 #### Acceptance Criteria
 
 1. WHEN ダブルタップが成立したとき, THE Chat_Log_List SHALL Confirm_Dialog を出し、見出しに「<Masked_IP> の発言をフィルタ（非表示に）しますか？」、説明に「同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。」を表示する
-2. THE Confirm_Dialog SHALL `role="alertdialog"`・`aria-modal="true"` を持ち、見出しと説明を名前と説明に結び付け、開いたときは「やめる」にフォーカスする（うっかり確定しない）
+2. THE Confirm_Dialog SHALL `role="alertdialog"`・`aria-modal="true"` を持ち、見出しと説明を名前と説明に結び付け、開いたときは「やめる」にフォーカスする（うっかり確定しない）。開いている間は窓の外（アプリ本体）を `inert` にして操作もフォーカスもできなくし、Tab / Shift+Tab は窓の中で回す。閉じたら、開く前にフォーカスしていた要素へフォーカスを戻す（その要素がもうないとき、たとえばフィルタで行が消えたときは戻さない）
 3. WHEN 閲覧者が「フィルタする」を選んだとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、その Masked_IP を Filter_List に追加する（Requirement 1.1）
-4. WHEN 閲覧者が「やめる」を押したか、Esc を押したか、窓の外（背景）を押したとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、何も変えない。背景で閉じるのは、背景の上で押し始めたクリックだけにする（窓を開いた操作の続きのクリックでは閉じない）
+4. WHEN 閲覧者が「やめる」を押したか、Esc を押したか（フォーカスの位置によらない）、窓の外（背景）を押したとき, THE Chat_Log_List SHALL Confirm_Dialog を閉じ、何も変えない。背景で閉じるのは、背景の上で押し始めたクリックだけにする（窓を開いた操作の続きのクリックでは閉じない）
 5. THE Confirm_Dialog SHALL 「フィルタする」をポインタでは Haptic_Switch で、キーボードではボタンそのもので受け付ける。Haptic_Switch はタブ順と支援技術から外す（`tabindex="-1"`・`aria-hidden`）
 6. THE Chat_Row SHALL タップの間にアニメーション（背景の変化・縮み・進捗の表示）を出さない（2026-10-05 の決定）
 7. THE Chat_Row SHALL タップを数える状態を ref だけに持ち、タップで React の再レンダーを起こさない
@@ -111,7 +111,7 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 1. WHILE 入室している間, THE ChatRoom SHALL 4 行目の「細字」チェックボックスの右に Filter_Link を表示する
 2. THE Filter_Link SHALL Filter_List が空なら「フィルタ」、空でなければ件数を付けた「フィルタ(N)」と表示する。文字色は「細字」と同じ黒（親から受け継ぐ）にし、下線を付ける
 3. WHEN 閲覧者が Filter_Link を押したとき, THE Target_Page SHALL Filter_Dialog をモーダルで開く（`role="dialog"`・`aria-modal="true"`、見出しは「フィルタ」、1 件以上なら「フィルタ（N）」）。下段のログとランキングの表示は変えない
-4. THE Filter_Dialog SHALL 開いたときは「閉じる」（×）にフォーカスし、×・Esc・窓の外（背景）で閉じる
+4. THE Filter_Dialog SHALL 開いたときは「閉じる」（×）にフォーカスし、×・Esc・窓の外（背景）で閉じる。窓の外の `inert`、窓の中での Tab の循環、閉じた後のフォーカスの復帰は Confirm_Dialog と同じ（Requirement 2.2）
 5. THE Filter_Dialog SHALL Filter_List の Masked_IP を追加した順に、1 件 1 行で並べる。各行は「おなまえ」を上に、その下に小さく「<Masked_IP>・<現在のログで隠れている発言の数> 件」を、右に「解除」を置く（幅の狭い窓に収める）。「おなまえ」は現在のログで隠れている発言の発言者を新しい順に重複なく並べ、その後ろにフィルタした時点で保存した名前（Requirement 6.7）を重複なく続けて「、」で区切る（管理人の入退室メッセージは本文の入室者の名前、巫女は数えない。どちらにもないときは「—」）。行が多いときは窓の中でスクロールする
 6. WHEN 閲覧者が「解除」を押したとき, THE Filter_Dialog SHALL その Masked_IP を Filter_List から取り除く。該当する発言はその場でログに戻る
 7. WHERE Filter_List が 2 件以上のとき, THE Filter_Dialog SHALL 「すべて解除」ボタンを出す
@@ -205,4 +205,4 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 
 - 「フィルタする」を押してからフィルタの反映（行が消える）まで、View Transition を除いて 1 フレーム以内
 - 1000 行のログでフィルタを追加したとき、Long Task（50ms 超）を出さない
-- Filter_List が空のとき、Chat_Log_List の DOM が本機能を入れる前と同じ（Filter_Link を除く）
+- Filter_List が空のとき、表示される発言の内容・順序・見た目（既存のレイアウト）が本機能を入れる前と変わらない。フィルタできる行に付くクラスと `data-*` 属性、読み上げ用の通知領域（`role="status"`、画面には出ない）は除く

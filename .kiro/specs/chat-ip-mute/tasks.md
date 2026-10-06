@@ -94,3 +94,12 @@ PR3 でダブルタップから追加できるようになる。PR4 は見た目
     - _Requirements: 9.10_
   - [x]\* 6.6 テスト（ストア・絞り込み・確認の窓・一覧・ChatLogList の結合）と、ヘッドレスの Chrome での確認
     - _Requirements: 9.1〜9.11, 8.4_
+
+- [x] 7. レビューの指摘への対応（PR #167・#169 の Copilot のレビュー、2026-10-06）
+  - [x] 7.1 `ModalShell`: body の直下に出して背後を inert にし、Tab を窓の中で回し、Esc を document で受け、閉じたら元の要素へフォーカスを戻す
+    - _Requirements: 2.2, 2.4, 4.4_
+  - [x] 7.2 `useDoubleTap`: `onPointerMove` で途中の移動を記録し、10px を超えたタップは元の位置に戻しても数えない
+    - _Requirements: 1.5_
+  - [x] 7.3 requirements.md の Success Metrics の「DOM が同じ」を、発言の内容・順序・見た目が変わらないことに直す
+  - [x]\* 7.4 テスト（`ModalShell.test.tsx`、`useDoubleTap` の往復の移動）と、ヘッドレスの Chrome でのキーボード操作の確認
+    - _Requirements: 1.5, 2.2, 2.4, 8.4_

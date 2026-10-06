@@ -103,6 +103,23 @@ describe('useDoubleTap', () => {
     expect(onDoubleTap).not.toHaveBeenCalled();
   });
 
+  it('タップの途中で 10px を超えて動かしたら、元の位置に戻して離してもタップにしない', () => {
+    const onDoubleTap = vi.fn();
+    render(<Row onDoubleTap={onDoubleTap} />);
+    const row = screen.getByTestId('row');
+
+    tap(row);
+    fireEvent.pointerDown(row, { button: 0, pointerId: 1, clientX: 50, clientY: 5 });
+    fireEvent.pointerMove(row, { pointerId: 1, clientX: 80, clientY: 5 });
+    fireEvent.pointerUp(row, { button: 0, pointerId: 1, clientX: 50, clientY: 5 });
+    expect(onDoubleTap).not.toHaveBeenCalled();
+    // 動かした操作で前のタップも消える。次の 1 回だけでは成立しない
+    tap(row);
+    expect(onDoubleTap).not.toHaveBeenCalled();
+    tap(row);
+    expect(onDoubleTap).toHaveBeenCalledTimes(1);
+  });
+
   it('pointercancel で数え直す', () => {
     const onDoubleTap = vi.fn();
     render(<Row onDoubleTap={onDoubleTap} />);
