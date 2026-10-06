@@ -155,9 +155,9 @@ IP は、発言フォームの「細字」チェックボックスの右にあ�
 
 #### Acceptance Criteria
 
-1. WHEN ダブルタップのあと Confirm_Dialog で「フィルタする」を選んだとき, THE Target_Page SHALL 同じ IP の行（見えているもの）をすべてフェードアウトさせながら、下の行を下から上へ詰めるアニメーションと、Filter_Link の件数が変わるアニメーションを出す。フィルタの一覧が外部ストアにあり React がその更新を Transition にできないので、`document.startViewTransition` を直接使う（design.md「フィルタを足すときの View Transition」「同じ IP の行がフェードアウトし、下の行が上へ詰まる動き」）
+1. WHEN ダブルタップのあと Confirm_Dialog で「フィルタする」を選んだとき, THE Target_Page SHALL 同じ IP の行（見えているもの）をすべてフェードアウトさせながら、下の行を下から上へ詰めるアニメーションを出す。Filter_Link（「フィルタ(N)」）は動かさず、件数はその場で変わる（2026-10-06 の要望）。フィルタの一覧が外部ストアにあり React がその更新を Transition にできないので、`document.startViewTransition` を直接使う（design.md「フィルタを足すときの View Transition」「同じ IP の行がフェードアウトし、下の行が上へ詰まる動き」）
 2. THE Filter_Dialog SHALL 開閉にアニメーションを付けない（確認の窓と同じ）
-3. THE Target_Page SHALL `view-transition-name` を全 Chat_Row には付けず、Transition の間だけ見えている範囲（画面内とその下 1 画面ぶん）の行と区切り線に付け、終わったら外す。Filter_Link には常に付ける（1000 行のログで計測と命名のコストを出さない）
+3. THE Target_Page SHALL `view-transition-name` を全 Chat_Row には付けず、Transition の間だけ見えている範囲（画面内とその下 1 画面ぶん）の行と区切り線に付け、終わったら外す（1000 行のログで計測と命名のコストを出さない）。Filter_Link には付けない
 4. THE React の `<ViewTransition>` SHALL 既存の `ranking` 以外の型と型なしの更新では何もしない（本機能は React の `<ViewTransition>` を増やさない）。フィルタを足すときの演出の CSS は、その間だけ `<html>` に付ける属性で絞る（発言の到着、ページ読み込み時の Suspense の解決では動かない。ChatRoute の `RANKING_ONLY` と同じ考え方）
 5. WHERE ブラウザが View Transitions に対応していないか `prefers-reduced-motion: reduce` のとき, THE Target_Page SHALL アニメーションなしで同じ結果にする
 
