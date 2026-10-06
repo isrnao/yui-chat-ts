@@ -14,6 +14,7 @@ import {
   buildAdminChat,
   buildFortuneChat,
   FORTUNE_MESSAGES,
+  FORTUNE_NAME,
   isFortuneCommand,
   type AdminEvent,
 } from './messages.ts';
@@ -202,6 +203,12 @@ function planSay(
   if (typeof body.message !== 'string' || body.message.trim().length === 0) {
     return { missing: 'invalid_message' };
   }
+  // 巫女の返事はサーバーが作る（Issue #181）。以前の Web を開いたままのタブは、おみくじの後に巫女の返事も
+  // この経路で送ってくるので、受け付けると返事が 2 件になる。記録だけの期間も拒否する（以前の Web は
+  // この保存の失敗を黙って無視する）
+  if (isLegacyFortuneReply(body)) {
+    return { missing: 'reserved_name' };
+  }
   const input = checkSayInput({
     name: body.name,
     message: body.message,
@@ -239,6 +246,12 @@ function planSay(
     violations: input.violations,
     dropped: metadata.dropped,
   };
+}
+
+/** 以前の Web（sendFortuneIfCommand）が送っていた巫女の返事か */
+function isLegacyFortuneReply(body: SaveChatBody): boolean {
+  const kind = (body.metadata as { kind?: unknown } | null | undefined)?.kind;
+  return kind === 'fortune' || (body.system === true && body.name === FORTUNE_NAME);
 }
 
 function clampInt(value: unknown, max: number): number | undefined {

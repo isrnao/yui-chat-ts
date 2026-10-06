@@ -761,3 +761,29 @@ Deno.test('おみくじ: 保存に失敗すれば利用者の発言ごと失敗�
   assertEquals(res.status, 500);
   await t.settle();
 });
+
+Deno.test(
+  'おみくじ: 以前の Web が送る巫女の返事は、記録だけの期間も拒否する（返事が 2 件にならない）',
+  async () => {
+    const t = setup();
+    const legacy = {
+      room_id: 'main',
+      name: '巫女',
+      color: 'hotpink',
+      message: '大吉で〜す。＞たろうさん',
+      system: true,
+      metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+    };
+    const res = await t.handler(post(legacy));
+    assertEquals(res.status, 400);
+    assertEquals(await res.json(), { error: { code: 'reserved_name' } });
+    // kind だけ付けた形・system と名前だけの形も同じ
+    assertEquals(
+      (await t.handler(post({ ...chat, metadata: { version: 1, kind: 'fortune' } }))).status,
+      400
+    );
+    assertEquals((await t.handler(post({ ...chat, name: '巫女', system: true }))).status, 400);
+    assertEquals(t.rpcCalls.length, 0);
+    await t.settle();
+  }
+);

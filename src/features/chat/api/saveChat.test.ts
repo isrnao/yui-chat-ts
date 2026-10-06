@@ -303,6 +303,25 @@ describe('saveChat', () => {
       expect(saved.metadata).toEqual({ version: 1, optimisticNonce: 'n' });
     });
 
+    it('onExtra が投げても保存の要求は繰り返さない', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'u', room_id: ROOM_ID, time: 1, extra: [{ uuid: 'miko', time: 2 }] },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const onExtra = vi.fn(() => {
+        throw new Error('render failed');
+      });
+      await expect(
+        chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1), { onExtra })
+      ).rejects.toThrow('render failed');
+      expect(invoke).toHaveBeenCalledTimes(1);
+    });
+
     it('入力の誤りで拒否されたら（400 + code）再試行せず、code に合う文言で投げる', async () => {
       const { supabase } = await import('@shared/supabaseClient');
       const invoke = supabase.functions.invoke as Mock;
