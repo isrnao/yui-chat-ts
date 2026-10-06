@@ -27,17 +27,19 @@ function setup() {
 }
 
 describe('createAdminChat', () => {
-  it('管理人発言の体裁を組み立てる', () => {
+  it('管理人発言の体裁を save-chat と同じ関数（messages.ts）で組み立てる', () => {
     const chat = createAdminChat({
       roomId: 'superbeginner',
-      message: 'ゆい さん、Welcome to お気楽チャット☆',
-      userColor: '#ff69b4',
-      extraMetadata: { visitCount: 3 },
+      event: 'enter',
+      name: 'ゆい',
+      color: '#ff69b4',
+      visitCount: 3,
     });
 
     expect(chat.room_id).toBe('superbeginner');
     expect(chat.name).toBe('管理人');
     expect(chat.color).toBe('#ffffff');
+    expect(chat.message).toBe('ゆい さん、Welcome to お気楽チャット☆');
     expect(chat.system).toBe(true);
     expect(chat.metadata).toMatchObject({
       version: 1,
@@ -47,6 +49,17 @@ describe('createAdminChat', () => {
       fontStyle: { bold: true },
       visitCount: 3,
     });
+  });
+
+  it('読めない色はサーバーと同じく既定の色にする', () => {
+    const chat = createAdminChat({
+      roomId: 'superbeginner',
+      event: 'exit',
+      name: 'ゆい',
+      color: 'あか',
+    });
+    expect(chat.message).toBe('ゆいさん、またきておくれやすぅ。');
+    expect(chat.metadata?.userColor).toBe('#ff69b4');
   });
 });
 
@@ -58,7 +71,7 @@ describe('useChatSender', () => {
   it('sendUserMessage は操作 ID を 1 つ発行し、send-chat の記録と保存に同じ ID を使う', async () => {
     const { result, mergeChat } = setup();
     const chat = {
-      ...createAdminChat({ roomId: 'superbeginner', message: 'x', userColor: '#000' }),
+      ...createAdminChat({ roomId: 'superbeginner', event: 'enter', name: 'x', color: '#000' }),
       system: false,
     };
 
@@ -75,20 +88,23 @@ describe('useChatSender', () => {
     expect(mergeChat).toHaveBeenCalledWith(expect.objectContaining({ uuid: 'server-uuid' }));
   });
 
-  it('入退室などのシステム発言（send）は send-chat として記録しない', async () => {
-    const { result } = setup();
-    const chat = createAdminChat({
-      roomId: 'superbeginner',
-      message: 'Welcome',
-      userColor: '#000',
-    });
+  it('入退室（sendAdminEvent）は op で送り、send-chat として記録しない', async () => {
+    const { result, addOptimistic } = setup();
+    const input = { event: 'enter', name: 'ゆい', color: '#000', visitCount: 2 } as const;
 
     await act(async () => {
-      await result.current.send('superbeginner', chat);
+      await result.current.sendAdminEvent('superbeginner', input);
     });
 
     expect(recordSendChat).not.toHaveBeenCalled();
-    expect(saveChatLogOptimistic).toHaveBeenCalledWith('superbeginner', chat, undefined);
+    expect(addOptimistic).toHaveBeenCalledWith(
+      expect.objectContaining({ name: '管理人', message: 'ゆい さん、Welcome to お気楽チャット☆' })
+    );
+    expect(saveChatLogOptimistic).toHaveBeenCalledWith(
+      'superbeginner',
+      expect.objectContaining({ name: '管理人' }),
+      { admin: input }
+    );
   });
 
   it('巫女メッセージは send-chat として記録しない', async () => {
@@ -102,7 +118,12 @@ describe('useChatSender', () => {
 
   it('send は楽観表示してから保存結果でマージする', async () => {
     const { result, addOptimistic, mergeChat } = setup();
-    const chat = createAdminChat({ roomId: 'superbeginner', message: 'やあ', userColor: '#000' });
+    const chat = createAdminChat({
+      roomId: 'superbeginner',
+      event: 'exit',
+      name: 'やあ',
+      color: '#000',
+    });
 
     await act(async () => {
       await result.current.send('superbeginner', chat);

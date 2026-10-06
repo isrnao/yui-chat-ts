@@ -587,7 +587,10 @@ Deno.test('書き込み: insert_chat に利用者の発言を author 付きで�
   const server = byName(spans, 'POST save-chat');
   assertEquals(server.attributes['chat.write_path'], 'rpc');
   assertEquals(server.attributes['chat.author_key'], true);
-  assertEquals(byName(spans, 'db insert chats').attributes['db.stored_procedure.name'], 'insert_chat');
+  assertEquals(
+    byName(spans, 'db insert chats').attributes['db.stored_procedure.name'],
+    'insert_chat'
+  );
 });
 
 Deno.test('書き込み: 形の違う鍵は渡さない（保存はする）', async () => {
@@ -600,7 +603,9 @@ Deno.test('書き込み: 形の違う鍵は渡さない（保存はする）', a
 
 Deno.test('書き込み: SAVE_CHAT_WRITE=insert なら以前の INSERT の経路に戻せる', async () => {
   const t = setup({ env: { SAVE_CHAT_WRITE: 'insert' } });
-  const res = await t.handler(post({ ...chat, room_id: 'com_sb' }, { 'x-chat-author-key': AUTHOR_KEY }));
+  const res = await t.handler(
+    post({ ...chat, room_id: 'com_sb' }, { 'x-chat-author-key': AUTHOR_KEY })
+  );
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals('rooms' in body, false);
@@ -609,4 +614,78 @@ Deno.test('書き込み: SAVE_CHAT_WRITE=insert なら以前の INSERT の経路
   const spans = await t.settle();
   assertEquals(byName(spans, 'POST save-chat').attributes['chat.write_path'], 'insert');
   assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], true);
+});
+
+Deno.test(
+  'op: enter は管理人の入室の発言をサーバーが作って保存する（鍵は結び付けない）',
+  async () => {
+    const t = setup();
+    const res = await t.handler(
+      post(
+        {
+          op: 'enter',
+          room_id: 'main',
+          name: 'ゆい',
+          color: 'HotPink',
+          visit_count: 1e9,
+          last_login: 1735806900000,
+          nonce: 'n-1',
+          // 利用者が送った文言・system・metadata は使わない
+          message: '偽の文言',
+          system: false,
+          metadata: { version: 1, kind: 'normal' },
+        },
+        { 'x-chat-author-key': AUTHOR_KEY }
+      )
+    );
+    assertEquals(res.status, 200);
+    const [row] = t.rpcCalls[0].args.p_chats as Row[];
+    assertEquals(row.name, '管理人');
+    assertEquals(row.message, 'ゆい さん、Welcome to お気楽チャット☆');
+    assertEquals(row.system, true);
+    assertEquals(row.author, false);
+    assertEquals(row.metadata, {
+      version: 1,
+      avatar: 'hoshi1',
+      kind: 'admin',
+      userColor: 'hotpink',
+      fontStyle: { bold: true },
+      visitCount: 1_000_000,
+      lastLogin: 1735806900000,
+      optimisticNonce: 'n-1',
+    });
+    const spans = await t.settle();
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.op'], 'enter');
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], false);
+  }
+);
+
+Deno.test('op: exit は退室の発言。読めない色は既定の色にし、訪問の情報は付けない', async () => {
+  const t = setup();
+  await t.handler(post({ op: 'exit', room_id: 'main', name: 'ゆい', color: 'あか', nonce: 'n-2' }));
+  const [row] = t.rpcCalls[0].args.p_chats as Row[];
+  assertEquals(row.message, 'ゆいさん、またきておくれやすぅ。');
+  assertEquals((row.metadata as Row).userColor, '#ff69b4');
+  assertEquals('visitCount' in (row.metadata as Row), false);
+  await t.settle();
+});
+
+Deno.test('op: 知らない op は 400 invalid_op、message の無い enter は通る', async () => {
+  const t = setup();
+  assertEquals(await (await t.handler(post({ ...chat, op: 'delete' }))).json(), {
+    error: { code: 'invalid_op' },
+  });
+  const res = await t.handler(post({ op: 'enter', room_id: 'main', name: 'ゆい', color: '#fff' }));
+  assertEquals(res.status, 200);
+  await t.settle();
+});
+
+Deno.test('op: 入退室の名前も上限を確かめる（enforce で拒否）', async () => {
+  const t = setup({ env: { SAVE_CHAT_INPUT_MODE: 'enforce' } });
+  const res = await t.handler(
+    post({ op: 'enter', room_id: 'main', name: 'あ'.repeat(25), color: '#fff' })
+  );
+  assertEquals(await res.json(), { error: { code: 'invalid_name' } });
+  assertEquals(t.rpcCalls.length, 0);
+  await t.settle();
 });

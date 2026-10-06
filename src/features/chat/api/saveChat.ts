@@ -2,6 +2,7 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
+import type { AdminEvent } from '../adminMessages';
 import type { InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
 import { UserFacingError } from '../utils/userFacingError';
@@ -65,16 +66,30 @@ async function readRejection(error: unknown): Promise<InputErrorCode | null> {
 }
 
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
+type SaveChatPayload =
+  | {
+      op?: 'say';
+      room_id: RoomId;
+      name: string;
+      color: string;
+      message: string;
+      system?: boolean;
+      email?: string | null;
+      metadata?: Chat['metadata'] | null;
+    }
+  | {
+      // 入退室。文言と metadata はサーバーが作る（Issue #180）
+      op: AdminEvent;
+      room_id: RoomId;
+      name: string;
+      color: string;
+      visit_count?: number;
+      last_login?: number;
+      nonce?: string;
+    };
+
 async function invokeSaveChat(
-  payload: {
-    room_id: RoomId;
-    name: string;
-    color: string;
-    message: string;
-    system?: boolean;
-    email?: string | null;
-    metadata?: Chat['metadata'] | null;
-  },
+  payload: SaveChatPayload,
   operation: SaveOperation
 ): Promise<{
   uuid: string;
@@ -125,6 +140,19 @@ export interface SaveChatOptions {
    * 省略時はここで発行する（入退室・巫女などのシステム発言）。
    */
   operationId?: string;
+  /**
+   * 入退室の管理人の発言（op: enter / exit）。指定すると、chat は楽観的な表示にだけ使い、サーバーには
+   * 入退室した人の名前・色・訪問の情報と nonce だけを送る（文言と metadata はサーバーが作る）。
+   */
+  admin?: AdminEventInput;
+}
+
+export interface AdminEventInput {
+  event: AdminEvent;
+  name: string;
+  color: string;
+  visitCount?: number;
+  lastLogin?: number;
 }
 
 /**
@@ -135,22 +163,31 @@ async function saveChatWithRetry(
   roomId: RoomId,
   chat: Chat,
   operationId: string,
+  admin: AdminEventInput | undefined,
   onSaved: () => void
 ): Promise<Chat> {
+  const payload: SaveChatPayload = admin
+    ? {
+        op: admin.event,
+        room_id: roomId,
+        name: admin.name,
+        color: admin.color,
+        visit_count: admin.visitCount,
+        last_login: admin.lastLogin,
+        nonce: chat.metadata?.optimisticNonce,
+      }
+    : {
+        room_id: roomId,
+        name: chat.name,
+        color: chat.color,
+        message: chat.message,
+        system: chat.system,
+        email: chat.email,
+        metadata: chat.metadata ?? null,
+      };
   return retryWithBackoff(
     async (attempt) => {
-      const result = await invokeSaveChat(
-        {
-          room_id: roomId,
-          name: chat.name,
-          color: chat.color,
-          message: chat.message,
-          system: chat.system,
-          email: chat.email,
-          metadata: chat.metadata ?? null,
-        },
-        { id: operationId, attempt }
-      );
+      const result = await invokeSaveChat(payload, { id: operationId, attempt });
 
       onSaved();
 
@@ -176,10 +213,10 @@ async function saveChatWithRetry(
 export async function saveChatLogOptimistic(
   roomId: RoomId = DEFAULT_ROOM_ID,
   chat: Chat,
-  { operationId = generateOperationId() }: SaveChatOptions = {}
+  { operationId = generateOperationId(), admin }: SaveChatOptions = {}
 ): Promise<Chat> {
   const startTime = performance.now();
-  return saveChatWithRetry(roomId, chat, operationId, () => {
+  return saveChatWithRetry(roomId, chat, operationId, admin, () => {
     warnIfSlow('saveChatLogOptimistic', startTime);
   });
 }

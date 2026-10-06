@@ -2,46 +2,32 @@ import { startTransition } from 'react';
 import {
   saveChatLogOptimistic,
   createOptimisticChat,
+  type AdminEventInput,
   type SaveChatOptions,
 } from '@features/chat/api/saveChat';
+import { ADMIN_FALLBACK_USER_COLOR, buildAdminChat } from '@features/chat/adminMessages';
+import { normalizeColor } from '@features/chat/inputRules';
 import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { generateOperationId } from '@shared/utils/uuid';
-import type { Chat, ChatMetadata } from '@features/chat/types';
+import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 
 /**
- * 管理人（システム）発言の楽観的チャットを組み立てる純粋関数。
- * 入室 / 退室メッセージは部屋単位ビューと全部屋まとめビューで同じ体裁を使う。
+ * 入退室の管理人の発言の楽観的な行。文言と metadata は save-chat と同じ関数（messages.ts）で作り、
+ * 保存される内容はサーバーが決める（Issue #180）。色はサーバーと同じく読めなければ既定の色にする。
  */
-export function createAdminChat({
-  roomId,
-  message,
-  userColor,
-  extraMetadata,
-}: {
-  roomId: RoomId;
-  message: string;
-  userColor: string;
-  extraMetadata?: Partial<ChatMetadata>;
-}): Chat {
+export function createAdminChat({ roomId, ...input }: AdminEventInput & { roomId: RoomId }): Chat {
+  const admin = buildAdminChat({
+    ...input,
+    color: normalizeColor(input.color) ?? ADMIN_FALLBACK_USER_COLOR,
+  });
   return createOptimisticChat({
     room_id: roomId,
-    name: '管理人',
-    color: '#ffffff',
-    message,
+    ...admin,
     client_time: Date.now(),
-    system: true,
     ip_masked: '',
     ua: '',
-    metadata: {
-      version: 1,
-      avatar: 'hoshi1',
-      kind: 'admin',
-      userColor,
-      fontStyle: { bold: true },
-      ...extraMetadata,
-    },
   });
 }
 
@@ -99,6 +85,12 @@ export function useChatSender({
   };
 
   /**
+   * 入退室の管理人の発言を送る（op: enter / exit）。楽観的に表示し、サーバーが作った行で確定する。
+   */
+  const sendAdminEvent = (roomId: RoomId, input: AdminEventInput): Promise<Chat> =>
+    send(roomId, createAdminChat({ roomId, ...input }), { admin: input });
+
+  /**
    * おみくじコマンドだった場合に巫女メッセージを続けて投稿する。
    * 巫女メッセージの保存失敗はユーザー発言の成否に影響しないためサイレントに無視する。
    */
@@ -125,5 +117,5 @@ export function useChatSender({
     }
   };
 
-  return { send, sendUserMessage, sendFortuneIfCommand };
+  return { send, sendUserMessage, sendAdminEvent, sendFortuneIfCommand };
 }
