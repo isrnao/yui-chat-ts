@@ -45,6 +45,10 @@ Deno.test('発言: 1〜120 grapheme（絵文字・結合文字は 1 文字）', 
     'invalid_message'
   );
   assertEquals(checkSayInput({ ...ok, message: ' \n ' }).violations, ['message_blank']);
+  // 結合文字を重ねた 1 grapheme は 120 grapheme 以内でも、DB の上限（2000 コードポイント）を超えれば拒否する
+  const heavy = 'a' + '\u0301'.repeat(2000);
+  assertEquals(countGraphemes(heavy), 1);
+  assertEquals(checkSayInput({ ...ok, message: heavy }).error, 'invalid_message');
 });
 
 Deno.test(

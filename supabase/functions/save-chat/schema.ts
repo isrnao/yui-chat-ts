@@ -10,6 +10,11 @@
 
 export const NAME_MAX = 24;
 export const MESSAGE_MAX = 120;
+/**
+ * 発言のコードポイントの上限（DB の CHECK 制約 chats_message_check と同じ値）。120 grapheme でも、結合文字を
+ * 大量に重ねた 1 grapheme はこれを超えうる。ここで拒否しないと enforce でも通って DB で 500 になる
+ */
+export const MESSAGE_MAX_CODE_POINTS = 2000;
 export const EMAIL_MAX = 64;
 /** 色が読めないときに保存する色。EntryForm の既定の色と同じ */
 export const DEFAULT_COLOR = '#ff69b4';
@@ -135,7 +140,12 @@ export function checkSayInput(input: {
 
   const messageLength = countGraphemes(input.message);
   if (input.message.trim().length === 0) reject('invalid_message', 'message_blank');
-  else if (messageLength > MESSAGE_MAX) reject('invalid_message', 'message_too_long');
+  else if (
+    messageLength > MESSAGE_MAX ||
+    countCodePoints(input.message) > MESSAGE_MAX_CODE_POINTS
+  ) {
+    reject('invalid_message', 'message_too_long');
+  }
 
   let email: string | null = null;
   if (typeof input.email === 'string') {

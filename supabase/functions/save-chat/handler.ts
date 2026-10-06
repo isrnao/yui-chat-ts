@@ -272,9 +272,9 @@ async function saveChat(
       : await supabase
           .from('chats')
           .insert(row)
-          // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
+          // ip_masked / ua / color も返す。クライアントは楽観行をこの応答でマージするため、
           // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
-          .select('uuid,room_id,time,ip_masked,ua')
+          .select('uuid,room_id,time,ip_masked,ua,color')
           .single();
   } catch (err) {
     db.failException('db_insert_failed', err);
