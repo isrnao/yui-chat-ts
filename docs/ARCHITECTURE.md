@@ -323,9 +323,7 @@ fetchRoomParticipantCounts()
     ├─ POST /rest/v1/rpc/room_participant_counts { since_ms }
     │   → サーバーで room_id × ユニーク発言者を集計し、部屋の数ぶんの行だけ返す
     │     （論理削除・system 発言・管理人の発言・空の名前を除く）
-    └─ RPC がまだ無い（404: マイグレーション適用前）
-        → chats SELECT (room_id, name, system, metadata, time) を最大 5000 行取得して
-          クライアント側で集計する（従来の方法）
+    └─ 失敗（404 を含む）→ {} を返す（発言の行を取ってクライアントで数える経路は持たない）
 ```
 
 初期表示はすべて `0人` で即時描画し、Supabase レスポンスで上書きする方針です。
@@ -396,7 +394,7 @@ store はサーバーで確定した行だけを新しい順（uuid v7 の降順
 
 ### 7.2 features/top/api/roomCountsApi.ts
 
-トップページ用に、直近 `windowMs`（既定 6 時間）以内の `room_id × ユニーク発言者` を RPC `room_participant_counts`（`supabase/migrations/20260923000000_room_participant_counts.sql`）でサーバー集計します。RPC が DB にまだ無いときは、従来どおり発言の行を取得してクライアントで数えます。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
+トップページ用に、直近 `windowMs`（既定 6 時間）以内の `room_id × ユニーク発言者` を RPC `room_participant_counts`（`supabase/migrations/20260923000000_room_participant_counts.sql`）でサーバー集計します。失敗したとき（404 を含む）は空 `{}` を返します（以前の、発言の行を最大 5000 行取ってクライアントで数える経路は、RPC が本番に適用済みなので消しました。Issue #187）。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
 
 ---
 
