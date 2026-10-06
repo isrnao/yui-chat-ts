@@ -1,4 +1,12 @@
-import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
+import {
+  startTransition,
+  useId,
+  useRef,
+  useEffect,
+  useState,
+  useActionState,
+  type ChangeEvent,
+} from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
@@ -126,9 +134,12 @@ export default function ChatRoom({
   }, [isPending]);
 
   const handleClear = () => {
-    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）
+    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）。
+    // 発言フォームと同じ Action に通し、「削除対象の発言がありません」などの失敗を同じ場所に出す
     setMessage('');
-    void onSend('clear').catch(() => {});
+    const formData = new FormData();
+    formData.set('message', 'clear');
+    startTransition(() => formAction(formData));
   };
 
   return (
