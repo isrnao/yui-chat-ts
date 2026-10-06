@@ -27,6 +27,21 @@ function readRoomsTable(): Map<string, { category: string; enabled: boolean; tri
 describe('rooms 表', () => {
   const table = readRoomsTable();
 
+  // この検査は INSERT ... VALUES だけを読む。UPDATE・DELETE・UPSERT で rooms を変えるマイグレーションを足すと、
+  // 実 DB と rooms.ts がずれても通ってしまうので、そうした書き込みがあれば落とす（足すときはこの検査も直す）
+  it('rooms を変えるマイグレーションは INSERT ... VALUES だけ', () => {
+    const unsupported = readdirSync(MIGRATIONS).filter((file) => {
+      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '');
+      return (
+        /UPDATE\s+(public\.)?rooms\b/i.test(sql) ||
+        /DELETE\s+FROM\s+(public\.)?rooms\b/i.test(sql) ||
+        /TRUNCATE\s+(TABLE\s+)?(public\.)?rooms\b/i.test(sql) ||
+        /INSERT\s+INTO\s+(public\.)?rooms\b[^;]*ON\s+CONFLICT/i.test(sql)
+      );
+    });
+    expect(unsupported).toEqual([]);
+  });
+
   it('rooms.ts の部屋がすべて同じカテゴリ・enabled で入っていて、余分な部屋が無い', () => {
     expect([...table.keys()].sort()).toEqual([...CHAT_ROOM_IDS].sort());
     for (const id of CHAT_ROOM_IDS) {
