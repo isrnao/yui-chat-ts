@@ -5,6 +5,7 @@ import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
 import type { AdminEvent } from '../adminMessages';
 import type { InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
+import { normalizeChatMetadata } from '../utils/normalizeMetadata';
 import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
@@ -97,6 +98,10 @@ async function invokeSaveChat(
   time: number;
   ip_masked?: string;
   ua?: string;
+  /** 保存した色（サーバーが読めない色を既定の色に置き換える） */
+  color?: string;
+  /** 保存した metadata（サーバーが許可リストで作り直したもの） */
+  metadata?: unknown;
 }> {
   const { data, error } = await supabase.functions.invoke('save-chat', {
     body: payload,
@@ -104,7 +109,7 @@ async function invokeSaveChat(
       'x-chat-operation-id': operation.id,
       'x-chat-attempt': String(operation.attempt),
       // 書いた端末の鍵。clear（clear_my_chats）で自分の発言だけを消すために、サーバーが発言と結び付ける
-      'x-chat-author-key': getAuthorKey(),
+      'x-chat-author-key': await getAuthorKey(),
     },
   });
   if (error) {
@@ -130,6 +135,8 @@ async function invokeSaveChat(
     time: number;
     ip_masked?: string;
     ua?: string;
+    color?: string;
+    metadata?: unknown;
   };
 }
 
@@ -201,6 +208,11 @@ async function saveChatWithRetry(
         // 送信者だけ IP / ブラウザ行が消える。
         ip_masked: result.ip_masked ?? chat.ip_masked,
         ua: result.ua ?? chat.ua,
+        // サーバーが置き換えた色で確定させる。送った値のままにすると、Realtime で先に届いた
+        // 正規化済みの行を後着の応答が上書きし、送信者だけ別の色になる
+        color: result.color ?? chat.color,
+        // metadata も同じく、サーバーが許可リストで作り直したものにする
+        metadata: 'metadata' in result ? normalizeChatMetadata(result.metadata) : chat.metadata,
         optimistic: false,
       };
     },

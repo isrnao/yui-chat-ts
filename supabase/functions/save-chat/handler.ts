@@ -125,6 +125,8 @@ interface SavedRow {
   time: number;
   ip_masked: string;
   ua: string;
+  color: string;
+  metadata: unknown;
   triage: boolean;
 }
 
@@ -265,10 +267,10 @@ async function writeChats(
   const { data, error } = await supabase
     .from('chats')
     .insert(rows.map(({ author: _author, ...row }) => row))
-    // ip_masked / ua も返す。クライアントは楽観行をこの応答でマージするため、
+    // ip_masked / ua / color / metadata も返す。クライアントは楽観行をこの応答でマージするため、
     // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
     // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む
-    .select('uuid,room_id,time,ip_masked,ua,rooms(triage)');
+    .select('uuid,room_id,time,ip_masked,ua,color,metadata,rooms(triage)');
   if (error || !data) return { data: null, error };
   return {
     data: (

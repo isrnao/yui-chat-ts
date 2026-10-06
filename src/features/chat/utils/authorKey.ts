@@ -4,10 +4,14 @@
  * 同じ鍵で書いた発言だけを消す。
  *
  * - 鍵は base64url の 43 文字（サーバーの author_key_hash と同じ形）
+ * - 鍵が無いときの「読む → 作る → 保存する」は Web Locks でタブ間に直列化する。同時に開いた 2 つのタブが
+ *   別々の鍵を作って上書きし合うと、上書きされた側で書いた発言が後から消せなくなるため
+ * - 毎回 localStorage から読む（別のタブが保存した鍵に追随する）
  * - localStorage が使えないとき（プライベートモードなど）は、このページを開いている間だけメモリに持つ
  * - ブラウザのデータを消した・別のブラウザで書いた発言は、消せなくなる（[消す] の説明に書いている）
  */
 const STORAGE_KEY = 'yui-chat:author-key';
+const LOCK_NAME = 'yui-chat:author-key';
 const KEY_FORMAT = /^[A-Za-z0-9_-]{43}$/;
 
 let memoryKey: string | null = null;
@@ -20,24 +24,40 @@ function generateKey(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export function getAuthorKey(): string {
-  if (memoryKey) return memoryKey;
+function readStored(): string | null {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && KEY_FORMAT.test(stored)) return (memoryKey = stored);
+    return stored && KEY_FORMAT.test(stored) ? stored : null;
   } catch {
-    // 読めなければ新しく作る
+    return null;
   }
-  memoryKey = generateKey();
+}
+
+/** 保存済みの鍵を返し、無ければ作って保存する（ロックの中で呼ぶ） */
+function readOrCreate(): string {
+  const stored = readStored();
+  if (stored) return stored;
+  const key = memoryKey ?? generateKey();
   try {
-    localStorage.setItem(STORAGE_KEY, memoryKey);
+    localStorage.setItem(STORAGE_KEY, key);
   } catch {
     // 保存できなければ、このページを開いている間だけ使う
   }
+  // 保存できたかを読み直す（保存できなければメモリの鍵を使い続ける）
+  memoryKey = readStored() ?? key;
   return memoryKey;
 }
 
-/** テスト用: メモリの鍵を捨てる */
-export function resetAuthorKeyForTest(): void {
-  memoryKey = null;
+type LockManager = { request<T>(name: string, callback: () => Promise<T> | T): Promise<T> };
+
+export async function getAuthorKey(): Promise<string> {
+  const stored = readStored();
+  if (stored) return stored;
+  const locks = (globalThis.navigator as { locks?: LockManager } | undefined)?.locks;
+  if (!locks) return readOrCreate();
+  try {
+    return await locks.request(LOCK_NAME, readOrCreate);
+  } catch {
+    return readOrCreate();
+  }
 }
