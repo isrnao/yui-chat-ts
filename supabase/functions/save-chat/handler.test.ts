@@ -658,6 +658,8 @@ Deno.test(
       visitCount: 1_000_000,
       lastLogin: 1735806900000,
       optimisticNonce: 'n-1',
+      event: 'enter',
+      subject: { name: 'ゆい', color: 'hotpink' },
     });
     const spans = await t.settle();
     assertEquals(byName(spans, 'POST save-chat').attributes['chat.op'], 'enter');
@@ -761,6 +763,23 @@ Deno.test('おみくじ: 保存に失敗すれば利用者の発言ごと失敗�
   assertEquals(res.status, 500);
   await t.settle();
 });
+
+Deno.test(
+  '利用者の発言では metadata の event / subject を受け付けない（サーバーが作る発言だけ）',
+  async () => {
+    const t = setup();
+    await t.handler(
+      post({
+        ...chat,
+        metadata: { version: 1, event: 'exit', subject: { name: 'だれか', color: '#000' } },
+      })
+    );
+    assertEquals(t.inserts[0].metadata, { version: 1 });
+    await t.settle();
+    const log = t.logs.find((l) => l.body.stringValue === 'save_chat.metadata_dropped')!;
+    assertEquals(log.attributes['chat.metadata.dropped'], 'unknown:event,unknown:subject');
+  }
+);
 
 Deno.test(
   'おみくじ: 以前の Web が送る巫女の返事は、記録だけの期間も拒否する（返事が 2 件にならない）',

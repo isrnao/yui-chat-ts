@@ -7,7 +7,8 @@ import {
   isFortuneCommand,
 } from './messages.ts';
 
-// 以前の Web（useChatSession.enter / exit + createAdminChat）が保存していた内容。1 文字も変えない
+// 以前の Web（useChatSession.enter / exit + createAdminChat）が保存していた内容。本文と既存のキーは 1 文字も変えない
+// （event / subject は Issue #183 で足したキー）
 Deno.test('入室: 以前の Web が作っていた文言と metadata と同じ', () => {
   assertEquals(
     buildAdminChat({
@@ -32,6 +33,9 @@ Deno.test('入室: 以前の Web が作っていた文言と metadata と同じ'
         visitCount: 49,
         lastLogin: 1735806900000,
         optimisticNonce: 'n-1',
+        // Issue #183: 誰が入ったかを構造で書く（本文の文言は変えない）
+        event: 'enter',
+        subject: { name: 'ゆい', color: '#ff69b4' },
       },
     }
   );
@@ -58,6 +62,8 @@ Deno.test('退室: 以前の Web が作っていた文言と metadata と同じ�
         userColor: 'orangered',
         fontStyle: { bold: true },
         optimisticNonce: 'n-2',
+        event: 'exit',
+        subject: { name: 'ゆい', color: 'orangered' },
       },
     }
   );
