@@ -112,3 +112,9 @@ body {
     navigation: none;
   }
 }
+
+/* 発言の行のダブルタップでフィルタする（.kiro/specs/chat-ip-mute）。行の上ではダブルタップでの拡大を止める
+   （ピンチでの拡大はそのまま使える） */
+.chat-row-filterable {
+  touch-action: manipulation;
+}

@@ -33,6 +33,10 @@ export type ChatRoomProps = {
   replyTargetTitle?: string;
   /** 「〇〇に返信中」をクリックしたときに呼ばれるコールバック（全部屋まとめにリセット用） */
   onResetReplyTarget?: () => void;
+  /** フィルタした伏せ字の IP の数。「フィルタ(N)」に出す（.kiro/specs/chat-ip-mute Requirement 4.2） */
+  filterCount?: number;
+  /** 「フィルタ」リンクで編集画面を開閉する。渡したときだけ「細字」の右にリンクを出す */
+  onToggleFilter?: () => void;
 };
 
 export default function ChatRoom({
@@ -49,6 +53,8 @@ export default function ChatRoom({
   userColor,
   replyTargetTitle,
   onResetReplyTarget,
+  filterCount = 0,
+  onToggleFilter,
 }: ChatRoomProps) {
   const messageId = useId();
   // 発言欄の値はこの部品の中だけで持つ。ルートで持つと 1 文字ごとにルート全体
@@ -291,6 +297,16 @@ export default function ChatRoom({
           />
           <span>細字</span>
         </label>
+
+        {onToggleFilter && (
+          <button
+            type="button"
+            className="ml-2 text-green-700 underline cursor-pointer"
+            onClick={onToggleFilter}
+          >
+            {filterCount > 0 ? `フィルタ(${filterCount})` : 'フィルタ'}
+          </button>
+        )}
       </div>
     </div>
   );

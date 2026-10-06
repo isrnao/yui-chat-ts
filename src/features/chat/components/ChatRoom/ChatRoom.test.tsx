@@ -200,4 +200,24 @@ describe('ChatRoom', () => {
       expect(screen.getByRole('textbox', { name: '発言' })).toHaveClass('max-w-full');
     });
   });
+  describe('「フィルタ」リンク（chat-ip-mute）', () => {
+    it('onToggleFilter を渡したときだけ「細字」の右に出す', () => {
+      const { unmount } = render(<ChatRoom {...props} />);
+      expect(screen.queryByRole('button', { name: /^フィルタ/ })).not.toBeInTheDocument();
+      unmount();
+
+      const onToggleFilter = vi.fn();
+      render(<ChatRoom {...props} onToggleFilter={onToggleFilter} />);
+      const link = screen.getByRole('button', { name: 'フィルタ' });
+      const boldLabel = screen.getByText('細字').closest('label');
+      expect(boldLabel?.nextElementSibling).toBe(link);
+      fireEvent.click(link);
+      expect(onToggleFilter).toHaveBeenCalledTimes(1);
+    });
+
+    it('フィルタしている IP があれば件数を付ける', () => {
+      render(<ChatRoom {...props} onToggleFilter={vi.fn()} filterCount={3} />);
+      expect(screen.getByRole('button', { name: 'フィルタ(3)' })).toBeInTheDocument();
+    });
+  });
 });

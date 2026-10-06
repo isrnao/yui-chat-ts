@@ -4,6 +4,7 @@ import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { FONT_SIZE_CSS, FONT_COLOR_CSS } from '@features/chat/types';
 import type { Chat } from '@features/chat/types';
 import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
+import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
 
 type Props = {
   chat: Chat;
@@ -11,6 +12,11 @@ type Props = {
   onRoomClick?: (roomId: RoomId) => void;
   /** 画面外にある間は描画を省く（ログが長いときに ChatLogList が付ける） */
   deferOffscreen?: boolean;
+  /**
+   * 行のダブルタップ（ダブルクリック）で、この発言の伏せ字の IP をフィルタする（.kiro/specs/chat-ip-mute）。
+   * ChatLogList がフィルタの起点にできる行（Mutable_Row）にだけ渡す。全行で同じ関数なので memo は崩れない
+   */
+  onFilterIp?: (ip: string, row: HTMLElement) => void;
 };
 
 /**
@@ -233,7 +239,12 @@ function AdminMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props
   );
 }
 
-function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props) {
+function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilterIp }: Props) {
+  const doubleTap = useDoubleTap({
+    enabled: onFilterIp !== undefined,
+    onDoubleTap: (row) => onFilterIp?.(chat.ip_masked, row),
+  });
+
   if (chat.metadata?.kind === 'admin') {
     return (
       <AdminMessage
@@ -246,9 +257,18 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen }: Props)
   }
 
   const avatar = chat.metadata?.avatar;
+  // ダブルタップできる行だけに handlers とクラスを付ける（クラスはダブルタップでの拡大を止める CSS）
+  const filterable = onFilterIp !== undefined;
 
   return (
-    <div className={rowClassName(deferOffscreen)}>
+    <div
+      className={
+        filterable
+          ? `${rowClassName(deferOffscreen)} chat-row-filterable`
+          : rowClassName(deferOffscreen)
+      }
+      {...(filterable ? doubleTap : undefined)}
+    >
       {avatar && (
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
