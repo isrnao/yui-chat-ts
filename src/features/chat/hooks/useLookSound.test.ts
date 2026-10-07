@@ -64,6 +64,19 @@ describe('useLookSound（保存された発言の INSERT から鳴らす、Issue
     expect(playNotificationSound).not.toHaveBeenCalled();
   });
 
+  it('フィルタ（伏せ字 IP・名前）で隠している人の look では鳴らさない', () => {
+    const { store, insert } = fakeStore();
+    renderHook(() =>
+      useLookSound(store, { set: new Set(['203.*.*.9']), names: new Set(['あらし']) })
+    );
+
+    insert({ ...chat('look'), ip_masked: '203.*.*.9' });
+    insert({ ...chat('look'), name: 'あらし' });
+    expect(playNotificationSound).not.toHaveBeenCalled();
+    insert({ ...chat('look'), ip_masked: '198.*.*.1' });
+    expect(playNotificationSound).toHaveBeenCalledTimes(1);
+  });
+
   it('look 以外の発言では鳴らさない', () => {
     const { store, insert } = fakeStore();
     renderHook(() => useLookSound(store));

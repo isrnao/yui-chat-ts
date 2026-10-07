@@ -31,7 +31,10 @@ describe('rooms 表', () => {
   // 実 DB と rooms.ts がずれても通ってしまうので、そうした書き込みがあれば落とす（足すときはこの検査も直す）
   it('rooms を変えるマイグレーションは INSERT ... VALUES だけ', () => {
     const unsupported = readdirSync(MIGRATIONS).filter((file) => {
-      const sql = readFileSync(join(MIGRATIONS, file), 'utf8').replace(/--[^\n]*/g, '');
+      const sql = readFileSync(join(MIGRATIONS, file), 'utf8')
+        .replace(/--[^\n]*/g, '')
+        // 関数の本体（$$ … $$）はマイグレーションの実行では動かないので除く（set_room_enabled など）
+        .replace(/\$\$[\s\S]*?\$\$/g, '');
       return (
         /UPDATE\s+(public\.)?rooms\b/i.test(sql) ||
         /DELETE\s+FROM\s+(public\.)?rooms\b/i.test(sql) ||

@@ -65,9 +65,9 @@ export function hasControlChars(input: string): boolean {
 // --- 色 ---
 
 /** CSS の色名（CSS Color Module Level 4 の named colors。transparent と currentcolor は含めない） */
-// 画面の bundle には要らないので、使われなければ捨てられるようにする
-export const CSS_COLOR_NAMES: ReadonlySet<string> = /* @__PURE__ */ new Set(
-  `
+// 一覧は最初に使うときに Set にする（モジュールの読み込み時に計算しないので、使わない画面の bundle からは消える。
+// 画面の楽観的な表示の色は utils/displayColor.ts が CSS.supports で確かめ、ここは import しない）
+const CSS_COLOR_NAME_LIST = `
     aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
     brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
     darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen
@@ -84,10 +84,15 @@ export const CSS_COLOR_NAMES: ReadonlySet<string> = /* @__PURE__ */ new Set(
     powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen
     seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal
     thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen
-  `
-    .trim()
-    .split(/\s+/)
-);
+`;
+
+let cssColorNames: ReadonlySet<string> | null = null;
+
+/** CSS の色名か（小文字で渡す） */
+export function isCssColorName(value: string): boolean {
+  cssColorNames ??= new Set(CSS_COLOR_NAME_LIST.trim().split(/\s+/));
+  return cssColorNames.has(value);
+}
 
 /**
  * 色を保存する形にする。`#rgb`・`#rrggbb`・CSS の色名なら前後の空白を除いて小文字にして返し、
@@ -97,7 +102,7 @@ export function normalizeColor(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const value = input.trim().toLowerCase();
   if (/^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/.test(value)) return value;
-  return CSS_COLOR_NAMES.has(value) ? value : null;
+  return isCssColorName(value) ? value : null;
 }
 
 // --- 発言の入力 ---
@@ -123,8 +128,31 @@ export function checkName(name: string): string[] {
   const length = countCodePoints(name.trim());
   if (length === 0) return ['name_blank'];
   if (length > NAME_MAX) return ['name_too_long'];
+  if (hasControlChars(name)) return ['name_control_chars'];
   if (isReservedName(name)) return ['name_reserved'];
   return [];
+}
+
+/**
+ * DB の CHECK 制約の上限（20261006000000_chats_input_checks.sql と同じ値。char_length はコードポイントで数える）。
+ * これを超える入力は保存すると必ず失敗する（500）ので、記録だけの期間も 400 で拒否する
+ */
+export const DB_LIMITS = { name: 64, message: 2000, email: 256 } as const;
+
+/** DB の上限を超えるか。超えればその項目の拒否のコード、超えなければ null */
+export function exceedsDbLimits(input: {
+  name: string;
+  message?: string;
+  email?: unknown;
+}): InputErrorCode | null {
+  if (countCodePoints(input.name) > DB_LIMITS.name) return 'invalid_name';
+  if (input.message !== undefined && countCodePoints(input.message) > DB_LIMITS.message) {
+    return 'invalid_message';
+  }
+  if (typeof input.email === 'string' && countCodePoints(input.email) > DB_LIMITS.email) {
+    return 'invalid_email';
+  }
+  return null;
 }
 
 /** 名前の違反を拒否のコードにする（予約名は reserved_name、それ以外は invalid_name） */
@@ -138,11 +166,12 @@ export function nameErrorCode(violation: string): InputErrorCode {
 export const RESERVED_NAMES: readonly string[] = ['管理人', '巫女'];
 
 /**
- * 予約名か。NFKC に正規化し（全角・半角・互換文字の揺れを畳む）、空白をすべて除いてから比べる。
- * 例: 「管 理 人」「 巫女 」「管理⼈」（康熙部首）も予約名
+ * 予約名か。NFKC に正規化し（全角・半角・互換文字の揺れを畳む）、空白と見えない文字（ゼロ幅スペース・
+ * ゼロ幅接合子・Word Joiner など Default_Ignorable_Code_Point）をすべて除いてから比べる。
+ * 例: 「管 理 人」「 巫女 」「管理⼈」（康熙部首）「管\u200B理人」も予約名
  */
 export function isReservedName(name: string): boolean {
-  const folded = name.normalize('NFKC').replace(/\s+/g, '');
+  const folded = name.normalize('NFKC').replace(/[\s\p{Default_Ignorable_Code_Point}]+/gu, '');
   return RESERVED_NAMES.includes(folded);
 }
 

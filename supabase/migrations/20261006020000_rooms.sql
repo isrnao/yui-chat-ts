@@ -6,7 +6,8 @@
 --
 -- 確かめ方:
 --   - chats.room_id の外部キー（NOT VALID）: 知らない ID の新しい行を止める（23503）
---   - トリガー chats_room_enabled: enabled = false の部屋への新しい行を止める（SQLSTATE YC001）
+--   - トリガー chats_room_enabled: enabled = false の部屋への新しい行を止める（SQLSTATE YC001）。
+--     部屋を開く・閉じるのは set_room_enabled で行う（直接 UPDATE すると、閉じる瞬間の発言がすり抜けうる）
 --   save-chat はどちらも 400 invalid_room_id にする。
 --   triage の対象は rooms.triage で決める（save-chat は保存の応答に rooms(triage) を埋め込んで受け取るので、往復は増えない）。
 --
@@ -17,8 +18,8 @@
 --   WHERE r.id IS NULL GROUP BY c.room_id;
 --
 -- 性能: 挿入ごとに 82 行の表の主キーを引く（外部キーとトリガーで 2 回。常にメモリにある）。外部キーは rooms の行に
--- KEY SHARE、トリガーは SHARE のロックを取る。SHARE 同士は競合しないので発言どうしは待たない。rooms はほぼ更新しないので
--- 閉じる更新との待ちもまず起きない。
+-- KEY SHARE のロックを取るが、rooms はほぼ更新しないので待ちは起きない。トリガーはロックを取らない（閉じる側が
+-- set_room_enabled で直列化する）。
 
 CREATE TABLE public.rooms (
     id text PRIMARY KEY,
@@ -124,18 +125,15 @@ ALTER TABLE public.chats
     ADD CONSTRAINT chats_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms (id) NOT VALID;
 
 -- 閉じた部屋への新しい発言を止める。外部キーでは enabled を見られないのでトリガーで行う。
--- 部屋の行を FOR SHARE で読み、enabled = false への更新と発言の INSERT を直列化する（ただの SELECT だと、
--- 閉じる更新のコミット前の true を読んだ発言がそのままコミットできる。外部キーの KEY SHARE は非キー列の
--- 更新と競合しないので、これだけでは防げない）。知らない部屋は外部キーが 23503 で止める
+-- トリガーはロックを取らずに読む（発言ごとに rooms の行をロックすると、行の xmax を書き換えて WAL が出て、
+-- 同じ部屋への同時の発言で MultiXact も増えるため）。閉じる操作と発言の INSERT の直列化は、まれな操作である
+-- 閉じる側（set_room_enabled）が chats に SHARE ロックを取って行う。知らない部屋は外部キーが 23503 で止める
 CREATE OR REPLACE FUNCTION public.chats_room_enabled() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = public
 AS $$
-DECLARE
-  v_enabled boolean;
 BEGIN
-  SELECT enabled INTO v_enabled FROM public.rooms WHERE id = NEW.room_id FOR SHARE;
-  IF v_enabled IS FALSE THEN
+  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = NEW.room_id AND NOT enabled) THEN
     RAISE EXCEPTION 'room % is disabled', NEW.room_id USING ERRCODE = 'YC001';
   END IF;
   RETURN NEW;
@@ -147,3 +145,23 @@ REVOKE ALL ON FUNCTION public.chats_room_enabled() FROM public;
 CREATE TRIGGER chats_room_enabled
     BEFORE INSERT ON public.chats
     FOR EACH ROW EXECUTE FUNCTION public.chats_room_enabled();
+
+-- 部屋を開く・閉じる（service_role とマイグレーションだけ。rooms.enabled を直接 UPDATE しないこと）。
+-- chats に SHARE ロックを取ってから更新するので、更新の前に始まった発言は書き終わるのを待ち、更新の後の発言は
+-- コミットを待ってからトリガーで新しい enabled を読む（閉じる更新をすり抜ける発言が無い）。閉じている間、
+-- 発言の INSERT はほんの少し待つが、閉じる操作はまれなのでこちらにコストを寄せる
+CREATE OR REPLACE FUNCTION public.set_room_enabled(p_room_id text, p_enabled boolean) RETURNS void
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+BEGIN
+  LOCK TABLE public.chats IN SHARE MODE;
+  UPDATE public.rooms SET enabled = p_enabled WHERE id = p_room_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'unknown room %', p_room_id USING ERRCODE = '23503';
+  END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.set_room_enabled(text, boolean) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.set_room_enabled(text, boolean) TO service_role;

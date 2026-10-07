@@ -46,18 +46,50 @@ $$;
 
 REVOKE ALL ON FUNCTION public.author_key_hash(text) FROM public, anon, authenticated;
 
+-- 送信操作ごとに保存した行（insert_chat を冪等にする）。
+-- クライアントは保存に失敗したら同じ送信操作の ID（x-chat-operation-id）で再送する。サーバーがコミットした直後に
+-- 通信が切れると、再送も成功して同じ発言（とおみくじなら別の運勢の巫女の返事）が 2 行ずつ残る。
+-- 同じ ID の 2 回目以降は新しく入れず、1 回目に入れた行を返す。24 時間で消す（再送はその間に終わる）。
+CREATE TABLE public.chat_operations (
+    operation_id uuid PRIMARY KEY,
+    chat_uuids uuid[] NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_chat_operations_created_at ON public.chat_operations (created_at);
+
+ALTER TABLE public.chat_operations ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.chat_operations FROM anon, authenticated;
+
+COMMENT ON TABLE public.chat_operations IS
+    '送信操作の ID ごとに insert_chat が入れた発言の uuid。再送で同じ発言を二重に入れないために使う。24 時間で消す。';
+
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+
+SELECT cron.schedule(
+    'chat-operations-purge',
+    '41 * * * *',
+    $$DELETE FROM public.chat_operations WHERE created_at <= now() - interval '24 hours'$$
+);
+
 -- 発言を保存する（save-chat が service_role で呼ぶ）。
 --
 -- p_chats: 保存する行の配列（順に入れる。uuidv7_sub_ms() は行ごとに clock_timestamp() を読むので、配列の順に並ぶ）
 --   { room_id, name, color, message, system, email, metadata, ip, ua, author }
 --   author = true の行だけ chat_authors に鍵のハッシュを書く（巫女の返事などサーバーが作る行は false）
 -- p_author_key: x-chat-author-key の値。NULL や形の合わない値なら chat_authors に書かない
+-- p_operation_id: 送信操作の ID。同じ ID で 2 回目以降に呼ばれたら、新しく入れずに 1 回目の行を返す（NULL なら毎回入れる）
 --
--- 返す値: 入れた行の uuid / room_id / time / ip_masked / ua / color / metadata と、部屋の triage（save-chat の振り分けに使う）。
+-- 返す値: 入れた行の uuid / room_id / time / ip_masked / ua / name / color / message / system / metadata と、部屋の triage（save-chat の振り分けに使う）。
 -- 部屋の確かめは chats の外部キーとトリガー chats_room_enabled が行う（23503 / YC001）。
-CREATE OR REPLACE FUNCTION public.insert_chat(p_chats jsonb, p_author_key text DEFAULT NULL)
+CREATE OR REPLACE FUNCTION public.insert_chat(
+  p_chats jsonb,
+  p_author_key text DEFAULT NULL,
+  p_operation_id uuid DEFAULT NULL
+)
 RETURNS TABLE (
-  uuid uuid, room_id text, "time" bigint, ip_masked text, ua text, color text, metadata jsonb, triage boolean
+  uuid uuid, room_id text, "time" bigint, ip_masked text, ua text,
+  name text, color text, message text, system boolean, metadata jsonb, triage boolean
 )
 LANGUAGE plpgsql
 SET search_path = ''
@@ -66,9 +98,27 @@ DECLARE
   v_hash bytea := public.author_key_hash(p_author_key);
   v_row jsonb;
   v_saved public.chats;
+  v_uuids uuid[] := '{}';
+  v_existing uuid[];
 BEGIN
   IF jsonb_typeof(p_chats) IS DISTINCT FROM 'array' OR jsonb_array_length(p_chats) = 0 THEN
     RAISE EXCEPTION 'p_chats must be a non-empty array' USING ERRCODE = '22023';
+  END IF;
+
+  IF p_operation_id IS NOT NULL THEN
+    -- 同じ ID の要求が並んで来ても 1 つずつにする（トランザクションの終わりで外れる）
+    PERFORM pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
+    SELECT o.chat_uuids INTO v_existing FROM public.chat_operations AS o WHERE o.operation_id = p_operation_id;
+    IF FOUND THEN
+      RETURN QUERY
+        SELECT c.uuid, c.room_id, c."time", c.ip_masked, c.ua, c.name, c.color, c.message, c.system, c.metadata,
+               coalesce(r.triage, false)
+        FROM unnest(v_existing) WITH ORDINALITY AS u(id, ord)
+        JOIN public.chats AS c ON c.uuid = u.id
+        LEFT JOIN public.rooms AS r ON r.id = c.room_id
+        ORDER BY u.ord;
+      RETURN;
+    END IF;
   END IF;
 
   FOR v_row IN SELECT value FROM jsonb_array_elements(p_chats)
@@ -90,25 +140,33 @@ BEGIN
     IF v_hash IS NOT NULL AND coalesce((v_row->>'author')::boolean, false) THEN
       INSERT INTO public.chat_authors (chat_uuid, author_key_hash) VALUES (v_saved.uuid, v_hash);
     END IF;
+    v_uuids := v_uuids || v_saved.uuid;
 
     uuid := v_saved.uuid;
     room_id := v_saved.room_id;
     "time" := v_saved."time";
     ip_masked := v_saved.ip_masked;
     ua := v_saved.ua;
+    name := v_saved.name;
     color := v_saved.color;
+    message := v_saved.message;
+    system := v_saved.system;
     metadata := v_saved.metadata;
     triage := coalesce((SELECT r.triage FROM public.rooms AS r WHERE r.id = v_saved.room_id), false);
     RETURN NEXT;
   END LOOP;
+
+  IF p_operation_id IS NOT NULL THEN
+    INSERT INTO public.chat_operations (operation_id, chat_uuids) VALUES (p_operation_id, v_uuids);
+  END IF;
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.insert_chat(jsonb, text) FROM public, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.insert_chat(jsonb, text) TO service_role;
+REVOKE ALL ON FUNCTION public.insert_chat(jsonb, text, uuid) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.insert_chat(jsonb, text, uuid) TO service_role;
 
-COMMENT ON FUNCTION public.insert_chat(jsonb, text) IS
-    '発言を保存する（save-chat 専用、service_role）。p_chats の順に chats へ入れ、author = true の行は鍵のハッシュを chat_authors に書く。';
+COMMENT ON FUNCTION public.insert_chat(jsonb, text, uuid) IS
+    '発言を保存する（save-chat 専用、service_role）。p_chats の順に chats へ入れ、author = true の行は鍵のハッシュを chat_authors に書く。同じ p_operation_id の 2 回目以降は 1 回目の行を返す。';
 
 -- 自分の発言を消す（clear コマンドと [消す]。anon が PostgREST の RPC で呼ぶ）。
 --

@@ -4,6 +4,7 @@ import {
   checkSayInput,
   countCodePoints,
   countGraphemes,
+  exceedsDbLimits,
   DEFAULT_COLOR,
   EMAIL_MAX,
   MESSAGE_MAX,
@@ -220,7 +221,19 @@ Deno.test('metadata: 落としたものの記録は件数と長さを上限で�
 });
 
 Deno.test('予約名: NFKC に正規化し、空白を除いて「管理人」「巫女」と比べる', () => {
-  for (const name of ['管理人', '巫女', ' 管 理 人 ', '管理　人', '管理⼈', '巫\t女']) {
+  for (const name of [
+    '管理人',
+    '巫女',
+    ' 管 理 人 ',
+    '管理　人',
+    '管理⼈',
+    '巫\t女',
+    // ゼロ幅スペース・ゼロ幅接合子・Word Joiner・ソフトハイフンを挟んでも同じに見える
+    '管\u200B理人',
+    '巫\u200D女',
+    '管理\u2060人',
+    '管\u00AD理人',
+  ]) {
     assertEquals(isReservedName(name), true, name);
   }
   for (const name of ['管理人さん', 'ゆい', '巫女っ子', '管理']) {
@@ -228,4 +241,16 @@ Deno.test('予約名: NFKC に正規化し、空白を除いて「管理人」�
   }
   assertEquals(checkSayInput({ ...ok, name: ' 管理人 ' }).error, 'reserved_name');
   assertEquals(checkSayInput({ ...ok, name: ' 管理人 ' }).violations, ['name_reserved']);
+});
+
+Deno.test('名前: 制御文字を含む名前は invalid_name（enforce で拒否）', () => {
+  assertEquals(checkSayInput({ ...ok, name: 'ゆ\u0007い' }).error, 'invalid_name');
+  assertEquals(checkSayInput({ ...ok, name: 'ゆ\u0007い' }).violations, ['name_control_chars']);
+});
+
+Deno.test('DB の上限: 超えるものは項目のコードを返す（記録だけの期間も拒否するため）', () => {
+  assertEquals(exceedsDbLimits({ name: 'あ'.repeat(64), message: 'a'.repeat(2000) }), null);
+  assertEquals(exceedsDbLimits({ name: 'あ'.repeat(65) }), 'invalid_name');
+  assertEquals(exceedsDbLimits({ name: 'a', message: '😀'.repeat(2001) }), 'invalid_message');
+  assertEquals(exceedsDbLimits({ name: 'a', email: 'a'.repeat(257) }), 'invalid_email');
 });

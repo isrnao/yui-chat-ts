@@ -578,13 +578,17 @@ const AUTHOR_KEY = 'A'.repeat(43);
 
 Deno.test('書き込み: insert_chat に利用者の発言を author 付きで渡し、鍵も渡す', async () => {
   const t = setup();
-  const res = await t.handler(post(chat, { 'x-chat-author-key': AUTHOR_KEY }));
+  const res = await t.handler(
+    post(chat, { 'x-chat-author-key': AUTHOR_KEY, 'x-chat-operation-id': OP_ID })
+  );
   assertEquals(res.status, 200);
   const body = await res.json();
   assertEquals('triage' in body, false);
   assertEquals(t.rpcCalls.length, 1);
   assertEquals(t.rpcCalls[0].name, 'insert_chat');
   assertEquals(t.rpcCalls[0].args.p_author_key, AUTHOR_KEY);
+  // 送信操作の ID を渡して、再送で二重に入れないようにする
+  assertEquals(t.rpcCalls[0].args.p_operation_id, OP_ID);
   const [row] = t.rpcCalls[0].args.p_chats as Row[];
   assertEquals(row.author, true);
   assertEquals(row.ip, '203.0.113.9');
@@ -888,3 +892,22 @@ Deno.test(
     await t.settle();
   }
 );
+
+Deno.test('DB の上限を超える入力は、記録だけの期間も 400 で拒否する（500 にしない）', async () => {
+  const t = setup();
+  for (const body of [
+    { ...chat, name: 'あ'.repeat(65) },
+    { ...chat, message: 'a\u0301'.repeat(1001) },
+    { ...chat, email: 'a'.repeat(257) },
+    { op: 'enter', room_id: 'main', name: 'あ'.repeat(65), color: '#fff' },
+  ]) {
+    const res = await t.handler(post(body));
+    assertEquals(res.status, 400);
+  }
+  assertEquals(t.rpcCalls.length, 0);
+  const spans = await t.settle();
+  assertEquals(
+    spans.filter((s) => s.name === 'POST save-chat').every((s) => s.status === undefined),
+    true
+  );
+});

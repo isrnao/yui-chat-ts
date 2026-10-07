@@ -209,6 +209,11 @@ describe('useChatSession', () => {
     });
     expect(clearMyChats).toHaveBeenCalledWith('superbeginner', 'ゆい');
     expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual(['mine']);
+    // 何も消えなかった clear は使用として数えない
+    expect(trackEvent).not.toHaveBeenCalledWith(
+      'command_used',
+      expect.objectContaining({ command: 'clear' })
+    );
   });
 
   it('cut と空の発言は保存しない', async () => {
