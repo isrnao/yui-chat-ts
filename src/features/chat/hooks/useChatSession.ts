@@ -159,8 +159,9 @@ export function useChatSession({
       // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
       // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
       const cleared = await clearMyChats(sendTo, identity.name);
-      trackEvent('command_used', { room_id: sendTo, command: 'clear' });
+      // 何も消えなかった clear は使用として数えない
       if (cleared.length === 0) throw new UserFacingError('削除対象の発言がありません');
+      trackEvent('command_used', { room_id: sendTo, command: 'clear' });
       const removed = new Set(cleared);
       store.update((chats) => chats.filter((c) => !removed.has(c.uuid)));
       return;

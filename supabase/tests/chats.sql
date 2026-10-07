@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(63);
+SELECT plan(70);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -285,7 +285,7 @@ SELECT ok(
 );
 SELECT ok(NOT has_table_privilege('anon', 'public.chat_authors', 'SELECT'), 'anon は chat_authors を読めない');
 SELECT ok(
-    NOT has_function_privilege('anon', 'public.insert_chat(jsonb, text)', 'EXECUTE'), 'anon は insert_chat を呼べない'
+    NOT has_function_privilege('anon', 'public.insert_chat(jsonb, text, uuid)', 'EXECUTE'), 'anon は insert_chat を呼べない'
 );
 SELECT ok(
     has_function_privilege('anon', 'public.clear_my_chats(text, text, text)', 'EXECUTE'), 'anon は clear_my_chats を呼べる'
@@ -379,6 +379,60 @@ SELECT is(
     ARRAY['鍵なし', '移行前'],
     '鍵の無い発言（移行前を含む）は消えない'
 );
+
+-- 10. insert_chat の冪等（同じ送信操作の再送で二重に入れない）--------------------------------
+
+SET LOCAL ROLE service_role;
+CREATE TEMP TABLE first_try AS
+SELECT * FROM public.insert_chat(
+    '[{"room_id":"pgtap_room","name":"dave","color":"#fff","message":"おみくじ","author":true},
+      {"room_id":"pgtap_room","name":"巫女","color":"hotpink","message":"大吉","system":true}]',
+    NULL,
+    '00000000-0000-4000-8000-0000000000aa'
+);
+CREATE TEMP TABLE second_try AS
+SELECT * FROM public.insert_chat(
+    '[{"room_id":"pgtap_room","name":"dave","color":"#fff","message":"おみくじ","author":true},
+      {"room_id":"pgtap_room","name":"巫女","color":"hotpink","message":"凶","system":true}]',
+    NULL,
+    '00000000-0000-4000-8000-0000000000aa'
+);
+RESET ROLE;
+SELECT is(
+    (SELECT array_agg(uuid ORDER BY uuid) FROM second_try),
+    (SELECT array_agg(uuid ORDER BY uuid) FROM first_try),
+    '同じ送信操作の ID の再送は、1 回目の行を返す'
+);
+SELECT is(
+    (SELECT count(*)::int FROM public.chats
+        WHERE room_id = 'pgtap_room' AND (name = 'dave' OR message IN ('大吉', '凶'))),
+    2,
+    '再送しても発言と巫女の返事は 1 行ずつ（別の運勢の 2 行目は入らない）'
+);
+SELECT ok(
+    NOT has_table_privilege('anon', 'public.chat_operations', 'SELECT'), 'anon は chat_operations を読めない'
+);
+SELECT ok(
+    EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'chat-operations-purge'),
+    'chat_operations を消すジョブがある'
+);
+
+-- 11. 部屋を開く・閉じる（set_room_enabled）-----------------------------------------
+
+SELECT ok(
+    NOT has_function_privilege('anon', 'public.set_room_enabled(text, boolean)', 'EXECUTE'),
+    'anon は部屋を開け閉めできない'
+);
+SET LOCAL ROLE service_role;
+SELECT public.set_room_enabled('pgtap_room', false);
+SELECT throws_ok(
+    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'a', '#fff', 'x')$$,
+    'YC001', NULL, 'set_room_enabled で閉じた部屋には保存できない'
+);
+SELECT throws_ok(
+    $$SELECT public.set_room_enabled('no_such_room', false)$$, '23503', NULL, '知らない部屋は開け閉めできない'
+);
+RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;

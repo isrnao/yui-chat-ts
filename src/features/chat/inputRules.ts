@@ -10,7 +10,6 @@ export {
   MESSAGE_MAX,
   METADATA_KINDS,
   NAME_MAX,
-  normalizeColor,
   OPTIMISTIC_NONCE_MAX,
   type AvatarId,
   type FontColorName,

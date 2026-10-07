@@ -21,6 +21,7 @@ import {
 import {
   checkName,
   checkSayInput,
+  exceedsDbLimits,
   nameErrorCode,
   normalizeColor,
   OPTIMISTIC_NONCE_MAX,
@@ -140,7 +141,10 @@ interface SavedRow {
   time: number;
   ip_masked: string;
   ua: string;
+  name?: string;
   color: string;
+  message?: string;
+  system?: boolean;
   metadata: unknown;
   triage: boolean;
 }
@@ -214,6 +218,15 @@ function planSay(
   if (isLegacyFortuneReply(body)) {
     return { missing: 'reserved_name' };
   }
+  // DB の上限を超えるものは保存しても必ず失敗する（500）ので、記録だけの期間も 400 で拒否する
+  const overDbLimit = exceedsDbLimits({
+    name: body.name,
+    message: body.message,
+    email: body.email,
+  });
+  if (overDbLimit) {
+    return { missing: overDbLimit };
+  }
   const input = checkSayInput({
     name: body.name,
     message: body.message,
@@ -282,6 +295,11 @@ function planAdmin(
   event: AdminEvent,
   body: SaveChatBody & { room_id: string; name: string }
 ): Plan {
+  // 名前は本文にも metadata.subject にも入る。DB の上限を超える名前は記録だけの期間も拒否する
+  const overDbLimit = exceedsDbLimits({ name: body.name });
+  if (overDbLimit) {
+    return { missing: overDbLimit };
+  }
   const violations = checkName(body.name);
   const nonce =
     typeof body.nonce === 'string' && [...body.nonce].length <= OPTIMISTIC_NONCE_MAX
@@ -309,12 +327,15 @@ async function writeChats(
   supabase: SupabaseClient,
   path: WritePath,
   rows: ChatRow[],
-  authorKey: string | null
+  authorKey: string | null,
+  operationId: string
 ): Promise<WriteResult> {
   if (path === 'rpc') {
+    // 送信操作の ID を渡す。同じ ID の再送（保存の直後に通信が切れた場合など）は、新しく入れずに 1 回目の行が返る
     const { data, error } = await supabase.rpc('insert_chat', {
       p_chats: rows,
       p_author_key: authorKey,
+      p_operation_id: operationId,
     });
     return { data: (data as SavedRow[] | null) ?? null, error };
   }
@@ -324,7 +345,7 @@ async function writeChats(
     // ip_masked / ua / color / metadata も返す。クライアントは楽観行をこの応答でマージするため、
     // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
     // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む
-    .select('uuid,room_id,time,ip_masked,ua,color,metadata,rooms(triage)');
+    .select('uuid,room_id,time,ip_masked,ua,name,color,message,system,metadata,rooms(triage)');
   if (error || !data) return { data: null, error };
   return {
     data: (
@@ -513,7 +534,7 @@ async function saveChat(
   try {
     result = injectedFault(deps, op)
       ? { data: null, error: { code: 'FAULT', message: 'injected fault (SAVE_CHAT_FAULT_INJECT)' } }
-      : await writeChats(supabase, writePath, rows, authorKey);
+      : await writeChats(supabase, writePath, rows, authorKey, op.id);
   } catch (err) {
     db.failException('db_insert_failed', err);
     db.end();
@@ -553,15 +574,17 @@ async function saveChat(
   // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
   const { triage: triageRoom, ...saved } = data;
   // 同じ要求で保存したサーバーの発言（巫女の返事）。クライアントは Realtime を待たずにログへ入れる
+  // 表示に要る列は保存された行（insert_chat の戻り）を優先する。同じ送信操作の再送では 1 回目の行が返るので、
+  // 要求の中で選び直した運勢ではなく、保存済みの巫女の返事を返す
   const extra = rows.slice(1).map((chat, i) => {
     const { triage: _triage, ...savedExtra } = result.data![i + 1];
     return {
       ...savedExtra,
-      name: chat.name,
-      color: chat.color,
-      message: chat.message,
-      system: chat.system,
-      metadata: chat.metadata,
+      name: savedExtra.name ?? chat.name,
+      color: savedExtra.color ?? chat.color,
+      message: savedExtra.message ?? chat.message,
+      system: savedExtra.system ?? chat.system,
+      metadata: savedExtra.metadata ?? chat.metadata,
     };
   });
   const triage = shouldTriage({ ...row, triageRoom });
