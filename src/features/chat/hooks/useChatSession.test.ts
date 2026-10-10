@@ -6,8 +6,9 @@ import { useChatSession, type SessionTarget } from './useChatSession';
 import { trackEvent } from '@shared/utils/analytics';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { saveChatLogOptimistic } from '@features/chat/api/saveChat';
-import { clearChatLogsByName } from '@features/chat/api/chatQueries';
-import { broadcastLookEvent } from '@features/chat/api/realtime';
+import { clearMyChats } from '@features/chat/api/chatQueries';
+import { playNotificationSound } from '@features/chat/utils/webAudioPlayer';
+import { isOwnChat } from '@features/chat/utils/ownMessages';
 
 vi.mock('@features/chat/api/saveChat', () => ({
   saveChatLogOptimistic: vi.fn((_roomId: string, chat: Chat) =>
@@ -18,14 +19,11 @@ vi.mock('@features/chat/api/saveChat', () => ({
     uuid: `temp-${chat.message}`,
     time: 1,
     optimistic: true,
+    metadata: { ...(chat.metadata ?? { version: 1 }), optimisticNonce: `nonce-${chat.message}` },
   })),
 }));
 vi.mock('@features/chat/api/chatQueries', () => ({
-  clearChatLogsByName: vi.fn(() => Promise.resolve()),
-}));
-vi.mock('@features/chat/api/realtime', () => ({
-  broadcastLookEvent: vi.fn(),
-  broadcastUnlookEvent: vi.fn(),
+  clearMyChats: vi.fn(() => Promise.resolve(['mine'])),
 }));
 vi.mock('@shared/utils/analytics', () => ({ trackEvent: vi.fn() }));
 vi.mock('@shared/observability/newRelic', () => ({ recordSendChat: vi.fn() }));
@@ -96,10 +94,13 @@ describe('useChatSession', () => {
       await entering;
     });
 
+    // 楽観的な表示は同じ文言で出し、サーバーには op: enter で名前と色だけを送る（文言はサーバーが作る）
     expect(saveChatLogOptimistic).toHaveBeenCalledWith(
       'superbeginner',
       expect.objectContaining({ message: 'ゆい さん、Welcome to お気楽チャット☆' }),
-      undefined
+      expect.objectContaining({
+        admin: expect.objectContaining({ event: 'enter', name: 'ゆい', color: '#ff69b4' }),
+      })
     );
     expect(measurement.onJoinStarted).toHaveBeenCalledWith('superbeginner');
     expect(trackEvent).toHaveBeenCalledWith(
@@ -143,7 +144,12 @@ describe('useChatSession', () => {
       'com_sb',
       expect.objectContaining({
         room_id: 'com_sb',
-        metadata: { version: 1, avatar: 'hoshi1', fontStyle: { bold: true } },
+        metadata: {
+          version: 1,
+          avatar: 'hoshi1',
+          fontStyle: { bold: true },
+          optimisticNonce: 'nonce-こんにちは',
+        },
       }),
       expect.objectContaining({ operationId: expect.any(String) })
     );
@@ -153,24 +159,29 @@ describe('useChatSession', () => {
     );
   });
 
-  it('look は部屋単位のビューだけ Broadcast する', async () => {
+  it('look は部屋単位のビューだけ自分の音を鳴らし、Realtime の echo を自分の発言と見分けられるようにする', async () => {
     const room = setup({ kind: 'room', roomId: 'superbeginner' });
     await act(async () => {
       await room.result.current.send('look');
     });
-    expect(broadcastLookEvent).toHaveBeenCalledWith('superbeginner', 'server-look');
+    expect(playNotificationSound).toHaveBeenCalledTimes(1);
+    // 送った行の nonce を覚えている（useLookSound が echo で二重に鳴らさない）
+    const calls = vi.mocked(saveChatLogOptimistic).mock.calls;
+    const sent = calls[calls.length - 1][1];
+    expect(isOwnChat(sent)).toBe(true);
 
-    vi.mocked(broadcastLookEvent).mockClear();
+    vi.mocked(playNotificationSound).mockClear();
     const all = setup({ kind: 'all', replyTo: 'superbeginner' });
     await act(async () => {
       await all.result.current.send('look');
     });
-    expect(broadcastLookEvent).not.toHaveBeenCalled();
+    expect(playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('部屋単位の clear は自分の発言をログから取り除く', async () => {
+  it('clear はサーバーが消した発言だけをログから取り除く（同じ名前の別の発言は残す）', async () => {
     const { result, store } = setup({ kind: 'room', roomId: 'superbeginner' }, [
       chat({ uuid: 'mine', name: 'ゆい' }),
+      chat({ uuid: 'same-name-other-device', name: 'ゆい' }),
       chat({ uuid: 'other', name: 'たろう' }),
     ]);
     await flush();
@@ -178,20 +189,31 @@ describe('useChatSession', () => {
     await act(async () => {
       await result.current.send('clear');
     });
-    expect(clearChatLogsByName).toHaveBeenCalledWith('superbeginner', 'ゆい');
-    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual(['other']);
+    expect(clearMyChats).toHaveBeenCalledWith('superbeginner', 'ゆい');
+    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual([
+      'same-name-other-device',
+      'other',
+    ]);
   });
 
-  it('全部屋まとめの clear は対象がなければエラーにし、削除しない', async () => {
-    const { result } = setup({ kind: 'all', replyTo: 'superbeginner' }, [
-      chat({ uuid: 'elsewhere', name: 'ゆい', room_id: 'com_sb' }),
+  it('全部屋まとめの clear は返信先の部屋で消し、消えた件数が 0 ならエラーにする', async () => {
+    vi.mocked(clearMyChats).mockResolvedValueOnce([]);
+    // 手元のログに自分の発言があっても、サーバーが 0 件なら「削除対象の発言がありません」
+    const { result, store } = setup({ kind: 'all', replyTo: 'superbeginner' }, [
+      chat({ uuid: 'mine', name: 'ゆい', room_id: 'superbeginner' }),
     ]);
     await flush();
 
     await act(async () => {
       await expect(result.current.send('clear')).rejects.toThrow('削除対象の発言がありません');
     });
-    expect(clearChatLogsByName).not.toHaveBeenCalled();
+    expect(clearMyChats).toHaveBeenCalledWith('superbeginner', 'ゆい');
+    expect(store.getSnapshot().chats.map((c) => c.uuid)).toEqual(['mine']);
+    // 何も消えなかった clear は使用として数えない
+    expect(trackEvent).not.toHaveBeenCalledWith(
+      'command_used',
+      expect.objectContaining({ command: 'clear' })
+    );
   });
 
   it('cut と空の発言は保存しない', async () => {

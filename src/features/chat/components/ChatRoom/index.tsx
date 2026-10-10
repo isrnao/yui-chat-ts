@@ -5,6 +5,11 @@ import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
+import { MESSAGE_MAX } from '@features/chat/inputRules';
+
+/** [消す] の説明。消せるのはこのブラウザで書いた発言だけ（書いた端末の鍵で照合する。Issue #179） */
+const CLEAR_BUTTON_TITLE =
+  'このブラウザで書いた自分の発言を消します。ブラウザのデータを消した後や、別のブラウザ・端末で書いた発言は消せません。';
 
 const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
 
@@ -91,7 +96,9 @@ export default function ChatRoom({
 
   const [error, formAction, isPending] = useActionState(
     async (_prev: unknown, formData: FormData) => {
-      const msg = formData.get('message')?.toString() ?? '';
+      // [消す] は name="command" value="clear" の submit ボタン。押されたボタンの値だけがフォームに入る
+      const msg =
+        formData.get('command') === 'clear' ? 'clear' : (formData.get('message')?.toString() ?? '');
       if (!msg.trim()) return;
       try {
         const metadata = buildMetadata();
@@ -119,12 +126,6 @@ export default function ChatRoom({
     wasPendingRef.current = false;
     inputRef.current?.focus();
   }, [isPending]);
-
-  const handleClear = () => {
-    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）
-    setMessage('');
-    void onSend('clear').catch(() => {});
-  };
 
   return (
     <div className="flex flex-col font-yui">
@@ -184,7 +185,15 @@ export default function ChatRoom({
           <Button type="submit" disabled={isPending}>
             発言
           </Button>
-          <Button type="button" onClick={handleClear} disabled={isPending}>
+          {/* レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す） */}
+          <Button
+            type="submit"
+            name="command"
+            value="clear"
+            onClick={() => setMessage('')}
+            disabled={isPending}
+            title={CLEAR_BUTTON_TITLE}
+          >
             消す
           </Button>
           {userName && (
@@ -221,7 +230,7 @@ export default function ChatRoom({
             id={messageId}
             name="message"
             value={message}
-            maxLength={120}
+            maxLength={MESSAGE_MAX}
             size={60}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)}
             disabled={isPending}

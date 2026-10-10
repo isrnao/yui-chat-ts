@@ -60,7 +60,7 @@ fail() {
 body=$(curl -s -X POST "http://localhost:$PORT" -H 'content-type: application/json' \
   -H 'traceparent: 00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01' \
   -d '{"room_id":"main","name":"","message":"smoke"}' -w '|%{http_code}')
-[[ "$body" == '{"error":"name is required"}|400' ]] || fail "POST (name 空) の応答が想定外: $body"
+[[ "$body" == '{"error":{"code":"invalid_name"}}|400' ]] || fail "POST (name 空) の応答が想定外: $body"
 echo "✔ POST (name 空) → 400"
 
 allow=$(curl -s -D - -o /dev/null -X OPTIONS "http://localhost:$PORT" \

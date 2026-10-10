@@ -13,6 +13,8 @@ describe('validateName', () => {
 
   it('should return error message for empty name', () => {
     expect(validateName('')).toBe('おなまえは必須です');
+    // 空白だけの名前は save-chat も拒否する
+    expect(validateName(' 　')).toBe('おなまえは必須です');
   });
 
   it('should return error message for name longer than 24 characters', () => {
@@ -31,5 +33,11 @@ describe('validateName', () => {
   it('should handle whitespace', () => {
     expect(validateName(' Alice ')).toBeNull(); // スペースも文字数に含まれる
     expect(validateName('Alice Bob')).toBeNull();
+  });
+
+  it('予約名（管理人・巫女）は使えない。全角・空白の揺れも同じ', () => {
+    expect(validateName('管理人')).toBe('その名前は使えません');
+    expect(validateName(' 巫 女 ')).toBe('その名前は使えません');
+    expect(validateName('管理人さん')).toBeNull();
   });
 });

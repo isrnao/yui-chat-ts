@@ -10,7 +10,7 @@
 - 旧お気楽チャット風の段組トップページ + ルーム別参加人数
 - Chanariなりきりチャット（独立UI／設定／下書き保存）
 - Supabase RealtimeのPostgres Changesによる新着配信
-- Supabase Realtime broadcastによるlook／unlook通知
+- 保存された発言（Realtime の INSERT）から鳴らすlook／unlook通知
 - 楽観的更新（Optimistic UI）による高速な操作体験
 - オフライン／認証失敗時のfallback
 - レトロUIデザイン（IE風のwindow style、text baseのtab header）
@@ -51,7 +51,7 @@ src/
 │   │   │   ├── roomLogStore.ts      # Room_Log_Store（取得・購読・取り直しをまとめた外部ストア）
 │   │   │   ├── chatQueries.ts       # chats の読み取り（部屋・全部屋・ランキング）と論理削除
 │   │   │   ├── saveChat.ts          # save-chat Edge Function での保存・楽観的チャットの生成
-│   │   │   ├── realtime.ts          # Postgres Changes / look Broadcast の channel registry
+│   │   │   ├── realtime.ts          # Postgres Changes の channel registry
 │   │   │   └── retry.ts             # 指数バックオフと遅延の警告
 │   │   ├── components/              # UI コンポーネント
 │   │   │   ├── ChatRoom/            # メッセージ入力・送信
@@ -270,7 +270,7 @@ INSERT後の管理者チャット（`com_sb`）は、response返却後に`EdgeRu
 ### 5.2 リアルタイム受信フロー
 
 ```
-Supabase Realtime (postgres_changes / broadcast)
+Supabase Realtime (postgres_changes)
     │
     ▼
 subscribeChatLogs(roomId, callback)        ← room ごとに 1 channel を再利用
@@ -282,7 +282,7 @@ mergeChat(newChat)
     └─ 新規 → 先頭に追加（最大 2000 件保持）
 ```
 
-`realtime.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) と `broadcastEntries` (`chats-broadcast-${roomId}`) の refcount registry を持ち、Postgres Changes と Broadcast はそれぞれ room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄され、send-only 利用（listener 0 での `broadcastLookEvent` / `broadcastUnlookEvent`）も送信完了後に同様に破棄されます。
+`realtime.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) の refcount registry を持ち、room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄されます。look／unlook の通知音は broadcast を使わず、`useLookSound` が Room_Log_Store の `onInsert`（Realtime の INSERT）で本文が `look` / `unlook` の発言を見て鳴らす・止めます（自分の発言の echo は `ownMessages.ts` の nonce で除く）。
 
 ### 5.3 初期読み込みフロー
 
@@ -297,8 +297,8 @@ useRoomLog(getRoomLogStore(roomId)) → useSyncExternalStore が store を購読
     │   → 既存 channel があれば共有、なければ生成
     │
     └─ loadRecentChatLogs(roomId, limit)（chatQueries.ts。キャッシュは持たない）
-        ├─ オフライン → mockChatData (room_id を付与) を返却
-        ├─ 401 / JWT エラー → mockChatData にフォールバック
+        ├─ オフライン → 取りに行かずに失敗（再試行しない）
+        ├─ 401 / JWT エラー → 再試行せずに失敗
         └─ Supabase SELECT
              - 列: uuid, room_id, name, color, message, time, system, email, ip_masked, ua, metadata
                (ip の生値は転送から除外)
@@ -323,9 +323,7 @@ fetchRoomParticipantCounts()
     ├─ POST /rest/v1/rpc/room_participant_counts { since_ms }
     │   → サーバーで room_id × ユニーク発言者を集計し、部屋の数ぶんの行だけ返す
     │     （論理削除・system 発言・管理人の発言・空の名前を除く）
-    └─ RPC がまだ無い（404: マイグレーション適用前）
-        → chats SELECT (room_id, name, system, metadata, time) を最大 5000 行取得して
-          クライアント側で集計する（従来の方法）
+    └─ 失敗（404 を含む）→ {} を返す（発言の行を取ってクライアントで数える経路は持たない）
 ```
 
 初期表示はすべて `0人` で即時描画し、Supabase レスポンスで上書きする方針です。
@@ -381,13 +379,13 @@ store はサーバーで確定した行だけを新しい順（uuid v7 の降順
 
 ### 7.1 features/chat/api の構成
 
-| モジュール        | 主なエクスポート                                                                             | 役割                                                                                         |
-| ----------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                          | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                 |
-| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearChatLogsByName`    | chats の読み取りと論理削除。キャッシュは持たない。オフライン・401 時は mockChatData を返す   |
-| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                             | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成 |
-| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs` / `broadcastLookEvent` / `onLookBroadcast` | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                    |
-| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                            | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                       |
+| モジュール        | 主なエクスポート                                                                   | 役割                                                                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `roomLogStore.ts` | `getRoomLogStore(roomId)` / `getAllRoomsLogStore()`                                | 取得・購読・取り直し・件数の拡張をまとめた外部ストア（§6.2）                                                                                                                      |
+| `chatQueries.ts`  | `loadRecentChatLogs` / `loadAllRoomsChatLogs` / `loadChatRanking` / `clearMyChats` | chats の読み取りと、RPC `clear_my_chats` による自分の発言の論理削除（書いた端末の鍵で照合）。キャッシュは持たない。オフライン・401 は再試行せずに失敗させる（偽のログは出さない） |
+| `saveChat.ts`     | `saveChatLogOptimistic` / `createOptimisticChat`                                   | save-chat Edge Function での保存（操作 ID と試行番号をヘッダで送る）と、楽観的チャットの生成                                                                                      |
+| `realtime.ts`     | `subscribeChatLogs` / `subscribeAllRoomsChatLogs`                                  | room ごとに 1 channel を共有する refcount registry と、全部屋まとめの購読                                                                                                         |
+| `retry.ts`        | `retryWithBackoff` / `warnIfSlow`                                                  | 指数バックオフ（1 秒 → 2 秒、最大 3 回）と、3 秒を超えた呼び出しの警告                                                                                                            |
 
 以前は `chatLogResource.ts`（5 分の TTL キャッシュ、進行中のリクエストの共有、paging、世代管理）と
 `chatApi.ts`（保存・削除・ランキング・Realtime・互換ラッパー）に分かれていましたが、画面遷移が全ページ読み込み
@@ -396,7 +394,7 @@ store はサーバーで確定した行だけを新しい順（uuid v7 の降順
 
 ### 7.2 features/top/api/roomCountsApi.ts
 
-トップページ用に、直近 `windowMs`（既定 6 時間）以内の `room_id × ユニーク発言者` を RPC `room_participant_counts`（`supabase/migrations/20260923000000_room_participant_counts.sql`）でサーバー集計します。RPC が DB にまだ無いときは、従来どおり発言の行を取得してクライアントで数えます。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
+トップページ用に、直近 `windowMs`（既定 6 時間）以内の `room_id × ユニーク発言者` を RPC `room_participant_counts`（`supabase/migrations/20260923000000_room_participant_counts.sql`）でサーバー集計します。失敗したとき（404 を含む）は空 `{}` を返します（以前の、発言の行を最大 5000 行取ってクライアントで数える経路は、RPC が本番に適用済みなので消しました。Issue #187）。`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` 未設定時は空 `{}` を返し、UI 側が全ルーム `0人` で描画して破綻しないようにしてあります。
 
 ---
 
@@ -541,20 +539,20 @@ type Chat = {
 
 ### 10.2 ランタイム最適化
 
-| 最適化                | 実装                                                                                                                               |
-| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                         |
-| ページ間の遷移        | 全ページ読み込みのまま、Speculation Rules の `prefetch` と `@view-transition { navigation: auto; }` で待ちと切り替えを滑らかにする |
-| ログの合流            | 1 件の合流は二分探索で挿入し、UUID は文字コードで比べる。`ChatLogList` は並べ直さない                                              |
-| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                                 |
-| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                                 |
-| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                          |
-| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                       |
-| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                               |
-| 取得の共有            | 同じ部屋の取得と購読は Room_Log_Store が 1 つにまとめ、世代番号で古い取得の結果を捨てる                                            |
-| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                         |
-| Realtime チャネル共有 | Postgres Changes / Broadcast はそれぞれ room ごとに 1 channel を共有 (`postgresEntries` / `broadcastEntries` refcount registry)    |
-| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                             |
+| 最適化                | 実装                                                                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 遅延読み込み          | トップ以外のrouteを`React.lazy()`で分割し、SSG済みURLでは対象chunkをpreloadしてからhydrate                                               |
+| ページ間の遷移        | 全ページ読み込みのまま、Speculation Rules の `prefetch` と `@view-transition { navigation: auto; }` で待ちと切り替えを滑らかにする       |
+| ログの合流            | 1 件の合流は二分探索で挿入し、UUID は文字コードで比べる。`ChatLogList` は並べ直さない                                                    |
+| 楽観的更新            | `useOptimistic` + `reduceOptimisticChat` で即時反映 + 重複表示防止                                                                       |
+| トランジション        | `useTransition` / `startTransition` で低優先度更新                                                                                       |
+| 派生値のメモ化        | React Compiler が自動メモ化。`ChatLogList` / `ChatMessage` はコンポーネント境界として `React.memo` を維持                                |
+| `useParticipants`     | `useDeferredValue(chatLog)` で入力側を遅延化し、再計算を抑制                                                                             |
+| 時刻更新の節約        | `useNowMinute` で 1 分境界まで `setTimeout` → 以降 60s `setInterval`                                                                     |
+| 取得の共有            | 同じ部屋の取得と購読は Room_Log_Store が 1 つにまとめ、世代番号で古い取得の結果を捨てる                                                  |
+| Supabase帯域削減      | 取得SELECTから生`ip`／`ua`を除外し、保存responseはUUID／時刻／表示用server観測値だけを返す                                               |
+| Realtime チャネル共有 | Postgres Changes を room ごとに 1 channel で共有 (`postgresEntries` refcount registry)。look／unlook も同じ channel の INSERT から鳴らす |
+| パフォーマンス監視    | 3 秒超の API 呼び出しを `console.warn`                                                                                                   |
 
 ---
 
@@ -564,15 +562,19 @@ type Chat = {
 
 ```
 navigator.onLine === false
-    → loadRecentChatLogs が mockChatData（room_id 付与）を返す
+    → loadRecentChatLogs / loadChatRanking は取りに行かずに失敗する（再試行しない）
+    → 画面は「チャットログの読み込みに失敗しました。[再読み込み]」を出す
     → ネットワーク復旧時に自動再取得（Realtime の再接続で Room_Log_Store が取り直す）
+
+以前は偽のログ（mockChatData:「ゆい > こんにちは！チャットへようこそ✨」など）を返していたが、本物の会話と
+見分けがつかず誰かがいるように見えるのでやめた（Issue #188）。
 ```
 
 ### 11.2 認証エラー対応
 
 ```
 Supabase 401 / JWT エラー
-    → mockChatData にフォールバック（サービス継続）
+    → 再試行せずに失敗し、オフラインと同じく失敗の表示と [再読み込み] を出す
 ```
 
 ### 11.3 Supabase 未設定
@@ -591,16 +593,16 @@ VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY が未設定
 
 ## 12. セキュリティ
 
-| 項目              | 対応                                                                                          |
-| ----------------- | --------------------------------------------------------------------------------------------- |
-| ブラウザ接続      | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続                       |
-| INSERT境界        | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行                               |
-| Edge Function     | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持 |
-| IP／UA            | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開     |
-| 秘密値            | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない         |
-| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定                                           |
-| 入力validation    | 名前必須・24文字以内などをEdgeでも検証                                                        |
-| 本番build         | `console.log`削除、source map無効化                                                           |
+| 項目              | 対応                                                                                                                                                                                                                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ブラウザ接続      | user sessionを作らず、公開anon keyでPostgREST／Realtime／Functionへ接続                                                                                                                                                                                                               |
+| INSERT境界        | clientの直接INSERTは許可せず、`save-chat`が`service_role`で実行                                                                                                                                                                                                                       |
+| Edge Function     | 匿名チャットのため`verify_jwt = false`。payloadを検証し、service role keyはserver側だけで保持                                                                                                                                                                                         |
+| IP／UA            | client payloadでは受け取らずEdgeのrequest headerから観測。clientには`ip_masked`だけを公開                                                                                                                                                                                             |
+| 秘密値            | `JEV_API_TOKEN`、`GITHUB_TOKEN`、New Relic／PagerDutyのserver keyを`VITE_*`へ置かない                                                                                                                                                                                                 |
+| Prototype汚染対策 | `isRoomId`は`Object.prototype.hasOwnProperty`で判定                                                                                                                                                                                                                                   |
+| 入力validation    | 上限と形式は`save-chat/schema.ts`が正（名前24コードポイント・発言120 grapheme・メール64文字、色は読めなければ`#ff69b4`）。画面も同じ値を使う。合わなければ拒否（`{ error: { code } }`）。予約名（管理人・巫女）も拒否し、利用者の発言の`system`は常にfalse。DBのCHECK制約が最後の防壁 |
+| 本番build         | `console.log`削除、source map無効化                                                                                                                                                                                                                                                   |
 
 ---
 

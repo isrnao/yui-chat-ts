@@ -1,5 +1,5 @@
 import type { Chat } from '@features/chat/types';
-import { splitAdminMessage } from './adminMessage';
+import { readAdminEvent } from './adminMessage';
 
 /** 絞り込みに使うフィルタ。IP だけの Set を渡してもよい */
 export type ChatFilterSpec = {
@@ -32,7 +32,10 @@ const NO_SET: ReadonlySet<string> = new Set();
 export function speakerName(chat: Chat): string | null {
   const kind = chat.metadata?.kind;
   if (kind === 'fortune') return null;
-  if (kind === 'admin') return splitAdminMessage(chat.message)?.userName || null;
+  // 入退室は metadata の構造で読み、構造の無い古い行だけ本文で読む（Issue #183。表示・参加者一覧と同じ）
+  if (kind === 'admin') {
+    return readAdminEvent(chat)?.name || null;
+  }
   return chat.name || null;
 }
 

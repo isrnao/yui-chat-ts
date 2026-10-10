@@ -178,6 +178,9 @@ describe('saveChat', () => {
       expect(headers).toHaveLength(2);
       expect(headers[1]['x-chat-operation-id']).toBe(headers[0]['x-chat-operation-id']);
       expect(headers.map((h) => h['x-chat-attempt'])).toEqual(['1', '2']);
+      // 書いた端末の鍵を毎回送る（clear で自分の発言だけを消すため）
+      expect(headers[0]['x-chat-author-key']).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(headers[1]['x-chat-author-key']).toBe(headers[0]['x-chat-author-key']);
     });
 
     it('Edge Function がエラーを返したら例外を投げる', async () => {
@@ -188,6 +191,182 @@ describe('saveChat', () => {
 
       const chatApi = await import('./saveChat');
       await expect(chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1))).rejects.toThrow('boom');
+    });
+
+    it('入退室（admin）は op で送り、文言や metadata は送らない（サーバーが作る）', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({ data: { uuid: 'u', room_id: ROOM_ID, time: 1 }, error: null });
+
+      const chatApi = await import('./saveChat');
+      const chat = chatApi.createOptimisticChat({
+        room_id: ROOM_ID,
+        name: '管理人',
+        color: '#ffffff',
+        message: 'ゆい さん、Welcome to お気楽チャット☆',
+        system: true,
+        ip_masked: '',
+        ua: '',
+        metadata: { version: 1, kind: 'admin' },
+      });
+      await chatApi.saveChatLogOptimistic(ROOM_ID, chat, {
+        admin: { event: 'enter', name: 'ゆい', color: '#f00', visitCount: 4, lastLogin: 9 },
+      });
+
+      expect(invoke.mock.calls[0][1].body).toEqual({
+        op: 'enter',
+        room_id: ROOM_ID,
+        name: 'ゆい',
+        color: '#f00',
+        visit_count: 4,
+        last_login: 9,
+        nonce: chat.metadata?.optimisticNonce,
+      });
+    });
+
+    it('応答の extra（おみくじの巫女の返事）を onExtra に渡す', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: {
+          uuid: 'u',
+          room_id: ROOM_ID,
+          time: 1,
+          extra: [
+            {
+              uuid: 'miko',
+              room_id: ROOM_ID,
+              time: 2,
+              ip_masked: '',
+              ua: '',
+              name: '巫女',
+              color: 'hotpink',
+              message: '大吉で〜す。＞user-1さん',
+              system: true,
+              metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+            },
+          ],
+        },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const onExtra = vi.fn();
+      await chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1), { onExtra });
+
+      expect(onExtra).toHaveBeenCalledWith([
+        expect.objectContaining({
+          uuid: 'miko',
+          name: '巫女',
+          system: true,
+          optimistic: false,
+          metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
+        }),
+      ]);
+    });
+
+    it('サーバーが置き換えた色で確定させる（Realtime の正規化済みの行を上書きしない）', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'u', room_id: ROOM_ID, time: 1, color: '#ff69b4' },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, { ...makeChat(1), color: 'あか' });
+      expect(saved.color).toBe('#ff69b4');
+    });
+
+    it('サーバーが作り直した metadata で確定させる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: {
+          uuid: 'u',
+          room_id: ROOM_ID,
+          time: 1,
+          metadata: { version: 1, optimisticNonce: 'n' },
+        },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const saved = await chatApi.saveChatLogOptimistic(ROOM_ID, {
+        ...makeChat(1),
+        metadata: { version: 1, optimisticNonce: 'n', avatar: 'hoshi1', userColor: 'あか' },
+      });
+      expect(saved.metadata).toEqual({ version: 1, optimisticNonce: 'n' });
+    });
+
+    it('onExtra が投げても保存の要求は繰り返さない', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: { uuid: 'u', room_id: ROOM_ID, time: 1, extra: [{ uuid: 'miko', time: 2 }] },
+        error: null,
+      });
+
+      const chatApi = await import('./saveChat');
+      const onExtra = vi.fn(() => {
+        throw new Error('render failed');
+      });
+      await expect(
+        chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1), { onExtra })
+      ).rejects.toThrow('render failed');
+      expect(invoke).toHaveBeenCalledTimes(1);
+    });
+
+    it('入力の誤りで拒否されたら（400 + code）再試行せず、code に合う文言で投げる', async () => {
+      const { supabase } = await import('@shared/supabaseClient');
+      const invoke = supabase.functions.invoke as Mock;
+      invoke.mockReset();
+      invoke.mockResolvedValue({
+        data: null,
+        error: {
+          message: 'Edge Function returned a non-2xx status code',
+          context: new Response(JSON.stringify({ error: { code: 'invalid_message' } }), {
+            status: 400,
+          }),
+        },
+      });
+
+      const chatApi = await import('./saveChat');
+      const { UserFacingError } = await import('../utils/userFacingError');
+      const result = chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+      await expect(result).rejects.toBeInstanceOf(UserFacingError);
+      await expect(result).rejects.toMatchObject({
+        code: 'invalid_message',
+        message: '発言を確かめてください（120文字以内）。',
+      });
+      expect(invoke).toHaveBeenCalledTimes(1);
+    });
+
+    it('400 でも code が読めなければ、ほかの失敗と同じく扱う', async () => {
+      vi.useFakeTimers();
+      try {
+        const { supabase } = await import('@shared/supabaseClient');
+        const invoke = supabase.functions.invoke as Mock;
+        invoke.mockReset();
+        invoke.mockResolvedValue({
+          data: null,
+          error: { message: 'bad', context: new Response('not json', { status: 400 }) },
+        });
+
+        const chatApi = await import('./saveChat');
+        const result = chatApi.saveChatLogOptimistic(ROOM_ID, makeChat(1));
+        const settled = expect(result).rejects.toThrow('Failed to save chat: bad');
+        await vi.runAllTimersAsync();
+        await settled;
+        expect(invoke).toHaveBeenCalledTimes(3);
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 

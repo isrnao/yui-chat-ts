@@ -11,7 +11,7 @@ import { FunctionsClient } from '@supabase/functions-js';
  * 認証は常に anon key なので、supabase-js が内部でしている初期化（apikey / Authorization
  * ヘッダ、Realtime の apikey パラメータと setAuth）を同じ形で行う。
  *
- * 呼び出し側が使う形（from / channel / removeChannel / functions.invoke）は createClient と同じ。
+ * 呼び出し側が使う形（from / rpc / channel / removeChannel / functions.invoke）は createClient と同じ。
  */
 const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL as string | undefined) ?? '';
 const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) ?? '';
@@ -51,6 +51,7 @@ const functions = new FunctionsClient(endpoint('functions/v1').href, { headers }
 
 export const supabase = {
   from: (relation: string) => rest.from(relation),
+  rpc: (fn: string, args?: Record<string, unknown>) => rest.rpc(fn, args),
   channel: (name: string) => realtime.channel(name),
   removeChannel: (channel: RealtimeChannel) => realtime.removeChannel(channel),
   functions,

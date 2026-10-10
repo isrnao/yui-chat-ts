@@ -1,19 +1,19 @@
 import { useState } from 'react';
-import { broadcastLookEvent, broadcastUnlookEvent } from '@features/chat/api/realtime';
-import { clearChatLogsByName } from '@features/chat/api/chatQueries';
+import { clearMyChats } from '@features/chat/api/chatQueries';
 import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
-import { isFortuneCommand } from '@features/chat/utils/fortuneBot';
-import { isBlankMessage, isClearTarget } from '@features/chat/utils/chatAllSend';
+import { isFortuneCommand } from '@features/chat/serverMessages';
+import { isBlankMessage } from '@features/chat/utils/chatAllSend';
 import { getSnapshot as getSettingsSnapshot } from '@features/chat/utils/settingsStore';
-import { createAdminChat, useChatSender } from '@features/chat/hooks/useChatSender';
+import { useChatSender } from '@features/chat/hooks/useChatSender';
 import type { AvatarId, Chat, ChatMetadata } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import type { ConversationMeasurement } from '@features/chat/utils/conversationMeasurement';
+import { rememberOwnChat } from '@features/chat/utils/ownMessages';
 
 /**
  * 送信先。部屋単位のビューはその部屋へ、全部屋まとめは返信先の部屋へ発言する。
@@ -63,7 +63,7 @@ export function useChatSession({
   measurement: ConversationMeasurement;
 }) {
   const [entered, setEntered] = useState(false);
-  const { send, sendUserMessage, sendFortuneIfCommand } = useChatSender({
+  const { sendUserMessage, sendAdminEvent } = useChatSender({
     addOptimistic,
     mergeChat: store.applySaved,
   });
@@ -97,15 +97,13 @@ export function useChatSession({
       if (!silent) {
         // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
         const { visitCount, previousLogin } = getSettingsSnapshot();
-        await send(
-          sessionRoomId,
-          createAdminChat({
-            roomId: sessionRoomId,
-            message: `${name} さん、Welcome to お気楽チャット☆`,
-            userColor: color,
-            extraMetadata: { visitCount, lastLogin: previousLogin },
-          })
-        );
+        await sendAdminEvent(sessionRoomId, {
+          event: 'enter',
+          name,
+          color,
+          visitCount,
+          lastLogin: previousLogin,
+        });
       }
 
       const entryContext = measurement.onEntered();
@@ -130,13 +128,9 @@ export function useChatSession({
     measurement.onExited();
 
     // 退室の名前と色は、呼び出し元が入力欄を戻す前の値を使う
-    const farewell = createAdminChat({
-      roomId: sessionRoomId,
-      message: `${identity.name}さん、またきておくれやすぅ。`,
-      userColor: identity.color,
-    });
+    const farewell = { event: 'exit', name: identity.name, color: identity.color } as const;
     setEntered(false);
-    await send(sessionRoomId, farewell);
+    await sendAdminEvent(sessionRoomId, farewell);
   };
 
   /** 送信するメッセージの metadata。全部屋まとめはアイデンティティのアバターと書式を足す */
@@ -162,23 +156,14 @@ export function useChatSession({
     }
 
     if (trimmed === 'clear') {
-      if (target.kind === 'all') {
-        // 表示中のログから削除対象を判定する（全部屋まとめは返信先の部屋の自分の発言だけ）
-        const hasTargets = store
-          .getSnapshot()
-          .chats.some((c) => isClearTarget(c, sendTo, identity.name));
-        if (!hasTargets) throw new UserFacingError('削除対象の発言がありません');
-      }
-      await clearChatLogsByName(sendTo, identity.name);
+      // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
+      // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
+      const cleared = await clearMyChats(sendTo, identity.name);
+      // 何も消えなかった clear は使用として数えない
+      if (cleared.length === 0) throw new UserFacingError('削除対象の発言がありません');
       trackEvent('command_used', { room_id: sendTo, command: 'clear' });
-      // 部屋単位のログはその部屋の発言だけなので名前で消す（room_id を持たない旧データも消すため）
-      store.update((chats) =>
-        chats.filter((c) =>
-          target.kind === 'room'
-            ? c.name !== identity.name
-            : !isClearTarget(c, sendTo, identity.name)
-        )
-      );
+      const removed = new Set(cleared);
+      store.update((chats) => chats.filter((c) => !removed.has(c.uuid)));
       return;
     }
 
@@ -196,6 +181,8 @@ export function useChatSession({
     });
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
+    // Realtime の echo（保存の応答より先に届くことがある）を自分の発言と見分けるため、送る前に覚える
+    rememberOwnChat(optimistic);
 
     const savedChat = await sendUserMessage(sendTo, optimistic);
     if (trackedCommand) {
@@ -205,19 +192,16 @@ export function useChatSession({
       measurement.onOwnMessageSaved(savedChat);
     }
 
-    // look/unlook: 自分にも鳴らし、Broadcast で他の参加者にも送信（部屋単位のビューだけ）
+    // look/unlook: 自分の音は保存の完了で鳴らす（部屋単位のビューだけ）。ほかの参加者には、保存された発言の
+    // INSERT が Realtime で届いて鳴る（useLookSound）。自分の echo では鳴らないよう、送る前に nonce を覚えている
     if (target.kind === 'room') {
       if (trimmed === 'look') {
         // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
         void playNotificationSound().catch(() => {});
-        broadcastLookEvent(sendTo, savedChat.uuid);
       } else if (trimmed === 'unlook') {
         stopNotificationSound();
-        broadcastUnlookEvent(sendTo);
       }
     }
-
-    await sendFortuneIfCommand(sendTo, message, identity.name);
   };
 
   return { entered, enter, exit, send: sendMessage };

@@ -7,7 +7,8 @@ import type { Chat } from '@features/chat/types';
 import { isRoomId, getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { useDoubleTap } from '@features/chat/hooks/useDoubleTap';
 import { ROW_UUID_ATTR } from '@features/chat/utils/filterTransition';
-import { splitAdminMessage } from '@features/chat/utils/adminMessage';
+import { readAdminEvent } from '@features/chat/utils/adminMessage';
+import { DEFAULT_COLOR } from '@features/chat/inputRules';
 import {
   FILTER_NAME_ATTR,
   FILTER_TARGET_ATTR,
@@ -156,7 +157,6 @@ function MessageBody({
   );
 }
 
-const WELCOME_PATTERN = /さん[、,]\s*Welcome to/;
 /** レガシーの look コマンド。発言の右にきらめきを出す */
 const LOOK_PATTERN = /^look$/i;
 const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
@@ -220,9 +220,12 @@ function AdminMessage({
   filterable?: boolean;
 }) {
   const avatar = chat.metadata?.avatar;
-  const userColor = chat.metadata?.userColor ?? '#ff69b4';
-  const split = splitAdminMessage(chat.message);
-  const isWelcome = WELCOME_PATTERN.test(chat.message);
+  const userColor = chat.metadata?.userColor ?? DEFAULT_COLOR;
+  // 誰が入った・出たかは metadata の構造で読み、構造の無い古い行だけ本文で読む（Issue #183）。
+  // 入退室でない管理人の発言（triage の返信など）は本文をそのまま出す
+  const admin = readAdminEvent(chat);
+  const split = admin ? { userName: admin.name, rest: admin.rest } : null;
+  const isWelcome = admin?.event === 'enter';
   const browserLine = isWelcome ? buildBrowserLine(chat) : '';
 
   return (
@@ -256,7 +259,7 @@ function AdminMessage({
         </>
       ) : (
         <span className="font-bold" style={{ color: 'red' }}>
-          {isWelcome ? `${chat.message}${PROFILE_SUFFIX}` : <AdminText message={chat.message} />}
+          <AdminText message={chat.message} />
         </span>
       )}
       {browserLine && (

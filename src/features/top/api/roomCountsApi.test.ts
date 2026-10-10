@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  aggregateCountsFromRows,
-  buildRoomCountsUrl,
-  countTwoShotSeats,
-  fetchRoomParticipantCounts,
-  toRoomCountMap,
-} from './roomCountsApi';
-import type { ChatMetadata } from '@features/chat/types';
+import { countTwoShotSeats, fetchRoomParticipantCounts, toRoomCountMap } from './roomCountsApi';
 
 // ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
 // このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
@@ -14,141 +7,6 @@ vi.mock('@features/chat/rooms', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@features/chat/rooms')>()),
   TWO_SHOT_CHAT_ENABLED: true,
 }));
-
-type Row = {
-  room_id: string | null;
-  name: string | null;
-  message: string | null;
-  system: boolean | null;
-  metadata: ChatMetadata | null;
-  time: number | null;
-};
-
-const speak = (roomId: string, name: string, time: number): Row => ({
-  room_id: roomId,
-  name,
-  message: 'hello',
-  system: false,
-  metadata: null,
-  time,
-});
-
-const systemRow = (roomId: string, name: string, time: number): Row => ({
-  room_id: roomId,
-  name,
-  message: 'system',
-  system: true,
-  metadata: null,
-  time,
-});
-
-const adminRow = (roomId: string, time: number): Row => ({
-  room_id: roomId,
-  name: null,
-  message: 'alice さん、Welcome to お気楽チャット',
-  system: true,
-  metadata: { version: 1, kind: 'admin' },
-  time,
-});
-
-describe('aggregateCountsFromRows', () => {
-  it('counts unique speakers per room', () => {
-    const rows: Row[] = [
-      speak('superbeginner', 'alice', 1),
-      speak('superbeginner', 'bob', 2),
-      speak('superbeginner', 'alice', 3), // 重複
-      speak('ofall', 'carol', 4),
-    ];
-
-    expect(aggregateCountsFromRows(rows)).toEqual({
-      superbeginner: 2, // alice, bob
-      ofall: 1,
-    });
-  });
-
-  it('ignores system messages and admin announcements', () => {
-    const rows: Row[] = [
-      adminRow('superbeginner', 1),
-      systemRow('superbeginner', 'alice', 2),
-      speak('superbeginner', 'bob', 3),
-    ];
-
-    // 通常発言者 bob のみカウント
-    expect(aggregateCountsFromRows(rows)).toEqual({ superbeginner: 1 });
-  });
-
-  it('drops rows with unknown room_id', () => {
-    const rows: Row[] = [speak('superbeginner', 'alice', 1), speak('does-not-exist', 'zz', 2)];
-
-    expect(aggregateCountsFromRows(rows)).toEqual({ superbeginner: 1 });
-  });
-
-  it('treats users who later stopped speaking as still counted within the window', () => {
-    // 「退室後も 6 時間ウィンドウ内なら活動ユーザーとしてカウントする」仕様
-    const rows: Row[] = [
-      speak('superbeginner', 'alice', 1),
-      speak('superbeginner', 'alice', 2),
-      speak('superbeginner', 'bob', 3),
-    ];
-
-    expect(aggregateCountsFromRows(rows)).toEqual({ superbeginner: 2 });
-  });
-
-  // ツーショットチャットの人数は席の数で数える。公開ログに残る過去の 2shot の発言では数えない
-  it('公開ログの 2shot の発言は数えない', () => {
-    const rows: Row[] = [speak('2shot', 'alice', 1), speak('superbeginner', 'bob', 2)];
-
-    expect(aggregateCountsFromRows(rows)).toEqual({ superbeginner: 1 });
-  });
-
-  it('returns empty object for empty input', () => {
-    expect(aggregateCountsFromRows([])).toEqual({});
-  });
-
-  it('skips rows without name', () => {
-    const rows: Row[] = [
-      { ...speak('superbeginner', '', 1), name: '' },
-      { ...speak('superbeginner', null as unknown as string, 2), name: null },
-      speak('superbeginner', 'alice', 3),
-    ];
-
-    expect(aggregateCountsFromRows(rows)).toEqual({ superbeginner: 1 });
-  });
-});
-
-// supabase-js を使わず PostgREST へ直接投げる (トップページに約 50kB gz を載せないため)
-describe('buildRoomCountsUrl', () => {
-  const url = buildRoomCountsUrl('https://example.supabase.co', 1_700_000_000_000);
-
-  it('chats テーブルの REST エンドポイントを指す', () => {
-    expect(url.startsWith('https://example.supabase.co/rest/v1/chats?')).toBe(true);
-  });
-
-  it('末尾スラッシュを重複させない', () => {
-    expect(buildRoomCountsUrl('https://example.supabase.co/', 1)).toContain(
-      'https://example.supabase.co/rest/v1/chats?'
-    );
-  });
-
-  it('supabase-js 版と同じ絞り込みを表現する', () => {
-    const params = new URLSearchParams(url.split('?')[1]);
-
-    expect(params.get('time')).toBe('gte.1700000000000');
-    expect(params.get('deleted')).toBe('eq.false');
-    expect(params.get('order')).toBe('time.asc');
-    expect(params.get('limit')).toBe('5000');
-    expect(params.get('select')).toBe('room_id,name,system,metadata,time');
-    expect(params.get('room_id')?.startsWith('in.(')).toBe(true);
-  });
-
-  it('公開ログの 2shot は取得しない', () => {
-    const params = new URLSearchParams(url.split('?')[1]);
-    const rooms = params.get('room_id')!.slice('in.('.length, -1).split(',');
-
-    expect(rooms).toContain('superbeginner');
-    expect(rooms).not.toContain('2shot');
-  });
-});
 
 describe('toRoomCountMap', () => {
   it('一覧に出す部屋だけにし、公開ログの 2shot は捨てる', () => {
@@ -186,7 +44,6 @@ describe('fetchRoomParticipantCounts', () => {
   const ORIGINAL_FETCH = globalThis.fetch;
   const COUNTS_RPC = 'https://example.supabase.co/rest/v1/rpc/room_participant_counts';
   const LOBBY_RPC = 'https://example.supabase.co/rest/v1/rpc/two_shot_lobby';
-  const ROWS = 'https://example.supabase.co/rest/v1/chats?';
 
   beforeEach(() => {
     vi.stubEnv('VITE_SUPABASE_URL', 'https://example.supabase.co');
@@ -203,31 +60,19 @@ describe('fetchRoomParticipantCounts', () => {
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 
   /** URL ごとに応答を決める。決めていない URL は 500 */
-  function mockFetch(routes: { counts?: Reply; lobby?: Reply; rows?: Reply }) {
+  function mockFetch(routes: { counts?: Reply; lobby?: Reply }) {
     // RequestInit を明示すると eslint の no-undef に当たる (TS の DOM 型は認識されない)。
     // fetch のシグネチャから引くことで型も維持しつつ回避する。
     const spy = vi.fn((...args: Parameters<typeof fetch>) => {
       const url = String(args[0]);
       const reply =
-        url === COUNTS_RPC
-          ? routes.counts
-          : url === LOBBY_RPC
-            ? routes.lobby
-            : url.startsWith(ROWS)
-              ? routes.rows
-              : undefined;
+        url === COUNTS_RPC ? routes.counts : url === LOBBY_RPC ? routes.lobby : undefined;
       return reply ? reply() : new Response('unexpected', { status: 500 });
     });
     globalThis.fetch = spy as unknown as typeof fetch;
     return spy;
   }
 
-  const rows = [
-    { room_id: 'superbeginner', name: 'ゆい', system: false, metadata: null, time: 1 },
-    { room_id: 'superbeginner', name: 'ゆい', system: false, metadata: null, time: 2 },
-    { room_id: 'superbeginner', name: 'たろ', system: false, metadata: null, time: 3 },
-    { room_id: '2shot', name: 'むかし', system: false, metadata: null, time: 4 },
-  ];
   const counts = [
     { room_id: 'superbeginner', participants: 2 },
     { room_id: '2shot', participants: 7 },
@@ -272,21 +117,16 @@ describe('fetchRoomParticipantCounts', () => {
     await expect(fetchRoomParticipantCounts()).resolves.toEqual({ superbeginner: 2 });
   });
 
-  // マイグレーションを適用する前に配信しても、参加人数の表示が壊れないようにする
-  it('RPC がまだ無い（404）ときは、従来どおり発言の行を取得して数える（2shot の行は数えない）', async () => {
+  // RPC は本番に適用済み（Issue #187）。404 でも発言の行（最大 5000 行）を取りに行かない
+  it('RPC が 404 でも発言の行は取得せず、ほかの失敗と同じく空にする（2shot の席の人数は残す）', async () => {
     const spy = mockFetch({
       counts: () => new Response('{"code":"PGRST202"}', { status: 404 }),
-      rows: () => json(rows),
       lobby: () => json(lobby),
     });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({
-      superbeginner: 2,
-      '2shot': 3,
-    });
-    expect(spy).toHaveBeenCalledTimes(3);
-    const rowsUrl = spy.mock.calls.map(([url]) => String(url)).find((url) => url.startsWith(ROWS));
-    expect(new URLSearchParams(rowsUrl!.split('?')[1]).get('room_id')).not.toContain('2shot');
+    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ '2shot': 3 });
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(spy.mock.calls.some(([url]) => String(url).includes('/rest/v1/chats'))).toBe(false);
   });
 
   it('two-shot の空室状況だけ失敗しても、ほかの部屋の人数は残す', async () => {
@@ -303,13 +143,6 @@ describe('fetchRoomParticipantCounts', () => {
 
   it('参加人数の RPC だけ失敗しても、2shot の人数は残す', async () => {
     mockFetch({ counts: () => new Response('nope', { status: 500 }), lobby: () => json(lobby) });
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ '2shot': 3 });
-
-    mockFetch({
-      counts: () => new Response('', { status: 404 }),
-      rows: () => new Response('nope', { status: 500 }),
-      lobby: () => json(lobby),
-    });
     await expect(fetchRoomParticipantCounts()).resolves.toEqual({ '2shot': 3 });
   });
 

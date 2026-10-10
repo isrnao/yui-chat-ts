@@ -1,14 +1,10 @@
 import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
-import { mockChatData, isOnline } from '@features/chat/utils/fallback';
+import { getAuthorKey } from '../utils/authorKey';
 import { normalizeChat } from '../utils/normalizeMetadata';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
-import {
-  aggregateChatRanking,
-  compareRankingEntries,
-  type RankingEntry,
-} from '../utils/chatRanking';
-import { retryWithBackoff, warnIfSlow } from './retry';
+import { compareRankingEntries, type RankingEntry } from '../utils/chatRanking';
+import { NonRetryableError, retryWithBackoff, warnIfSlow } from './retry';
 
 /**
  * chats テーブルへの問い合わせ（読み取りと論理削除）。
@@ -27,14 +23,22 @@ const ALL_ROOMS_SELECT_COLUMNS = 'uuid,room_id,name,color,message,time,system,ip
 /** 部屋ごとの発言ランキングを集計するビュー (supabase/migrations/20260921000000) */
 const RANKING_VIEW = 'chat_ranking';
 
-/** オフライン時・認証エラー時に出す既定のログ（意図した挙動。spec Q2） */
-function getOfflineChatData(roomId: RoomId): Chat[] {
-  return mockChatData.map((chat) => ({ ...chat, room_id: roomId }));
+/**
+ * オフラインなら取りに行かずに失敗させる（再試行しない）。
+ *
+ * 以前はオフライン時と認証エラー時に偽のログ（「ゆい > こんにちは！」など）を返していたが、本物の会話と
+ * 見分けがつかず、誰かがいるように見えるのでやめた（Issue #188）。画面は「読み込みに失敗しました。[再読み込み]」を
+ * 出し、接続が戻ると Room_Log_Store が取り直す（Realtime の connected への遷移）。
+ */
+function assertOnline(): void {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    throw new NonRetryableError('Offline');
+  }
 }
 
 /**
  * 部屋の直近 `limit` 件を uuid の降順で取得する。
- * オフライン時と認証エラー（401 / JWT）のときは既定のログを返す。
+ * オフラインと認証エラー（401 / JWT）は再試行せずに投げる。
  */
 export async function loadRecentChatLogs(
   roomId: RoomId = DEFAULT_ROOM_ID,
@@ -42,7 +46,7 @@ export async function loadRecentChatLogs(
 ): Promise<Chat[]> {
   const startTime = performance.now();
   return retryWithBackoff(async () => {
-    if (!isOnline()) return getOfflineChatData(roomId).slice(0, limit);
+    assertOnline();
 
     const { data, error } = await supabase
       .from(TABLE)
@@ -54,7 +58,7 @@ export async function loadRecentChatLogs(
 
     if (error) {
       if (error.code === '401' || error.message.includes('JWT')) {
-        return getOfflineChatData(roomId).slice(0, limit);
+        throw new NonRetryableError(`Supabase auth error: ${error.message} (${error.code})`);
       }
       throw new Error(`Supabase error: ${error.message} (${error.code})`);
     }
@@ -79,19 +83,22 @@ export async function loadAllRoomsChatLogs(limit = 200): Promise<Chat[]> {
   return (data ?? []).map(normalizeChat);
 }
 
-// 指定したハンドルネームの発言に削除フラグを立てる（論理削除）
-export async function clearChatLogsByName(
-  roomId: RoomId = DEFAULT_ROOM_ID,
-  name: string
-): Promise<void> {
-  const { error } = await supabase
-    .from(TABLE)
-    .update({ deleted: true })
-    .eq('room_id', roomId)
-    .eq('name', name);
+/**
+ * この端末で書いた自分の発言を消す（clear コマンドと [消す]、Issue #179）。
+ *
+ * SQL 関数 clear_my_chats が、書いた端末の鍵（authorKey.ts）・部屋・名前が一致し、まだ消していない行だけを消す。
+ * 同じ名前の他人の発言や、鍵の無い移行前の発言は消えない。消した行の uuid を返す（空なら消す発言が無かった）。
+ */
+export async function clearMyChats(roomId: RoomId, name: string): Promise<string[]> {
+  const { data, error } = await supabase.rpc('clear_my_chats', {
+    p_room_id: roomId,
+    p_name: name,
+    p_author_key: getAuthorKey(),
+  });
   if (error) {
     throw new Error(`Failed to clear chat logs: ${error.message}`);
   }
+  return Array.isArray(data) ? data.filter((uuid): uuid is string => typeof uuid === 'string') : [];
 }
 
 type ChatRankingRow = {
@@ -113,10 +120,7 @@ type ChatRankingRow = {
  */
 export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise<RankingEntry[]> {
   return retryWithBackoff(async () => {
-    // オフライン時は手元のモックデータで数える
-    if (!isOnline()) {
-      return aggregateChatRanking(getOfflineChatData(roomId));
-    }
+    assertOnline();
 
     const { data, error } = await supabase
       .from(RANKING_VIEW)
@@ -126,11 +130,15 @@ export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise
       .order('last_time', { ascending: false });
 
     if (error) {
+      // 認証エラーは繰り返しても通らないので再試行しない（loadRecentChatLogs と同じ）
+      if (error.code === '401' || error.message.includes('JWT')) {
+        throw new NonRetryableError(`Supabase auth error: ${error.message} (${error.code})`);
+      }
       throw new Error(`Supabase ranking query error: ${error.message} (${error.code})`);
     }
 
     // 並びはサーバーで付けているが、クライアント集計と同じ比較関数で揃え直しておく
-    // (同数・同時刻の並びをテスト / オフライン時と一致させるため)
+    // (同数・同時刻の並びをクライアント集計 aggregateChatRanking と一致させるため)
     return ((data ?? []) as ChatRankingRow[])
       .map(
         (row): RankingEntry => ({

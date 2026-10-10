@@ -2,46 +2,28 @@ import { startTransition } from 'react';
 import {
   saveChatLogOptimistic,
   createOptimisticChat,
+  type AdminEventInput,
   type SaveChatOptions,
 } from '@features/chat/api/saveChat';
-import { isFortuneCommand, generateFortune } from '@features/chat/utils/fortuneBot';
+import { buildAdminChat } from '@features/chat/serverMessages';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { generateOperationId } from '@shared/utils/uuid';
-import type { Chat, ChatMetadata } from '@features/chat/types';
+import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 
 /**
- * 管理人（システム）発言の楽観的チャットを組み立てる純粋関数。
- * 入室 / 退室メッセージは部屋単位ビューと全部屋まとめビューで同じ体裁を使う。
+ * 入退室の管理人の発言の楽観的な行。文言と metadata は save-chat と同じ関数（messages.ts）で作り、
+ * 保存される内容はサーバーが決める（Issue #180）。色はそのまま使い、保存の応答の metadata（サーバーが読めない色を
+ * 既定の色にしたもの）で確定する。
  */
-export function createAdminChat({
-  roomId,
-  message,
-  userColor,
-  extraMetadata,
-}: {
-  roomId: RoomId;
-  message: string;
-  userColor: string;
-  extraMetadata?: Partial<ChatMetadata>;
-}): Chat {
+export function createAdminChat({ roomId, ...input }: AdminEventInput & { roomId: RoomId }): Chat {
+  const admin = buildAdminChat(input);
   return createOptimisticChat({
     room_id: roomId,
-    name: '管理人',
-    color: '#ffffff',
-    message,
+    ...admin,
     client_time: Date.now(),
-    system: true,
     ip_masked: '',
     ua: '',
-    metadata: {
-      version: 1,
-      avatar: 'hoshi1',
-      kind: 'admin',
-      userColor,
-      fontStyle: { bold: true },
-      ...extraMetadata,
-    },
   });
 }
 
@@ -75,7 +57,11 @@ export function useChatSender({
       startTransition(async () => {
         addOptimistic(chat);
         try {
-          const savedChat = await saveChatLogOptimistic(roomId, chat, options);
+          const savedChat = await saveChatLogOptimistic(roomId, chat, {
+            ...options,
+            // 同じ要求で保存されたサーバーの発言（おみくじの巫女の返事）。Realtime を待たずにログへ入れる
+            onExtra: (extra) => startTransition(() => extra.forEach((saved) => mergeChat(saved))),
+          });
           // await の後は Transition の文脈が切れるので、もう一度包む
           startTransition(() => mergeChat(savedChat));
           resolve(savedChat);
@@ -89,7 +75,7 @@ export function useChatSender({
   /**
    * 利用者自身の発言を送る。送信操作の ID をここで 1 つ発行し、Browser の send-chat
    * インタラクションと save-chat（x-chat-operation-id）で共有する（spec R5.5 / R5.8）。
-   * 入退室の管理人メッセージや巫女メッセージは利用者の操作ではないので send を使い、
+   * 入退室の管理人メッセージは利用者の操作ではないので send を使い、
    * send-chat として記録しない。記録は同期的に行い、送信のイベントの中でインタラクションに結びつける。
    */
   const sendUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
@@ -99,31 +85,10 @@ export function useChatSender({
   };
 
   /**
-   * おみくじコマンドだった場合に巫女メッセージを続けて投稿する。
-   * 巫女メッセージの保存失敗はユーザー発言の成否に影響しないためサイレントに無視する。
+   * 入退室の管理人の発言を送る（op: enter / exit）。楽観的に表示し、サーバーが作った行で確定する。
    */
-  const sendFortuneIfCommand = async (roomId: RoomId, message: string, senderName: string) => {
-    if (!isFortuneCommand(message)) return;
-    try {
-      const fortune = generateFortune(senderName);
-      await send(
-        roomId,
-        createOptimisticChat({
-          room_id: roomId,
-          name: fortune.senderName,
-          color: fortune.color,
-          message: fortune.message,
-          client_time: Date.now(),
-          system: true,
-          ip_masked: '',
-          ua: '',
-          metadata: { version: 1, kind: 'fortune', avatar: 'miko1', fontStyle: { bold: true } },
-        })
-      );
-    } catch {
-      // 巫女メッセージの保存失敗はサイレントに無視
-    }
-  };
+  const sendAdminEvent = (roomId: RoomId, input: AdminEventInput): Promise<Chat> =>
+    send(roomId, createAdminChat({ roomId, ...input }), { admin: input });
 
-  return { send, sendUserMessage, sendFortuneIfCommand };
+  return { send, sendUserMessage, sendAdminEvent };
 }

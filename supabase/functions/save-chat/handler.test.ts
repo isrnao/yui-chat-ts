@@ -14,34 +14,41 @@ interface FakeDbOptions {
   insertError?: { code: string; message: string };
   insertThrows?: boolean;
   delayMs?: number;
+  /** insert_chat が返す部屋の triage。省略時は com_sb だけ true */
+  triage?: boolean;
 }
 
 function fakeSupabase(options: FakeDbOptions = {}) {
   const inserts: Row[] = [];
+  const rpcCalls: { name: string; args: Row }[] = [];
+  const run = async <T>(make: () => T) => {
+    if (options.delayMs) await new Promise((r) => setTimeout(r, options.delayMs));
+    if (options.insertThrows) throw new TypeError('connection reset');
+    if (options.insertError) return { data: null, error: options.insertError };
+    return { data: make(), error: null };
+  };
   const client = {
+    // insert_chat: 渡した行を、DB が付ける列（uuid / time / ip_masked）と部屋の triage を足して返す
+    rpc(name: string, args: Row) {
+      rpcCalls.push({ name, args });
+      const rows = args.p_chats as Row[];
+      inserts.push(...rows);
+      return run(() =>
+        rows.map(({ author: _author, email: _email, ip: _ip, ...row }) => ({
+          ...row,
+          uuid: crypto.randomUUID(),
+          time: 1,
+          ip_masked: '',
+          triage: options.triage ?? row.room_id === 'com_sb',
+        }))
+      );
+    },
     from(_table: string) {
       return {
+        // triage の管理人の返信（1 行を直接 await する）
         insert(row: Row) {
           inserts.push(row);
-          const result = async () => {
-            if (options.delayMs) await new Promise((r) => setTimeout(r, options.delayMs));
-            if (options.insertThrows) throw new TypeError('connection reset');
-            if (options.insertError) return { data: null, error: options.insertError };
-            return {
-              data: { uuid: crypto.randomUUID(), room_id: row.room_id, time: 1 },
-              error: null,
-            };
-          };
-          const query = {
-            select: () => query,
-            single: result,
-            // replyAsAdmin は insert(...) を直接 await する
-            then: (ok: (v: unknown) => unknown, ng: (e: unknown) => unknown) =>
-              result()
-                .then(({ error }) => ({ error }), undefined)
-                .then(ok, ng),
-          };
-          return query;
+          return run(() => null).then(({ error }) => ({ error }));
         },
         select() {
           const chain = {
@@ -54,11 +61,15 @@ function fakeSupabase(options: FakeDbOptions = {}) {
       };
     },
   };
-  return { client: client as unknown as SupabaseClient, inserts };
+  return { client: client as unknown as SupabaseClient, inserts, rpcCalls };
 }
 
 function setup(
-  options: FakeDbOptions & { env?: Record<string, string>; environment?: string } = {}
+  options: FakeDbOptions & {
+    env?: Record<string, string>;
+    environment?: string;
+    random?: () => number;
+  } = {}
 ) {
   const exported: FinishedSpan[][] = [];
   const logs: ExportedLog[] = [];
@@ -112,6 +123,7 @@ function setup(
     },
     environment: options.environment ?? 'local',
     triageDeadlineMs: 200,
+    random: options.random,
   };
   return {
     handler: createHandler(deps),
@@ -119,6 +131,7 @@ function setup(
     logs,
     pending,
     inserts: db.inserts,
+    rpcCalls: db.rpcCalls,
     /** waitUntil に登録された処理が終わるまで待ち、送られたスパンを平らにして返す */
     async settle() {
       await Promise.all(pending);
@@ -443,3 +456,303 @@ Deno.test(
     }
   })
 );
+
+Deno.test('入力の規則: 違反は code を付けて拒否し、記録する。insert_chat は呼ばない', async () => {
+  const t = setup();
+  const res = await t.handler(post({ ...chat, message: 'a'.repeat(121) }));
+  assertEquals(res.status, 400);
+  assertEquals(await res.json(), { error: { code: 'invalid_message' } });
+  assertEquals(t.rpcCalls.length, 0);
+  const spans = await t.settle();
+  // 4xx はサーバーの失敗にしない
+  assertEquals(byName(spans, 'POST save-chat').status, undefined);
+  const log = t.logs.find((l) => l.body.stringValue === 'save_chat.input_rejected')!;
+  assertEquals(log.severityText, 'WARN');
+  assertEquals(log.attributes['chat.input.violation'], 'message_too_long');
+});
+
+Deno.test('入力の規則: 読めない色は既定の色にし、名前は前後の空白を除いて保存する', async () => {
+  const t = setup();
+  const res = await t.handler(post({ ...chat, name: '  たろう　', color: 'あか' }));
+  assertEquals(res.status, 200);
+  assertEquals(t.inserts[0].name, 'たろう');
+  assertEquals(t.inserts[0].color, '#ff69b4');
+  const body = await res.json();
+  assertEquals(body.color, '#ff69b4');
+  await t.settle();
+  assertEquals(t.logs.filter((l) => l.body.stringValue === 'save_chat.input_rejected').length, 0);
+});
+
+Deno.test('型と必須の誤りは code で拒否する', async () => {
+  const t = setup();
+  for (const [body, code] of [
+    [{ ...chat, room_id: '' }, 'invalid_room_id'],
+    [{ ...chat, name: '' }, 'invalid_name'],
+    [{ ...chat, message: '  ' }, 'invalid_message'],
+    [{ ...chat, message: 1 }, 'invalid_message'],
+  ] as const) {
+    assertEquals(await (await t.handler(post(body))).json(), { error: { code } });
+  }
+  const notObject = await t.handler(
+    new Request('https://example.supabase.co/functions/v1/save-chat', {
+      method: 'POST',
+      body: 'null',
+    })
+  );
+  assertEquals(await notObject.json(), { error: { code: 'invalid_json' } });
+  assertEquals(t.rpcCalls.length, 0);
+  await t.settle();
+});
+
+Deno.test('metadata は許可リストで作り直して保存し、落としたものを記録する', async () => {
+  const t = setup();
+  const res = await t.handler(
+    post({
+      ...chat,
+      metadata: {
+        version: 1,
+        avatar: 'hoshi2',
+        optimisticNonce: 'n-1',
+        // サーバーが作る発言だけのキーは、利用者の発言では受け付けない
+        kind: 'admin',
+        userColor: '#f00',
+        visitCount: 3,
+        lastLogin: 1,
+        event: 'exit',
+        subject: { name: 'だれか', color: '#000' },
+        evil: 'x'.repeat(5000),
+      },
+    })
+  );
+  assertEquals(res.status, 200);
+  assertEquals(t.inserts[0].metadata, { version: 1, avatar: 'hoshi2', optimisticNonce: 'n-1' });
+  await t.settle();
+  const log = t.logs.find((l) => l.body.stringValue === 'save_chat.metadata_dropped')!;
+  assertEquals(
+    log.attributes['chat.metadata.dropped'],
+    'unknown:kind,unknown:userColor,unknown:visitCount,unknown:lastLogin,unknown:event,unknown:subject,unknown:evil'
+  );
+});
+
+Deno.test('利用者の発言は system: true を送っても false で保存する', async () => {
+  const t = setup();
+  await t.handler(post({ ...chat, system: true }));
+  assertEquals(t.inserts[0].system, false);
+  await t.settle();
+});
+
+Deno.test(
+  '予約名（全角・空白・見えない文字の揺れも）は、発言でも入室でも reserved_name で拒否する',
+  async () => {
+    const t = setup();
+    for (const name of ['管理人', ' 巫 女 ', '管理⼈', '管​理人']) {
+      const res = await t.handler(post({ ...chat, name }));
+      assertEquals(await res.json(), { error: { code: 'reserved_name' } }, name);
+    }
+    const enter = await t.handler(
+      post({ op: 'enter', room_id: 'main', name: '巫女', color: '#fff' })
+    );
+    assertEquals(await enter.json(), { error: { code: 'reserved_name' } });
+    assertEquals(t.rpcCalls.length, 0);
+    await t.settle();
+  }
+);
+
+Deno.test('部屋: 知らない部屋（外部キー）は 400 invalid_room_id', async () => {
+  const t = setup({ insertError: { code: '23503', message: 'rejected' } });
+  const res = await t.handler(post(chat));
+  assertEquals(res.status, 400);
+  assertEquals(await res.json(), { error: { code: 'invalid_room_id' } });
+  const spans = await t.settle();
+  assertEquals(byName(spans, 'POST save-chat').attributes['error.code'], 'invalid_room_id');
+  assertEquals(byName(spans, 'POST save-chat').status, undefined);
+});
+
+Deno.test('部屋: 応答に部屋の triage は返さず、triage の対象は rooms.triage で決める', async () => {
+  const off = setup({ triage: false });
+  const res = await off.handler(post({ ...chat, room_id: 'com_sb' }));
+  const body = await res.json();
+  assertEquals('triage' in body, false);
+  assertEquals(typeof body.uuid, 'string');
+  const spans = await off.settle();
+  assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], false);
+});
+
+const AUTHOR_KEY = 'A'.repeat(43);
+
+Deno.test(
+  '書き込み: insert_chat に利用者の発言を author 付きで渡し、鍵と送信操作の ID も渡す',
+  async () => {
+    const t = setup();
+    const res = await t.handler(
+      post(chat, { 'x-chat-author-key': AUTHOR_KEY, 'x-chat-operation-id': OP_ID })
+    );
+    assertEquals(res.status, 200);
+    assertEquals(t.rpcCalls.length, 1);
+    assertEquals(t.rpcCalls[0].name, 'insert_chat');
+    assertEquals(t.rpcCalls[0].args.p_author_key, AUTHOR_KEY);
+    // 送信操作の ID を渡して、再送で二重に入れないようにする
+    assertEquals(t.rpcCalls[0].args.p_operation_id, OP_ID);
+    const [row] = t.rpcCalls[0].args.p_chats as Row[];
+    assertEquals(row.author, true);
+    assertEquals(row.ip, '203.0.113.9');
+    const spans = await t.settle();
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.author_key'], true);
+    assertEquals(
+      byName(spans, 'db insert chats').attributes['db.stored_procedure.name'],
+      'insert_chat'
+    );
+  }
+);
+
+Deno.test('書き込み: 鍵が無ければ null を渡す（保存はする）', async () => {
+  const t = setup();
+  assertEquals((await t.handler(post(chat))).status, 200);
+  assertEquals(t.rpcCalls[0].args.p_author_key, null);
+  await t.settle();
+});
+
+Deno.test(
+  'op: enter は管理人の入室の発言をサーバーが作って保存する（鍵は結び付けない）',
+  async () => {
+    const t = setup();
+    const res = await t.handler(
+      post(
+        {
+          op: 'enter',
+          room_id: 'main',
+          name: 'ゆい',
+          color: 'HotPink',
+          visit_count: 1e9,
+          last_login: 1735806900000,
+          nonce: 'n-1',
+          // 利用者が送った文言・system・metadata は使わない
+          message: '偽の文言',
+          system: false,
+          metadata: { version: 1, kind: 'normal' },
+        },
+        { 'x-chat-author-key': AUTHOR_KEY }
+      )
+    );
+    assertEquals(res.status, 200);
+    const [row] = t.rpcCalls[0].args.p_chats as Row[];
+    assertEquals(row.name, '管理人');
+    assertEquals(row.message, 'ゆい さん、Welcome to お気楽チャット☆');
+    assertEquals(row.system, true);
+    assertEquals(row.author, false);
+    assertEquals(row.metadata, {
+      version: 1,
+      avatar: 'hoshi1',
+      kind: 'admin',
+      userColor: 'hotpink',
+      fontStyle: { bold: true },
+      visitCount: 1_000_000,
+      lastLogin: 1735806900000,
+      optimisticNonce: 'n-1',
+      event: 'enter',
+      subject: { name: 'ゆい', color: 'hotpink' },
+    });
+    const spans = await t.settle();
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.op'], 'enter');
+    assertEquals(byName(spans, 'POST save-chat').attributes['chat.triage'], false);
+  }
+);
+
+Deno.test('op: exit は退室の発言。読めない色は既定の色にし、訪問の情報は付けない', async () => {
+  const t = setup();
+  await t.handler(
+    post({ op: 'exit', room_id: 'main', name: ' ゆい ', color: 'あか', nonce: 'n-2' })
+  );
+  const [row] = t.rpcCalls[0].args.p_chats as Row[];
+  assertEquals(row.message, 'ゆいさん、またきておくれやすぅ。');
+  assertEquals((row.metadata as Row).userColor, '#ff69b4');
+  assertEquals('visitCount' in (row.metadata as Row), false);
+  await t.settle();
+});
+
+Deno.test(
+  'op: 知らない op（null を含む）は 400 invalid_op、message の無い enter は通る',
+  async () => {
+    const t = setup();
+    for (const op of ['delete', null]) {
+      assertEquals(await (await t.handler(post({ ...chat, op }))).json(), {
+        error: { code: 'invalid_op' },
+      });
+    }
+    assertEquals(t.rpcCalls.length, 0);
+    const res = await t.handler(
+      post({ op: 'enter', room_id: 'main', name: 'ゆい', color: '#fff' })
+    );
+    assertEquals(res.status, 200);
+    await t.settle();
+  }
+);
+
+Deno.test('op: 入退室の名前も上限を確かめる', async () => {
+  const t = setup();
+  const res = await t.handler(
+    post({ op: 'enter', room_id: 'main', name: 'あ'.repeat(25), color: '#fff' })
+  );
+  assertEquals(await res.json(), { error: { code: 'invalid_name' } });
+  assertEquals(t.rpcCalls.length, 0);
+  await t.settle();
+});
+
+Deno.test(
+  'おみくじ: 利用者の発言と巫女の返事を 1 回の insert_chat で、この順に保存する',
+  async () => {
+    // 0.99 → 最後の運勢
+    const t = setup({ random: () => 0.99 });
+    const res = await t.handler(
+      post(
+        { ...chat, message: ' おみくじ ', metadata: { version: 1, optimisticNonce: 'n' } },
+        { 'x-chat-author-key': AUTHOR_KEY }
+      )
+    );
+    assertEquals(res.status, 200);
+    assertEquals(t.rpcCalls.length, 1);
+    const rows = t.rpcCalls[0].args.p_chats as Row[];
+    assertEquals(
+      rows.map((r) => [r.name, r.system, r.author]),
+      [
+        ['たろう', false, true],
+        ['巫女', true, false],
+      ]
+    );
+    assertEquals(
+      rows[1].message,
+      '大吉で〜す。情報の聞き漏らしないか確認しませう。普段より順調に運び一段落します。＞たろうさん'
+    );
+    assertEquals(rows[1].metadata, {
+      version: 1,
+      kind: 'fortune',
+      avatar: 'miko1',
+      fontStyle: { bold: true },
+    });
+
+    // 応答: 利用者の行に、保存された巫女の行を extra として付ける（表示に要る列を含む）
+    const body = await res.json();
+    assertEquals(body.extra.length, 1);
+    assertEquals(body.extra[0].name, '巫女');
+    assertEquals(body.extra[0].message, rows[1].message);
+    assertEquals(body.extra[0].system, true);
+    assertEquals(typeof body.extra[0].uuid, 'string');
+    assertEquals('triage' in body.extra[0], false);
+    await t.settle();
+  }
+);
+
+Deno.test('おみくじ: 完全に一致しない発言では巫女を出さない', async () => {
+  const t = setup();
+  const res = await t.handler(post({ ...chat, message: 'おみくじひいた' }));
+  assertEquals('extra' in (await res.json()), false);
+  assertEquals((t.rpcCalls[0].args.p_chats as Row[]).length, 1);
+  await t.settle();
+});
+
+Deno.test('おみくじ: 保存に失敗すれば利用者の発言ごと失敗する（巫女だけ欠けない）', async () => {
+  const t = setup({ insertError: { code: '57014', message: 'timeout' } });
+  const res = await t.handler(post({ ...chat, message: 'おみくじ' }));
+  assertEquals(res.status, 500);
+  await t.settle();
+});

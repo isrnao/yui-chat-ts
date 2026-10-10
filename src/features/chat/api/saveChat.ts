@@ -2,6 +2,11 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
+import type { AdminChatInput } from '../serverMessages';
+import { EMAIL_MAX, MESSAGE_MAX, NAME_MAX, type InputErrorCode } from '../inputRules';
+import { getAuthorKey } from '../utils/authorKey';
+import { normalizeChat, normalizeChatMetadata } from '../utils/normalizeMetadata';
+import { UserFacingError } from '../utils/userFacingError';
 import { retryWithBackoff, warnIfSlow } from './retry';
 
 /**
@@ -18,33 +23,105 @@ interface SaveOperation {
   attempt: number;
 }
 
+/**
+ * save-chat が入力の誤りで拒否したときのコード（`{ "error": { "code": "invalid_name" } }`）と、画面に出す文言。
+ * 文言はクライアントが選ぶ（サーバーはコードだけを返す）。
+ */
+const INPUT_ERROR_MESSAGES: Record<InputErrorCode, string> = {
+  invalid_room_id: 'この部屋には発言できません。',
+  invalid_name: `おなまえを確かめてください（${NAME_MAX}文字以内）。`,
+  reserved_name: 'その名前は使えません。',
+  invalid_message: `発言を確かめてください（${MESSAGE_MAX}文字以内）。`,
+  invalid_email: `E-Mail/URLを確かめてください（${EMAIL_MAX}文字以内）。`,
+};
+
+/** 入力の誤りで拒否された保存。繰り返しても通らないので再試行しない */
+export class SaveChatRejectedError extends UserFacingError {
+  readonly code: InputErrorCode;
+  constructor(code: InputErrorCode) {
+    super(INPUT_ERROR_MESSAGES[code]);
+    this.name = 'SaveChatRejectedError';
+    this.code = code;
+  }
+}
+
+function isInputErrorCode(value: unknown): value is InputErrorCode {
+  return (
+    typeof value === 'string' && Object.prototype.hasOwnProperty.call(INPUT_ERROR_MESSAGES, value)
+  );
+}
+
+/**
+ * functions-js の FunctionsHttpError は context に Response を持つ。400 の本文から入力の誤りの
+ * コードを読む。読めなければ null（ほかの失敗と同じく扱う）。
+ */
+async function readRejection(error: unknown): Promise<InputErrorCode | null> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (!(context instanceof Response) || context.status !== 400) return null;
+  try {
+    const body: unknown = await context.clone().json();
+    const code = (body as { error?: { code?: unknown } } | null)?.error?.code;
+    return isInputErrorCode(code) ? code : null;
+  } catch {
+    return null;
+  }
+}
+
 // Edge Function 共通呼び出し。ip / ua はサーバー側で設定するため payload に含めない。
-async function invokeSaveChat(
-  payload: {
-    room_id: RoomId;
-    name: string;
-    color: string;
-    message: string;
-    system?: boolean;
-    email?: string | null;
-    metadata?: Chat['metadata'] | null;
-  },
-  operation: SaveOperation
-): Promise<{
+interface SaveChatResponse {
   uuid: string;
   room_id: RoomId;
   time: number;
   ip_masked?: string;
   ua?: string;
-}> {
+  /** 保存した色（サーバーが読めない色を既定の色に置き換える） */
+  color?: string;
+  /** 保存した metadata（サーバーが許可リストで作り直したもの） */
+  metadata?: unknown;
+  /** 同じ要求でサーバーが保存した発言（おみくじの巫女の返事）。表示に要る列を含む */
+  extra?: unknown[];
+}
+
+type SaveChatPayload =
+  | {
+      op?: 'say';
+      room_id: RoomId;
+      name: string;
+      color: string;
+      message: string;
+      system?: boolean;
+      email?: string | null;
+      metadata?: Chat['metadata'] | null;
+    }
+  | {
+      // 入退室。文言と metadata はサーバーが作る（Issue #180）
+      op: AdminChatInput['event'];
+      room_id: RoomId;
+      name: string;
+      color: string;
+      visit_count?: number;
+      last_login?: number;
+      nonce?: string;
+    };
+
+async function invokeSaveChat(
+  payload: SaveChatPayload,
+  operation: SaveOperation
+): Promise<SaveChatResponse> {
   const { data, error } = await supabase.functions.invoke('save-chat', {
     body: payload,
     headers: {
       'x-chat-operation-id': operation.id,
       'x-chat-attempt': String(operation.attempt),
+      // 書いた端末の鍵。clear（clear_my_chats）で自分の発言だけを消すために、サーバーが発言と結び付ける
+      'x-chat-author-key': getAuthorKey(),
     },
   });
-  if (error) throw new Error(`Failed to save chat: ${error.message}`);
+  if (error) {
+    const rejected = await readRejection(error);
+    if (rejected) throw new SaveChatRejectedError(rejected);
+    throw new Error(`Failed to save chat: ${error.message}`);
+  }
   const result: unknown = data;
   if (typeof result === 'object' && result !== null && 'error' in result) {
     throw new Error(`Failed to save chat: ${String((result as { error: unknown }).error)}`);
@@ -57,13 +134,7 @@ async function invokeSaveChat(
   ) {
     throw new Error('Failed to save chat: unexpected response from Edge Function');
   }
-  return result as {
-    uuid: string;
-    room_id: RoomId;
-    time: number;
-    ip_masked?: string;
-    ua?: string;
-  };
+  return result as SaveChatResponse;
 }
 
 export interface SaveChatOptions {
@@ -73,7 +144,20 @@ export interface SaveChatOptions {
    * 省略時はここで発行する（入退室・巫女などのシステム発言）。
    */
   operationId?: string;
+  /**
+   * 入退室の管理人の発言（op: enter / exit）。指定すると、chat は楽観的な表示にだけ使い、サーバーには
+   * 入退室した人の名前・色・訪問の情報と nonce だけを送る（文言と metadata はサーバーが作る）。
+   */
+  admin?: AdminEventInput;
+  /**
+   * 同じ要求でサーバーが保存した発言（おみくじの巫女の返事、Issue #181）を受け取る。保存の応答の extra に入っている。
+   * Realtime でも届くが uuid で重ならない。
+   */
+  onExtra?: (chats: Chat[]) => void;
 }
+
+/** 入退室の管理人の発言のもと（nonce は楽観的な行の optimisticNonce を使う） */
+export type AdminEventInput = Omit<AdminChatInput, 'nonce'>;
 
 /**
  * save-chat Edge Function で保存する共通処理。リトライの全試行で同じ操作 ID を送り、
@@ -83,11 +167,20 @@ async function saveChatWithRetry(
   roomId: RoomId,
   chat: Chat,
   operationId: string,
+  { admin, onExtra }: Pick<SaveChatOptions, 'admin' | 'onExtra'>,
   onSaved: () => void
 ): Promise<Chat> {
-  return retryWithBackoff(async (attempt) => {
-    const result = await invokeSaveChat(
-      {
+  const payload: SaveChatPayload = admin
+    ? {
+        op: admin.event,
+        room_id: roomId,
+        name: admin.name,
+        color: admin.color,
+        visit_count: admin.visitCount,
+        last_login: admin.lastLogin,
+        nonce: chat.metadata?.optimisticNonce,
+      }
+    : {
         room_id: roomId,
         name: chat.name,
         color: chat.color,
@@ -95,25 +188,36 @@ async function saveChatWithRetry(
         system: chat.system,
         email: chat.email,
         metadata: chat.metadata ?? null,
-      },
-      { id: operationId, attempt }
-    );
+      };
+  // 再試行するのは保存の要求だけ。応答の扱い（onExtra など）で投げたものまで再試行すると、要求を余計に繰り返すため
+  // （同じ送信操作の再送による重複は、insert_chat が操作 ID で除く）
+  const result = await retryWithBackoff(
+    (attempt) => invokeSaveChat(payload, { id: operationId, attempt }),
+    { shouldRetry: (error) => !(error instanceof SaveChatRejectedError) }
+  );
 
-    onSaved();
+  onSaved();
+  if (onExtra && Array.isArray(result.extra) && result.extra.length > 0) {
+    onExtra(result.extra.map((row) => ({ ...normalizeChat(row), optimistic: false })));
+  }
 
-    return {
-      ...chat,
-      uuid: result.uuid,
-      room_id: result.room_id ?? roomId,
-      time: result.time,
-      // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
-      // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
-      // 送信者だけ IP / ブラウザ行が消える。
-      ip_masked: result.ip_masked ?? chat.ip_masked,
-      ua: result.ua ?? chat.ua,
-      optimistic: false,
-    };
-  });
+  return {
+    ...chat,
+    uuid: result.uuid,
+    room_id: result.room_id ?? roomId,
+    time: result.time,
+    // Edge Function が返すサーバー観測値で確定させる。これを反映しないと、
+    // realtime INSERT が先に届いた場合に後着の HTTP 応答が空値で上書きし、
+    // 送信者だけ IP / ブラウザ行が消える。
+    ip_masked: result.ip_masked ?? chat.ip_masked,
+    ua: result.ua ?? chat.ua,
+    // サーバーが置き換えた色で確定させる。送った値のままにすると、Realtime で先に届いた
+    // 正規化済みの行を後着の応答が上書きし、送信者だけ別の色になる
+    color: result.color ?? chat.color,
+    // metadata も同じく、サーバーが許可リストで作り直したものにする
+    metadata: 'metadata' in result ? normalizeChatMetadata(result.metadata) : chat.metadata,
+    optimistic: false,
+  };
 }
 
 // 楽観的更新用の高速バージョン
@@ -121,10 +225,10 @@ async function saveChatWithRetry(
 export async function saveChatLogOptimistic(
   roomId: RoomId = DEFAULT_ROOM_ID,
   chat: Chat,
-  { operationId = generateOperationId() }: SaveChatOptions = {}
+  { operationId = generateOperationId(), admin, onExtra }: SaveChatOptions = {}
 ): Promise<Chat> {
   const startTime = performance.now();
-  return saveChatWithRetry(roomId, chat, operationId, () => {
+  return saveChatWithRetry(roomId, chat, operationId, { admin, onExtra }, () => {
     warnIfSlow('saveChatLogOptimistic', startTime);
   });
 }

@@ -97,7 +97,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
   const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
 
-  useLookSound(roomId);
+  useLookSound(store, ipFilter);
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。

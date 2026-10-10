@@ -6,17 +6,26 @@ import type {
   FontStyleMetadata,
   AvatarId,
 } from '../types';
-import { FONT_COLOR_NAMES, AVATAR_IDS } from '../types';
 import { DEFAULT_ROOM_ID, isRoomId } from '../rooms';
+import {
+  AVATAR_IDS,
+  FONT_COLOR_NAMES,
+  FONT_SIZES,
+  METADATA_KINDS,
+  type MetadataKind,
+} from '../inputRules';
 
 // --- 型ガード関数 ---
+// 一覧は save-chat の許可リスト（schema.ts）と同じものを使う。新しい行はサーバーが作り直して保存するが、
+// それより前の行（と Realtime で届く行）のために読む側でも同じ規則で確かめる
 
-const FONT_SIZES = new Set<number>([1, 2, 3, 4, 5]);
+const SIZE_SET = new Set<number>(FONT_SIZES);
 const COLOR_SET = new Set<string>(FONT_COLOR_NAMES);
 const AVATAR_SET = new Set<string>(AVATAR_IDS);
+const KIND_SET = new Set<string>(METADATA_KINDS);
 
 export function isFontSize(value: unknown): value is FontSize {
-  return typeof value === 'number' && FONT_SIZES.has(value);
+  return typeof value === 'number' && SIZE_SET.has(value);
 }
 
 export function isFontColorName(value: unknown): value is FontColorName {
@@ -75,8 +84,8 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
       result.avatar = input.avatar;
     }
 
-    if (input.kind === 'normal' || input.kind === 'fortune' || input.kind === 'admin') {
-      result.kind = input.kind;
+    if (typeof input.kind === 'string' && KIND_SET.has(input.kind)) {
+      result.kind = input.kind as MetadataKind;
     }
 
     if (typeof input.userColor === 'string') {
@@ -93,6 +102,18 @@ export function normalizeChatMetadata(input: unknown): ChatMetadata | undefined 
 
     if (typeof input.optimisticNonce === 'string') {
       result.optimisticNonce = input.optimisticNonce;
+    }
+
+    // 入退室の構造（サーバーが管理人の発言にだけ書く。利用者の発言では save-chat が落とす）
+    if (input.event === 'enter' || input.event === 'exit') {
+      const subject = input.subject;
+      if (isRecord(subject) && typeof subject.name === 'string' && subject.name !== '') {
+        result.event = input.event;
+        result.subject = {
+          name: subject.name,
+          color: typeof subject.color === 'string' ? subject.color : '',
+        };
+      }
     }
 
     return result;

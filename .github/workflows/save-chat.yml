@@ -1,0 +1,97 @@
+# .github/workflows/save-chat.yml
+# 発言の保存（Edge Function save-chat）と chats テーブルの検証。どれか 1 つでも失敗したら落とす。
+# ci.yml は Deno と DB のテストを走らせず、Vitest も continue-on-error なので、サーバーの規則の保証には使わない
+# （docs/SERVER_SIDE_LOGIC_REFACTORING.md §9 の P1、Issue #175）。
+name: save-chat
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'supabase/functions/save-chat/**'
+      - 'src/features/chat/rooms.ts'
+      - 'src/features/chat/roomsTable.test.ts'
+      - 'supabase/migrations/**'
+      - 'supabase/tests/**'
+      - 'supabase/config.toml'
+      - 'scripts/smoke-save-chat-edge.sh'
+      - 'scripts/check-realtime-columns.ts'
+      - '.github/workflows/save-chat.yml'
+
+jobs:
+  rooms:
+    name: rooms.ts と rooms 表の一致
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # pnpm のストアをキャッシュする（このテスト 1 つのために毎回依存を全部取り直さない）
+      - uses: pnpm/action-setup@v4
+        with:
+          # ci.yml と同じく最新の pnpm を使う（package.json に packageManager が無いため指定する）
+          version: latest
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test
+        run: pnpm exec vitest run src/features/chat/roomsTable.test.ts --coverage.enabled=false
+
+  deno:
+    name: Deno（Edge Function）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # 関数のフォルダの deno.json（import map）を読ませるため、そこで実行する
+      - name: Check
+        working-directory: supabase/functions/save-chat
+        run: deno check --no-lock index.ts
+      - name: Test
+        working-directory: supabase/functions/save-chat
+        run: deno test --no-lock --allow-env --allow-read .
+
+  database:
+    name: 実 DB（マイグレーションと chats の pgTAP）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Start database
+        run: supabase db start
+      # two_shot.sql は two-shot.yml が走らせる
+      - name: Test
+        run: supabase test db supabase/tests/chats.sql
+
+  realtime:
+    name: Realtime（anon に読めない列が届かない）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      # Realtime を含めて起動する（使わないサービスは省く）
+      - name: Start Supabase
+        run: supabase start -x studio,mailpit,vector,imgproxy,storage-api,logflare,supavisor,edge-runtime
+      # chats.ip が anon の postgres_changes に届かないこと（Issue #186）
+      - name: Check
+        run: |
+          eval "$(supabase status -o env | sed -n 's/^API_URL=/SUPABASE_URL=/p; s/^ANON_KEY=/SUPABASE_ANON_KEY=/p; s/^SERVICE_ROLE_KEY=/SUPABASE_SERVICE_ROLE_KEY=/p' | sed 's/^/export /')"
+          deno run --no-lock --allow-net --allow-env scripts/check-realtime-columns.ts
+
+  edge-smoke:
+    name: Edge Runtime での起動確認
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Smoke
+        run: bash scripts/smoke-save-chat-edge.sh
