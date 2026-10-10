@@ -90,7 +90,9 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
     - Web のログに通報の導線を足す（発言から 2 操作以内。ダブルタップのフィルタと取り合わない操作にする）
     - テストの通報を運営が受けて記録を残せることを確かめる
     - _Requirements: 12.2, 12.3, 12.4, 21.4_
-  - [ ] 0.7 `contracts/` を作る（Y2）
+  - [x] 0.7 `contracts/` を作る（Y2、2026-10-11。`d1ec535`）
+    - 実装: 生成は `src/contracts/buildContracts.ts` を Vitest から呼ぶ（エイリアスを使うソースを読むため、node の
+      スクリプトにしなかった）。`legal.json` は規約のページ（Task 0.4）ができてから足す
     - `scripts/export-contracts.ts` で `rooms.json`（`appScope` 付き）、`directory.json`、`theme.json`、
       `chat-options.json`（`schema.ts` の上限・選択肢、`INPUT_ERROR_MESSAGES`）、`server-messages.json`（`messages.ts`）、
       `legal.json` を生成する。`rooms.ts` に `appScope` を足す
@@ -110,7 +112,9 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
 - [x] Gate 1: 運営の判断で Phase 1 に進む（2026-10-11）。Phase 0 の残りは並べて進める
 
 - [ ] 1. アプリの基盤を作る（Phase 1、`okiraku-android`）
-  - [ ] 1.1 `okiraku-android` の雛形を作る（A1）
+  - [x] 1.1 `okiraku-android` の雛形を作る（A1、2026-10-11。`okiraku-android` の `6e6bc35`）
+    - 計画との違い: compileSdk は 37（AndroidX の今の版が求める。targetSdk は 36 のまま）。detekt は入れていない
+      （Kotlin 2.4 に対応した detekt 2 が stable になってから足す）。Lint は警告もエラーにした
     - `../okiraku-android` に git のリポジトリを作る（GitHub への作成は運営が決める）
     - `libs.versions.toml`、`build-logic/convention`、`app`。空のモジュールは作らない（design.md §1.1）
     - targetSdk 36、minSdk 28（Q11）、applicationId `chat.okiraku.app`（Q10）、日本語だけの `localeConfig`、R8
@@ -118,7 +122,9 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
     - `scripts/sync-contracts.sh` と `contracts/UPSTREAM`、`.github/workflows/contracts-drift.yml`
     - `README.md` と `CLAUDE.md`（コマンド、モジュール、Contracts、日本語で会話する）
     - _Requirements: 1.1, 1.2, 1.6, 20.4_
-  - [ ] 1.2 `core:model`・`core:common`・`core:contracts` を作る（A2）
+  - [x] 1.2 `core:model`・`core:common`・`core:contracts` を作る（A2、2026-10-11。同上）
+    - 計画との違い: URL の分割（`urlLinker.ts`）は本文のリンクと一緒に Task 2.5 で写す。fixtures の `save-chat/` は
+      Task 1.4 の Fake の ChatApi で使う
     - Gradle のタスクで `contracts/*.json` から Kotlin を生成する
     - 日時の表記、URL の分割、管理人の分割表示、参加者（`event` / `subject`）、フィルタの一致を写し、fixtures で
       テストする。入力の検証・運勢・入退室の文言の組み立ては写さない（サーバーが正。画面の上限は Contracts の値）
