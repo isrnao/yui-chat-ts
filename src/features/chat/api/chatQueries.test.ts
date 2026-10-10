@@ -97,7 +97,7 @@ describe('chatQueries', () => {
       expect(rpc).toHaveBeenCalledWith('clear_my_chats', {
         p_room_id: ROOM_ID,
         p_name: 'ゆい',
-        p_author_key: await getAuthorKey(),
+        p_author_key: getAuthorKey(),
       });
       // 名前で絞った UPDATE（他人の発言も消せた以前の経路）は使わない
       expect(supabase.from).not.toHaveBeenCalledWith('chats');

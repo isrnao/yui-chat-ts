@@ -27,9 +27,7 @@ const admin = createClient(url, serviceRoleKey, { auth: { persistSession: false 
 
 // chats.room_id は rooms の外部キーなので、確認用の部屋を作ってから書く（最後に消す）
 {
-  const { error } = await admin
-    .from('rooms')
-    .insert({ id: room, category: 'beginner', enabled: true });
+  const { error } = await admin.from('rooms').insert({ id: room, category: 'beginner' });
   if (error) {
     console.error(`✖ rooms insert: ${error.message}`);
     Deno.exit(1);

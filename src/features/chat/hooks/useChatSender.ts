@@ -5,8 +5,7 @@ import {
   type AdminEventInput,
   type SaveChatOptions,
 } from '@features/chat/api/saveChat';
-import { ADMIN_FALLBACK_USER_COLOR, buildAdminChat } from '@features/chat/serverMessages';
-import { normalizeDisplayColor } from '@features/chat/utils/displayColor';
+import { buildAdminChat } from '@features/chat/serverMessages';
 import { recordSendChat } from '@shared/observability/newRelic';
 import { generateOperationId } from '@shared/utils/uuid';
 import type { Chat } from '@features/chat/types';
@@ -14,14 +13,11 @@ import type { RoomId } from '@features/chat/rooms';
 
 /**
  * 入退室の管理人の発言の楽観的な行。文言と metadata は save-chat と同じ関数（messages.ts）で作り、
- * 保存される内容はサーバーが決める（Issue #180）。色はサーバーと同じく読めなければ既定の色にする
- * （色名の判定はブラウザに任せ、色名の一覧を bundle に載せない）。
+ * 保存される内容はサーバーが決める（Issue #180）。色はそのまま使い、保存の応答の metadata（サーバーが読めない色を
+ * 既定の色にしたもの）で確定する。
  */
 export function createAdminChat({ roomId, ...input }: AdminEventInput & { roomId: RoomId }): Chat {
-  const admin = buildAdminChat({
-    ...input,
-    color: normalizeDisplayColor(input.color) ?? ADMIN_FALLBACK_USER_COLOR,
-  });
+  const admin = buildAdminChat(input);
   return createOptimisticChat({
     room_id: roomId,
     ...admin,

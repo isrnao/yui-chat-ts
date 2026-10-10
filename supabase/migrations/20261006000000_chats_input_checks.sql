@@ -15,12 +15,7 @@
 --     count(*) FILTER (WHERE NOT (email IS NULL OR char_length(email) <= 256))             AS email
 --   FROM public.chats;
 --
--- 適用順序（20261006000000〜030000 はまとめて配信する。手順は PR #203）:
---   1. supabase db push（このマイグレーションから 20261006030000 まで）
---   2. 間を空けずに supabase functions deploy save-chat
---   新しい save-chat は rooms と insert_chat（20261006020000・030000）が無いと全部の発言が 500 になるので、
---   Function を先に出してはいけない。1 と 2 の間は古い save-chat が動いており、画面の自由入力の色（「あか」など）を
---   そのまま保存するので、その発言だけ chats_color_check に当たって 500 になる（2 の後は色を置き換えるので起きない）。
+-- 配信の手順は docs/save-chat-edge-function.md の「配信の手順」を参照。
 
 ALTER TABLE public.chats
     ADD CONSTRAINT chats_name_check CHECK (char_length(name) BETWEEN 1 AND 64) NOT VALID;

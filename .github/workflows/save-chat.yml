@@ -24,13 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # pnpm のストアをキャッシュする（このテスト 1 つのために毎回依存を全部取り直さない）
+      - uses: pnpm/action-setup@v4
+        with:
+          # ci.yml と同じく最新の pnpm を使う（package.json に packageManager が無いため指定する）
+          version: latest
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - name: Install pnpm
-        run: npm install -g pnpm
+          cache: pnpm
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
       - name: Test
         run: pnpm exec vitest run src/features/chat/roomsTable.test.ts --coverage.enabled=false
 

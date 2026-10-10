@@ -1,15 +1,13 @@
 -- 部屋の一覧をサーバーに持ち、chats.room_id を確かめる（Issue #178、docs/SERVER_SIDE_LOGIC_REFACTORING.md S4）。
 --
 -- 正は src/features/chat/rooms.ts。行は rooms.ts から作り、src/features/chat/roomsTable.test.ts が
--- rooms.ts と下の INSERT の ID・カテゴリ・enabled が一致することを確かめる（部屋を足すときはここにも足す）。
+-- rooms.ts と下の INSERT の ID・カテゴリが一致することを確かめる（部屋を足すときはここにも足す）。
 -- 部屋の題名・紹介文・カテゴリ名はフロントエンドに残す（SSG とプリレンダがビルド時に使うため）。
+-- category は Android 版など、サーバーから部屋の一覧を読むクライアントのために持つ。
 --
--- 確かめ方:
---   - chats.room_id の外部キー（NOT VALID）: 知らない ID の新しい行を止める（23503）
---   - トリガー chats_room_enabled: enabled = false の部屋への新しい行を止める（SQLSTATE YC001）。
---     部屋を開く・閉じるのは set_room_enabled で行う（直接 UPDATE すると、閉じる瞬間の発言がすり抜けうる）
---   save-chat はどちらも 400 invalid_room_id にする。
---   triage の対象は rooms.triage で決める（save-chat は保存の応答に rooms(triage) を埋め込んで受け取るので、往復は増えない）。
+-- 確かめ方: chats.room_id の外部キー（NOT VALID）が知らない ID の新しい行を止める（23503）。save-chat は
+-- 400 invalid_room_id にする。triage の対象は rooms.triage で決める（insert_chat が返す）。
+-- 部屋を閉じる仕組み（enabled）は持たない。今は閉じる部屋が無いので、必要になったら足す。
 --
 -- 既存の行の知らない ID を数え、0 件（または rooms に足した後）に別のマイグレーションで VALIDATE する:
 --
@@ -17,103 +15,101 @@
 --   LEFT JOIN public.rooms AS r ON r.id = c.room_id
 --   WHERE r.id IS NULL GROUP BY c.room_id;
 --
--- 性能: 挿入ごとに 82 行の表の主キーを引く（外部キーとトリガーで 2 回。常にメモリにある）。外部キーは rooms の行に
--- KEY SHARE のロックを取るが、rooms はほぼ更新しないので待ちは起きない。トリガーはロックを取らない（閉じる側が
--- set_room_enabled で直列化する）。
+-- 性能: 挿入ごとに 82 行の表の主キーを 1 回引く（常にメモリにある）。外部キーは rooms の行に KEY SHARE のロックを
+-- 取るが、rooms はほぼ更新しないので待ちは起きない。
 
 CREATE TABLE public.rooms (
     id text PRIMARY KEY,
     category text NOT NULL,
-    enabled boolean NOT NULL,
     triage boolean NOT NULL DEFAULT false
 );
 
 COMMENT ON TABLE public.rooms IS
-    '部屋の一覧（正は src/features/chat/rooms.ts）。chats.room_id の外部キー先。enabled = false の部屋には発言できない。triage = true の部屋の発言は save-chat が JEV で振り分ける。';
+    '部屋の一覧（正は src/features/chat/rooms.ts）。chats.room_id の外部キー先。triage = true の部屋の発言は save-chat が JEV で振り分ける。';
 
-INSERT INTO public.rooms (id, category, enabled, triage) VALUES
-    ('superbeginner', 'beginner', true, false),
-    ('hajime', 'beginner', true, false),
-    ('ofall', 'beginner', true, false),
-    ('yume', 'beginner', true, false),
-    ('elementary', 'student', true, false),
-    ('juniorhighschool', 'student', true, false),
-    ('juniorhighschool3', 'student', true, false),
-    ('highschool', 'student', true, false),
-    ('daigaku', 'student', true, false),
-    ('10generations', 'generation', true, false),
-    ('20generations', 'generation', true, false),
-    ('30generations', 'generation', true, false),
-    ('umaimise', 'daily', true, false),
-    ('osare', 'daily', true, false),
-    ('news', 'daily', true, false),
-    ('jinsei', 'daily', true, false),
-    ('anime', 'anime', true, false),
-    ('reborn', 'anime', true, false),
-    ('monhan', 'anime', true, false),
-    ('rozen', 'anime', true, false),
-    ('game', 'game', true, false),
-    ('pazudora', 'game', true, false),
-    ('3ds', 'game', true, false),
-    ('natsuyasumi', 'season', true, false),
-    ('hanabi-taikai', 'season', true, false),
-    ('haruyasumi', 'season', true, false),
-    ('area_kantoh', 'area', true, false),
-    ('area_hok_touho', 'area', true, false),
-    ('area_toukai', 'area', true, false),
-    ('area_kansai', 'area', true, false),
-    ('area_chu_shi', 'area', true, false),
-    ('area_kyu_oki', 'area', true, false),
-    ('music', 'hobby', true, false),
-    ('dance', 'hobby', true, false),
-    ('travel', 'hobby', true, false),
-    ('darts', 'hobby', true, false),
-    ('tabletennis', 'hobby', true, false),
-    ('omikuji', 'meruhen', true, false),
-    ('mico', 'meruhen', true, false),
-    ('puchi', 'meruhen', true, false),
-    ('gyamikuji', 'meruhen', true, false),
-    ('meruhen1', 'meruhen', true, false),
-    ('meruhen2', 'meruhen', true, false),
-    ('colorful', 'meruhen', true, false),
-    ('hoshi', 'meruhen', true, false),
-    ('karaoke', 'offkai', true, false),
-    ('karaoke2', 'offkai', true, false),
-    ('sports', 'offkai', true, false),
-    ('hoshizora', 'offkai', true, false),
-    ('ohirune', 'offkai', true, false),
-    ('kakifry', 'offkai', true, false),
-    ('vip', 'historic', true, false),
-    ('hajime-old', 'historic', true, false),
-    ('mattari', 'historic', true, false),
-    ('wai2', 'historic', true, false),
-    ('joren', 'historic', true, false),
-    ('shouchu', 'historic', true, false),
-    ('20dai', 'historic', true, false),
-    ('30dai', 'historic', true, false),
-    ('battle', 'historic', true, false),
-    ('2shot', 'historic', true, false),
-    ('com_sb', 'admin', true, true),
-    ('durarara', 'chanari', true, false),
-    ('vocaloid', 'chanari', true, false),
-    ('hetaria', 'chanari', true, false),
-    ('gintama', 'chanari', true, false),
-    ('inazuma11', 'chanari', true, false),
-    ('tenipri', 'chanari', true, false),
-    ('touhou', 'chanari', true, false),
-    ('basara', 'chanari', true, false),
-    ('inazuma11go', 'chanari', true, false),
-    ('bakatesu', 'chanari', true, false),
-    ('working', 'chanari', true, false),
-    ('akb48', 'chanari', true, false),
-    ('majutu', 'chanari', true, false),
-    ('bleach', 'chanari', true, false),
-    ('kuroshitsuji', 'chanari', true, false),
-    ('keion', 'chanari', true, false),
-    ('dgrayman', 'chanari', true, false),
-    ('haruhi', 'chanari', true, false),
-    ('railgun', 'chanari', true, false),
-    ('all', 'all', true, false);
+INSERT INTO public.rooms (id, category, triage) VALUES
+    ('superbeginner', 'beginner', false),
+    ('hajime', 'beginner', false),
+    ('ofall', 'beginner', false),
+    ('yume', 'beginner', false),
+    ('elementary', 'student', false),
+    ('juniorhighschool', 'student', false),
+    ('juniorhighschool3', 'student', false),
+    ('highschool', 'student', false),
+    ('daigaku', 'student', false),
+    ('10generations', 'generation', false),
+    ('20generations', 'generation', false),
+    ('30generations', 'generation', false),
+    ('umaimise', 'daily', false),
+    ('osare', 'daily', false),
+    ('news', 'daily', false),
+    ('jinsei', 'daily', false),
+    ('anime', 'anime', false),
+    ('reborn', 'anime', false),
+    ('monhan', 'anime', false),
+    ('rozen', 'anime', false),
+    ('game', 'game', false),
+    ('pazudora', 'game', false),
+    ('3ds', 'game', false),
+    ('natsuyasumi', 'season', false),
+    ('hanabi-taikai', 'season', false),
+    ('haruyasumi', 'season', false),
+    ('area_kantoh', 'area', false),
+    ('area_hok_touho', 'area', false),
+    ('area_toukai', 'area', false),
+    ('area_kansai', 'area', false),
+    ('area_chu_shi', 'area', false),
+    ('area_kyu_oki', 'area', false),
+    ('music', 'hobby', false),
+    ('dance', 'hobby', false),
+    ('travel', 'hobby', false),
+    ('darts', 'hobby', false),
+    ('tabletennis', 'hobby', false),
+    ('omikuji', 'meruhen', false),
+    ('mico', 'meruhen', false),
+    ('puchi', 'meruhen', false),
+    ('gyamikuji', 'meruhen', false),
+    ('meruhen1', 'meruhen', false),
+    ('meruhen2', 'meruhen', false),
+    ('colorful', 'meruhen', false),
+    ('hoshi', 'meruhen', false),
+    ('karaoke', 'offkai', false),
+    ('karaoke2', 'offkai', false),
+    ('sports', 'offkai', false),
+    ('hoshizora', 'offkai', false),
+    ('ohirune', 'offkai', false),
+    ('kakifry', 'offkai', false),
+    ('vip', 'historic', false),
+    ('hajime-old', 'historic', false),
+    ('mattari', 'historic', false),
+    ('wai2', 'historic', false),
+    ('joren', 'historic', false),
+    ('shouchu', 'historic', false),
+    ('20dai', 'historic', false),
+    ('30dai', 'historic', false),
+    ('battle', 'historic', false),
+    ('2shot', 'historic', false),
+    ('com_sb', 'admin', true),
+    ('durarara', 'chanari', false),
+    ('vocaloid', 'chanari', false),
+    ('hetaria', 'chanari', false),
+    ('gintama', 'chanari', false),
+    ('inazuma11', 'chanari', false),
+    ('tenipri', 'chanari', false),
+    ('touhou', 'chanari', false),
+    ('basara', 'chanari', false),
+    ('inazuma11go', 'chanari', false),
+    ('bakatesu', 'chanari', false),
+    ('working', 'chanari', false),
+    ('akb48', 'chanari', false),
+    ('majutu', 'chanari', false),
+    ('bleach', 'chanari', false),
+    ('kuroshitsuji', 'chanari', false),
+    ('keion', 'chanari', false),
+    ('dgrayman', 'chanari', false),
+    ('haruhi', 'chanari', false),
+    ('railgun', 'chanari', false),
+    ('all', 'all', false);
 
 -- 一覧は公開してよい（Android 版などが読める）。書くのは service_role とマイグレーションだけ
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
@@ -123,45 +119,3 @@ GRANT SELECT ON public.rooms TO anon, authenticated;
 
 ALTER TABLE public.chats
     ADD CONSTRAINT chats_room_id_fkey FOREIGN KEY (room_id) REFERENCES public.rooms (id) NOT VALID;
-
--- 閉じた部屋への新しい発言を止める。外部キーでは enabled を見られないのでトリガーで行う。
--- トリガーはロックを取らずに読む（発言ごとに rooms の行をロックすると、行の xmax を書き換えて WAL が出て、
--- 同じ部屋への同時の発言で MultiXact も増えるため）。閉じる操作と発言の INSERT の直列化は、まれな操作である
--- 閉じる側（set_room_enabled）が chats に SHARE ロックを取って行う。知らない部屋は外部キーが 23503 で止める
-CREATE OR REPLACE FUNCTION public.chats_room_enabled() RETURNS trigger
-LANGUAGE plpgsql
-SET search_path = public
-AS $$
-BEGIN
-  IF EXISTS (SELECT 1 FROM public.rooms WHERE id = NEW.room_id AND NOT enabled) THEN
-    RAISE EXCEPTION 'room % is disabled', NEW.room_id USING ERRCODE = 'YC001';
-  END IF;
-  RETURN NEW;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.chats_room_enabled() FROM public;
-
-CREATE TRIGGER chats_room_enabled
-    BEFORE INSERT ON public.chats
-    FOR EACH ROW EXECUTE FUNCTION public.chats_room_enabled();
-
--- 部屋を開く・閉じる（service_role とマイグレーションだけ。rooms.enabled を直接 UPDATE しないこと）。
--- chats に SHARE ロックを取ってから更新するので、更新の前に始まった発言は書き終わるのを待ち、更新の後の発言は
--- コミットを待ってからトリガーで新しい enabled を読む（閉じる更新をすり抜ける発言が無い）。閉じている間、
--- 発言の INSERT はほんの少し待つが、閉じる操作はまれなのでこちらにコストを寄せる
-CREATE OR REPLACE FUNCTION public.set_room_enabled(p_room_id text, p_enabled boolean) RETURNS void
-LANGUAGE plpgsql
-SET search_path = ''
-AS $$
-BEGIN
-  LOCK TABLE public.chats IN SHARE MODE;
-  UPDATE public.rooms SET enabled = p_enabled WHERE id = p_room_id;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'unknown room %', p_room_id USING ERRCODE = '23503';
-  END IF;
-END;
-$$;
-
-REVOKE ALL ON FUNCTION public.set_room_enabled(text, boolean) FROM public, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.set_room_enabled(text, boolean) TO service_role;

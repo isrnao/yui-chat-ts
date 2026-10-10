@@ -1,19 +1,5 @@
 import type { Chat } from '../types';
 
-/**
- * レガシーの管理人メッセージから「ユーザー名」部分を抽出する。
- * 例: "薄ら紅 さん、Welcome to お気楽チャット☆" → { userName: '薄ら紅', rest: 'さん、Welcome to...' }
- * 例: "薄ら紅さん、またきておくれやすぅ。" → { userName: '薄ら紅', rest: 'さん、...' }
- */
-export function splitAdminMessage(message: string): { userName: string; rest: string } | null {
-  const match = message.match(/^(.+?)\s?(さん[、,].+)$/);
-  if (!match) return null;
-  return { userName: match[1].trim(), rest: match[2] };
-}
-
-const WELCOME_PATTERN = /^(.+?)\sさん、Welcome to/;
-const EXIT_PATTERN = /^(.+?)さん、またきておくれやすぅ/;
-
 export interface AdminEventInfo {
   event: 'enter' | 'exit';
   /** 入退室した人の名前 */
@@ -24,11 +10,15 @@ export interface AdminEventInfo {
   rest: string;
 }
 
+// 構造の無い古い行の本文: 「{名前} さん、Welcome to …」「{名前}さん、またきておくれやすぅ。」
+// 名前の後の空白と読点（、/ ,）の揺れも受ける
+const LEGACY_PATTERN = /^(.+?)\s?(さん[、,]\s*(Welcome to|またきておくれやすぅ).*)$/s;
+
 /**
- * 管理人の発言から、誰が入った・出たかを読む（Issue #183）。
+ * 管理人の発言から、誰が入った・出たかを読む（Issue #183）。参加者一覧・ログの表示・フィルタの名前はすべてこれを使う。
  *
  * サーバーが作った行は metadata の event / subject（構造）で読む。本文の文言が変わっても壊れない。
- * 構造の無い古い行だけ、今までどおり本文の正規表現で読む。入退室でない管理人の発言（triage の返信など）は null。
+ * 構造の無い古い行だけ、本文で読む。入退室でない管理人の発言（triage の返信など）は null。
  */
 export function readAdminEvent(chat: Pick<Chat, 'message' | 'metadata'>): AdminEventInfo | null {
   if (chat.metadata?.kind !== 'admin') return null;
@@ -40,15 +30,12 @@ export function readAdminEvent(chat: Pick<Chat, 'message' | 'metadata'>): AdminE
     return { event, name: subject.name, color: subject.color || undefined, rest };
   }
 
-  const enter = chat.message.match(WELCOME_PATTERN);
-  const exit = enter ? null : chat.message.match(EXIT_PATTERN);
-  const match = enter ?? exit;
-  if (!match) return null;
-  const split = splitAdminMessage(chat.message);
+  const legacy = chat.message.match(LEGACY_PATTERN);
+  if (!legacy) return null;
   return {
-    event: enter ? 'enter' : 'exit',
-    name: match[1].trim(),
+    event: legacy[3] === 'Welcome to' ? 'enter' : 'exit',
+    name: legacy[1].trim(),
     color: chat.metadata.userColor,
-    rest: split?.rest ?? chat.message,
+    rest: legacy[2],
   };
 }

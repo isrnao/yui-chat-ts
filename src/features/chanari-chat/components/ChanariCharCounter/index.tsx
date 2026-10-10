@@ -1,5 +1,4 @@
-import { countChars } from '../../utils/countChars';
-import { MESSAGE_MAX } from '@features/chat/inputRules';
+import { countGraphemes, MESSAGE_MAX } from '@features/chat/inputRules';
 
 export type ChanariCharCounterProps = {
   value: string;
@@ -10,7 +9,7 @@ export default function ChanariCharCounter({
   value,
   maxLength = MESSAGE_MAX,
 }: ChanariCharCounterProps) {
-  const count = countChars(value);
+  const count = countGraphemes(value);
   const isOver = count > maxLength;
 
   return (

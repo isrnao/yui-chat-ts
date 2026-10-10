@@ -2,6 +2,7 @@
 // 依存の無いファイルなので、ツーショットの rules.ts と同じく相対パスで読む。
 export {
   AVATAR_IDS,
+  countGraphemes,
   DEFAULT_COLOR,
   EMAIL_MAX,
   FONT_COLOR_NAMES,

@@ -8,8 +8,6 @@
 export const ADMIN_NAME = '管理人';
 export const ADMIN_COLOR = '#ffffff';
 export const ADMIN_AVATAR = 'hoshi1';
-/** userColor が読めないときの色（ChatMessage が userColor の無い管理人の発言に使う色と同じ） */
-export const ADMIN_FALLBACK_USER_COLOR = '#ff69b4';
 
 export type AdminEvent = 'enter' | 'exit';
 

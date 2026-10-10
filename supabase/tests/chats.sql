@@ -11,7 +11,7 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgtap WITH SCHEMA extensions;
 SET search_path = public, extensions;
 
-SELECT plan(71);
+SELECT plan(67);
 
 -- 共通の値 ----------------------------------------------------------------
 
@@ -23,7 +23,7 @@ SELECT
 GRANT SELECT ON t TO anon, authenticated, service_role;
 
 -- テスト用の部屋（chats.room_id は rooms の外部キー。Issue #178）
-INSERT INTO public.rooms (id, category, enabled) VALUES ('pgtap_room', 'beginner', true), ('pgtap_closed', 'beginner', false);
+INSERT INTO public.rooms (id, category) VALUES ('pgtap_room', 'beginner');
 
 -- service_role（save-chat と同じ権限）で行を入れる
 SET LOCAL ROLE service_role;
@@ -261,9 +261,9 @@ SELECT is(
     (SELECT array_agg(id) FROM public.rooms WHERE triage), ARRAY['com_sb'], 'triage の対象は管理者チャットだけ'
 );
 SET LOCAL ROLE anon;
-SELECT is((SELECT enabled FROM public.rooms WHERE id = 'superbeginner'), true, 'anon は部屋の一覧を読める');
+SELECT is((SELECT category FROM public.rooms WHERE id = 'superbeginner'), 'beginner', 'anon は部屋の一覧を読める');
 SELECT throws_ok(
-    $$INSERT INTO public.rooms (id, category, enabled) VALUES ('x', 'beginner', true)$$,
+    $$INSERT INTO public.rooms (id, category) VALUES ('x', 'beginner')$$,
     '42501', NULL, 'anon は部屋を足せない'
 );
 RESET ROLE;
@@ -272,10 +272,6 @@ SET LOCAL ROLE service_role;
 SELECT throws_ok(
     $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('no_such_room', 'a', '#fff', 'x')$$,
     '23503', NULL, '知らない部屋には保存できない（外部キー）'
-);
-SELECT throws_ok(
-    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_closed', 'a', '#fff', 'x')$$,
-    'YC001', NULL, '閉じた部屋には保存できない（トリガー）'
 );
 SELECT is(
     (SELECT r.triage FROM public.chats AS c JOIN public.rooms AS r ON r.id = c.room_id
@@ -431,23 +427,6 @@ SELECT ok(
     EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'chat-operations-purge'),
     'chat_operations を消すジョブがある'
 );
-
--- 11. 部屋を開く・閉じる（set_room_enabled）-----------------------------------------
-
-SELECT ok(
-    NOT has_function_privilege('anon', 'public.set_room_enabled(text, boolean)', 'EXECUTE'),
-    'anon は部屋を開け閉めできない'
-);
-SET LOCAL ROLE service_role;
-SELECT public.set_room_enabled('pgtap_room', false);
-SELECT throws_ok(
-    $$INSERT INTO public.chats (room_id, name, color, message) VALUES ('pgtap_room', 'a', '#fff', 'x')$$,
-    'YC001', NULL, 'set_room_enabled で閉じた部屋には保存できない'
-);
-SELECT throws_ok(
-    $$SELECT public.set_room_enabled('no_such_room', false)$$, '23503', NULL, '知らない部屋は開け閉めできない'
-);
-RESET ROLE;
 
 SELECT * FROM finish();
 ROLLBACK;

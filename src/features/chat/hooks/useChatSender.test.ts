@@ -51,7 +51,7 @@ describe('createAdminChat', () => {
     });
   });
 
-  it('読めない色はサーバーと同じく既定の色にする', () => {
+  it('楽観的な行の色は送った色のまま（保存の応答の metadata で確定する）', () => {
     const chat = createAdminChat({
       roomId: 'superbeginner',
       event: 'exit',
@@ -59,7 +59,7 @@ describe('createAdminChat', () => {
       color: 'あか',
     });
     expect(chat.message).toBe('ゆいさん、またきておくれやすぅ。');
-    expect(chat.metadata?.userColor).toBe('#ff69b4');
+    expect(chat.metadata?.userColor).toBe('あか');
   });
 });
 

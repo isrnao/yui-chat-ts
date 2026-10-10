@@ -10,23 +10,20 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  ADMIN_FALLBACK_USER_COLOR,
   buildAdminChat,
   buildFortuneChat,
   FORTUNE_MESSAGES,
-  FORTUNE_NAME,
   isFortuneCommand,
   type AdminEvent,
 } from './messages.ts';
 import {
   checkName,
   checkSayInput,
-  exceedsDbLimits,
-  nameErrorCode,
+  clampInt,
+  DEFAULT_COLOR,
   normalizeColor,
-  OPTIMISTIC_NONCE_MAX,
+  readNonce,
   sanitizeMetadata,
-  takeServerOnlyMetadata,
   VISIT_COUNT_MAX,
   type InputErrorCode,
 } from './schema.ts';
@@ -81,18 +78,6 @@ function reject(code: ErrorCode, status: number, cors: Record<string, string>): 
   return json({ error: { code } }, status, cors);
 }
 
-/**
- * 入力の規則（schema.ts）の扱い。`enforce` で拒否し、それ以外（既定）は違反を記録するだけで
- * 今までどおり保存する（docs/SERVER_SIDE_LOGIC_REFACTORING.md S1 の「記録だけ」の期間）。
- * enforce では、利用者の発言の system を false に、サーバーだけが使う metadata を取り除き、予約名を拒否する
- * （Issue #182・#177 の 2 段階目）。
- */
-export type InputMode = 'log' | 'enforce';
-
-export function readInputMode(env: (key: string) => string | undefined): InputMode {
-  return env('SAVE_CHAT_INPUT_MODE') === 'enforce' ? 'enforce' : 'log';
-}
-
 // x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
 function resolveClientIp(req: Request): string {
   const forwarded = req.headers.get('x-forwarded-for');
@@ -103,8 +88,8 @@ function resolveClientIp(req: Request): string {
   return req.headers.get('x-real-ip')?.trim() || '';
 }
 
-// クライアントが詐称・上書きできないよう、永続化するフィールドを限定する。
-// uuid / time / deleted / ip / ua はここで受け付けない。
+// クライアントが詐称・上書きできないよう、読むフィールドを限定する。
+// uuid / time / deleted / ip / ua / system は受け付けない（system はサーバーが作る発言だけが true）。
 interface SaveChatBody {
   /** say（省略時。利用者の発言）/ enter / exit（入退室。管理人の発言をサーバーが作る） */
   op?: unknown;
@@ -112,7 +97,6 @@ interface SaveChatBody {
   name?: unknown;
   color?: unknown;
   message?: unknown;
-  system?: unknown;
   email?: unknown;
   metadata?: unknown;
   /** 入室だけ: 訪問回数と前回のログイン（端末の中の値。範囲に丸める） */
@@ -134,21 +118,22 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.length > 0;
 }
 
-/** 保存した行（triage は部屋の rooms.triage。クライアントには返さない） */
+/** insert_chat が返す、保存した行（triage は部屋の rooms.triage。クライアントには返さない） */
 interface SavedRow {
   uuid: string;
   room_id: string;
   time: number;
   ip_masked: string;
   ua: string;
-  name?: string;
+  name: string;
   color: string;
-  message?: string;
-  system?: boolean;
+  message: string;
+  system: boolean;
   metadata: unknown;
   triage: boolean;
 }
 
+/** insert_chat に渡す行 */
 interface ChatRow {
   room_id: string;
   name: string;
@@ -163,42 +148,19 @@ interface ChatRow {
   author: boolean;
 }
 
-interface WriteResult {
-  data: SavedRow[] | null;
-  error: { code?: string; message?: string } | null;
-}
-
 /**
- * DB への書き込みの経路。既定は RPC insert_chat（chats と chat_authors を 1 回で書く。Issue #179）。
- * SAVE_CHAT_WRITE=insert で以前の PostgREST の INSERT に戻せる（insert_chat に不具合があったときの逃げ道。
- * この経路では chat_authors を書かないので、その間の発言は clear で消せない）。
+ * x-chat-author-key（端末ごとの鍵）。形の確かめと SHA-256 は DB（author_key_hash）が行い、形が違えばその発言は
+ * 後から clear で消せないだけなので、ここでは長さだけを抑えてそのまま渡す
  */
-export type WritePath = 'rpc' | 'insert';
-
-export function readWritePath(env: (key: string) => string | undefined): WritePath {
-  return env('SAVE_CHAT_WRITE') === 'insert' ? 'insert' : 'rpc';
-}
-
-/**
- * x-chat-author-key（端末ごとの 32 バイトの乱数を base64url にした 43 文字）。形が違えば null で、
- * その発言は後から clear で消せない。形の最終的な確かめと SHA-256 は DB（author_key_hash）が行う。
- */
-export function readAuthorKey(headers: Headers): string | null {
+function readAuthorKey(headers: Headers): string | null {
   const key = headers.get('x-chat-author-key')?.trim() ?? '';
-  return /^[A-Za-z0-9_-]{43}$/.test(key) ? key : null;
+  return key.length > 0 && key.length <= 128 ? key : null;
 }
 
-/** 保存する行（ip / ua は後で足す）と、検証の結果 */
+/** 要求から決めた、保存する行（ip / ua は後で足す）。拒否するときは reject */
 type Plan =
-  | {
-      rows: Omit<ChatRow, 'ip' | 'ua'>[];
-      /** enforce のときに拒否するコード */
-      error: InputErrorCode | null;
-      violations: string[];
-      dropped: string[];
-    }
-  /** 型・必須の誤り（記録だけの期間も拒否する） */
-  | { missing: InputErrorCode };
+  | { rows: Omit<ChatRow, 'ip' | 'ua'>[]; dropped: string[] }
+  | { reject: InputErrorCode; violation: string };
 
 /**
  * 利用者の発言（op: say）。本文が「おみくじ」なら、巫女の返事も同じ要求で保存する（Issue #181）。
@@ -206,26 +168,10 @@ type Plan =
  */
 function planSay(
   body: SaveChatBody & { room_id: string; name: string },
-  pickFortune: () => number,
-  mode: InputMode
+  pickFortune: () => number
 ): Plan {
-  if (typeof body.message !== 'string' || body.message.trim().length === 0) {
-    return { missing: 'invalid_message' };
-  }
-  // 巫女の返事はサーバーが作る（Issue #181）。以前の Web を開いたままのタブは、おみくじの後に巫女の返事も
-  // この経路で送ってくるので、受け付けると返事が 2 件になる。記録だけの期間も拒否する（以前の Web は
-  // この保存の失敗を黙って無視する）
-  if (isLegacyFortuneReply(body)) {
-    return { missing: 'reserved_name' };
-  }
-  // DB の上限を超えるものは保存しても必ず失敗する（500）ので、記録だけの期間も 400 で拒否する
-  const overDbLimit = exceedsDbLimits({
-    name: body.name,
-    message: body.message,
-    email: body.email,
-  });
-  if (overDbLimit) {
-    return { missing: overDbLimit };
+  if (typeof body.message !== 'string') {
+    return { reject: 'invalid_message', violation: 'message_not_string' };
   }
   const input = checkSayInput({
     name: body.name,
@@ -233,58 +179,35 @@ function planSay(
     color: body.color,
     email: body.email,
   });
+  if (input.error) return { reject: input.error, violation: input.violation };
+  const { name, message, color, email } = input.value;
   // metadata は許可リストで作り直す（拒否はしない）。知らないキー・範囲外の値は落として記録する
-  const metadata = sanitizeMetadata(body.metadata, Date.now());
-  // system と、サーバーが作る発言だけの metadata（kind: admin / fortune など）は利用者の発言では使わせない
-  // （Issue #182）。記録だけの期間は保存して記録し、enforce で system は false に、metadata は取り除く。
-  // 以前の Web は入退室・おみくじをこの経路で送っていたので、切り替えから 1 日以上たってから enforce にする
-  const enforce = mode === 'enforce';
-  const serverOnly = takeServerOnlyMetadata(metadata.value, enforce);
-  const clientSystem = body.system === true;
+  const metadata = sanitizeMetadata(body.metadata);
   return {
     rows: [
       {
         room_id: body.room_id,
-        name: body.name,
-        // 色は拒否せず置き換えるだけなので、記録だけの期間も規則に合わせる
-        // （DB の CHECK 制約 chats_color_check は NOT VALID でも新しい行には効く）
-        color: input.value.color,
-        message: body.message,
-        system: clientSystem && !enforce,
-        email: typeof body.email === 'string' ? body.email : null,
+        name,
+        color,
+        message,
+        system: false,
+        email,
         metadata: metadata.value,
         author: true,
       },
-      ...(isFortuneCommand(body.message)
+      ...(isFortuneCommand(message)
         ? [
             {
               room_id: body.room_id,
-              ...buildFortuneChat(body.name, pickFortune()),
+              ...buildFortuneChat(name, pickFortune()),
               email: null,
               author: false,
             },
           ]
         : []),
     ],
-    error: input.error,
-    violations: [
-      ...input.violations,
-      ...(clientSystem ? ['system_from_client'] : []),
-      ...serverOnly,
-    ],
     dropped: metadata.dropped,
   };
-}
-
-/** 以前の Web（sendFortuneIfCommand）が送っていた巫女の返事か */
-function isLegacyFortuneReply(body: SaveChatBody): boolean {
-  const kind = (body.metadata as { kind?: unknown } | null | undefined)?.kind;
-  return kind === 'fortune' || (body.system === true && body.name === FORTUNE_NAME);
-}
-
-function clampInt(value: unknown, max: number): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
-  return Math.min(Math.max(Math.trunc(value), 0), max);
 }
 
 /**
@@ -295,68 +218,87 @@ function planAdmin(
   event: AdminEvent,
   body: SaveChatBody & { room_id: string; name: string }
 ): Plan {
-  // 名前は本文にも metadata.subject にも入る。DB の上限を超える名前は記録だけの期間も拒否する
-  const overDbLimit = exceedsDbLimits({ name: body.name });
-  if (overDbLimit) {
-    return { missing: overDbLimit };
-  }
-  const violations = checkName(body.name);
-  const nonce =
-    typeof body.nonce === 'string' && [...body.nonce].length <= OPTIMISTIC_NONCE_MAX
-      ? body.nonce
-      : undefined;
-  const dropped = body.nonce !== undefined && nonce === undefined ? ['nonce'] : [];
+  const nameError = checkName(body.name);
+  if (nameError) return { reject: nameError.error, violation: nameError.violation };
+  const nonce = readNonce(body.nonce);
   const chat = buildAdminChat({
     event,
-    name: body.name,
-    color: normalizeColor(body.color) ?? ADMIN_FALLBACK_USER_COLOR,
+    name: body.name.trim(),
+    color: normalizeColor(body.color) ?? DEFAULT_COLOR,
     visitCount: clampInt(body.visit_count, VISIT_COUNT_MAX),
     lastLogin: clampInt(body.last_login, Date.now()),
     nonce,
   });
   return {
     rows: [{ room_id: body.room_id, email: null, ...chat, author: false }],
-    error: violations.length > 0 ? nameErrorCode(violations[0]) : null,
-    violations,
-    dropped,
+    dropped: body.nonce !== undefined && nonce === undefined ? ['nonce'] : [],
   };
 }
 
-/** 行を順に保存する。1 回の要求で複数行（おみくじの巫女の返事など）を書くときも往復は 1 回 */
-async function writeChats(
-  supabase: SupabaseClient,
-  path: WritePath,
-  rows: ChatRow[],
-  authorKey: string | null,
-  operationId: string
-): Promise<WriteResult> {
-  if (path === 'rpc') {
-    // 送信操作の ID を渡す。同じ ID の再送（保存の直後に通信が切れた場合など）は、新しく入れずに 1 回目の行が返る
-    const { data, error } = await supabase.rpc('insert_chat', {
-      p_chats: rows,
-      p_author_key: authorKey,
-      p_operation_id: operationId,
-    });
-    return { data: (data as SavedRow[] | null) ?? null, error };
+/** 要求の本文を読み、保存する行を決める。読めない・規則に合わないときは拒否の応答を返す */
+async function planRequest(
+  req: Request,
+  cors: Record<string, string>,
+  server: Span,
+  op: Operation,
+  deps: HandlerDeps
+): Promise<{ plan: Extract<Plan, { rows: unknown }>; roomId: string } | { response: Response }> {
+  if (req.method !== 'POST') {
+    return { response: reject('method_not_allowed', 405, cors) };
   }
-  const { data, error } = await supabase
-    .from('chats')
-    .insert(rows.map(({ author: _author, ...row }) => row))
-    // ip_masked / ua / color / metadata も返す。クライアントは楽観行をこの応答でマージするため、
-    // これらを返さないと realtime INSERT との到着順によって表示が空に戻る。
-    // rooms(triage) は triage の対象かを決めるために外部キー chats_room_id_fkey で埋め込む
-    .select('uuid,room_id,time,ip_masked,ua,name,color,message,system,metadata,rooms(triage)');
-  if (error || !data) return { data: null, error };
-  return {
-    data: (
-      data as unknown as (Omit<SavedRow, 'triage'> & { rooms: { triage: boolean } | null })[]
-    ).map(({ rooms, ...saved }) => ({ ...saved, triage: rooms?.triage === true })),
-    error: null,
-  };
+  let body: SaveChatBody;
+  try {
+    body = await req.json();
+  } catch {
+    return { response: reject('invalid_json', 400, cors) };
+  }
+  if (typeof body !== 'object' || body === null) {
+    return { response: reject('invalid_json', 400, cors) };
+  }
+
+  const chatOp = readOp(body.op);
+  if (!chatOp) {
+    return { response: reject('invalid_op', 400, cors) };
+  }
+  server.setAttribute('chat.op', chatOp);
+
+  if (!isNonEmptyString(body.room_id)) {
+    return { response: reject('invalid_room_id', 400, cors) };
+  }
+  server.setAttribute('chat.room_id', body.room_id);
+  if (!isNonEmptyString(body.name)) {
+    return { response: reject('invalid_name', 400, cors) };
+  }
+
+  const checked = body as SaveChatBody & { room_id: string; name: string };
+  const plan =
+    chatOp === 'say'
+      ? planSay(checked, () => Math.floor((deps.random ?? Math.random)() * FORTUNE_MESSAGES.length))
+      : planAdmin(chatOp, checked);
+
+  if ('reject' in plan) {
+    server.setAttribute('error.code', plan.reject);
+    server.setAttribute('chat.input.violation', plan.violation);
+    deps.tracer.log('WARN', 'save_chat.input_rejected', server.context, {
+      'chat.operation.id': op.id,
+      'chat.room_id': checked.room_id,
+      'chat.input.violation': plan.violation,
+    });
+    return { response: reject(plan.reject, 400, cors) };
+  }
+  if (plan.dropped.length > 0) {
+    server.setAttribute('chat.metadata.dropped', plan.dropped.join(','));
+    deps.tracer.log('WARN', 'save_chat.metadata_dropped', server.context, {
+      'chat.operation.id': op.id,
+      'chat.room_id': checked.room_id,
+      'chat.metadata.dropped': plan.dropped.join(',').slice(0, 500),
+    });
+  }
+  return { plan, roomId: checked.room_id };
 }
 
-/** 23503: chats_room_id_fkey（知らない部屋）、YC001: chats_room_enabled（閉じた部屋） */
-const ROOM_REJECTED = new Set(['23503', 'YC001']);
+/** 23503: chats_room_id_fkey（知らない部屋） */
+const UNKNOWN_ROOM = '23503';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -438,118 +380,67 @@ async function saveChat(
   op: Operation,
   deps: HandlerDeps
 ): Promise<Outcome> {
+  const planned = await planRequest(req, cors, server, op, deps);
+  if ('response' in planned) return planned;
+  return await persist(req, cors, server, op, deps, planned.plan.rows);
+}
+
+/** 保存して応答を作る。1 回の insert_chat で、要求の行（おみくじなら巫女の返事も）をまとめて入れる */
+async function persist(
+  req: Request,
+  cors: Record<string, string>,
+  server: Span,
+  op: Operation,
+  deps: HandlerDeps,
+  planned: Omit<ChatRow, 'ip' | 'ua'>[]
+): Promise<Outcome> {
   const { tracer } = deps;
-  if (req.method !== 'POST') {
-    return { response: reject('method_not_allowed', 405, cors) };
-  }
-
-  let body: SaveChatBody;
-  try {
-    body = await req.json();
-  } catch {
-    return { response: reject('invalid_json', 400, cors) };
-  }
-  if (typeof body !== 'object' || body === null) {
-    return { response: reject('invalid_json', 400, cors) };
-  }
-
-  const chatOp = readOp(body.op);
-  if (!chatOp) {
-    return { response: reject('invalid_op', 400, cors) };
-  }
-  server.setAttribute('chat.op', chatOp);
-
-  // 型と必須（name / message / room_id）。これは「記録だけ」の期間も拒否する（以前から拒否していた）
-  if (!isNonEmptyString(body.room_id)) {
-    return { response: reject('invalid_room_id', 400, cors) };
-  }
-  server.setAttribute('chat.room_id', body.room_id);
-  if (!isNonEmptyString(body.name)) {
-    return { response: reject('invalid_name', 400, cors) };
-  }
-
-  const mode = readInputMode(deps.env);
-  const recordViolations = (violations: string[]) => {
-    if (violations.length === 0) return;
-    server.setAttribute('chat.input.violations', violations.join(','));
-    tracer.log('WARN', 'save_chat.input_violation', server.context, {
-      'chat.operation.id': op.id,
-      'chat.room_id': body.room_id as string,
-      'chat.input.violations': violations.join(','),
-      'chat.input.mode': mode,
-    });
-  };
-  const planned =
-    chatOp === 'say'
-      ? planSay(
-          body as SaveChatBody & { room_id: string; name: string },
-          () => Math.floor((deps.random ?? Math.random)() * FORTUNE_MESSAGES.length),
-          mode
-        )
-      : planAdmin(chatOp, body as SaveChatBody & { room_id: string; name: string });
-  if ('missing' in planned) {
-    return { response: reject(planned.missing, 400, cors) };
-  }
-  recordViolations(planned.violations);
-  if (planned.dropped.length > 0) {
-    server.setAttribute('chat.metadata.dropped', planned.dropped.join(','));
-    tracer.log('WARN', 'save_chat.metadata_dropped', server.context, {
-      'chat.operation.id': op.id,
-      'chat.room_id': body.room_id,
-      'chat.metadata.dropped': planned.dropped.join(',').slice(0, 500),
-    });
-  }
-  if (mode === 'enforce' && planned.error) {
-    server.setAttribute('error.code', planned.error);
-    return { response: reject(planned.error, 400, cors) };
-  }
-
   const supabaseUrl = deps.env('SUPABASE_URL');
   const serviceRoleKey = deps.env('SUPABASE_SERVICE_ROLE_KEY');
   if (!supabaseUrl || !serviceRoleKey) {
     server.fail('server_misconfigured');
     return { response: json({ error: 'Server misconfigured' }, 500, cors) };
   }
-
   const supabase = deps.createSupabase(supabaseUrl, serviceRoleKey);
-  const writePath = readWritePath(deps.env);
-  server.setAttribute('chat.write_path', writePath);
   const authorKey = readAuthorKey(req.headers);
   server.setAttribute('chat.author_key', authorKey !== null);
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
   // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
   const observed = { ip: resolveClientIp(req), ua: req.headers.get('user-agent') ?? '' };
-  const rows: ChatRow[] = planned.rows.map((row) => ({ ...row, ...observed }));
-  const row = rows[0];
+  const rows: ChatRow[] = planned.map((row) => ({ ...row, ...observed }));
 
   const db = tracer.startSpan('db insert chats', server.context, SpanKind.CLIENT, {
     'db.system.name': 'postgresql',
     'db.operation.name': 'insert',
     'db.collection.name': 'chats',
-    'db.stored_procedure.name': writePath === 'rpc' ? 'insert_chat' : undefined,
+    'db.stored_procedure.name': 'insert_chat',
     ...operationAttributes(op),
   });
-  let result: WriteResult;
+  let result: { data: SavedRow[] | null; error: { code?: string; message?: string } | null };
   try {
     result = injectedFault(deps, op)
       ? { data: null, error: { code: 'FAULT', message: 'injected fault (SAVE_CHAT_FAULT_INJECT)' } }
-      : await writeChats(supabase, writePath, rows, authorKey, op.id);
+      : await supabase.rpc('insert_chat', {
+          p_chats: rows,
+          p_author_key: authorKey,
+          // 同じ送信操作の再送（保存の直後に通信が切れた場合など）は、新しく入れずに 1 回目の行が返る
+          p_operation_id: op.id,
+        });
   } catch (err) {
     db.failException('db_insert_failed', err);
     db.end();
     server.fail('db_insert_failed');
     throw err;
   }
-  const { error } = result;
-  // 知らない部屋（外部キー）・閉じた部屋（トリガー chats_room_enabled）は入力の誤りとして返す
-  if (error && ROOM_REJECTED.has(error.code ?? '')) {
+  const { data, error } = result;
+  // 知らない部屋（外部キー）は入力の誤りとして返す
+  if (error?.code === UNKNOWN_ROOM) {
     db.end();
     server.setAttribute('error.code', 'invalid_room_id');
     return { response: reject('invalid_room_id', 400, cors) };
   }
-  const data = result.data?.[0];
-  if (error || !data || (result.data?.length ?? 0) < rows.length) {
+  if (error || !data || data.length < rows.length) {
     db.failDb('db_insert_failed', error ?? {});
     db.end();
     tracer.log('ERROR', 'save_chat.db_insert_failed', db.context, {
@@ -570,34 +461,24 @@ async function saveChat(
   }
   db.end();
 
+  // 応答は保存された行から作る。2 行目以降（おみくじの巫女の返事）は extra として返し、クライアントは Realtime を
+  // 待たずにログへ入れる。同じ送信操作の再送では 1 回目の行が返るので、選び直した運勢ではなく保存済みの返事になる
+  const [first, ...rest] = data.map(({ triage, ...saved }) => ({ saved, triage }));
+  const extra = rest.map(({ saved }) => saved);
+
   // 管理者チャットの発言は JEV で振り分ける（機能要求なら Issue 化 + 管理人返信）。
   // 外部 API 待ちで送信レスポンスを遅らせないよう、返却後にバックグラウンドで実行する。
-  const { triage: triageRoom, ...saved } = data;
-  // 同じ要求で保存したサーバーの発言（巫女の返事）。クライアントは Realtime を待たずにログへ入れる
-  // 表示に要る列は保存された行（insert_chat の戻り）を優先する。同じ送信操作の再送では 1 回目の行が返るので、
-  // 要求の中で選び直した運勢ではなく、保存済みの巫女の返事を返す
-  const extra = rows.slice(1).map((chat, i) => {
-    const { triage: _triage, ...savedExtra } = result.data![i + 1];
-    return {
-      ...savedExtra,
-      name: savedExtra.name ?? chat.name,
-      color: savedExtra.color ?? chat.color,
-      message: savedExtra.message ?? chat.message,
-      system: savedExtra.system ?? chat.system,
-      metadata: savedExtra.metadata ?? chat.metadata,
-    };
-  });
-  const triage = shouldTriage({ ...row, triageRoom });
+  const triage = shouldTriage({ ...first.saved, triageRoom: first.triage });
   server.setAttribute('chat.triage', triage);
   const target = {
-    uuid: data.uuid,
-    room_id: row.room_id,
-    name: row.name,
-    color: row.color,
-    message: row.message,
+    uuid: first.saved.uuid,
+    room_id: first.saved.room_id,
+    name: first.saved.name,
+    color: first.saved.color,
+    message: first.saved.message,
   };
   return {
-    response: json(extra.length > 0 ? { ...saved, extra } : saved, 200, cors),
+    response: json(extra.length > 0 ? { ...first.saved, extra } : first.saved, 200, cors),
     background: triage
       ? () =>
           runTriage(tracer, server.context, deps.triageDeadlineMs ?? 45_000, (trace) =>

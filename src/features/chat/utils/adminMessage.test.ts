@@ -109,3 +109,23 @@ describe('getRecentParticipants（構造のある行と古い行が混ざった�
     expect(getRecentParticipants([enter, exit], NOW)).toEqual([]);
   });
 });
+
+describe('readAdminEvent（構造の無い古い行の文言の揺れ）', () => {
+  it('名前の後の空白の有無と、読点（、/ ,）の揺れを受ける', () => {
+    const legacyRow = (message: string): Chat =>
+      row({ message, metadata: { version: 1, kind: 'admin' } });
+    expect(readAdminEvent(legacyRow('たろうさん、Welcome to お気楽チャット☆'))).toMatchObject({
+      event: 'enter',
+      name: 'たろう',
+    });
+    expect(readAdminEvent(legacyRow('たろう さん,Welcome to お気楽チャット☆'))).toMatchObject({
+      event: 'enter',
+      name: 'たろう',
+    });
+    expect(readAdminEvent(legacyRow('たろう さん、またきておくれやすぅ。'))).toMatchObject({
+      event: 'exit',
+      name: 'たろう',
+      rest: 'さん、またきておくれやすぅ。',
+    });
+  });
+});

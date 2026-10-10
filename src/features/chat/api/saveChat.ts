@@ -2,8 +2,8 @@ import type { Chat } from '@features/chat/types';
 import { supabase } from '@shared/supabaseClient';
 import { generateOperationId } from '@shared/utils/uuid';
 import { DEFAULT_ROOM_ID, type RoomId } from '../rooms';
-import type { AdminEvent } from '../serverMessages';
-import type { InputErrorCode } from '../inputRules';
+import type { AdminChatInput } from '../serverMessages';
+import { EMAIL_MAX, MESSAGE_MAX, NAME_MAX, type InputErrorCode } from '../inputRules';
 import { getAuthorKey } from '../utils/authorKey';
 import { normalizeChat, normalizeChatMetadata } from '../utils/normalizeMetadata';
 import { UserFacingError } from '../utils/userFacingError';
@@ -29,10 +29,10 @@ interface SaveOperation {
  */
 const INPUT_ERROR_MESSAGES: Record<InputErrorCode, string> = {
   invalid_room_id: 'この部屋には発言できません。',
-  invalid_name: 'おなまえを確かめてください（24文字以内）。',
+  invalid_name: `おなまえを確かめてください（${NAME_MAX}文字以内）。`,
   reserved_name: 'その名前は使えません。',
-  invalid_message: '発言を確かめてください（120文字以内）。',
-  invalid_email: 'E-Mail/URLを確かめてください（64文字以内）。',
+  invalid_message: `発言を確かめてください（${MESSAGE_MAX}文字以内）。`,
+  invalid_email: `E-Mail/URLを確かめてください（${EMAIL_MAX}文字以内）。`,
 };
 
 /** 入力の誤りで拒否された保存。繰り返しても通らないので再試行しない */
@@ -95,7 +95,7 @@ type SaveChatPayload =
     }
   | {
       // 入退室。文言と metadata はサーバーが作る（Issue #180）
-      op: AdminEvent;
+      op: AdminChatInput['event'];
       room_id: RoomId;
       name: string;
       color: string;
@@ -114,7 +114,7 @@ async function invokeSaveChat(
       'x-chat-operation-id': operation.id,
       'x-chat-attempt': String(operation.attempt),
       // 書いた端末の鍵。clear（clear_my_chats）で自分の発言だけを消すために、サーバーが発言と結び付ける
-      'x-chat-author-key': await getAuthorKey(),
+      'x-chat-author-key': getAuthorKey(),
     },
   });
   if (error) {
@@ -156,13 +156,8 @@ export interface SaveChatOptions {
   onExtra?: (chats: Chat[]) => void;
 }
 
-export interface AdminEventInput {
-  event: AdminEvent;
-  name: string;
-  color: string;
-  visitCount?: number;
-  lastLogin?: number;
-}
+/** 入退室の管理人の発言のもと（nonce は楽観的な行の optimisticNonce を使う） */
+export type AdminEventInput = Omit<AdminChatInput, 'nonce'>;
 
 /**
  * save-chat Edge Function で保存する共通処理。リトライの全試行で同じ操作 ID を送り、
@@ -194,8 +189,8 @@ async function saveChatWithRetry(
         email: chat.email,
         metadata: chat.metadata ?? null,
       };
-  // 再試行するのは保存の要求だけ。応答の扱い（onExtra など）で投げても、保存済みの要求を繰り返さない
-  // （insert_chat は操作 ID で重複を除かないので、繰り返すと同じ発言が何行も残る）
+  // 再試行するのは保存の要求だけ。応答の扱い（onExtra など）で投げたものまで再試行すると、要求を余計に繰り返すため
+  // （同じ送信操作の再送による重複は、insert_chat が操作 ID で除く）
   const result = await retryWithBackoff(
     (attempt) => invokeSaveChat(payload, { id: operationId, attempt }),
     { shouldRetry: (error) => !(error instanceof SaveChatRejectedError) }

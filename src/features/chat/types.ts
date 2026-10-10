@@ -1,21 +1,15 @@
 import type { RoomId } from './rooms';
-import {
-  AVATAR_IDS as SCHEMA_AVATAR_IDS,
-  FONT_COLOR_NAMES,
-  type AvatarId as SchemaAvatarId,
-  type FontColorName as SchemaFontColorName,
-  type FontSize as SchemaFontSize,
-  type MetadataKind,
-} from './inputRules';
+import type { AvatarId, FontColorName, FontSize, MetadataKind } from './inputRules';
 
-// --- フォントスタイル ---
+// --- フォントスタイル・アバター ---
 // 値の一覧は save-chat の許可リスト（schema.ts）が正。サーバーはこれ以外の値を保存しない
-
-export type FontSize = SchemaFontSize;
-
-export { FONT_COLOR_NAMES };
-
-export type FontColorName = SchemaFontColorName;
+export {
+  AVATAR_IDS,
+  FONT_COLOR_NAMES,
+  type AvatarId,
+  type FontColorName,
+  type FontSize,
+} from './inputRules';
 
 export const FONT_COLOR_CSS: Record<FontColorName, string> = {
   black: '#000000',
@@ -48,12 +42,6 @@ export type FontStyleMetadata = {
   fontColor?: FontColorName;
   bold?: boolean;
 };
-
-// --- アバター（キャラアイコン）---
-
-export type AvatarId = SchemaAvatarId;
-
-export const AVATAR_IDS: readonly AvatarId[] = SCHEMA_AVATAR_IDS;
 
 // --- チャットメタデータ ---
 

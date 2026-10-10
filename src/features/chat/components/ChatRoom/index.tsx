@@ -1,12 +1,4 @@
-import {
-  startTransition,
-  useId,
-  useRef,
-  useEffect,
-  useState,
-  useActionState,
-  type ChangeEvent,
-} from 'react';
+import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
 import Button from '@shared/components/Button';
@@ -104,7 +96,9 @@ export default function ChatRoom({
 
   const [error, formAction, isPending] = useActionState(
     async (_prev: unknown, formData: FormData) => {
-      const msg = formData.get('message')?.toString() ?? '';
+      // [消す] は name="command" value="clear" の submit ボタン。押されたボタンの値だけがフォームに入る
+      const msg =
+        formData.get('command') === 'clear' ? 'clear' : (formData.get('message')?.toString() ?? '');
       if (!msg.trim()) return;
       try {
         const metadata = buildMetadata();
@@ -132,15 +126,6 @@ export default function ChatRoom({
     wasPendingRef.current = false;
     inputRef.current?.focus();
   }, [isPending]);
-
-  const handleClear = () => {
-    // レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す）。
-    // 発言フォームと同じ Action に通し、「削除対象の発言がありません」などの失敗を同じ場所に出す
-    setMessage('');
-    const formData = new FormData();
-    formData.set('message', 'clear');
-    startTransition(() => formAction(formData));
-  };
 
   return (
     <div className="flex flex-col font-yui">
@@ -200,9 +185,12 @@ export default function ChatRoom({
           <Button type="submit" disabled={isPending}>
             発言
           </Button>
+          {/* レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す） */}
           <Button
-            type="button"
-            onClick={handleClear}
+            type="submit"
+            name="command"
+            value="clear"
+            onClick={() => setMessage('')}
             disabled={isPending}
             title={CLEAR_BUTTON_TITLE}
           >

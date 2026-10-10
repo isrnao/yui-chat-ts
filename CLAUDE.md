@@ -164,7 +164,17 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
   with `service_role`. It derives `ip` (`x-forwarded-for` → `x-real-ip`) and `ua` (`user-agent`)
   from request headers, so those columns are server observations that cannot be supplied in the
   client payload. Their trust boundary still depends on Supabase Edge proxy header handling. RLS restricts INSERT on `chats` to `service_role`
-  (migration `20250619000000_lock_insert_to_service_role.sql`); SELECT/UPDATE stay open.
+  (migration `20250619000000_lock_insert_to_service_role.sql`); SELECT stays open, UPDATE is closed to anon
+  (`20261007000000_close_anon_update.sql`).
+- **Server-side rules** (`supabase/functions/save-chat/`): `schema.ts` (input limits, metadata allowlist, reserved
+  names 管理人・巫女) and `messages.ts` (enter/exit admin messages, fortune replies) have no imports; the web imports
+  them by relative path through `src/features/chat/inputRules.ts` / `serverMessages.ts`. Bad input is rejected with
+  `400 { error: { code } }`; user messages are always `system: false`. `op: enter / exit` makes the server write the
+  admin message, and `おみくじ` saves the fortune reply in the same request (returned as `extra`).
+- **Writes** go through the SQL function `insert_chat` (one RPC): it writes `chats` and `chat_authors` (SHA-256 of
+  the per-browser author key from `x-chat-author-key`) and is idempotent per `x-chat-operation-id`
+  (`chat_operations`, purged by pg_cron after 24 h). `rooms` holds the room ids (foreign key from `chats.room_id`,
+  checked against `rooms.ts` by `roomsTable.test.ts`) and `triage`.
 - **Admin-chat triage**: after saving a non-system message in `com_sb` (管理者チャット),
   `save-chat` runs `triage.ts` in the background (`EdgeRuntime.waitUntil`). It classifies the
   message with JEV (okiraku-api `choice-v1`: bug / question / cr / chat) and switches on the
@@ -172,7 +182,8 @@ deletes, `saveChat.ts` for inserts, `realtime.ts` for channels). Key details:
   `isrnao/yui-chat-ts` and inserts a 管理人 reply 「機能要求を受け付けました（Issue #N）」.
   Requires the Supabase secrets `JEV_API_TOKEN` and `GITHUB_TOKEN`; if either is missing, triage
   is skipped and saving still works.
-- **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`.
+- **Deletes are logical**: clearing sets a `deleted` flag; reads filter `deleted = false`. `clear` / [消す] call
+  `clear_my_chats` (SECURITY DEFINER), which only clears rows written with the same author key.
 - **Real-time**: `subscribeChatLogs` (Postgres changes, INSERT) for messages and for look/unlook
   sounds. See the "Real-time delivery" section above.
 

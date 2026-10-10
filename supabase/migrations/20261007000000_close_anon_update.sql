@@ -4,8 +4,7 @@
 -- （20261006030000_insert_chat_and_clear_my_chats.sql）。名前と部屋だけで他人の発言も消せた PostgREST の PATCH の
 -- 経路をここで閉じる。
 --
--- 適用の時期: clear_my_chats を使う Web を配信してから 1 日以上たってから（開いたままの古いタブが PATCH で消すため。
--- 適用後、古いタブの clear は権限エラーになる。読み込み直せば新しいコードになる）。
+-- 配信の手順は docs/save-chat-edge-function.md の「配信の手順」を参照（サービスを閉塞している間にまとめて適用する）。
 
 DROP POLICY IF EXISTS "public-update" ON public.chats;
 

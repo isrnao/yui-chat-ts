@@ -2,11 +2,10 @@ import { useState, type FormEvent } from 'react';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import ChanariColorPicker from '../ChanariColorPicker';
 import ChanariCharCounter from '../ChanariCharCounter';
-import { countChars } from '../../utils/countChars';
 import { EFFECT_OPTIONS, type EffectId } from '../../utils/effectOptions';
 import { FONT_SIZE_OPTIONS, type LegacyFontSize } from '../../utils/fontSizeOptions';
 import { RELOAD_SECONDS_OPTIONS } from '../../utils/draftStore';
-import { MESSAGE_MAX } from '@features/chat/inputRules';
+import { countGraphemes, MESSAGE_MAX } from '@features/chat/inputRules';
 
 export type ChanariChatRoomProps = {
   message: string;
@@ -64,12 +63,12 @@ export default function ChanariChatRoom({
     });
   };
 
-  const charCount = countChars(message);
+  const charCount = countGraphemes(message);
   const isSendDisabled = charCount > MESSAGE_MAX || isPending;
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (message.trim() === '' || countChars(message) > MESSAGE_MAX) return;
+    if (message.trim() === '' || countGraphemes(message) > MESSAGE_MAX) return;
     report(onSend(message), '発言を送信できませんでした。時間をおいてもう一度お試しください。');
   };
 

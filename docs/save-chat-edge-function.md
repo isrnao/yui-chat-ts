@@ -71,32 +71,32 @@ useChatSession（旧 useChatHandlers）
 
 ### バックエンド（新規）
 
-| ファイル | 内容 |
-|---|---|
-| `supabase/functions/save-chat/index.ts` | Edge Function 本体（Deno）。CORS・最小バリデーション・`ip`/`ua` 確定・`service_role` INSERT |
-| `supabase/functions/save-chat/deno.json` | Deno 用 import map（`@supabase/supabase-js`） |
-| `supabase/config.toml` | `[functions.save-chat] verify_jwt = false`（匿名チャットのため） |
-| `supabase/migrations/20250619000000_lock_insert_to_service_role.sql` | `chats` の INSERT を `service_role` のみに封鎖 |
+| ファイル                                                             | 内容                                                                                        |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `supabase/functions/save-chat/index.ts`                              | Edge Function 本体（Deno）。CORS・最小バリデーション・`ip`/`ua` 確定・`service_role` INSERT |
+| `supabase/functions/save-chat/deno.json`                             | Deno 用 import map（`@supabase/supabase-js`）                                               |
+| `supabase/config.toml`                                               | `[functions.save-chat] verify_jwt = false`（匿名チャットのため）                            |
+| `supabase/migrations/20250619000000_lock_insert_to_service_role.sql` | `chats` の INSERT を `service_role` のみに封鎖                                              |
 
 ### クライアント
 
-| ファイル | 変更 |
-|---|---|
-| `src/features/chat/api/chatApi.ts` | `saveChatLogOptimistic` / `saveChatLog` / `saveChatLogFireAndForget` を `functions.invoke('save-chat')` 経由に。`ip`/`ua` を送らない |
-| `src/features/chat/hooks/useChatHandlers.ts` | `getClientIP` / `getUserAgent` 取得（入室・退室・送信の 3 箇所）を撤去 |
-| `src/features/chat/components/EntryForm/index.tsx` | `prefetchClientIP` のプリフェッチ配線を撤去 |
-| `src/shared/utils/clientInfo.ts` | **削除**（外部 IP サービス依存もろとも消滅） |
-| `src/shared/utils/index.ts` | `clientInfo` の barrel export を削除 |
+| ファイル                                           | 変更                                                                                                                                 |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/features/chat/api/chatApi.ts`                 | `saveChatLogOptimistic` / `saveChatLog` / `saveChatLogFireAndForget` を `functions.invoke('save-chat')` 経由に。`ip`/`ua` を送らない |
+| `src/features/chat/hooks/useChatHandlers.ts`       | `getClientIP` / `getUserAgent` 取得（入室・退室・送信の 3 箇所）を撤去                                                               |
+| `src/features/chat/components/EntryForm/index.tsx` | `prefetchClientIP` のプリフェッチ配線を撤去                                                                                          |
+| `src/shared/utils/clientInfo.ts`                   | **削除**（外部 IP サービス依存もろとも消滅）                                                                                         |
+| `src/shared/utils/index.ts`                        | `clientInfo` の barrel export を削除                                                                                                 |
 
 ### テスト / 設定
 
-| ファイル | 変更 |
-|---|---|
-| `src/test/setup.ts` | `supabase.functions.invoke` の既定モックを追加 |
+| ファイル                                | 変更                                                         |
+| --------------------------------------- | ------------------------------------------------------------ |
+| `src/test/setup.ts`                     | `supabase.functions.invoke` の既定モックを追加               |
 | `src/features/chat/api/chatApi.test.ts` | 「`ip`/`ua` を送らない」「Edge エラーの伝播」の 2 ケース追加 |
-| `src/App.test.tsx` | 不要になった `clientInfo` モックを削除 |
-| `eslint.config.js` | `supabase/functions`（Deno）を lint 対象から除外 |
-| `CLAUDE.md` | データフロー・Supabase Integration の記述を更新 |
+| `src/App.test.tsx`                      | 不要になった `clientInfo` モックを削除                       |
+| `eslint.config.js`                      | `supabase/functions`（Deno）を lint 対象から除外             |
+| `CLAUDE.md`                             | データフロー・Supabase Integration の記述を更新              |
 
 ---
 
@@ -146,7 +146,8 @@ CREATE POLICY "service-role-insert" ON "public"."chats"
   WITH CHECK (true);
 ```
 
-- SELECT（`public-select`）/ UPDATE（`public-update`、論理削除）は**従来どおり anon 可**。
+- SELECT（`public-select`）は anon 可。UPDATE（`public-update`、論理削除）は当時は anon 可だったが、
+  2026-10 に clear を `clear_my_chats` に移して閉じた（§9）。
 - 将来の Bot 機能も `service_role` で INSERT するため、本ポリシーと両立する。
 
 ---
@@ -208,6 +209,35 @@ supabase db push
 
 - **トレードオフ**: 楽観的更新フローに Edge 1 ホップが追加される。表示自体は楽観 INSERT で即時のため
   体感影響は小さいが、保存確定までのレイテンシは増える。
-- **なりすまし**: `metadata.kind`（`admin`/`fortune`/将来の `bot`）は引き続きクライアント値をそのまま保存する。
-  本対応は `ip`/`ua` の証跡化が目的で、`kind` はセキュリティ境界として扱わない（[bot-requirements.md](./bot-requirements.md) §7 と同方針）。
-- **将来**: `save-chat` に NG ワード / レート制限 / `system`・`kind` の僭称防止を載せる余地がある（本対応ではスコープ外）。
+- **なりすまし**: 当時は `metadata.kind`・`system` をクライアント値のまま保存していた。2026-10 の移行（§9）で、
+  利用者の発言の `system` は常に false、`kind` など管理人・巫女だけの metadata は受け付けず、予約名も拒否する。
+- **将来**: `save-chat` に NG ワード / レート制限を載せる余地がある（`insert_chat` の中に足せば往復は増えない）。
+
+---
+
+## 9. 規則のサーバーへの移行（2026-10、Issue #175〜#188・PR #203）
+
+`docs/SERVER_SIDE_LOGIC_REFACTORING.md` の計画に沿って、Web が持っていた規則を `save-chat` と DB へ移した。
+
+- 入力の上限と形式（`schema.ts`）、metadata の許可リスト、予約名（管理人・巫女）、`system` はサーバーが決める。
+  合わなければ `400 { "error": { "code": "invalid_name" } }` などで拒否する
+- 入退室の管理人の発言（`op: enter / exit`）とおみくじの巫女の返事はサーバーが作る（`messages.ts`）
+- 書き込みは SQL 関数 `insert_chat` 1 回。`chats` と `chat_authors`（書いた端末の鍵の SHA-256）を書き、
+  送信操作の ID（`x-chat-operation-id`）で再送を冪等にする（`chat_operations`、24 時間で pg_cron が消す）
+- `rooms` 表と `chats.room_id` の外部キー。知らない部屋は `400 invalid_room_id`
+- clear は SQL 関数 `clear_my_chats`（書いた端末の鍵で照合）。anon と authenticated から `chats` の UPDATE を外した
+
+### 配信の手順
+
+サービスを閉塞している間に、次の順でまとめて出す（古いタブとの互換や段階的な締めは持たない）。
+
+1. `supabase db push`（20261006000000〜20261007000000）
+2. `bash scripts/smoke-save-chat-edge.sh` → `supabase functions deploy save-chat`
+3. `pnpm deploy`
+4. 閉塞を解く
+
+新しい `save-chat` は `rooms` と `insert_chat` が無いと全部の発言が 500 になるので、1 より先に 2 を出さない。
+
+CHECK 制約（`chats_*_check`）と外部キー（`chats_room_id_fkey`）は `NOT VALID` で足している（既存の行は確かめない）。
+既存の行の違反を各マイグレーションのコメントにある問い合わせで数え、0 件（または直した後）に別のマイグレーションで
+`VALIDATE CONSTRAINT` する。

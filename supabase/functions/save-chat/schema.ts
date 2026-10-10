@@ -6,17 +6,21 @@
 // 上限は画面より緩いか同じにして、画面を正しく使う人が拒否されないようにする。
 // - 画面の maxLength は UTF-16 の単位で数える。ここはコードポイント（名前）・grapheme（発言）で
 //   数えるので、同じ数でも画面より緩い
-// - DB の CHECK 制約（20261006000000_chats_input_checks.sql）はさらに緩い最後の防壁
+// - DB の CHECK 制約（20261006000000_chats_input_checks.sql）は最後の防壁。ここを通った値は必ず収まる
+//   （名前は前後の空白を除いて保存し、発言はコードポイントでも MESSAGE_MAX_CODE_POINTS に収める）
 
 export const NAME_MAX = 24;
 export const MESSAGE_MAX = 120;
 /**
  * 発言のコードポイントの上限（DB の CHECK 制約 chats_message_check と同じ値）。120 grapheme でも、結合文字を
- * 大量に重ねた 1 grapheme はこれを超えうる。ここで拒否しないと enforce でも通って DB で 500 になる
+ * 大量に重ねた 1 grapheme はこれを超えうるので、ここでも拒否する（DB で 500 にしない）
  */
 export const MESSAGE_MAX_CODE_POINTS = 2000;
 export const EMAIL_MAX = 64;
-/** 色が読めないときに保存する色。EntryForm の既定の色と同じ */
+/**
+ * 色が読めないときに保存する色。EntryForm の既定の色と同じで、入退室の管理人の発言の userColor が読めないときや、
+ * ChatMessage が userColor の無い管理人の発言を出すときもこの色を使う
+ */
 export const DEFAULT_COLOR = '#ff69b4';
 
 /** 入力の検証で返すエラーのコード。画面の文言はクライアントがこのコードから選ぶ */
@@ -29,12 +33,6 @@ export type InputErrorCode =
 
 // --- 文字数 ---
 
-type Segmenter = { segment(input: string): Iterable<unknown> };
-type SegmenterConstructor = new (
-  locale?: string,
-  options?: { granularity: 'grapheme' }
-) => Segmenter;
-
 /** コードポイントの数（サロゲートペアを 1 文字と数える） */
 export function countCodePoints(input: string): number {
   let count = 0;
@@ -42,15 +40,15 @@ export function countCodePoints(input: string): number {
   return count;
 }
 
-/**
- * grapheme（見た目の 1 文字）の数。ちゃなりの countChars と同じ数え方。
- * Intl.Segmenter が無い環境ではコードポイントで数える（grapheme より多く数えるので、緩くはならない）。
- */
+// 最初に使うときに作る（モジュールの読み込み時に作ると、使わない画面の bundle からも消えない）
+let graphemeSegmenter: Intl.Segmenter | null = null;
+
+/** grapheme（見た目の 1 文字）の数。発言の上限と、ちゃなりの文字数カウンタが使う */
 export function countGraphemes(input: string): number {
-  const Ctor = (Intl as unknown as { Segmenter?: SegmenterConstructor }).Segmenter;
-  if (typeof Ctor !== 'function') return countCodePoints(input);
+  if (input === '') return 0;
+  graphemeSegmenter ??= new Intl.Segmenter(undefined, { granularity: 'grapheme' });
   let count = 0;
-  for (const _ of new Ctor(undefined, { granularity: 'grapheme' }).segment(input)) count++;
+  for (const _ of graphemeSegmenter.segment(input)) count++;
   return count;
 }
 
@@ -66,7 +64,7 @@ export function hasControlChars(input: string): boolean {
 
 /** CSS の色名（CSS Color Module Level 4 の named colors。transparent と currentcolor は含めない） */
 // 一覧は最初に使うときに Set にする（モジュールの読み込み時に計算しないので、使わない画面の bundle からは消える。
-// 画面の楽観的な表示の色は utils/displayColor.ts が CSS.supports で確かめ、ここは import しない）
+// 画面は normalizeColor を使わない。楽観的な表示の色は保存の応答の color で確定する）
 const CSS_COLOR_NAME_LIST = `
     aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet
     brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan
@@ -108,56 +106,26 @@ export function normalizeColor(input: unknown): string | null {
 // --- 発言の入力 ---
 
 export interface SayInput {
+  /** 前後の空白を除いた名前（これを保存する） */
   name: string;
   message: string;
   color: string;
   email: string | null;
 }
 
-export interface InputCheck {
-  /** 拒否するときのコード（最初の 1 つ）。null なら受け付けてよい */
-  error: InputErrorCode | null;
-  /** 違反の一覧（記録用。拒否しない違反も含む） */
-  violations: string[];
-  /** 規則に合わせた値（色は読めなければ DEFAULT_COLOR） */
-  value: SayInput;
-}
+export type InputCheck =
+  | { error: null; value: SayInput }
+  /** 拒否するときのコードと、記録用の違反の名前 */
+  | { error: InputErrorCode; violation: string };
 
-/** 名前の違反（前後の空白を除いて 1〜NAME_MAX コードポイント）。入退室（op: enter / exit）でも使う */
-export function checkName(name: string): string[] {
+/** 名前の違反（前後の空白を除いて 1〜NAME_MAX コードポイント、制御文字なし、予約名でない）。入退室でも使う */
+export function checkName(name: string): { error: InputErrorCode; violation: string } | null {
   const length = countCodePoints(name.trim());
-  if (length === 0) return ['name_blank'];
-  if (length > NAME_MAX) return ['name_too_long'];
-  if (hasControlChars(name)) return ['name_control_chars'];
-  if (isReservedName(name)) return ['name_reserved'];
-  return [];
-}
-
-/**
- * DB の CHECK 制約の上限（20261006000000_chats_input_checks.sql と同じ値。char_length はコードポイントで数える）。
- * これを超える入力は保存すると必ず失敗する（500）ので、記録だけの期間も 400 で拒否する
- */
-export const DB_LIMITS = { name: 64, message: 2000, email: 256 } as const;
-
-/** DB の上限を超えるか。超えればその項目の拒否のコード、超えなければ null */
-export function exceedsDbLimits(input: {
-  name: string;
-  message?: string;
-  email?: unknown;
-}): InputErrorCode | null {
-  if (countCodePoints(input.name) > DB_LIMITS.name) return 'invalid_name';
-  if (input.message !== undefined && countCodePoints(input.message) > DB_LIMITS.message) {
-    return 'invalid_message';
-  }
-  if (typeof input.email === 'string' && countCodePoints(input.email) > DB_LIMITS.email) {
-    return 'invalid_email';
-  }
+  if (length === 0) return { error: 'invalid_name', violation: 'name_blank' };
+  if (length > NAME_MAX) return { error: 'invalid_name', violation: 'name_too_long' };
+  if (hasControlChars(name)) return { error: 'invalid_name', violation: 'name_control_chars' };
+  if (isReservedName(name)) return { error: 'reserved_name', violation: 'name_reserved' };
   return null;
-}
-
-/** 名前の違反を拒否のコードにする（予約名は reserved_name、それ以外は invalid_name） */
-export function nameErrorCode(violation: string): InputErrorCode {
-  return violation === 'name_reserved' ? 'reserved_name' : 'invalid_name';
 }
 
 // --- 予約名（Issue #182、docs/SERVER_SIDE_LOGIC_REFACTORING.md の S3・D4）---
@@ -176,8 +144,9 @@ export function isReservedName(name: string): boolean {
 }
 
 /**
- * 名前・発言・色・メールを確かめる。room_id は別（rooms 表で確かめる）。
- * 型が違う・空のものは呼び出し側が先に弾いている前提で、ここでは上限と形式を見る。
+ * 名前・発言・色・メールを確かめる。room_id は別（rooms 表の外部キーで確かめる）。
+ * 型が違う・空のものは呼び出し側が先に弾いている前提で、ここでは上限と形式を見る。色は拒否せず、
+ * 読めなければ DEFAULT_COLOR にする（どのクライアントでも同じ色になる）
  */
 export function checkSayInput(input: {
   name: string;
@@ -185,47 +154,62 @@ export function checkSayInput(input: {
   color: unknown;
   email: unknown;
 }): InputCheck {
-  const violations: string[] = [];
-  let error: InputErrorCode | null = null;
-  const reject = (code: InputErrorCode, detail: string) => {
-    violations.push(detail);
-    error ??= code;
-  };
+  const nameError = checkName(input.name);
+  if (nameError) return nameError;
 
-  for (const violation of checkName(input.name)) reject(nameErrorCode(violation), violation);
-
-  const messageLength = countGraphemes(input.message);
-  if (input.message.trim().length === 0) reject('invalid_message', 'message_blank');
-  else if (
-    messageLength > MESSAGE_MAX ||
+  if (input.message.trim().length === 0) {
+    return { error: 'invalid_message', violation: 'message_blank' };
+  }
+  if (
+    countGraphemes(input.message) > MESSAGE_MAX ||
     countCodePoints(input.message) > MESSAGE_MAX_CODE_POINTS
   ) {
-    reject('invalid_message', 'message_too_long');
+    return { error: 'invalid_message', violation: 'message_too_long' };
   }
 
   let email: string | null = null;
   if (typeof input.email === 'string') {
+    if (countCodePoints(input.email) > EMAIL_MAX) {
+      return { error: 'invalid_email', violation: 'email_too_long' };
+    }
+    if (hasControlChars(input.email)) {
+      return { error: 'invalid_email', violation: 'email_control_chars' };
+    }
     email = input.email;
-    if (countCodePoints(email) > EMAIL_MAX) reject('invalid_email', 'email_too_long');
-    if (hasControlChars(email)) reject('invalid_email', 'email_control_chars');
   } else if (input.email != null) {
-    reject('invalid_email', 'email_not_string');
+    return { error: 'invalid_email', violation: 'email_not_string' };
   }
 
-  // 色は拒否しない。読めない色は既定の色にする（どのクライアントでも同じ色になる）
-  let color = normalizeColor(input.color);
-  if (color === null) {
-    violations.push('color_replaced');
-    color = DEFAULT_COLOR;
-  }
+  return {
+    error: null,
+    value: {
+      name: input.name.trim(),
+      message: input.message,
+      color: normalizeColor(input.color) ?? DEFAULT_COLOR,
+      email,
+    },
+  };
+}
 
-  return { error, violations, value: { name: input.name, message: input.message, color, email } };
+/** 端末の中の数（訪問回数・前回のログインなど）を 0〜max の整数に丸める。数でなければ undefined */
+export function clampInt(value: unknown, max: number): number | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return Math.min(Math.max(Math.trunc(value), 0), max);
+}
+
+/** 楽観的な行と突き合わせる nonce（OPTIMISTIC_NONCE_MAX コードポイント以内の文字列）。違えば undefined */
+export function readNonce(value: unknown): string | undefined {
+  return typeof value === 'string' && countCodePoints(value) <= OPTIMISTIC_NONCE_MAX
+    ? value
+    : undefined;
 }
 
 // --- metadata（Issue #177、docs/SERVER_SIDE_LOGIC_REFACTORING.md の S2）---
 //
-// save-chat は受け取った metadata をこの許可リストで作り直してから保存する。知らないキーと範囲外の値は落とす。
-// 拒否はしない（落とした内容は記録する）。Web の normalizeChatMetadata も同じ一覧を使う。
+// save-chat は利用者の発言の metadata をこの許可リストで作り直してから保存する。知らないキーと範囲外の値は落とす。
+// 拒否はしない（落とした内容は記録する）。kind・userColor・visitCount・lastLogin・event・subject はサーバーが作る
+// 発言（入退室・おみくじ。messages.ts）だけが持ち、利用者の発言では受け付けない。
+// Web の normalizeChatMetadata も同じ一覧で、保存済みの行（サーバーが作った行を含む）を読む。
 
 export const FONT_SIZES = [1, 2, 3, 4, 5] as const;
 export type FontSize = (typeof FONT_SIZES)[number];
@@ -274,20 +258,17 @@ export type MetadataKind = (typeof METADATA_KINDS)[number];
 
 export const OPTIMISTIC_NONCE_MAX = 64;
 export const VISIT_COUNT_MAX = 1_000_000;
-/** 作り直した metadata の JSON の上限（DB の CHECK 制約 chats_metadata_check と同じ値） */
+/** metadata の JSON の上限（DB の CHECK 制約 chats_metadata_check と同じ値。作り直した値は必ず収まる） */
 export const METADATA_MAX_BYTES = 2048;
 /** 落としたものの記録の件数と 1 件の長さの上限（超えた分は 'truncated' 1 件にまとめる） */
 export const METADATA_DROPPED_MAX = 20;
 export const METADATA_DROPPED_ENTRY_MAX = 64;
 
+/** 利用者の発言の metadata（サーバーが作る発言の形は messages.ts） */
 export interface ChatMetadataShape {
   version: 1;
   fontStyle?: { fontSize?: FontSize; fontColor?: FontColorName; bold?: boolean };
   avatar?: Exclude<AvatarId, 'none'>;
-  kind?: MetadataKind;
-  userColor?: string;
-  visitCount?: number;
-  lastLogin?: number;
   optimisticNonce?: string;
 }
 
@@ -299,31 +280,6 @@ function includes<T extends string | number>(list: readonly T[], value: unknown)
   return (list as readonly unknown[]).includes(value);
 }
 
-/**
- * サーバーが作る発言（入退室・おみくじ）だけが使う metadata のキー。利用者の発言では受け付けない
- * （#177 の 2 段階目）。kind は normal だけ利用者に許す。
- */
-export const SERVER_ONLY_METADATA_KEYS = ['kind', 'userColor', 'visitCount', 'lastLogin'] as const;
-
-/**
- * 利用者の発言の metadata から、サーバーだけが使う値を見つける（記録用の名前を返す）。
- * `remove` が true なら取り除く（SAVE_CHAT_INPUT_MODE=enforce のとき）。
- */
-export function takeServerOnlyMetadata(
-  metadata: ChatMetadataShape | null,
-  remove: boolean
-): string[] {
-  if (!metadata) return [];
-  const found: string[] = [];
-  for (const key of SERVER_ONLY_METADATA_KEYS) {
-    if (metadata[key] === undefined) continue;
-    if (key === 'kind' && metadata.kind === 'normal') continue;
-    found.push(`server_only:${key}`);
-    if (remove) delete metadata[key];
-  }
-  return found;
-}
-
 export interface MetadataCheck {
   /** 保存する metadata。元が無い・読めないときは null */
   value: ChatMetadataShape | null;
@@ -331,13 +287,8 @@ export interface MetadataCheck {
   dropped: string[];
 }
 
-/**
- * metadata を許可リストで作り直す。`now` は lastLogin の上限（ミリ秒）。
- *
- * 今の Web は入退室・おみくじで kind・userColor・visitCount・lastLogin を自分で付けて送っているので、
- * 1 段階目ではこれらも受け付ける（2 段階目で、サーバーが作る発言だけに限る）。
- */
-export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
+/** 利用者の発言の metadata を許可リストで作り直す */
+export function sanitizeMetadata(input: unknown): MetadataCheck {
   // 記録は件数と長さに上限を付ける（未知のキーの数と長さはクライアントが決められるため）
   const dropped: string[] = [];
   let truncated = false;
@@ -351,16 +302,7 @@ export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
   if (input.version !== 1) return { value: null, dropped: ['version'] };
 
   const value: ChatMetadataShape = { version: 1 };
-  const known = new Set([
-    'version',
-    'fontStyle',
-    'avatar',
-    'kind',
-    'userColor',
-    'visitCount',
-    'lastLogin',
-    'optimisticNonce',
-  ]);
+  const known = new Set(['version', 'fontStyle', 'avatar', 'optimisticNonce']);
   for (const key of Object.keys(input)) if (!known.has(key)) drop(`unknown:${key}`);
 
   if (input.fontStyle !== undefined) {
@@ -387,35 +329,9 @@ export function sanitizeMetadata(input: unknown, now: number): MetadataCheck {
   if (includes(AVATAR_IDS, input.avatar) && input.avatar !== 'none') value.avatar = input.avatar;
   else if (input.avatar !== undefined && input.avatar !== 'none') drop('avatar');
 
-  if (includes(METADATA_KINDS, input.kind)) value.kind = input.kind;
-  else if (input.kind !== undefined) drop('kind');
-
-  if (input.userColor !== undefined) {
-    const color = normalizeColor(input.userColor);
-    if (color) value.userColor = color;
-    else drop('userColor');
-  }
-
-  // 端末の中の値なので、範囲に丸めるだけ
-  if (typeof input.visitCount === 'number' && Number.isFinite(input.visitCount)) {
-    value.visitCount = Math.min(Math.max(Math.trunc(input.visitCount), 0), VISIT_COUNT_MAX);
-  } else if (input.visitCount !== undefined) {
-    drop('visitCount');
-  }
-  if (typeof input.lastLogin === 'number' && Number.isFinite(input.lastLogin)) {
-    value.lastLogin = Math.min(Math.max(Math.trunc(input.lastLogin), 0), now);
-  } else if (input.lastLogin !== undefined) {
-    drop('lastLogin');
-  }
-
-  if (
-    typeof input.optimisticNonce === 'string' &&
-    countCodePoints(input.optimisticNonce) <= OPTIMISTIC_NONCE_MAX
-  ) {
-    value.optimisticNonce = input.optimisticNonce;
-  } else if (input.optimisticNonce !== undefined) {
-    drop('optimisticNonce');
-  }
+  const nonce = readNonce(input.optimisticNonce);
+  if (nonce !== undefined) value.optimisticNonce = nonce;
+  else if (input.optimisticNonce !== undefined) drop('optimisticNonce');
 
   if (truncated) dropped.push('truncated');
   return { value, dropped };

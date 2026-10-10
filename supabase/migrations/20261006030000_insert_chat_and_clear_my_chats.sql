@@ -13,8 +13,7 @@
 -- chat_authors を chats の列にしない理由: chats は supabase_realtime の publication に入っており、列を足すと
 -- Realtime で全員に流れるおそれがある。chat_authors は publication に入れず、RLS を有効にしてポリシーを作らない。
 --
--- 締める（anon の public-update と UPDATE (deleted) を外す）のは、Web を切り替えて 1 日たってから別のマイグレーションで行う
--- （開いたままの古いタブが PATCH で消し続けるため）。
+-- anon の public-update と UPDATE (deleted) は 20261007000000_close_anon_update.sql で外す。
 --
 -- 移行前の発言は chat_authors に行が無いので、clear で消せない（D2: 名前だけの照合を残すと今の穴が残る）。
 
@@ -106,10 +105,13 @@ BEGIN
   END IF;
 
   IF p_operation_id IS NOT NULL THEN
-    -- 同じ ID の要求が並んで来ても 1 つずつにする（トランザクションの終わりで外れる）
-    PERFORM pg_advisory_xact_lock(hashtextextended(p_operation_id::text, 0));
-    SELECT o.chat_uuids INTO v_existing FROM public.chat_operations AS o WHERE o.operation_id = p_operation_id;
-    IF FOUND THEN
+    -- 先に送信操作の行を入れる。同じ ID の要求が並んで来たら、後の要求は主キーの一意性の確かめで先の要求の
+    -- コミットを待ち、入らなかった（ON CONFLICT）ときは先の要求が入れた行を返す（ロックを別に取らない）
+    INSERT INTO public.chat_operations AS o (operation_id, chat_uuids)
+    VALUES (p_operation_id, '{}')
+    ON CONFLICT (operation_id) DO NOTHING;
+    IF NOT FOUND THEN
+      SELECT o.chat_uuids INTO v_existing FROM public.chat_operations AS o WHERE o.operation_id = p_operation_id;
       RETURN QUERY
         SELECT c.uuid, c.room_id, c."time", c.ip_masked, c.ua, c.name, c.color, c.message, c.system, c.metadata,
                coalesce(r.triage, false)
@@ -157,7 +159,7 @@ BEGIN
   END LOOP;
 
   IF p_operation_id IS NOT NULL THEN
-    INSERT INTO public.chat_operations (operation_id, chat_uuids) VALUES (p_operation_id, v_uuids);
+    UPDATE public.chat_operations AS o SET chat_uuids = v_uuids WHERE o.operation_id = p_operation_id;
   END IF;
 END;
 $$;

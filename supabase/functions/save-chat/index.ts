@@ -12,7 +12,8 @@
 // - 永続化は service_role で行い RLS をバイパスする（anon の直 INSERT は別途封鎖）。
 // - uuid / time / deleted は DB 既定値に委ねる。metadata は schema.ts の許可リストで作り直して保存する
 //   （optimisticNonce は残すので、Realtime の echo でクライアントの楽観的な行と突き合わせられる）。
-// - 名前・発言・色・メールの上限と形式も schema.ts で確かめる（SAVE_CHAT_INPUT_MODE）。
+// - 名前・発言・色・メールの上限と形式も schema.ts で確かめ、合わなければ 400 { error: { code } } で拒否する。
+// - 書き込みは SQL 関数 insert_chat 1 回（chats と chat_authors。送信操作の ID で再送を冪等にする）。
 // - トレース: NEW_RELIC_LICENSE_KEY が設定されていれば New Relic へ送る（telemetry.ts）。
 //
 // 処理本体は handler.ts。ここでは依存を組み立てて Deno.serve に渡すだけにする。

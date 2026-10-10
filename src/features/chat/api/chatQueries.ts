@@ -93,7 +93,7 @@ export async function clearMyChats(roomId: RoomId, name: string): Promise<string
   const { data, error } = await supabase.rpc('clear_my_chats', {
     p_room_id: roomId,
     p_name: name,
-    p_author_key: await getAuthorKey(),
+    p_author_key: getAuthorKey(),
   });
   if (error) {
     throw new Error(`Failed to clear chat logs: ${error.message}`);
