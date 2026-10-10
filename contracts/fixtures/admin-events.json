@@ -1,0 +1,147 @@
+{
+  "cases": [
+    {
+      "name": "構造のある入室",
+      "chat": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "ゆい さん、Welcome to お気楽チャット☆",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "avatar": "hoshi1",
+          "kind": "admin",
+          "userColor": "#ff0000",
+          "fontStyle": {
+            "bold": true
+          },
+          "event": "enter",
+          "subject": {
+            "name": "ゆい",
+            "color": "#ff0000"
+          }
+        }
+      },
+      "expected": {
+        "event": "enter",
+        "name": "ゆい",
+        "color": "#ff0000",
+        "rest": "さん、Welcome to お気楽チャット☆"
+      }
+    },
+    {
+      "name": "構造のある退室",
+      "chat": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "ほしさん、またきておくれやすぅ。",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "avatar": "hoshi1",
+          "kind": "admin",
+          "userColor": "#0000ff",
+          "fontStyle": {
+            "bold": true
+          },
+          "event": "exit",
+          "subject": {
+            "name": "ほし",
+            "color": "#0000ff"
+          }
+        }
+      },
+      "expected": {
+        "event": "exit",
+        "name": "ほし",
+        "color": "#0000ff",
+        "rest": "さん、またきておくれやすぅ。"
+      }
+    },
+    {
+      "name": "構造の無い古い入室",
+      "chat": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "つき さん、Welcome to お気楽チャット☆",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "kind": "admin",
+          "userColor": "orangered"
+        }
+      },
+      "expected": {
+        "event": "enter",
+        "name": "つき",
+        "color": "orangered",
+        "rest": "さん、Welcome to お気楽チャット☆"
+      }
+    },
+    {
+      "name": "構造の無い古い退室（読点が半角）",
+      "chat": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "つきさん,またきておくれやすぅ。",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "kind": "admin"
+        }
+      },
+      "expected": {
+        "event": "exit",
+        "name": "つき",
+        "rest": "さん,またきておくれやすぅ。"
+      }
+    },
+    {
+      "name": "入退室でない管理人の発言",
+      "chat": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "機能要求を受け付けました（Issue #12）",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "kind": "admin"
+        }
+      },
+      "expected": null
+    },
+    {
+      "name": "利用者の発言",
+      "chat": {
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "message": "こんにちは",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000
+      },
+      "expected": null
+    }
+  ]
+}

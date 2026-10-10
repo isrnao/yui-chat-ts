@@ -1,0 +1,88 @@
+{
+  "limits": {
+    "nameMax": 24,
+    "messageMax": 120,
+    "messageMaxCodePoints": 2000,
+    "emailMax": 64,
+    "optimisticNonceMax": 64
+  },
+  "defaultColor": "#ff69b4",
+  "reservedNames": [
+    "管理人",
+    "巫女"
+  ],
+  "fontSizes": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "fontColorNames": [
+    "black",
+    "gray",
+    "silver",
+    "white",
+    "red",
+    "hotpink",
+    "orange",
+    "gold",
+    "yellow",
+    "lime",
+    "green",
+    "aqua",
+    "blue",
+    "navy",
+    "purple"
+  ],
+  "avatarIds": [
+    "none",
+    "hoshi1",
+    "hoshi2",
+    "hoshi3",
+    "hoshi4",
+    "hoshi5",
+    "hoshi6",
+    "hoshi7",
+    "hoshi8",
+    "miko1",
+    "tuki1",
+    "tuki2",
+    "tuki3",
+    "tuki4"
+  ],
+  "windowRowOptions": {
+    "default": [
+      30,
+      50,
+      40,
+      20,
+      10,
+      100
+    ],
+    "extended": [
+      30,
+      50,
+      40,
+      20,
+      10,
+      100,
+      200,
+      500,
+      1000
+    ]
+  },
+  "inputErrorMessages": {
+    "invalid_room_id": "この部屋には発言できません。",
+    "invalid_name": "おなまえを確かめてください（24文字以内）。",
+    "reserved_name": "その名前は使えません。",
+    "invalid_message": "発言を確かめてください（120文字以内）。",
+    "invalid_email": "E-Mail/URLを確かめてください（64文字以内）。"
+  },
+  "authorKeyPattern": "^[A-Za-z0-9_-]{43}$",
+  "filters": {
+    "listLimit": 50,
+    "namesPerIpLimit": 10,
+    "wordMaxLength": 50
+  }
+}

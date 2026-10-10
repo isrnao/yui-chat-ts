@@ -1,0 +1,84 @@
+{
+  "cases": [
+    {
+      "input": {
+        "event": "enter",
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "visitCount": 49,
+        "lastLogin": 1791717000000,
+        "nonce": "n1"
+      },
+      "expected": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "ゆい さん、Welcome to お気楽チャット☆",
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "avatar": "hoshi1",
+          "kind": "admin",
+          "userColor": "#ff69b4",
+          "fontStyle": {
+            "bold": true
+          },
+          "event": "enter",
+          "subject": {
+            "name": "ゆい",
+            "color": "#ff69b4"
+          },
+          "visitCount": 49,
+          "lastLogin": 1791717000000,
+          "optimisticNonce": "n1"
+        }
+      }
+    },
+    {
+      "input": {
+        "event": "exit",
+        "name": "ほし",
+        "color": "navy",
+        "nonce": "n2"
+      },
+      "expected": {
+        "name": "管理人",
+        "color": "#ffffff",
+        "message": "ほしさん、またきておくれやすぅ。",
+        "system": true,
+        "metadata": {
+          "version": 1,
+          "avatar": "hoshi1",
+          "kind": "admin",
+          "userColor": "navy",
+          "fontStyle": {
+            "bold": true
+          },
+          "event": "exit",
+          "subject": {
+            "name": "ほし",
+            "color": "navy"
+          },
+          "optimisticNonce": "n2"
+        }
+      }
+    }
+  ],
+  "fortune": {
+    "userName": "ゆい",
+    "index": 0,
+    "expected": {
+      "name": "巫女",
+      "color": "hotpink",
+      "message": "大吉で〜す。うまい話が転がり込んできます。仕事は早目に片付けて出かけましょう。＞ゆいさん",
+      "system": true,
+      "metadata": {
+        "version": 1,
+        "kind": "fortune",
+        "avatar": "miko1",
+        "fontStyle": {
+          "bold": true
+        }
+      }
+    }
+  }
+}

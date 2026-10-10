@@ -1,0 +1,159 @@
+{
+  "cases": [
+    {
+      "name": "通る",
+      "input": {
+        "name": " ゆい ",
+        "message": "こんにちは",
+        "color": "#FF69B4",
+        "email": null
+      },
+      "expected": {
+        "error": null,
+        "value": {
+          "name": "ゆい",
+          "message": "こんにちは",
+          "color": "#ff69b4",
+          "email": null
+        }
+      }
+    },
+    {
+      "name": "名前が 25 文字",
+      "input": {
+        "name": "あああああああああああああああああああああああああ",
+        "message": "x",
+        "color": "#000000",
+        "email": null
+      },
+      "expected": {
+        "error": "invalid_name"
+      }
+    },
+    {
+      "name": "予約名（空白入り）",
+      "input": {
+        "name": "管 理 人",
+        "message": "x",
+        "color": "#000000",
+        "email": null
+      },
+      "expected": {
+        "error": "reserved_name"
+      }
+    },
+    {
+      "name": "空白だけの発言",
+      "input": {
+        "name": "ゆい",
+        "message": "   ",
+        "color": "#000000",
+        "email": null
+      },
+      "expected": {
+        "error": "invalid_message"
+      }
+    },
+    {
+      "name": "121 文字の発言",
+      "input": {
+        "name": "ゆい",
+        "message": "あああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああああ",
+        "color": "#000000",
+        "email": null
+      },
+      "expected": {
+        "error": "invalid_message"
+      }
+    },
+    {
+      "name": "読めない色は既定の色",
+      "input": {
+        "name": "ゆい",
+        "message": "x",
+        "color": "あか",
+        "email": null
+      },
+      "expected": {
+        "error": null,
+        "value": {
+          "name": "ゆい",
+          "message": "x",
+          "color": "#ff69b4",
+          "email": null
+        }
+      }
+    },
+    {
+      "name": "長すぎるメール",
+      "input": {
+        "name": "ゆい",
+        "message": "x",
+        "color": "red",
+        "email": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "expected": {
+        "error": "invalid_email"
+      }
+    }
+  ],
+  "metadata": [
+    {
+      "input": {
+        "version": 1,
+        "fontStyle": {
+          "fontSize": 3,
+          "fontColor": "red",
+          "bold": true
+        },
+        "avatar": "hoshi1",
+        "optimisticNonce": "n"
+      },
+      "expected": {
+        "value": {
+          "version": 1,
+          "fontStyle": {
+            "fontSize": 3,
+            "fontColor": "red",
+            "bold": true
+          },
+          "avatar": "hoshi1",
+          "optimisticNonce": "n"
+        },
+        "dropped": []
+      }
+    },
+    {
+      "input": {
+        "version": 1,
+        "kind": "admin",
+        "fontStyle": {
+          "fontSize": 9
+        },
+        "avatar": "none",
+        "extra": 1
+      },
+      "expected": {
+        "value": {
+          "version": 1
+        },
+        "dropped": [
+          "unknown:kind",
+          "unknown:extra",
+          "fontStyle.fontSize"
+        ]
+      }
+    },
+    {
+      "input": {
+        "version": 2
+      },
+      "expected": {
+        "value": null,
+        "dropped": [
+          "version"
+        ]
+      }
+    }
+  ]
+}
