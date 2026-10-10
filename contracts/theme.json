@@ -1,0 +1,106 @@
+{
+  "colors": {
+    "yui-green": "#c1fc92",
+    "yui-pink": "#ff69b4",
+    "yui-pink-light": "#ffe4ef",
+    "yui-pink-border": "#ff69b4",
+    "ie-gray": "#b1b1b1",
+    "ie-blue": "#4a90e2",
+    "ie-bg": "#f3f3f3"
+  },
+  "fontFamily": [
+    "DotGothic16",
+    "MS PGothic",
+    "ＭＳ Ｐゴシック",
+    "MS UI Gothic",
+    "Osaka",
+    "Hiragino Kaku Gothic ProN",
+    "Hiragino Sans",
+    "Meiryo",
+    "sans-serif"
+  ],
+  "fontColors": [
+    {
+      "name": "black",
+      "css": "#000000"
+    },
+    {
+      "name": "gray",
+      "css": "#808080"
+    },
+    {
+      "name": "silver",
+      "css": "#c0c0c0"
+    },
+    {
+      "name": "white",
+      "css": "#ffffff"
+    },
+    {
+      "name": "red",
+      "css": "#ff0000"
+    },
+    {
+      "name": "hotpink",
+      "css": "#ff69b4"
+    },
+    {
+      "name": "orange",
+      "css": "#ff8c00"
+    },
+    {
+      "name": "gold",
+      "css": "#ffd700"
+    },
+    {
+      "name": "yellow",
+      "css": "#ffff00"
+    },
+    {
+      "name": "lime",
+      "css": "#00ff00"
+    },
+    {
+      "name": "green",
+      "css": "#008000"
+    },
+    {
+      "name": "aqua",
+      "css": "#00ffff"
+    },
+    {
+      "name": "blue",
+      "css": "#0000ff"
+    },
+    {
+      "name": "navy",
+      "css": "#000080"
+    },
+    {
+      "name": "purple",
+      "css": "#800080"
+    }
+  ],
+  "fontSizes": [
+    {
+      "size": 1,
+      "em": 0.8
+    },
+    {
+      "size": 2,
+      "em": 1
+    },
+    {
+      "size": 3,
+      "em": 1.2
+    },
+    {
+      "size": 4,
+      "em": 1.5
+    },
+    {
+      "size": 5,
+      "em": 2
+    }
+  ]
+}

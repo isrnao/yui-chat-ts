@@ -1,0 +1,20 @@
+{
+  "contractsVersion": 1,
+  "fixtureTimeZone": "Asia/Tokyo",
+  "files": [
+    "chat-options.json",
+    "directory.json",
+    "fixtures/admin-events.json",
+    "fixtures/author-key.json",
+    "fixtures/filters.json",
+    "fixtures/legacy-date-time.json",
+    "fixtures/optimistic.json",
+    "fixtures/participants.json",
+    "fixtures/room-log-merge.json",
+    "fixtures/save-chat/input-checks.json",
+    "fixtures/save-chat/server-messages.json",
+    "rooms.json",
+    "server-messages.json",
+    "theme.json"
+  ]
+}

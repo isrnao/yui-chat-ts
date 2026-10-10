@@ -1,0 +1,170 @@
+{
+  "log": [
+    {
+      "name": "ゆい",
+      "color": "#ff69b4",
+      "message": "ＡＢＣの話",
+      "ip_masked": "219.*.*.253",
+      "ua": "",
+      "uuid": "01a12aa7-c340-7000-8000-000000000001",
+      "time": 1791717000000
+    },
+    {
+      "name": "ほし",
+      "color": "#ff69b4",
+      "message": "abc です",
+      "ip_masked": "2001:*",
+      "ua": "",
+      "uuid": "01a12aa7-bf58-7000-8000-000000000002",
+      "time": 1791716999000
+    },
+    {
+      "name": "管理人",
+      "color": "#ffffff",
+      "message": "ほし さん、Welcome to お気楽チャット☆",
+      "ip_masked": "",
+      "ua": "",
+      "uuid": "01a12aa7-bb70-7000-8000-000000000003",
+      "time": 1791716998000,
+      "system": true,
+      "metadata": {
+        "version": 1,
+        "avatar": "hoshi1",
+        "kind": "admin",
+        "userColor": "#0000ff",
+        "fontStyle": {
+          "bold": true
+        },
+        "event": "enter",
+        "subject": {
+          "name": "ほし",
+          "color": "#0000ff"
+        }
+      }
+    },
+    {
+      "name": "巫女",
+      "color": "hotpink",
+      "message": "凶で〜す。邁進せずに内を固める必要があるようです..。自己過信すると道を間違えるわね..。＞ゆいさん",
+      "ip_masked": "219.*.*.253",
+      "ua": "",
+      "uuid": "01a12aa7-b788-7000-8000-000000000004",
+      "time": 1791716997000,
+      "system": true,
+      "metadata": {
+        "version": 1,
+        "kind": "fortune",
+        "avatar": "miko1",
+        "fontStyle": {
+          "bold": true
+        }
+      }
+    },
+    {
+      "name": "つき",
+      "color": "#ff69b4",
+      "message": "こんばんは",
+      "ip_masked": "*",
+      "ua": "",
+      "uuid": "01a12aa7-b3a0-7000-8000-000000000005",
+      "time": 1791716996000
+    }
+  ],
+  "cases": [
+    {
+      "name": "IP",
+      "ips": [
+        "219.*.*.253"
+      ],
+      "names": [],
+      "words": [],
+      "expectedVisibleUuids": [
+        "01a12aa7-bf58-7000-8000-000000000002",
+        "01a12aa7-bb70-7000-8000-000000000003",
+        "01a12aa7-b3a0-7000-8000-000000000005"
+      ],
+      "expectedHiddenCounts": {
+        "ip:219.*.*.253": 2
+      },
+      "expectedHiddenNames": {
+        "219.*.*.253": [
+          "ゆい"
+        ]
+      }
+    },
+    {
+      "name": "名前（入退室の名前にも当たる）",
+      "ips": [],
+      "names": [
+        "ほし"
+      ],
+      "words": [],
+      "expectedVisibleUuids": [
+        "01a12aa7-c340-7000-8000-000000000001",
+        "01a12aa7-b788-7000-8000-000000000004",
+        "01a12aa7-b3a0-7000-8000-000000000005"
+      ],
+      "expectedHiddenCounts": {
+        "name:ほし": 2
+      },
+      "expectedHiddenNames": {}
+    },
+    {
+      "name": "言葉（NFKC・大文字小文字を区別しない。管理人の定型文には当てない）",
+      "ips": [],
+      "names": [],
+      "words": [
+        "abc"
+      ],
+      "expectedVisibleUuids": [
+        "01a12aa7-bb70-7000-8000-000000000003",
+        "01a12aa7-b788-7000-8000-000000000004",
+        "01a12aa7-b3a0-7000-8000-000000000005"
+      ],
+      "expectedHiddenCounts": {
+        "word:abc": 2
+      },
+      "expectedHiddenNames": {}
+    },
+    {
+      "name": "組み合わせ",
+      "ips": [
+        "2001:*"
+      ],
+      "names": [
+        "つき"
+      ],
+      "words": [
+        "ＷＥＬＣＯＭＥ"
+      ],
+      "expectedVisibleUuids": [
+        "01a12aa7-c340-7000-8000-000000000001",
+        "01a12aa7-bb70-7000-8000-000000000003",
+        "01a12aa7-b788-7000-8000-000000000004"
+      ],
+      "expectedHiddenCounts": {
+        "ip:2001:*": 1,
+        "name:つき": 1
+      },
+      "expectedHiddenNames": {
+        "2001:*": [
+          "ほし"
+        ]
+      }
+    }
+  ],
+  "normalizeWord": [
+    {
+      "word": "  ことば  ",
+      "expected": "ことば"
+    },
+    {
+      "word": "Ａｂｃ",
+      "expected": "Ａｂｃ"
+    },
+    {
+      "word": "",
+      "expected": ""
+    }
+  ]
+}
