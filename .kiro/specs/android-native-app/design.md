@@ -13,6 +13,9 @@ Q1〜Q13 は推奨どおりに決めた前提で書く。
 >   Author_Key の形）に合わせた。`core:common` から運勢と入退室の組み立てを外した
 > - Contracts（§8）の生成元に `schema.ts` / `messages.ts` を足し、運勢を外した
 > - ブロック（§4.7）を Web の「フィルタ」（`chat-ip-mute`）と同じ規則にした（Q12）
+>
+> **同日の決定。** リポジトリは別の `okiraku-android`（Q6、§1）。削除済みの発言は API から隠さない（Q13）。他人の
+> 名前で退室の発言を出せることは受け入れる（R21.8）。§1.1 に「クリーンに作るための約束」を足した。
 
 ### 設計方針
 
@@ -80,43 +83,56 @@ Q1〜Q13 は推奨どおりに決めた前提で書く。
 
 ## 1. リポジトリとモジュール構成（Q6）
 
-同じリポジトリの `android/` に置く。Web と Android が共有する JSON は `contracts/` に置く。
+**別のリポジトリ `okiraku-android`**（`yui-chat-ts` と同じ階層、`../okiraku-android`）に置く（2026-10-11 に決定）。
+Web とサーバーは `yui-chat-ts` に残り、両者をつなぐのは Contracts（§8）と §7 の API だけにする。
 
 ```text
-yui-chat-ts/
-├── contracts/                    # Web と Android が共有する JSON（§8）。scripts/export-contracts.ts が生成
-├── android/
-│   ├── settings.gradle.kts
-│   ├── gradle/libs.versions.toml # 版はここだけで決める
-│   ├── build-logic/convention/   # application / library / compose / feature / hilt の convention plugin
-│   ├── app/                      # Application、MainActivity、NavDisplay、DI の組み立て
-│   ├── core/
-│   │   ├── model/                # Chat、ChatMetadata、RoomId、RoomMeta、Participant（Android に依存しない）
-│   │   ├── common/               # 日時の表記、URL の分割、管理人の分割表示、参加者、フィルタの一致
-│   │   ├── contracts/            # contracts/*.json から生成した Kotlin（部屋の一覧、選択肢、上限）
-│   │   ├── network/              # ChatApi / RealtimeHub / SafetyApi と、supabase-kt・Ktor による実装（§7 の契約）
-│   │   ├── data/                 # RoomLogRepository、ChatSender、ChatSession、RoomCounts、Ranking
-│   │   ├── datastore/            # 設定、下書き、フィルタ、同意、端末の鍵（Author_Key）
-│   │   ├── designsystem/         # Retro_Design_System（トークン、書体、部品、ちゃなりのテーマ）
-│   │   ├── ui/                   # ChatLog、ChatMessageRow、ParticipantsHeader などドメインの部品
-│   │   ├── analytics/            # analytics.ts と同じイベントの契約と送信先
-│   │   └── testing/              # Fake の API、テストの時計、Contracts の読み込み
-│   ├── feature/
-│   │   ├── onboarding/           # 18 歳以上の確認と同意（R12.1）
-│   │   ├── home/                 # 部屋一覧（R3）
-│   │   ├── chatroom/             # 通常チャット・ランキング（R4〜R9）
-│   │   ├── allrooms/             # 全部屋まとめ（R10）
-│   │   ├── chanari/              # ちゃなり（R11）
-│   │   ├── safety/               # 通報、フィルタの確認の窓と一覧（R12）
-│   │   └── settings/             # 設定・ライセンス・データの消去（R18）
-│   └── baselineprofile/          # Baseline Profile の生成と Macrobenchmark（R19）
-└── src/, supabase/, …            # 既存の Web とサーバー
+okiraku-android/
+├── settings.gradle.kts
+├── gradle/libs.versions.toml     # 版はここだけで決める
+├── build-logic/convention/       # jvm-library / android-library / android-application / compose / feature の convention plugin
+├── contracts/                    # yui-chat-ts の contracts/ の写し（§8.1）。手で直さない
+│   └── UPSTREAM                  # 写した yui-chat-ts のコミット
+├── scripts/sync-contracts.sh     # ../yui-chat-ts の contracts/ を写し、UPSTREAM を書く
+├── app/                          # Application、MainActivity、NavDisplay、DI の組み立て
+├── core/
+│   ├── model/                    # Chat、ChatMetadata、RoomId、RoomMeta、Participant（純粋な Kotlin/JVM）
+│   ├── contracts/                # contracts/*.json から生成した Kotlin（部屋、選択肢、上限、文言）（純粋な Kotlin/JVM）
+│   ├── common/                   # 日時の表記、URL の分割、管理人の分割表示、参加者、フィルタの一致（純粋な Kotlin/JVM）
+│   ├── network/                  # ChatApi / RealtimeHub / SafetyApi と、supabase-kt・Ktor による実装（§7 の契約）
+│   ├── data/                     # RoomLogRepository、ChatSender、ChatSession、RoomCounts、Ranking
+│   ├── datastore/                # 設定、下書き、フィルタ、同意、端末の鍵（Author_Key）
+│   ├── designsystem/             # Retro_Design_System（トークン、書体、部品、ちゃなりのテーマ）
+│   ├── ui/                       # ChatLog、ChatMessageRow、ParticipantsHeader などドメインの部品
+│   ├── analytics/                # analytics.ts と同じイベントの契約と送信先
+│   └── testing/                  # Fake の API、テストの時計、Contracts の fixtures の読み込み
+├── feature/
+│   ├── onboarding/               # 18 歳以上の確認と同意（R12.1）
+│   ├── home/                     # 部屋一覧（R3）
+│   ├── chatroom/                 # 通常チャット・ランキング（R4〜R9）
+│   ├── allrooms/                 # 全部屋まとめ（R10）
+│   ├── chanari/                  # ちゃなり（R11）
+│   ├── safety/                   # 通報、フィルタの確認の窓と一覧（R12）
+│   └── settings/                 # 設定・ライセンス・データの消去（R18）
+└── baselineprofile/              # Baseline Profile の生成と Macrobenchmark（R19）
 ```
 
-- `core:model`・`core:common`・`core:data` の実装は Android の API を使わない。将来 Kotlin Multiplatform に移せる
-  形にしておく（iOS は対象外）
-- 依存の向きは `feature → core`、`core:data → core:network / datastore / model`。feature 同士は依存しない
-- `.prettierignore` に `android/` を足す。ESLint と `tsc` の対象には入らない（既存の Web の CI に影響しない）
+### 1.1 クリーンに作るための約束
+
+1. **サーバーの規則を書き写さない。** 入力の上限・予約名・metadata の作り直し・入退室の文言・運勢・`clear` の対象は
+   §7 の API が決める。アプリが持つのは「画面に要る値」（Contracts）と、クライアントに残った規則（§8 の fixtures で
+   縛るもの）だけ
+2. **依存は一方向。** `app → feature → core`。`core:data → core:network / datastore / model / common`。feature 同士は
+   依存しない。`core:model`・`core:contracts`・`core:common` は Android に依存しない純粋な Kotlin/JVM のモジュールに
+   する（JVM のテストが速く、将来 Kotlin Multiplatform に移せる）
+3. **モジュールは使うときに作る。** 雛形の段階で空のモジュールを並べない。Task ごとに、テストと一緒に足す
+4. **外部の型を外に出さない。** supabase-kt・Ktor の型は `core:network` の中だけ。上の層はインターフェースと
+   `core:model` の型だけを見る（テストでは Fake に替える）
+5. **テストを先に契約で書く。** クライアントに残った規則は、Web と同じ fixtures（`contracts/fixtures/`）を通して
+   から実装する。テストの名前は日本語にする
+6. **版は 1 か所。** `libs.versions.toml` で固定し、Renovate で上げる。stable でない API は使わない
+7. **見た目は Web_Oracle で受け入れる。** 画面の Task は Roborazzi のスクリーンショットと Web の Storybook を並べて
+   確かめ、結果を Task の完了の記録に残す
 
 ## 2. Web → Android の対応表
 
@@ -626,15 +642,16 @@ Contracts（§8）の生成元にする。計画との違いは
 
 ### 7.5 アプリのために残るサーバーの作業（Phase 0）
 
-| 作業                        | 内容                                                                                                                                                                            |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 通報（R21.4）               | 表 `chat_reports` と Edge Function `report-chat`。§7.6                                                                                                                          |
-| `x-client` の記録（R21.7）  | `save-chat` がスパンの属性 `client.app` に記録する。CORS は要求されたヘッダをそのまま許すので変更は要らない                                                                     |
-| 削除済みを隠すか（Q13・D1） | 案 A なら `public-select` を `USING (deleted = false)` にし、`chat_ranking` を所有者の権限のビューにする。全部屋まとめの見え方が変わるので Web と同時に決める                   |
-| 退室の偽装（R21.8）         | `op: exit` を、その Author_Key が直近にその名前で入室している場合に限るか。限るなら `chat_authors` を入退室の行にも書く（`author: true`）。判断だけ先に済ませ、実装は別の Issue |
-| 制約の `VALIDATE`           | `chats_*_check` と `chats_room_id_fkey`（`NOT VALID`）。アプリとは独立だが、Phase 0 の締めでまとめて片付ける                                                                    |
-| 公開するページ（§7.7）      | `/terms/`・`/privacy/`・`/safety/`                                                                                                                                              |
-| `assetlinks.json`（§7.8）   | 配信の設定                                                                                                                                                                      |
+| 作業                       | 内容                                                                                                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 通報（R21.4）              | 表 `chat_reports` と Edge Function `report-chat`。§7.6                                                                                                            |
+| `x-client` の記録（R21.7） | `save-chat` がスパンの属性 `client.app` に記録する。CORS は要求されたヘッダをそのまま許すので変更は要らない                                                       |
+| Contracts の生成（R21.5）  | `yui-chat-ts` の `scripts/export-contracts.ts` と `contracts/`（§8）。アプリの Task 1.2 の前提                                                                    |
+| 削除済みの発言（Q13・D1）  | **決定済み: 隠さない**（2026-10-11）。`public-select` は `USING (true)` のまま。[消す] の説明は「表示から消す（内容はサーバーに残る）」にそろえる（Web とアプリ） |
+| 退室の偽装（R21.8）        | **決定済み: 受け入れる**（2026-10-11）。`op: exit` は名前を確かめない（本人確認の無い匿名チャットとして、入室と同じ扱い）。サーバーは変えない                     |
+| 制約の `VALIDATE`          | `chats_*_check` と `chats_room_id_fkey`（`NOT VALID`）。アプリとは独立だが、Phase 0 の締めでまとめて片付ける                                                      |
+| 公開するページ（§7.7）     | `/terms/`・`/privacy/`・`/safety/`                                                                                                                                |
+| `assetlinks.json`（§7.8）  | 配信の設定                                                                                                                                                        |
 
 ### 7.6 通報
 
@@ -696,6 +713,15 @@ contracts/
   fixtures と同じことを確かめる。Android は Gradle のタスクで JSON から Kotlin を生成し、JUnit で同じ fixtures を通す
 - `schema.ts`・`messages.ts`・`rooms.ts`・`types.ts`・`windowRows.ts` などを変えたのに `contracts/` を生成し直して
   いなければ、Web の CI が落ちる。`contracts/` が変わると Android の CI も走る（§12）
+
+### 8.1 `okiraku-android` への写し
+
+- `yui-chat-ts` の `contracts/` が正。`okiraku-android` は `scripts/sync-contracts.sh ../yui-chat-ts` で丸ごと写し、
+  写したコミットを `contracts/UPSTREAM` に書く。写しを手で直さない
+- `core:contracts` は写しの JSON をビルドのときに読み、Kotlin の定数（部屋、選択肢、上限、エラーの文言、入退室の文言）を
+  生成する。fixtures は `core:testing` がテストのリソースとして読む
+- 写しが古いと `contracts-drift`（§12）が Issue を開く。互換の無い変更（キーの削除・意味の変更）は `contracts/README.md`
+  の版を上げ、アプリは知らない版を読んだらビルドを落とす
 
 ## 9. 計測と監視（R17）
 
@@ -764,10 +790,14 @@ Managed Device で、PR ごとではなく週に 1 回と公開の前に走ら�
 
 ## 12. CI/CD とリリース（R20.4 / R24）
 
-- `.github/workflows/android.yml`: `android/**`・`contracts/**`・`supabase/functions/save-chat/**` などが変わった PR で、
-  JDK 21 と `gradle/actions/setup-gradle` のキャッシュを使って次を走らせる:
-  `spotlessCheck`・`detekt`・`lint`・`testDebugUnitTest`・`verifyRoborazziDebug`・`assembleRelease`
-- `.github/workflows/android-release.yml`（手動）: 署名した App Bundle を作り、Play の内部テストのトラックに上げる。
+- `okiraku-android` の `.github/workflows/ci.yml`: すべての PR で、JDK 21 と `gradle/actions/setup-gradle` の
+  キャッシュを使って次を走らせる: `spotlessCheck`・`detekt`・`lint`・`test`・`verifyRoborazziDebug`・`assembleRelease`
+- `okiraku-android` の `.github/workflows/contracts-drift.yml`（毎日と手動）: `isrnao/yui-chat-ts` の `main` の
+  `contracts/` と、写した `contracts/`（`UPSTREAM`）を比べ、違えば Issue を開く。Web の変更がアプリを黙って壊さない
+  ようにするため（§14）
+- `yui-chat-ts` 側: `src/test/contracts.test.ts` が生成物の古さを落とす（§8）。`contracts/` を変える PR は、
+  `okiraku-android` で `scripts/sync-contracts.sh` を走らせる PR と対にする（CLAUDE.md に書く）
+- `.github/workflows/release.yml`（手動）: 署名した App Bundle を作り、Play の内部テストのトラックに上げる。
   アップロード鍵と Play のサービスアカウントは GitHub Actions の Secrets に置く
 - versionCode は CI の実行番号、versionName は semver
 - 公開の流れ: 内部テスト → クローズドテスト（12 人以上・14 日間）→ 本番の段階的な公開（10% → 50% → 100%）。
@@ -792,11 +822,11 @@ Managed Device で、PR ごとではなく週に 1 回と公開の前に走ら�
 | Play の審査で匿名チャットとして拒否される       | 18 歳以上、Restrict Minor Access、Safety_Kit、未成年を想定した部屋を出さない、ツーショットを出さない                                                                                              |
 | 通報に人が対応できない                          | 公開の前に運用の手順と初動の時間を決め、テストの通報で確かめる（Gate 2）。対応できないなら公開しない                                                                                              |
 | Web とアプリで規則がずれる                      | 規則はサーバーが正（§7、PR #203 で済）。残りは Contracts と CI（§8）                                                                                                                              |
-| Web の変更がアプリを壊す（`metadata` の形など） | Contracts の生成を Web の CI で必須にし、`contracts/` の変更で Android の CI を走らせる。CLAUDE.md に書く                                                                                         |
+| Web の変更がアプリを壊す（`metadata` の形など） | Contracts の生成を Web の CI で必須にし、`okiraku-android` の `contracts-drift` が毎日 `yui-chat-ts` と比べる（§12）。CLAUDE.md に書く                                                            |
 | サーバーの変更に古いアプリが追いつかない        | `x-client` で版を見分け、互換を保てない変更は In-App Updates の即時更新で古い版を止める。Web は閉塞中の一括配信で済んだが、アプリは古い版が残るので、`save-chat` の変更は「足してから外す」に戻す |
 | `supabase-kt` の保守が止まる・大きく変わる      | `core:network` の中に閉じ込める。PostgREST と Functions は Ktor で直接呼べる                                                                                                                      |
-| 削除済みの発言が API から読める                 | Q13（D1）を Phase 0 で決める。決まるまでアプリの [消す] の説明は「表示から消す」にする                                                                                                            |
-| 他人の名前で退室の発言を出せる                  | R21.8。公開の前に扱いを決める（§7.5）                                                                                                                                                             |
+| 削除済みの発言が API から読める                 | 受け入れる（Q13）。[消す] の説明で「表示から消す」と示し、運営の削除（通報の対応）は別に行う                                                                                                      |
+| 他人の名前で退室の発言を出せる                  | 受け入れる（R21.8）。荒らしに使われたら、言葉・名前のフィルタと通報で扱う                                                                                                                         |
 | レトロの見た目とアクセシビリティがぶつかる      | 見た目の比率は保ち、文字の拡大と押せる範囲は Android に従う（§5.5）                                                                                                                               |
 | 成長戦略の「今はしない」と合わない              | Gate 1 / Gate 2 で指標と準備を見て決め直す（research.md §3）                                                                                                                                      |
 | ツーショットや部屋の名前が日本の法令に触れる    | Phase 0 で法務の確認をしてから範囲を決める                                                                                                                                                        |
