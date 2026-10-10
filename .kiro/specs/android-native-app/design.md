@@ -4,16 +4,25 @@
 
 お気楽チャットTS の Android ネイティブアプリの設計。要件は [requirements.md](./requirements.md)（以下 R と番号）、
 調査は [research.md](./research.md)、作業の順序は [tasks.md](./tasks.md)。requirements.md の「決めること」
-Q1〜Q11 は推奨どおりに決めた前提で書く。
+Q1〜Q13 は推奨どおりに決めた前提で書く。
+
+> **2026-10-11 改訂（PR #203 の後）。** サーバーが規則の正になったので、次のように組み直した。
+>
+> - §7 を「これから作るサーバーの変更」から「**実装済みの契約**（アプリが呼ぶ形）と残りの作業」にした
+> - データ層（§6.3〜§6.7）を、その契約（冪等な再送、400 のコード、`extra`、`clear_my_chats` の uuid 配列、
+>   Author_Key の形）に合わせた。`core:common` から運勢と入退室の組み立てを外した
+> - Contracts（§8）の生成元に `schema.ts` / `messages.ts` を足し、運勢を外した
+> - ブロック（§4.7）を Web の「フィルタ」（`chat-ip-mute`）と同じ規則にした（Q12）
 
 ### 設計方針
 
 1. **見た目は Web、骨格は 2026 年の Android。** 画面の中身（色・書体・罫線・文言・並び・ログの向き）は Web の
    コンポーネントを 1 つずつ Compose に移す。画面の外側（insets、戻る、ウィンドウの大きさ、キーボード、ライフサイクル、
    アクセシビリティ）は Android の作法に従う。両者がぶつかったら、中身は Web、外側は Android を優先する
-2. **規則はサーバーへ寄せ、残るものは Contracts で縛る。** 管理人・巫女の発言と `clear` はサーバーで作る（§7）。
-   クライアントに残る規則（ログの並び、楽観的表示、参加者、日時の表記）は、Web と同じ入力と期待値の JSON で両方を
-   テストする（§8）
+2. **規則はサーバーが持ち、アプリは呼ぶだけ。残るものは Contracts で縛る。** 入力の上限・予約名・metadata・部屋・
+   入退室・おみくじ・`clear`・look の宛先は PR #203 でサーバーが正になった（§7）。アプリはそれを書き写さない。
+   クライアントに残る規則（ログの並び、楽観的表示、参加者、フィルタ、日時の表記）は、Web と同じ入力と期待値の JSON で
+   両方をテストする（§8）
 3. **Web と同じ部屋に同じ形で書く。** アプリ専用の列・専用の部屋・専用の文言を作らない。変えるときはサーバーの契約
    として Web と同時に変える
 4. **Web の Room_Log_Store をそのまま手本にする。** 取得・購読・取り直しの規則は Web で既にテストされている。
@@ -83,11 +92,11 @@ yui-chat-ts/
 │   ├── app/                      # Application、MainActivity、NavDisplay、DI の組み立て
 │   ├── core/
 │   │   ├── model/                # Chat、ChatMetadata、RoomId、RoomMeta、Participant（Android に依存しない）
-│   │   ├── common/               # 日時の表記、URL の分割、入力の検証、運勢（§7 の移行前だけ）
+│   │   ├── common/               # 日時の表記、URL の分割、管理人の分割表示、参加者、フィルタの一致
 │   │   ├── contracts/            # contracts/*.json から生成した Kotlin（部屋の一覧、選択肢、上限）
-│   │   ├── network/              # ChatApi / RealtimeHub / SafetyApi と、supabase-kt・Ktor による実装
+│   │   ├── network/              # ChatApi / RealtimeHub / SafetyApi と、supabase-kt・Ktor による実装（§7 の契約）
 │   │   ├── data/                 # RoomLogRepository、ChatSender、ChatSession、RoomCounts、Ranking
-│   │   ├── datastore/            # 設定、下書き、ブロック、同意、端末の鍵（author key）
+│   │   ├── datastore/            # 設定、下書き、フィルタ、同意、端末の鍵（Author_Key）
 │   │   ├── designsystem/         # Retro_Design_System（トークン、書体、部品、ちゃなりのテーマ）
 │   │   ├── ui/                   # ChatLog、ChatMessageRow、ParticipantsHeader などドメインの部品
 │   │   ├── analytics/            # analytics.ts と同じイベントの契約と送信先
@@ -98,7 +107,7 @@ yui-chat-ts/
 │   │   ├── chatroom/             # 通常チャット・ランキング（R4〜R9）
 │   │   ├── allrooms/             # 全部屋まとめ（R10）
 │   │   ├── chanari/              # ちゃなり（R11）
-│   │   ├── safety/               # 通報・ブロックの一覧（R12）
+│   │   ├── safety/               # 通報、フィルタの確認の窓と一覧（R12）
 │   │   └── settings/             # 設定・ライセンス・データの消去（R18）
 │   └── baselineprofile/          # Baseline Profile の生成と Macrobenchmark（R19）
 └── src/, supabase/, …            # 既存の Web とサーバー
@@ -111,24 +120,30 @@ yui-chat-ts/
 
 ## 2. Web → Android の対応表
 
-| Web                                                    | Android                                                                                 |
-| ------------------------------------------------------ | --------------------------------------------------------------------------------------- |
-| `ChatRoute`（部屋のページ）                            | `ChatRoomScreen` + `ChatRoomViewModel`                                                  |
-| `RetroSplitter`                                        | `RetroSplitter`（`core:designsystem`、§5.3）                                            |
-| `EntryForm` / `ChatRoom`                               | `EntryForm` / `ChatForm`（`feature:chatroom`）                                          |
-| `ChatLogList`（`memo`）/ `ChatMessage`（`memo`）       | `ChatLog`（`LazyColumn`、key は nonce か uuid）/ `ChatMessageRow`（不変な `ChatRowUi`） |
-| `ParticipantsList` + `useNowMinute`                    | `ParticipantsHeader` + 分の境界で進む時計（ヘッダーだけ再コンポーズ）                   |
-| Room_Log_Store（`roomLogStore.ts`）                    | `RoomLogRepository`（規則は純粋な `RoomLogReducer`、§6.2）                              |
-| `useOptimistic` + `reduceOptimisticChat`               | `OptimisticLog`（保存中の発言の `StateFlow`）+ 同じ突き合わせの関数                     |
-| `useChatSession` / `useChatSender`                     | `ChatSession` / `ChatSender`（アプリの寿命の CoroutineScope で保存する）                |
-| `realtime.ts` の channel registry                      | `RealtimeHub`（部屋ごとに 1 channel、参照数で閉じる）                                   |
-| `<Activity mode="hidden">`（ランキング中もログを残す） | ログの `LazyListState` を画面の外に持ち上げて残す                                       |
-| `useActionState`（送信中・エラー）                     | ViewModel の `UiState.sending` / `sendError`                                            |
-| `persistentStore`（`localStorage`）                    | DataStore                                                                               |
-| `webAudioPlayer.ts`                                    | `LookSoundPlayer`（SoundPool）                                                          |
-| `analytics.ts`                                         | `AnalyticsEvent`（同じ名前とパラメータ）                                                |
-| Storybook + Chromatic                                  | `@Preview` + Roborazzi                                                                  |
-| React Compiler に任せて手でメモ化しない                | strong skipping に任せ、`remember` での手動の最適化は計測してから                       |
+| Web                                                         | Android                                                                                          |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `ChatRoute`（部屋のページ）                                 | `ChatRoomScreen` + `ChatRoomViewModel`                                                           |
+| `RetroSplitter`                                             | `RetroSplitter`（`core:designsystem`、§5.3）                                                     |
+| `EntryForm` / `ChatRoom`                                    | `EntryForm` / `ChatForm`（`feature:chatroom`）                                                   |
+| `ChatLogList`（`memo`）/ `ChatMessage`（`memo`）            | `ChatLog`（`LazyColumn`、key は nonce か uuid）/ `ChatMessageRow`（不変な `ChatRowUi`）          |
+| `ParticipantsList` + `useNowMinute`                         | `ParticipantsHeader` + 分の境界で進む時計（ヘッダーだけ再コンポーズ）                            |
+| Room_Log_Store（`roomLogStore.ts`）                         | `RoomLogRepository`（規則は純粋な `RoomLogReducer`、§6.2）                                       |
+| `useOptimistic` + `reduceOptimisticChat`                    | `OptimisticLog`（保存中の発言の `StateFlow`）+ 同じ突き合わせの関数                              |
+| `useChatSession` / `useChatSender`                          | `ChatSession` / `ChatSender`（アプリの寿命の CoroutineScope で保存する）                         |
+| `realtime.ts` の channel registry                           | `RealtimeHub`（部屋ごとに 1 channel、参照数で閉じる）                                            |
+| `<Activity mode="hidden">`（ランキング中もログを残す）      | ログの `LazyListState` を画面の外に持ち上げて残す                                                |
+| `useActionState`（送信中・エラー）                          | ViewModel の `UiState.sending` / `sendError`                                                     |
+| `persistentStore`（`localStorage`）                         | DataStore                                                                                        |
+| `webAudioPlayer.ts`                                         | `LookSoundPlayer`（SoundPool）                                                                   |
+| `saveChat.ts`（`saveChatWithRetry`）                        | `ChatApi.save`（§7.1。応答の行で確定、400 は再試行しない）                                       |
+| `chatQueries.ts` の `clearMyChats`                          | `ChatApi.clearMine`（§7.2。uuid の配列を返す）                                                   |
+| `authorKey.ts`                                              | `AuthorKeyStore`（DataStore、§7.3）                                                              |
+| `ipFilterStore.ts` / `ipFilter.ts`                          | `FilterStore`（DataStore）/ `FilterMatcher`（`core:common`）                                     |
+| `useDoubleTap` + `FilterConfirmDialog` / `FilterListDialog` | `Modifier.pointerInput { detectTapGestures(onDoubleTap) }` + 確認の窓 / 一覧（`feature:safety`） |
+| `haptics.ts`                                                | `HapticFeedbackType.Confirm`（「フィルタする」を押したとき）                                     |
+| `analytics.ts`                                              | `AnalyticsEvent`（同じ名前とパラメータ）                                                         |
+| Storybook + Chromatic                                       | `@Preview` + Roborazzi                                                                           |
+| React Compiler に任せて手でメモ化しない                     | strong skipping に任せ、`remember` での手動の最適化は計測してから                                |
 
 ## 3. 画面とナビゲーション
 
@@ -143,7 +158,7 @@ yui-chat-ts/
 @Serializable data class Chanari(val roomId: String) : AppRoute
 @Serializable data class Report(val chatUuid: String, val roomId: String) : AppRoute // ボトムシート
 @Serializable data object Settings : AppRoute
-@Serializable data object BlockedUsers : AppRoute
+@Serializable data object Filters : AppRoute // フィルタの一覧（Web の FilterListDialog）
 @Serializable data class Document(val kind: DocKind) : AppRoute // 規約・プライバシー・安全ガイド・使い方・ルール
 ```
 
@@ -267,8 +282,12 @@ LazyColumn(state = logListState) {
   2 行目（UA・訪問回数・LAST LOGIN）を付ける。「Issue #N」は自リポジトリの Issue へのリンクにする
 - **参加者**: 分の境界で進む時計（Web の `useNowMinute`）をヘッダーの中だけで読む。1 分ごとに再コンポーズされるのは
   ヘッダーだけにする
+- **ダブルタップ**: Web の `chat-ip-mute` と同じく、行のどこでもダブルタップでフィルタの確認の窓を出す（§4.7）。
+  押した場所で種類を決める（名前 → 名前、本文 → 言葉、それ以外 → IP）。リンクの上では反応しない
 - **長押し**: 本文の選択（`SelectionContainer`）とは別に、行の長押しでレトロな枠のメニュー（コピー／通報する／
-  この人を表示しない）を出す。通報は 2 操作（長押し → 通報する）で届く（R12.2）
+  フィルタする）を出す。通報は 2 操作（長押し → 通報する）で届く（R12.2）。Web は長押しを文字の選択に残して
+  いるが、アプリでは通報の導線が要るのでメニューを足す（文字の選択はメニューの「コピー」と、ダブルタップの
+  言葉のフィルタの窓の中で行える）
 - **多い行数**: 1000 行でも `LazyColumn` は見えている行だけを作る。Web の `content-visibility: auto` に当たる工夫は
   要らない
 - **状態の表示**: 読み込み中・失敗・発言なしは Web と同じ文言にする。つながっていないときはログを残したまま、上に
@@ -292,7 +311,7 @@ LazyColumn(state = logListState) {
 - 鳴らすのは、アプリが前面にあり、端末がマナーモードでなく、設定の「音を鳴らす」が有効なときだけ。Web と違い、
   音を鳴らすための操作（解錠）は要らない
 - 自分の `look` は保存が終わったら鳴らし、`unlook` で止める。ほかの人の `look` / `unlook` は、Realtime で届いた
-  INSERT の本文で鳴らす・止める（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` S8。Broadcast は使わない）。取得で入った
+  INSERT の本文で鳴らす・止める（Web も #198 で同じ形にした。broadcast は無い）。取得で入った
   過去の発言と自分の発言では鳴らさない
 
 ### 4.4 ランキング（R9）
@@ -321,14 +340,18 @@ LazyColumn(state = logListState) {
 - **通報**: `Report` のボトムシート。理由（児童の安全に関わる／性的な内容／嫌がらせ・脅し／個人情報・連絡先の要求／
   スパム・宣伝／その他）を選び、任意の説明（500 文字）を足して送る。送ったら「通報を受け付けました」を出す。
   児童の安全に関わる理由を選んだときは、緊急時の相談先（警察の窓口など）も示す
-- **ブロック**: 発言者の名前を端末の一覧に足し、その名前の発言と参加者を表示から外す。匿名のチャットで発言者を
-  見分けられるのは名前だけなので、同じ名前の別人も隠れることを一覧の画面で説明する
+- **ブロック（フィルタ、Q12）**: Web の `chat-ip-mute` の Filter_List をそのまま持ち込む。種類は IP（伏せ字。
+  `{ ip, names }`）・名前・言葉で、3 種類で最大 50 件。確認の窓の見出しと説明、一致の規則（名前は完全一致で入退室の
+  `subject` にも当てる、言葉は NFKC・大文字小文字を区別しない 50 文字まで、管理人の定型文には当てない）、一覧の
+  並び（追加した順、隠れている件数）は Web と同じ。「フィルタする」を押したら `HapticFeedbackType.Confirm` で震わせる。
+  伏せ字の IP は別人と同じ値になりうることを一覧の画面で説明する（Web と同じ文言）
+- フィルタはログの切り出し（`take(windowRows)`）の**前**に取り除く（Web の Requirement 5.1 と同じ）
 - **連絡先の警告**（P1）: 発言に電話番号・メールアドレス・SNS の ID らしい文字列があれば、送る前に
   「連絡先を書き込むのは危険です」と確かめる（成長戦略 §7.1）
 
 ### 4.8 設定（`feature:settings`、R17 / R18）
 
-音を鳴らす、計測を送る、表示しない人の一覧、端末のデータを消す、利用規約・プライバシーポリシー・安全ガイド、
+音を鳴らす、計測を送る、フィルタの一覧、端末のデータを消す、利用規約・プライバシーポリシー・安全ガイド、
 お問い合わせ（管理者チャットを開く）、ライセンス（DotGothic16 の SIL OFL と OSS）、版。
 
 ## 5. Retro_Design_System（R14）
@@ -462,13 +485,18 @@ data class Chat(
 send(message)
   ├ 1. 楽観的な発言を作る（uuid: temp-…、metadata.optimisticNonce: ランダム、optimistic: true）
   ├ 2. OptimisticLog に足す → UI は combine(repository.state, optimisticLog) で先頭に重ねる
-  ├ 3. save-chat を呼ぶ（操作 ID は全試行で共通、x-chat-attempt、1 秒 → 2 秒で最大 3 回）
-  ├ 4a. 成功: repository.applySaved(saved) → OptimisticLog から nonce で外す
-  └ 4b. 失敗: OptimisticLog から外し、UiState.sendError に文言を出す
+  ├ 3. ChatApi.save（§7.1。操作 ID は全試行で共通、x-chat-attempt、5xx と通信の失敗だけ 1 秒 → 2 秒で最大 3 回）
+  ├ 4a. 成功: 応答の行（色・metadata もサーバーの値）を repository.applySaved → extra があれば同じく合流
+  │        → OptimisticLog から nonce で外す
+  ├ 4b. 400: 再試行せず OptimisticLog から外し、コードに応じた文言（chat-options.json）を出す
+  └ 4c. 5xx・通信: 3 回で諦めて外し、「発言を送信できませんでした。…」を出す
 ```
 
+- 再送はサーバーが操作 ID で冪等にするので、アプリは「保存されたか分からない」場合を区別しなくてよい
+  （同じ ID で送り直せば、保存済みなら 1 回目の行が返る）
 - 重ね方は Web の `reduceOptimisticChat` と同じ（nonce が確定行にあれば重ねない。nonce が無い古いデータだけ
   `client_time` で比べる）。Contracts の例で両方をテストする
+- 入退室も同じ流れで、楽観的な行は `server-messages.json` の文言で作り、`op` と `nonce` だけを送る
 - 保存はアプリの寿命の CoroutineScope で走らせる。送信した直後に画面を離れても保存は続く（Web ではページを
   離れると止まる。アプリでは失わない方を選ぶ）
 - User-Agent は `Mozilla/5.0 (Linux; Android <版>; K) OkirakuChatApp/<版>` にする。入室の発言の 2 行目に UA が
@@ -476,32 +504,35 @@ send(message)
 
 ### 6.4 ChatSession とコマンド
 
-Web の `useChatSession` と同じ分け方にする（部屋単位と全部屋まとめの違いも同じ）。§7.1 の変更の後は次のとおり。
+Web の `useChatSession` と同じ分け方にする（部屋単位と全部屋まとめの違いも同じ）。送るものはすべて §7 の契約。
 
-| 操作       | 送るもの                                                        | 画面                                       |
-| ---------- | --------------------------------------------------------------- | ------------------------------------------ |
-| 入室       | こっそりでなければ `save-chat` の `op: "enter"`                 | 保存を待たずに入室後の画面。失敗したら戻す |
-| 退室       | `op: "exit"`                                                    | 先に入室前の画面へ戻してから送る           |
-| 発言       | `op: "say"`（今の Web と同じ中身）                              | 楽観的表示                                 |
-| `おみくじ` | `op: "say"`。巫女の返事はサーバーが足し、応答と Realtime で届く | 自分の発言は楽観的表示                     |
-| `clear`    | SQL 関数 `clear_my_chats`（RPC。§7.2）                          | 消した件数を受け取り、ログから外す         |
-| `look`     | `op: "say"`（受け手は INSERT で鳴らす）                         | 通知音                                     |
-| `unlook`   | 同上                                                            | 通知音を止める                             |
-| `cut`      | 何も送らない                                                    | 分析のイベントだけ                         |
+| 操作       | 送るもの                                                       | 画面                                                                           |
+| ---------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 入室       | こっそりでなければ `save-chat` の `op: "enter"`                | 保存を待たずに入室後の画面。失敗したら戻す（`reserved_name` などの文言）       |
+| 退室       | `op: "exit"`                                                   | 先に入室前の画面へ戻してから送る                                               |
+| 発言       | `op: "say"`（`system` は送らない）                             | 楽観的表示                                                                     |
+| `おみくじ` | `op: "say"`。巫女の返事はサーバーが作り、応答の `extra` で届く | 自分の発言は楽観的表示。巫女は `extra` で即時（Realtime と uuid で重ならない） |
+| `clear`    | RPC `clear_my_chats`（§7.2）                                   | 返った uuid をログから外す。全部屋まとめで空なら「削除対象の発言がありません」 |
+| `look`     | `op: "say"`（受け手は INSERT で鳴らす）                        | 保存が終わったら自分の通知音                                                   |
+| `unlook`   | 同上                                                           | 通知音を止める                                                                 |
+| `cut`      | 何も送らない                                                   | 分析のイベントだけ                                                             |
 
 訪問回数は Web の「タブのセッションごとに 1 回」に合わせ、プロセスの起動時と、裏に 30 分以上いてから前面に戻った
 ときに 1 回数える。
 
 ### 6.5 参加者
 
-Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で受け取る純粋な関数）。ブロックした名前はここで
-外す。入退室は、サーバーが `metadata` に書く `event` / `subject`（`docs/SERVER_SIDE_LOGIC_REFACTORING.md` S9）で
-判定し、それが無い古い行だけ Web と同じ正規表現で読む。
+Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で受け取る純粋な関数）。名前のフィルタに当たる人は
+ここで外す。入退室は、サーバーが `metadata` に書く `event` / `subject`（#197 で実装済み）で判定し、それが無い古い行
+だけ Web と同じ正規表現（`adminMessage.ts`）で読む。
 
 ### 6.6 RealtimeHub
 
-- 部屋ごとに `chats-postgres-<roomId>` の channel を 1 つ持ち、購読の参照数が 0 になったら閉じる（Web の
-  `postgresEntries`）。look / unlook も同じ channel の INSERT で受けるので、broadcast の channel は持たない
+- 部屋ごとに `chats-postgres-<roomId>`（全部屋まとめは `chats-postgres-all`）の channel を 1 つ持ち、購読の参照数が
+  0 になったら閉じる（Web の `postgresEntries`）。look / unlook も同じ channel の INSERT で受ける（Web も #198 で
+  broadcast をやめた）
+- Realtime は UPDATE を流さないので、`clear` で消えた行は `clear_my_chats` の戻り値で外す。ほかの人の `clear` は
+  次の取り直しで消える（Web と同じ）
 - 接続の状態を `connecting` / `connected` / `disconnected` で流し、RoomLogRepository が `connected` への遷移で
   取り直す
 - supabase-kt の型は `core:network` の外に出さない。`RealtimeHub` のインターフェースだけを `core:data` に見せ、
@@ -514,8 +545,8 @@ Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で
 | `settings`  | 名前、色、メール、アバター、訪問回数、今回・前回のログイン、音、計測 | 含めない     | 消す          |
 | `consent`   | 同意した規約の版、18 歳以上の確認                                    | 含めない     | 消す          |
 | `drafts`    | ちゃなりの部屋ごとの下書き                                           | 含めない     | 消す          |
-| `blocks`    | 表示しない名前                                                       | 含めない     | 消す          |
-| `authorKey` | 端末の秘密の値（32 バイトの乱数。§7.2）                              | 含めない     | 作り直す      |
+| `filters`   | Filter_List（IP・名前・言葉。Web の `ipFilterStore` と同じ形）       | 含めない     | 消す          |
+| `authorKey` | Author_Key（32 バイトの乱数の base64url、43 文字。§7.3）             | 含めない     | 作り直す      |
 
 - ログは端末に保存しない（初版はメモリだけ。R18.3）。すぐに開きたい要望が強ければ、直近 100 件・24 時間の
   キャッシュを Phase 5 で検討する
@@ -529,66 +560,102 @@ Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で
 - 取得の再試行は Web の `retry.ts` と同じ（最大 3 回、1 秒 → 2 秒）。3 秒を超えた呼び出しは監視に記録する
 - すべての要求に `x-client: android/<versionName>` を付け、サーバーが古い版を見分けられるようにする（§14）
 
-## 7. サーバー側の変更（Phase 0、R21）
+## 7. サーバーの契約（R21）
 
-アプリの有無に関わらず Web にも効く変更。Web を先に切り替え、移行の間は今の送り方を壊さない（R21.3）。
-§7.1・§7.2 と、入力の検証・`metadata` の許可リスト・部屋の表・look の通知は
-[`docs/SERVER_SIDE_LOGIC_REFACTORING.md`](../../../docs/SERVER_SIDE_LOGIC_REFACTORING.md)（S1〜S10）を正とし、
-ここには Android から見た要点だけを書く。
+PR #203（Issue #175〜#188）で、Web が持っていた規則は `save-chat` と DB に移った。アプリが呼ぶのは次の形で、
+**アプリのためにサーバーを変えるところは §7.5 だけ**。規則の中身（上限の値・文言・運勢）は
+`supabase/functions/save-chat/schema.ts` と `messages.ts` が正で、どちらも import を持たない TypeScript なので
+Contracts（§8）の生成元にする。計画との違いは
+[`docs/SERVER_SIDE_LOGIC_REFACTORING.md`](../../../docs/SERVER_SIDE_LOGIC_REFACTORING.md)「実施の結果」。
 
-### 7.1 `save-chat` の `op`（Q4）
+### 7.1 `save-chat`
 
 ```jsonc
+// 発言（op を省くと say）
+{ "op": "say", "room_id": "superbeginner", "name": "ゆい", "color": "#ff69b4",
+  "message": "おみくじ", "email": null,
+  "metadata": { "version": 1, "fontStyle": { "bold": true }, "avatar": "hoshi1", "optimisticNonce": "…" } }
 // 入室（こっそりのときは呼ばない）
 { "op": "enter", "room_id": "superbeginner", "name": "ゆい", "color": "#ff69b4",
-  "visit_count": 49, "last_login": 1735806900000 }
+  "visit_count": 49, "last_login": 1735806900000, "nonce": "…" }
 // 退室
-{ "op": "exit", "room_id": "superbeginner", "name": "ゆい", "color": "#ff69b4" }
-// 発言（op を省くと say。今の Web の要求と同じ）
-{ "op": "say", "room_id": "superbeginner", "name": "ゆい", "color": "#ff69b4",
-  "message": "おみくじ", "email": null, "metadata": { "version": 1, "fontStyle": { "bold": true } } }
+{ "op": "exit", "room_id": "superbeginner", "name": "ゆい", "color": "#ff69b4", "nonce": "…" }
 ```
 
-- `enter` / `exit` はサーバーが Web と 1 文字も違わない文言と metadata（`kind: "admin"`、名前「管理人」、
-  `avatar: "hoshi1"`、`userColor`、太字、`visitCount`、`lastLogin`）で管理人の発言を作る
-- `say` の本文が `おみくじ` なら、利用者の発言を保存した後に巫女の返事（`kind: "fortune"`、`miko1`、`hotpink`）を
-  保存し、応答の `extra` に入れて返す。運勢の 12 通りは `save-chat` に移し、Web の `fortuneBot.ts` は消す
-- Web をこの形に切り替え、本番で 1 週間問題がなければ、`say` で `metadata.kind` が `admin` / `fortune` のもの、
-  `system: true` のものを 400 で拒否する。アプリは最初からこの形だけを使う
-- 応答の形は Contracts（`contracts/fixtures/save-chat/`）に置き、Deno のテストと Kotlin のテストで同じものを使う
+| 項目     | 契約                                                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ヘッダ   | `x-chat-operation-id`（送信操作ごとの UUID。全試行で同じ）、`x-chat-attempt`（1〜9）、`x-chat-author-key`（§7.3）、`traceparent`、`x-client`（§7.5）                                 |
+| 入力     | 名前は前後の空白を除いて 1〜24 コードポイント・制御文字なし・予約名でない。発言は 1〜120 grapheme（かつ 2000 コードポイント以内）。メールは 64 以内。`system`・`ip`・`ua` は読まない |
+| 色       | `#rgb`・`#rrggbb`・CSS の色名は小文字にして保存、それ以外は拒否せず `#ff69b4`                                                                                                        |
+| metadata | `version: 1`・`fontStyle`（`fontSize` 1〜5、`fontColor` 15 色、`bold`）・`avatar`（13 種）・`optimisticNonce`（64 以内）だけに作り直す。ほかは落とす（拒否しない）                   |
+| 応答 200 | 保存した行（`uuid`・`room_id`・`time`・`ip_masked`・`ua`・`name`・`color`・`message`・`system`・`metadata`）。おみくじなら巫女の行を `extra` に入れる                                |
+| 応答 400 | `{ "error": { "code": … } }`。`invalid_room_id`・`invalid_name`・`reserved_name`・`invalid_message`・`invalid_email`・`invalid_op`・`invalid_json`。**再試行しない**                 |
+| 応答 5xx | 本文は形を約束しない。1 秒 → 2 秒で最大 3 回再試行する                                                                                                                               |
+| 冪等     | 同じ `x-chat-operation-id` の 2 回目以降は新しく入れず、1 回目の行を返す（24 時間）。保存の直後に通信が切れて再送しても二重にならない                                                |
+| 入退室   | 文言と metadata（`kind: "admin"`、名前「管理人」、`hoshi1`、`userColor`、`event`、`subject`、`visitCount`、`lastLogin`）はサーバーが作る。`nonce` は本文の最上位に置く               |
 
-### 7.2 `clear` の移行
+- アプリは**応答の行で楽観的な行を確定する**（色と metadata もサーバーが直した値にする。Web の `saveChatWithRetry` と同じ）
+- 入退室の楽観的な行は、`messages.ts` の `enterMessage` / `exitMessage` と同じ文言で作る（Contracts の
+  `server-messages.json`）。保存される内容はサーバーが決め、`nonce` で突き合わせる
 
-- 端末（Web はブラウザ）ごとに 32 バイトの乱数（author key）を作り、`save-chat` に `x-chat-author-key` で送る。
-  サーバーは SHA-256 のハッシュを **別の表** `chat_authors(chat_uuid, author_key_hash)` に保存する。この表は RLS を
-  有効にしてポリシーを作らず、Realtime の publication にも入れない（`chats` に列を足すと Realtime で流れるおそれが
-  あるため）
-- SQL 関数 `clear_my_chats(room_id, name, author_key)`（PostgREST の RPC）が、部屋と名前に加えて author key の
-  ハッシュが一致する発言だけを論理削除し、消した件数を返す。Edge Function にしないのは、今の PATCH と同じ 1 往復で
-  コールドスタートが無いため。Web のブラウザは `localStorage` に author key を持つ（消されたら、それより前の発言は
-  消せなくなる。今の「名前が同じなら誰でも消せる」より狭いことを Web の文言で示す）
-- Web とアプリが切り替わったら、anon の `public-update` ポリシーと `UPDATE (deleted)` の権限を外す
-- 切り替え前の発言（ハッシュが無い）は `clear` で消せなくなる。運営の削除（通報の対応）で扱う
+### 7.2 `clear_my_chats`
 
-### 7.3 通報
+`POST /rest/v1/rpc/clear_my_chats { p_room_id, p_name, p_author_key }` → 消した行の uuid の配列。
+
+- 書いた端末の鍵・部屋・名前が一致し、まだ消していない行だけを消す。鍵の無い移行前の発言、別の端末で書いた発言は消えない
+- アプリは返った uuid を手元のログから外す（Realtime は UPDATE を流さないため）。全部屋まとめで空なら
+  「削除対象の発言がありません」
+- anon の `UPDATE` は閉じたので、PostgREST の PATCH の経路は無い
+
+### 7.3 Author_Key
+
+- 32 バイトの乱数を base64url（パディングなし、43 文字）にしたもの。サーバーは `^[A-Za-z0-9_-]{43}$` に合わない鍵を
+  黙って捨てる（保存は成功するが、その発言は後で消せない）。**形を Contracts の fixtures で縛る**
+- DataStore に持ち、バックアップから外す（§6.7）。アプリを消す・データを消すと、それより前の発言は消せなくなる。
+  [消す] の説明の文言は Web と同じにする
+
+### 7.4 読むもの
+
+| 用途       | 経路                                                                                              |
+| ---------- | ------------------------------------------------------------------------------------------------- |
+| ログ       | `GET chats`（`deleted=eq.false`、`uuid` 降順）。全部屋まとめは `deleted` を問わない（Web と同じ） |
+| 新着・look | Realtime `chats-postgres-<roomId>` / `chats-postgres-all` の INSERT。`ip` は届かない（#190）      |
+| 部屋       | `rooms`（`id`・`category`）。アプリは Contracts の一覧を正にし、`rooms` は CI の照合だけに使う    |
+| 人数       | RPC `room_participant_counts`                                                                     |
+| ランキング | `chat_ranking` ビュー                                                                             |
+
+### 7.5 アプリのために残るサーバーの作業（Phase 0）
+
+| 作業                        | 内容                                                                                                                                                                            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 通報（R21.4）               | 表 `chat_reports` と Edge Function `report-chat`。§7.6                                                                                                                          |
+| `x-client` の記録（R21.7）  | `save-chat` がスパンの属性 `client.app` に記録する。CORS は要求されたヘッダをそのまま許すので変更は要らない                                                                     |
+| 削除済みを隠すか（Q13・D1） | 案 A なら `public-select` を `USING (deleted = false)` にし、`chat_ranking` を所有者の権限のビューにする。全部屋まとめの見え方が変わるので Web と同時に決める                   |
+| 退室の偽装（R21.8）         | `op: exit` を、その Author_Key が直近にその名前で入室している場合に限るか。限るなら `chat_authors` を入退室の行にも書く（`author: true`）。判断だけ先に済ませ、実装は別の Issue |
+| 制約の `VALIDATE`           | `chats_*_check` と `chats_room_id_fkey`（`NOT VALID`）。アプリとは独立だが、Phase 0 の締めでまとめて片付ける                                                                    |
+| 公開するページ（§7.7）      | `/terms/`・`/privacy/`・`/safety/`                                                                                                                                              |
+| `assetlinks.json`（§7.8）   | 配信の設定                                                                                                                                                                      |
+
+### 7.6 通報
 
 - 表 `chat_reports`: `id`（uuid v7）、`chat_uuid`、`room_id`、`reason`、`detail`（500 文字）、`snapshot`
   （通報の時点の名前・本文・時刻・マスク済み IP。後で `clear` されても残す）、`reporter_author_key_hash`、`ip`、`ua`、
   `created_at`、`status`（`open` / `reviewing` / `resolved` / `rejected`）、`handled_at`、`handled_note`。
   RLS を有効にしてポリシーを作らず、`service_role` だけが読み書きする
-- Edge Function `report-chat`（`verify_jwt = false`）: 入力を検証し、同じ IP と同じ author key からの通報を 1 時間に
-  10 件までにする。児童の安全に関わる理由は、New Relic のイベントからアラートを出し、PagerDuty で運営に知らせる。
-  それ以外は運営が毎日確かめる
+- 鍵のハッシュは `insert_chat` と同じ `author_key_hash()` を使う（形の合わない鍵は NULL）
+- Edge Function `report-chat`（`verify_jwt = false`）: 入力の検証は `save-chat` と同じく依存の無い `schema.ts` に置き、
+  エラーは `{ "error": { "code" } }` の形にそろえる。同じ IP と同じ author key からの通報を 1 時間に 10 件までにする。
+  児童の安全に関わる理由は、New Relic のイベントからアラートを出し、PagerDuty で運営に知らせる。それ以外は運営が毎日確かめる
 - 通報の本文と対象の発言は公開の GitHub Issue に載せない（`save-chat` の triage とは別の経路にする）
 - Web にも同じ通報の導線を足す（成長戦略 §7.1 の P0。アプリだけに通報があるのは不自然なため）
 
-### 7.4 公開するページ
+### 7.7 公開するページ
 
 `/terms/`（利用規約）、`/privacy/`（プライバシーポリシー。外部送信の公表を含む）、`/safety/`（安全ガイド。CSAE を
 禁じる基準、通報の方法、対応の流れ、相談先）を Web に足し、トップのフッターとアプリからリンクする。文面は運営が書き、
 版と URL を `contracts/legal.json` に置く。
 
-### 7.5 `assetlinks.json`（R16）
+### 7.8 `assetlinks.json`（R16）
 
 - `public/.well-known/assetlinks.json` にアプリの署名証明書（Play App Signing の鍵）の SHA-256 を載せる
 - `gh-pages` は既定でドットファイルを公開しないので、`deploy` を `gh-pages -d dist --dotfiles` にし、`public/.nojekyll`
@@ -598,30 +665,37 @@ Web の `getRecentParticipants` を `core:common` に写す（時刻を引数で
 ## 8. Contracts
 
 `scripts/export-contracts.ts`（既存の `generate-sitemap.ts` と同じく `node --experimental-strip-types` で動かす）が
-Web のソースから生成する。生成物はリポジトリに入れる。
+Web とサーバーのソースから生成する。生成物はリポジトリに入れる。規則の多くがサーバーへ移ったので、Contracts の
+役目は「**画面に要る値**」と「**クライアントに残った規則の期待値**」の 2 つになった。
 
 ```text
 contracts/
 ├── README.md
-├── rooms.json          # id、title、description、category、appScope（"all" | "web-only"）
-├── directory.json      # トップの chatDirectoryGroups（見出し・補足・色・部屋 ID）
-├── theme.json          # theme.css の色と書体の並び
-├── chat-options.json   # 上限（名前 24・発言 120・メール 64・色 12）、ログ行数、Size、15 色、アバター
-├── legal.json          # 規約の版と URL
+├── rooms.json            # rooms.ts: id、title、description、category、appScope（"all" | "web-only"）
+├── directory.json        # top/data.ts の chatDirectoryGroups（見出し・補足・色・部屋 ID）
+├── theme.json            # theme.css の色と書体の並び
+├── chat-options.json     # schema.ts: 上限（名前 24・発言 120・メール 64）、FONT_SIZES、FONT_COLOR_NAMES、AVATAR_IDS、
+│                         #   エラーのコードと画面の文言（saveChat.ts の INPUT_ERROR_MESSAGES）。ログ行数（windowRows.ts）
+├── server-messages.json  # messages.ts: 入退室の文言の型、ADMIN_* / FORTUNE_* の名前・色・アバター
+├── legal.json            # 規約の版と URL
 └── fixtures/
     ├── chat-rows/          # PostgREST の行 → 期待する表示（日時の文字列、管理人の分割、参加者）
     ├── room-log-events/    # Room_Log_Store のイベント列 → 期待する並び
     ├── optimistic/         # 保存中の発言と確定行 → 期待する重ね方
-    └── save-chat/          # 要求と応答（§7.1）
+    ├── filters/            # Filter_List と行 → 隠れる行（ipFilter.ts）
+    ├── author-key/         # 鍵の形（合う・合わない）
+    └── save-chat/          # 要求と応答（§7.1。handler.test.ts の場面から）
 ```
 
+- 運勢の 12 通りは**持たない**（サーバーだけが使う）
 - `appScope` は `rooms.ts` に `appScope` を足して持つ（Q2: `elementary`・`juniorhighschool`・`juniorhighschool3`・
-  `highschool`・`10generations`・`2shot` を `web-only`）。Web の動きは変えない
+  `highschool`・`10generations`・`2shot` を `web-only`）。Web の動きは変えない。`rooms` 表には足さない（アプリの
+  表示の都合で、サーバーの規則ではないため）
 - Vitest（`src/test/contracts.test.ts`）が、生成し直した結果とリポジトリの中身が同じことと、fixtures を Web の関数に
-  通して期待値になることを確かめる。Android は Gradle のタスクで JSON から Kotlin を生成し、JUnit で同じ fixtures を
-  通す
-- Web の `types.ts`・`rooms.ts`・`windowRows.ts` などを変えたのに `contracts/` を生成し直していなければ、Web の CI が
-  落ちる。`contracts/` が変わると Android の CI も走る（§12）
+  通して期待値になることを確かめる。`fixtures/save-chat/` は Deno の `handler.test.ts` でも読み、サーバーの応答が
+  fixtures と同じことを確かめる。Android は Gradle のタスクで JSON から Kotlin を生成し、JUnit で同じ fixtures を通す
+- `schema.ts`・`messages.ts`・`rooms.ts`・`types.ts`・`windowRows.ts` などを変えたのに `contracts/` を生成し直して
+  いなければ、Web の CI が落ちる。`contracts/` が変わると Android の CI も走る（§12）
 
 ## 9. 計測と監視（R17）
 
@@ -641,14 +715,14 @@ contracts/
 | 通信           | HTTPS / WSS のみ（cleartext を許さない）                                                 |
 | IP / UA        | 送らない。表示は `ip_masked`。UA は機種を出さない形（§6.3）                              |
 | 端末の保存     | DataStore。バックアップと端末間の移行から外す。ログは保存しない                          |
-| author key     | 乱数 32 バイト。サーバーはハッシュだけを、Realtime に流れない表に持つ                    |
+| Author_Key     | 乱数 32 バイト。サーバーはハッシュだけを、Realtime に流れない表（`chat_authors`）に持つ  |
 | リンク         | Custom Tabs で開く。本文から作るリンクは `http` / `https` / `mailto` だけ                |
 | 難読化         | R8（full mode）                                                                          |
 | 年齢           | Play の Restrict Minor Access + アプリ内の確認（§4.1）                                   |
 | Play Integrity | 使わない。同じ API を Web が無認証で使うため、アプリだけ確かめても防げない               |
 
-**確かめること**: Realtime の `postgres_changes` の INSERT のペイロードに、anon が列の権限で読めない `ip` が含まれて
-いないか。含まれていれば Web にも関わる問題なので、Phase 0 で直す（tasks.md Task 0.3）。
+**確かめたこと**: Realtime の `postgres_changes` の INSERT のペイロードに `ip` は含まれない（#190 で実測し、CI で
+毎回確かめている）。`email` と `ua` は含まれる（Web と同じく公開の値として扱う）。
 
 ## 11. テスト戦略（R20）
 
@@ -672,13 +746,15 @@ contracts/
 ### 11.3 画面のテスト（Robolectric + Compose UI Test、PR ごと）
 
 - 入室の検証、発言で発言欄が空になること、ほかの人の発言でフォーカスが動かないこと、ランキングから戻ってもスクロール
-  位置が残ること、長押しから 2 操作で通報に届くこと、ブロックした名前が消えること
+  位置が残ること、長押しから 2 操作で通報に届くこと、ダブルタップした場所でフィルタの種類が決まり、フィルタした行が切り出しの前に消えること
 - 押せる範囲が 48dp 以上であること、支援技術の名前（Web の `aria-label` と同じ文言）が付いていること
 
 ### 11.4 Web とアプリの相互の確認
 
 - ローカルの Supabase（`supabase start` + `supabase functions serve`）に、アプリの `ChatApi` で発言し、PostgREST で
   読み返した行が、Web の `saveChat.ts` で保存した行と同じ形であることを確かめる（JVM のテスト、専用の CI）
+- 同じテストで §7 の契約を確かめる: 同じ操作 ID の再送で行が増えないこと、`reserved_name` などの 400 で再試行しないこと、
+  おみくじの `extra`、別の Author_Key では `clear_my_chats` が空を返すこと、アプリの鍵で Web と同じく消せること
 - 手動: 実機のアプリと Web で同じ部屋に入り、入退室・発言・look・おみくじ・clear・通報を交互に行う
 
 ### 11.5 性能
@@ -711,18 +787,19 @@ Managed Device で、PR ごとではなく週に 1 回と公開の前に走ら�
 
 ## 14. リスクと対策
 
-| リスク                                          | 対策                                                                                                      |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Play の審査で匿名チャットとして拒否される       | 18 歳以上、Restrict Minor Access、Safety_Kit、未成年を想定した部屋を出さない、ツーショットを出さない      |
-| 通報に人が対応できない                          | 公開の前に運用の手順と初動の時間を決め、テストの通報で確かめる（Gate 2）。対応できないなら公開しない      |
-| Web とアプリで規則がずれる                      | 規則をサーバーへ（§7）、残りは Contracts と CI（§8）                                                      |
-| Web の変更がアプリを壊す（`metadata` の形など） | Contracts の生成を Web の CI で必須にし、`contracts/` の変更で Android の CI を走らせる。CLAUDE.md に書く |
-| サーバーの変更に古いアプリが追いつかない        | `x-client` で版を見分け、互換を保てない変更は In-App Updates の即時更新で古い版を止める                   |
-| `supabase-kt` の保守が止まる・大きく変わる      | `core:network` の中に閉じ込める。PostgREST と Functions は Ktor で直接呼べる                              |
-| Realtime に `ip` が流れている                   | Phase 0 で確かめて直す（§10）                                                                             |
-| レトロの見た目とアクセシビリティがぶつかる      | 見た目の比率は保ち、文字の拡大と押せる範囲は Android に従う（§5.5）                                       |
-| 成長戦略の「今はしない」と合わない              | Gate 1 / Gate 2 で指標と準備を見て決め直す（research.md §3）                                              |
-| ツーショットや部屋の名前が日本の法令に触れる    | Phase 0 で法務の確認をしてから範囲を決める                                                                |
+| リスク                                          | 対策                                                                                                                                                                                              |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Play の審査で匿名チャットとして拒否される       | 18 歳以上、Restrict Minor Access、Safety_Kit、未成年を想定した部屋を出さない、ツーショットを出さない                                                                                              |
+| 通報に人が対応できない                          | 公開の前に運用の手順と初動の時間を決め、テストの通報で確かめる（Gate 2）。対応できないなら公開しない                                                                                              |
+| Web とアプリで規則がずれる                      | 規則はサーバーが正（§7、PR #203 で済）。残りは Contracts と CI（§8）                                                                                                                              |
+| Web の変更がアプリを壊す（`metadata` の形など） | Contracts の生成を Web の CI で必須にし、`contracts/` の変更で Android の CI を走らせる。CLAUDE.md に書く                                                                                         |
+| サーバーの変更に古いアプリが追いつかない        | `x-client` で版を見分け、互換を保てない変更は In-App Updates の即時更新で古い版を止める。Web は閉塞中の一括配信で済んだが、アプリは古い版が残るので、`save-chat` の変更は「足してから外す」に戻す |
+| `supabase-kt` の保守が止まる・大きく変わる      | `core:network` の中に閉じ込める。PostgREST と Functions は Ktor で直接呼べる                                                                                                                      |
+| 削除済みの発言が API から読める                 | Q13（D1）を Phase 0 で決める。決まるまでアプリの [消す] の説明は「表示から消す」にする                                                                                                            |
+| 他人の名前で退室の発言を出せる                  | R21.8。公開の前に扱いを決める（§7.5）                                                                                                                                                             |
+| レトロの見た目とアクセシビリティがぶつかる      | 見た目の比率は保ち、文字の拡大と押せる範囲は Android に従う（§5.5）                                                                                                                               |
+| 成長戦略の「今はしない」と合わない              | Gate 1 / Gate 2 で指標と準備を見て決め直す（research.md §3）                                                                                                                                      |
+| ツーショットや部屋の名前が日本の法令に触れる    | Phase 0 で法務の確認をしてから範囲を決める                                                                                                                                                        |
 
 ## 15. 検討したが採らなかった案
 
@@ -735,7 +812,9 @@ Managed Device で、PR ごとではなく週に 1 回と公開の前に走ら�
 | Material 3 に合わせて見た目を作り直す            | Web と同じ見た目という要件に反する。Web の利用者と同じ部屋で話すので、見た目の違いは混乱を招く                                                                                          |
 | ログを新しい発言が下に来る向きにする             | 今のチャットアプリの作法だが、Web と逆になり、同じ部屋の Web の利用者との会話で「上」「下」が通じなくなる。入力が上にあるので、新しい発言が上にある方が目の動きも短い                   |
 | foreground service で裏でも接続を保つ            | Android 14 以降の型に合う用途が無く、電池も使う。戻ったときに取り直せば足りる                                                                                                           |
-| 発言者ごとの不透明な ID を公開してブロックに使う | 名前を変えても同じ人と分かるので、匿名のチャットの性質を変え、発言の名寄せにも使えてしまう                                                                                              |
+| 発言者ごとの不透明な ID を公開してブロックに使う | 名前を変えても同じ人と分かるので、匿名のチャットの性質を変え、発言の名寄せにも使えてしまう。Web と同じく伏せ字の IP・名前・言葉で隠す（Q12）                                            |
+| 名前だけのブロック（改訂前の案）                 | Web に IP・名前・言葉のフィルタが入ったので、アプリだけ違う規則にすると、同じ人が Web とアプリで違って見える                                                                            |
+| 規則を Kotlin にも書いて二重に持つ               | PR #203 でサーバーが正になった。書き写すとずれたときにアプリだけ拒否される                                                                                                              |
 | オフラインで mock のログを見せる（Web と同じ）   | 本物の会話と見分けがつかず、アプリでは誤解を招く。取得済みのログとつながっていない表示で足りる                                                                                          |
 | ログを Room に全部保存するオフライン優先         | Web はキャッシュを持たず、チャットの価値は「今」の会話にある。まずはメモリだけにし、必要なら直近だけ保存する                                                                            |
 | Play Integrity で API を守る                     | 同じ API を Web が無認証で使うので、アプリだけ確かめても効かない                                                                                                                        |

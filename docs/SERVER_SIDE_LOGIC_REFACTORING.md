@@ -1,6 +1,6 @@
 # Web フロントエンドからサーバーへ移すロジック（リファクタリング計画）
 
-最終更新: 2026-09-28。対象: `main`（`14af9c4`）。
+最終更新: 2026-10-11（実施の結果を追記）。計画の対象: `main`（`14af9c4`、2026-09-28）。
 
 Web フロントエンド（`src/`）が持っているロジックのうち、クライアントに置くべきでないものを洗い出す。そのうえで、
 テーブル（制約・表・RLS）や Function（SQL 関数・既存の Edge Function）へ移しても**利用者が感じる速さを落とさない**
@@ -8,6 +8,44 @@ Web フロントエンド（`src/`）が持っているロジックのうち、�
 
 関連: [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md)、[`docs/save-chat-edge-function.md`](./save-chat-edge-function.md)、
 [`.kiro/specs/android-native-app/`](../.kiro/specs/android-native-app/)（Android 版はサーバー側の規則について本書を正とする）。
+
+## 実施の結果（2026-10-11）
+
+Issue #175〜#188 を stacked PR #189〜#202 で実装し、PR #203（`0ee4a0f`、2026-10-10 マージ）で `main` に入った。
+サービスを閉塞している間に DB・Function・Web をまとめて配信する前提にしたため、§9 の「足す → Web を切り替える →
+締める」の段階と「記録だけ」の期間は持たず、最初から締めた形で入れた（`63a3b0a`）。配信の手順は
+[`docs/save-chat-edge-function.md`](./save-chat-edge-function.md) §9。
+
+**以下 §1〜§12 は計画の時点の記録として残す。実装と違うところは、この節と表を正とする。**
+
+| ID  | 状態             | 実装（計画との違い）                                                                                                                                                                                                                      |
+| --- | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1  | 済（#191）       | `schema.ts`。最初から拒否する（記録だけのモードは無い）。CHECK は `NOT VALID`                                                                                                                                                             |
+| S2  | 済（#192）       | metadata は `version`・`fontStyle`・`avatar`・`optimisticNonce` だけに作り直す。拒否はせず、落としたものを記録する                                                                                                                        |
+| S3  | 済（#201）       | 利用者の発言は常に `system: false`。予約名「管理人」「巫女」は NFKC + 空白・見えない文字を除いて比べて拒否（`reserved_name`）                                                                                                             |
+| S4  | 済（#193）       | `rooms(id, category, triage)`。**`enabled` は持たない**（閉じる部屋が無いため）。外部キーは `NOT VALID`、違反は `400 invalid_room_id`。`rooms` は anon が読める                                                                           |
+| S5  | 済（#195）       | `op: enter / exit`。`nonce` は本文の最上位で送る。`messages.ts` の `buildAdminChat`                                                                                                                                                       |
+| S6  | 済（#196）       | 巫女の返事は応答の `extra`。運勢は `messages.ts`。`fortuneBot.ts` は削除                                                                                                                                                                  |
+| S7  | 済（#194・#202） | `insert_chat(p_chats, p_author_key, p_operation_id)`。**送信操作の ID で冪等**（`chat_operations`、24 時間で pg_cron が消す。計画に無かった追加）。`clear_my_chats` は**消した uuid の配列**を返す（計画は件数）。anon の UPDATE は閉じた |
+| S8  | 済（#198）       | `chats-postgres-<room>` の INSERT から鳴らす。broadcast の channel は無い                                                                                                                                                                 |
+| S9  | 済（#197）       | `metadata.event` / `subject`。構造の無い古い行だけ正規表現で読む                                                                                                                                                                          |
+| S10 | **未実施**       | Issue #185 は実装・決定の記録なしで閉じた。`public-select` は `USING (true)` のまま（削除済みの発言は API から読める）。D1 は未決                                                                                                         |
+| §7  | 済（#187・#188） | 人数のクライアント集計と mock のログを削除（D3 は「消す」に決定）                                                                                                                                                                         |
+| —   | 済（#190）       | anon の Realtime の INSERT に `ip` は届かない（実測。CI で毎回確かめる）                                                                                                                                                                  |
+| P10 | 一部             | `CLAUDE.md`・`save-chat-edge-function.md` §9 は更新済み。`docs/ARCHITECTURE.md` §7・§12 は未更新                                                                                                                                          |
+
+決めたこと: D2 = 移行前の発言は `clear` で消せない。D3 = mock を消す。D4 = 「管理人」「巫女」。D5 = 120 grapheme
+（コードポイントでも 2000 以内）。D1 は未決（上の S10）。
+
+残り:
+
+- CHECK 制約（`chats_*_check`）と外部キー（`chats_room_id_fkey`）の `VALIDATE`（本番の既存行の違反を数えてから）
+- S10（D1）を決める
+- 退室の偽装（他人の名前で `op: exit` を送れる。S5 の「残る限界」）。author key で「その端末が直近にその名前で入室
+  している」ことを条件にするかを決める
+- §8 の性能の確かめ（`POST save-chat` と clear の p95、2 つのブラウザでの look の到達時間）は本番の配信の後
+- `20261006030000_insert_chat_and_clear_my_chats.sql` のコメントにある「トリガー `chats_room_enabled`（YC001）」は
+  `63a3b0a` で外した仕組みの名残（適用済みのマイグレーションなので直さない）
 
 ## 0. 結論
 
