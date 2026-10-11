@@ -2,15 +2,16 @@ import { buildChatRoomPath } from '@features/chat/routing';
 import { RoomAnchor } from '../RoomAnchor';
 import { SectionTitle } from '../SectionTitle';
 import { TwitterTimeline } from '../TwitterTimeline';
+import { chatRules, sectionTitles, X_SCREEN_NAME } from '../../data';
 
 export function RightColumn() {
   return (
     <aside className="border-l border-gray-300 bg-white px-2 py-2 md:col-span-2 md:border-l-0 lg:col-span-1 lg:border-l max-md:order-3">
       <section className="min-h-[122px]">
         <SectionTitle>
-          <span className="text-blue-600">@chat_a</span>のつぶやき
+          <span className="text-blue-600">@{X_SCREEN_NAME}</span>のつぶやき
         </SectionTitle>
-        <TwitterTimeline screenName="chat_a" />
+        <TwitterTimeline screenName={X_SCREEN_NAME} />
       </section>
       <div className="mt-3 space-y-3">
         <section>
@@ -59,12 +60,11 @@ export function RightColumn() {
           </div>
         </section>
         <section id="chat-rules">
-          <SectionTitle>チャットのルール・マナー</SectionTitle>
+          <SectionTitle>{sectionTitles.rules}</SectionTitle>
           <ul className="list-inside list-[circle] p-3 text-[12px] leading-6 text-blue-600">
-            <li>お初さんを歓迎しましょう。</li>
-            <li>必ずあいさつをしましょう。</li>
-            <li>簡単な自己紹介をしましょう。</li>
-            <li>相手の気持ちを考えて会話をしましょう。</li>
+            {chatRules.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
             {/* <li>チャットのルール・マナーについて詳しく見る</li> */}
           </ul>
         </section>
