@@ -29,6 +29,7 @@ import {
   OPTIMISTIC_NONCE_MAX,
 } from '@features/chat/inputRules';
 import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
+import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
 import { buildAdminChat, enterMessage, exitMessage } from '@features/chat/serverMessages';
 import {
   ADMIN_AVATAR,
@@ -321,6 +322,163 @@ function optimistic() {
   };
 }
 
+/**
+ * DB と Realtime の行の読み方（Web の normalizeChat）。古い行は形がそろっていないので、項目ごとに型を確かめ、
+ * 合わないものは既定値にする（metadata は許可した値だけを残す）。
+ */
+function normalizeChatRows() {
+  const inputs: { name: string; row: unknown }[] = [
+    {
+      name: '新しい行はそのまま',
+      row: {
+        uuid: v7(T0),
+        room_id: DEFAULT_ROOM_ID,
+        name: 'ゆい',
+        color: '#ff69b4',
+        message: 'こんにちは',
+        time: T0,
+        system: false,
+        email: 'yui@example.com',
+        ip_masked: '219.107.106.*',
+        ua: 'Mozilla/5.0',
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 3, fontColor: 'red', bold: true },
+          avatar: 'hoshi1',
+        },
+      },
+    },
+    {
+      name: '知らない部屋は既定の部屋にする',
+      row: {
+        uuid: v7(T0),
+        room_id: 'no-such-room',
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+      },
+    },
+    {
+      name: '型の違う項目は既定値にする',
+      row: {
+        uuid: 1,
+        room_id: null,
+        name: 2,
+        color: null,
+        message: ['x'],
+        time: '1',
+        email: 3,
+        ip_masked: 4,
+        ua: 5,
+      },
+    },
+    { name: '行でなければ空の行', row: 'not a row' },
+    {
+      name: '未対応の版の metadata は捨てる',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: { version: 2, avatar: 'hoshi1' },
+      },
+    },
+    {
+      name: 'metadata は許可した値だけを残す',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 9, fontColor: 'pink', bold: 'yes' },
+          avatar: 'none',
+          kind: 'secret',
+          userColor: 7,
+          visitCount: '3',
+          lastLogin: T0,
+          optimisticNonce: 'n-1',
+          extra: true,
+        },
+      },
+    },
+    {
+      name: '文字の飾りが 1 つでも合えば残す',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 2, fontColor: 'nocolor' },
+          avatar: 'tuki1',
+          kind: 'fortune',
+        },
+      },
+    },
+    {
+      name: '入退室の構造は名前があるときだけ読む',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'ゆいさん、Welcome to …',
+        time: T0,
+        system: true,
+        metadata: {
+          version: 1,
+          kind: 'admin',
+          userColor: '#ff69b4',
+          visitCount: 49,
+          event: 'enter',
+          subject: { name: 'ゆい', color: '#ff69b4' },
+        },
+      },
+    },
+    {
+      name: '名前の無い入退室の構造は捨てる',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'x',
+        time: T0,
+        metadata: { version: 1, kind: 'admin', event: 'exit', subject: { name: '' } },
+      },
+    },
+    {
+      name: '入退室の色が文字列でなければ空',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'x',
+        time: T0,
+        metadata: { version: 1, kind: 'admin', event: 'exit', subject: { name: 'ゆい', color: 1 } },
+      },
+    },
+    {
+      name: '楽観的な行の項目も読む',
+      row: {
+        uuid: 'temp-1',
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        client_time: T0,
+        optimistic: true,
+      },
+    },
+  ];
+  return { cases: inputs.map(({ name, row }) => ({ name, row, expected: normalizeChat(row) })) };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -508,6 +666,7 @@ export function buildContracts(themeCss: string): ContractFiles {
     'fixtures/participants.json': participants(),
     'fixtures/optimistic.json': optimistic(),
     'fixtures/room-log-merge.json': roomLogMerge(),
+    'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
     'fixtures/author-key.json': authorKey(),
     'fixtures/save-chat/input-checks.json': saveChatInputChecks(),

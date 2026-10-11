@@ -8,6 +8,7 @@
     "fixtures/author-key.json",
     "fixtures/filters.json",
     "fixtures/legacy-date-time.json",
+    "fixtures/normalize-chat.json",
     "fixtures/optimistic.json",
     "fixtures/participants.json",
     "fixtures/room-log-merge.json",
