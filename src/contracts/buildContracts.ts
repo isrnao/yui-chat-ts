@@ -31,6 +31,12 @@ import {
 } from '@features/chat/inputRules';
 import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
 import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
+import {
+  createRoomLogStore,
+  INITIAL_CHAT_LOG_LIMIT,
+  type LogSource,
+} from '@features/chat/api/roomLogStore';
+import type { RealtimeStatus } from '@features/chat/api/realtime';
 import { buildAdminChat, enterMessage, exitMessage } from '@features/chat/serverMessages';
 import {
   ADMIN_AVATAR,
@@ -482,6 +488,227 @@ function normalizeChatRows() {
   return { cases: inputs.map(({ name, row }) => ({ name, row, expected: normalizeChat(row) })) };
 }
 
+// --- Room_Log_Store の規則（design.md §6.2） ---
+
+type LogStep =
+  | { type: 'start' }
+  | { type: 'resolve'; fetch: number; rows: Chat[] }
+  | { type: 'reject'; fetch: number }
+  | { type: 'insert'; chat: Chat }
+  | { type: 'status'; status: RealtimeStatus }
+  | { type: 'saved'; chat: Chat }
+  | { type: 'remove'; uuids: string[] }
+  | { type: 'reload' }
+  | { type: 'expand'; limit: number };
+
+/** 発言 1 件。uuid は v7 の形で、時刻 n の大小が並びを決める。本文は名札（id）にする */
+function logChat(id: string, n: number): Chat {
+  return row({ uuid: v7(T0 + n * 1000, n), time: T0 + n * 1000, message: id });
+}
+
+/**
+ * Web の Room_Log_Store を、偽の取得と Realtime で 1 歩ずつ動かし、各歩の後の状態を記録する。
+ * 取得の結果（resolve / reject）は、何番目の取得に返すかを `fetch`（1 から）で指す。
+ */
+async function runRoomLog(steps: LogStep[]) {
+  const fetches: { limit: number; resolve: (chats: Chat[]) => void; reject: (e: Error) => void }[] =
+    [];
+  let onInsert: ((chat: Chat) => void) | null = null;
+  let onStatus: ((status: RealtimeStatus) => void) | null = null;
+  const source: LogSource = {
+    initialLimit: INITIAL_CHAT_LOG_LIMIT,
+    fetch: (limit) =>
+      new Promise<Chat[]>((resolve, reject) => fetches.push({ limit, resolve, reject })),
+    subscribe: (insert, status) => {
+      onInsert = insert;
+      onStatus = status;
+      return { unsubscribe() {} };
+    },
+  };
+  const store = createRoomLogStore(source);
+  const snapshots = [];
+  for (const step of steps) {
+    switch (step.type) {
+      case 'start':
+        store.subscribe(() => {});
+        break;
+      case 'resolve':
+        fetches[step.fetch - 1]!.resolve(step.rows);
+        break;
+      case 'reject':
+        fetches[step.fetch - 1]!.reject(new Error('failed'));
+        break;
+      case 'insert':
+        onInsert!(step.chat);
+        break;
+      case 'status':
+        onStatus!(step.status);
+        break;
+      case 'saved':
+        store.applySaved(step.chat);
+        break;
+      case 'remove': {
+        const removed = new Set(step.uuids);
+        store.update((chats) => chats.filter((c) => !removed.has(c.uuid)));
+        break;
+      }
+      case 'reload':
+        store.reload();
+        break;
+      case 'expand':
+        store.expand(step.limit);
+        break;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const state = store.getSnapshot();
+    snapshots.push({
+      status: state.status,
+      messages: state.chats.map((c) => c.message),
+      realtime: state.realtime,
+      fetches: fetches.map((f) => f.limit),
+    });
+  }
+  return snapshots;
+}
+
+/**
+ * Room_Log_Store の場面（Web の roomLogStore.test.ts と同じ）。購読をやめた後の再開は含めない
+ * （アプリは最後の状態を残してすぐ出す。design.md §6.2 で Web と意図して違う）。
+ */
+async function roomLogEvents() {
+  const a = logChat('a', 1);
+  const b = logChat('b', 2);
+  const c = logChat('c', 3);
+  const d = logChat('d', 4);
+  const scenarios: { name: string; steps: LogStep[] }[] = [
+    {
+      name: '最初の購読で Realtime を張ってから取得を始め、結果を ready で公開する',
+      steps: [{ type: 'start' }, { type: 'resolve', fetch: 1, rows: [b, a] }],
+    },
+    {
+      name: '取得中に届いた発言は取得結果に無くても残す',
+      steps: [
+        { type: 'start' },
+        { type: 'insert', chat: c },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+      ],
+    },
+    {
+      name: '順番どおりでなく届いた発言も、新しい順の位置に入る',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [d, a] },
+        { type: 'insert', chat: b },
+        { type: 'insert', chat: c },
+      ],
+    },
+    {
+      name: 'connected に遷移したときだけ取り直す',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [a] },
+        { type: 'status', status: 'connected' },
+        { type: 'status', status: 'connected' },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+        { type: 'status', status: 'disconnected' },
+        { type: 'status', status: 'connected' },
+        { type: 'resolve', fetch: 3, rows: [c, b, a] },
+      ],
+    },
+    {
+      name: '拡張では表示中の発言を残し、通常の取り直しでは取得結果を正とする',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [d, c] },
+        { type: 'expand', limit: 100 },
+        { type: 'resolve', fetch: 2, rows: [c, b, a] },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 3, rows: [c, a] },
+      ],
+    },
+    {
+      name: '件数は減らす方向に戻さない',
+      steps: [
+        { type: 'start' },
+        { type: 'expand', limit: 100 },
+        { type: 'expand', limit: 30 },
+        { type: 'expand', limit: 100 },
+      ],
+    },
+    {
+      name: '新しい取得が始まったら古い取得の結果は捨てる',
+      steps: [
+        { type: 'start' },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 2, rows: [b] },
+        { type: 'resolve', fetch: 1, rows: [a] },
+      ],
+    },
+    {
+      name: '取得に失敗すると error にし、表示中の行は残す',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'reload' },
+        { type: 'reject', fetch: 2 },
+      ],
+    },
+    {
+      name: '取得中に合流した保存の確定値は、古い取得結果で消さない',
+      steps: [
+        { type: 'start' },
+        { type: 'saved', chat: c },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+      ],
+    },
+    {
+      name: '取得中に行った書き換え（clear の反映）は、古い取得結果で巻き戻さない',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'reload' },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+      ],
+    },
+    {
+      name: '同じ取得中に削除と新着が繰り返されても、最後の削除後の発言だけ残す',
+      steps: [
+        { type: 'start' },
+        { type: 'insert', chat: a },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'insert', chat: b },
+        { type: 'remove', uuids: [b.uuid] },
+        { type: 'insert', chat: c },
+        { type: 'resolve', fetch: 1, rows: [a] },
+      ],
+    },
+    {
+      name: '取得が終わった後の書き換えは、次の取得結果には適用しない',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+      ],
+    },
+    {
+      name: '同じ uuid の保存の確定値は置き換える',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'saved', chat: { ...b, message: 'b2' } },
+      ],
+    },
+  ];
+  const cases = [];
+  for (const scenario of scenarios) {
+    cases.push({ ...scenario, expected: await runRoomLog(scenario.steps) });
+  }
+  return { initialLimit: INITIAL_CHAT_LOG_LIMIT, cases };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -657,7 +884,7 @@ function adminMessages() {
 }
 
 /** contracts/ に書き出す全ファイル。fixtures の日時は FIXTURE_TIME_ZONE で作ること（呼び出し側が TZ を合わせる） */
-export function buildContracts(themeCss: string): ContractFiles {
+export async function buildContracts(themeCss: string): Promise<ContractFiles> {
   const files: ContractFiles = {
     'rooms.json': rooms(),
     'directory.json': directory(),
@@ -669,6 +896,7 @@ export function buildContracts(themeCss: string): ContractFiles {
     'fixtures/participants.json': participants(),
     'fixtures/optimistic.json': optimistic(),
     'fixtures/room-log-merge.json': roomLogMerge(),
+    'fixtures/room-log-events.json': await roomLogEvents(),
     'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
     'fixtures/author-key.json': authorKey(),

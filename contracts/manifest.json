@@ -11,6 +11,7 @@
     "fixtures/normalize-chat.json",
     "fixtures/optimistic.json",
     "fixtures/participants.json",
+    "fixtures/room-log-events.json",
     "fixtures/room-log-merge.json",
     "fixtures/save-chat/input-checks.json",
     "fixtures/save-chat/server-messages.json",
