@@ -65,10 +65,16 @@ import { reduceOptimisticChat } from '@features/chat/utils/optimisticLog';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import {
+  addFilteredIp,
+  addFilteredName,
+  addFilteredWord,
+  clearFilters,
   FILTER_LIST_LIMIT,
   FILTER_NAMES_LIMIT,
   FILTER_WORD_MAX_LENGTH,
+  getSnapshot as getFilterSnapshot,
   normalizeFilterWord,
+  removeFilter,
 } from '@features/chat/utils/ipFilterStore';
 
 /** 互換の無い変更（キーの削除・意味の変更）で上げる。Android は知らない版を読んだらビルドを落とす */
@@ -709,6 +715,140 @@ async function roomLogEvents() {
   return { initialLimit: INITIAL_CHAT_LOG_LIMIT, cases };
 }
 
+// --- Filter_List の操作（Web の ipFilterStore、.kiro/specs/chat-ip-mute） ---
+
+type FilterOp =
+  | { type: 'addIp'; ip: string; names: string[] }
+  | { type: 'addName'; name: string }
+  | { type: 'addWord'; word: string }
+  | { type: 'remove'; key: string }
+  | { type: 'clear' };
+
+/**
+ * Filter_List の読み込み（古い保存形式・壊れた値）と操作（重複・名前のまとめ方・上限）。Web の ipFilterStore に通して
+ * 期待値にする。保存先の localStorage は jsdom のもの
+ */
+function filterList() {
+  const key = 'yui-chat-muted-ips';
+  const parseCases: { name: string; raw: unknown }[] = [
+    { name: '種類を持つ前の形（IP の文字列だけ）', raw: ['1.2.3.*', '', '*', 7] },
+    {
+      name: '種類を持つ前の形（ip と names）',
+      raw: [{ ip: '1.2.3.*', names: ['a', 'a', 1, '', 'b'] }],
+    },
+    {
+      name: '3 種類と、使えない値',
+      raw: [
+        { kind: 'name', name: 'ゆい' },
+        { kind: 'name', name: '  ' },
+        { kind: 'word', word: '  ばか  ' },
+        { kind: 'word', word: '' },
+        { kind: 'other', ip: '1.2.3.*' },
+        { kind: 'ip', ip: '4.5.6.*', names: 'x' },
+      ],
+    },
+    {
+      name: '重複は最初のものを残す',
+      raw: [{ kind: 'name', name: 'a' }, { kind: 'name', name: 'a' }, '1.1.1.*'],
+    },
+    {
+      name: '長い言葉は上限まで',
+      raw: [{ kind: 'word', word: 'あ'.repeat(FILTER_WORD_MAX_LENGTH + 5) }],
+    },
+    {
+      name: '件数が上限を超えたら末尾を残す',
+      raw: Array.from({ length: FILTER_LIST_LIMIT + 3 }, (_, i) => ({
+        kind: 'name',
+        name: `n${i}`,
+      })),
+    },
+    {
+      name: '1 つの IP の名前は上限まで',
+      raw: [
+        { ip: '1.2.3.*', names: Array.from({ length: FILTER_NAMES_LIMIT + 2 }, (_, i) => `n${i}`) },
+      ],
+    },
+    { name: '配列でなければ空', raw: { ip: '1.2.3.*' } },
+  ];
+  const parse = parseCases.map(({ name, raw }) => {
+    localStorage.setItem(key, JSON.stringify(raw));
+    return { name, raw, expected: getFilterSnapshot() };
+  });
+
+  const scenarios: { name: string; ops: FilterOp[] }[] = [
+    {
+      name: '同じ IP に名前を足すと、まだない名前だけを前に足す',
+      ops: [
+        { type: 'addIp', ip: '1.2.3.*', names: ['a', 'b'] },
+        { type: 'addIp', ip: '1.2.3.*', names: ['c', 'a'] },
+        { type: 'addIp', ip: '1.2.3.*', names: ['a'] },
+      ],
+    },
+    {
+      name: '分からない IP は足さない',
+      ops: [
+        { type: 'addIp', ip: '*', names: ['a'] },
+        { type: 'addIp', ip: '', names: [] },
+      ],
+    },
+    {
+      name: '名前と言葉は重ねて足さず、言葉は整える',
+      ops: [
+        { type: 'addName', name: 'ゆい' },
+        { type: 'addName', name: 'ゆい' },
+        { type: 'addName', name: '  ' },
+        { type: 'addWord', word: '  ばか ' },
+        { type: 'addWord', word: 'ばか' },
+        { type: 'addWord', word: '   ' },
+      ],
+    },
+    {
+      name: '1 件ずつ外し、まとめて外す',
+      ops: [
+        { type: 'addIp', ip: '1.2.3.*', names: [] },
+        { type: 'addName', name: 'ゆい' },
+        { type: 'remove', key: 'ip:1.2.3.*' },
+        { type: 'remove', key: 'name:none' },
+        { type: 'addWord', word: 'x' },
+        { type: 'clear' },
+      ],
+    },
+    {
+      name: '上限を超えたら古いものから捨てる',
+      ops: Array.from({ length: FILTER_LIST_LIMIT + 2 }, (_, i) => ({
+        type: 'addName' as const,
+        name: `n${i}`,
+      })),
+    },
+  ];
+  const cases = scenarios.map(({ name, ops }) => {
+    localStorage.removeItem(key);
+    const expected = ops.map((op) => {
+      switch (op.type) {
+        case 'addIp':
+          addFilteredIp(op.ip, op.names);
+          break;
+        case 'addName':
+          addFilteredName(op.name);
+          break;
+        case 'addWord':
+          addFilteredWord(op.word);
+          break;
+        case 'remove':
+          removeFilter(op.key);
+          break;
+        case 'clear':
+          clearFilters();
+          break;
+      }
+      return getFilterSnapshot();
+    });
+    return { name, ops, expected };
+  });
+  localStorage.removeItem(key);
+  return { parse, cases };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -899,6 +1039,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'fixtures/room-log-events.json': await roomLogEvents(),
     'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
+    'fixtures/filter-list.json': filterList(),
     'fixtures/author-key.json': authorKey(),
     'fixtures/save-chat/input-checks.json': saveChatInputChecks(),
     'fixtures/save-chat/server-messages.json': adminMessages(),

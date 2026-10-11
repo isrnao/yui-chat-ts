@@ -6,6 +6,7 @@
     "directory.json",
     "fixtures/admin-events.json",
     "fixtures/author-key.json",
+    "fixtures/filter-list.json",
     "fixtures/filters.json",
     "fixtures/legacy-date-time.json",
     "fixtures/normalize-chat.json",
