@@ -31,6 +31,7 @@ import {
 } from '@features/chat/inputRules';
 import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
 import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
+import { validateName } from '@features/chat/utils/validation';
 import {
   createRoomLogStore,
   INITIAL_CHAT_LOG_LIMIT,
@@ -849,6 +850,25 @@ function filterList() {
   return { parse, cases };
 }
 
+/**
+ * 入室フォームの名前の検査（Web の validateName）。画面での先回りの検査で、最後の判定はサーバー（save-chat）。
+ * 画面は UTF-16 の単位で数えるので、コードポイントで数えるサーバーより厳しい
+ */
+function nameChecks() {
+  const names = [
+    'ゆい',
+    '',
+    '   ',
+    'あ'.repeat(NAME_MAX),
+    'あ'.repeat(NAME_MAX + 1),
+    '😀'.repeat(13),
+    ...RESERVED_NAMES,
+    ' 管理人 ',
+    '　',
+  ];
+  return { cases: names.map((name) => ({ name, expected: validateName(name) })) };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -1039,6 +1059,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'fixtures/room-log-events.json': await roomLogEvents(),
     'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
+    'fixtures/name-checks.json': nameChecks(),
     'fixtures/filter-list.json': filterList(),
     'fixtures/author-key.json': authorKey(),
     'fixtures/save-chat/input-checks.json': saveChatInputChecks(),

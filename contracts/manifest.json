@@ -9,6 +9,7 @@
     "fixtures/filter-list.json",
     "fixtures/filters.json",
     "fixtures/legacy-date-time.json",
+    "fixtures/name-checks.json",
     "fixtures/normalize-chat.json",
     "fixtures/optimistic.json",
     "fixtures/participants.json",
