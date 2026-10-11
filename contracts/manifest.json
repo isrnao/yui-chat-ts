@@ -17,8 +17,10 @@
     "fixtures/room-log-merge.json",
     "fixtures/save-chat/input-checks.json",
     "fixtures/save-chat/server-messages.json",
+    "legal.json",
     "rooms.json",
     "server-messages.json",
-    "theme.json"
+    "theme.json",
+    "ui-messages.json"
   ]
 }

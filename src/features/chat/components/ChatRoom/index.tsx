@@ -6,12 +6,11 @@ import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import { MESSAGE_MAX } from '@features/chat/inputRules';
+import { UI_MESSAGES } from '@features/chat/uiMessages';
 
-/** [消す] の説明。消せるのはこのブラウザで書いた発言だけ（書いた端末の鍵で照合する。Issue #179） */
-const CLEAR_BUTTON_TITLE =
-  'このブラウザで書いた自分の発言を消します。ブラウザのデータを消した後や、別のブラウザ・端末で書いた発言は消せません。';
-
-const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
+/** [消す] の説明と送信の失敗の文言（Android 版と共有する。uiMessages.ts） */
+const CLEAR_BUTTON_TITLE = UI_MESSAGES.clearButtonTitle;
+const SEND_FAILED_MESSAGE = UI_MESSAGES.sendFailed;
 
 export type ChatRoomProps = {
   windowRows: number;

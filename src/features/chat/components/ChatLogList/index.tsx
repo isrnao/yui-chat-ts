@@ -17,6 +17,7 @@ import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
 import WordPicker from '../FilterConfirmDialog/WordPicker';
 import Divider from '../shared/Divider';
+import { UI_MESSAGES } from '@features/chat/uiMessages';
 
 /** これより多い行を出すときは、画面外の行の描画を省く */
 const DEFER_OFFSCREEN_ROWS = 200;
@@ -160,10 +161,10 @@ function ChatLogList({
       {loadError && (
         // 非同期に現れるため role="alert" でスクリーンリーダーへ通知する
         <div role="alert" className="text-red-600 text-sm py-3">
-          チャットログの読み込みに失敗しました。
+          {UI_MESSAGES.loadFailed}
           {onRetry && (
             <button type="button" className="ml-2 underline text-blue-700" onClick={onRetry}>
-              再読み込み
+              {UI_MESSAGES.retry}
             </button>
           )}
         </div>
