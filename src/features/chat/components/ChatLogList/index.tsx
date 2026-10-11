@@ -18,6 +18,7 @@ import FilterConfirmDialog from '../FilterConfirmDialog';
 import WordPicker from '../FilterConfirmDialog/WordPicker';
 import Divider from '../shared/Divider';
 import { UI_MESSAGES } from '@features/chat/uiMessages';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 /** これより多い行を出すときは、画面外の行の描画を省く */
 const DEFER_OFFSCREEN_ROWS = 200;
@@ -41,18 +42,18 @@ function confirmText(pending: PendingFilter): { title: string; description: stri
   switch (pending.kind) {
     case 'ip':
       return {
-        title: `${pending.ip} の発言をフィルタ（非表示に）しますか？`,
-        description: '同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。',
+        title: fillText(CHAT_TEXTS.filter.ipTitle, { ip: pending.ip }),
+        description: CHAT_TEXTS.filter.ipDescription,
       };
     case 'name':
       return {
-        title: `「${pending.name}」の発言をフィルタ（非表示に）しますか？`,
-        description: '同じ名前の発言と入退室がすべて隠れます。「フィルタ」から解除できます。',
+        title: fillText(CHAT_TEXTS.filter.nameTitle, { name: pending.name }),
+        description: CHAT_TEXTS.filter.nameDescription,
       };
     case 'word':
       return {
-        title: 'この言葉を含む発言をフィルタ（非表示に）しますか？',
-        description: '同じ言葉を含む発言がすべて隠れます。「フィルタ」から解除できます。',
+        title: CHAT_TEXTS.filter.wordTitle,
+        description: CHAT_TEXTS.filter.wordDescription,
       };
   }
 }
@@ -61,11 +62,11 @@ function confirmText(pending: PendingFilter): { title: string; description: stri
 function announceText(pending: PendingFilter): string {
   switch (pending.kind) {
     case 'ip':
-      return `${pending.ip} の発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.ipAnnounce, { ip: pending.ip });
     case 'name':
-      return `「${pending.name}」の発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.nameAnnounce, { name: pending.name });
     case 'word':
-      return `「${normalizeFilterWord(pending.word)}」を含む発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.wordAnnounce, { word: normalizeFilterWord(pending.word) });
   }
 }
 
@@ -142,7 +143,7 @@ function ChatLogList({
   };
 
   if (isLoading) {
-    return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;
+    return <div className="text-gray-400 mt-8 animate-pulse">{CHAT_TEXTS.log.loading}</div>;
   }
 
   return (
@@ -172,8 +173,8 @@ function ChatLogList({
       {chats.length === 0 && !loadError && (
         <div className="text-gray-400 py-3">
           {hiddenTotal > 0
-            ? `表示できる発言はありません（${hiddenTotal} 件をフィルタ中）。`
-            : 'まだ発言はありません。'}
+            ? fillText(CHAT_TEXTS.log.emptyFiltered, { count: hiddenTotal })
+            : CHAT_TEXTS.log.empty}
         </div>
       )}
       {chats.map((c) => (

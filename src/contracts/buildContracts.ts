@@ -54,6 +54,8 @@ import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
 import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
 import { validateName } from '@features/chat/utils/validation';
 import { UI_MESSAGES } from '@features/chat/uiMessages';
+import { CHAT_TEXTS } from '@features/chat/chatTexts';
+import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { LEGAL_PAGE_PATHS, TERMS_VERSION } from '@features/legal/legal';
 import { buildAbsoluteUrl } from '@shared/utils/seo';
 import {
@@ -976,6 +978,25 @@ function home() {
   };
 }
 
+/** 本文の URL のリンク化（Web の parseMessageSegments）。http(s) だけ、末尾の日本語の句読点と閉じ括弧は外す */
+function urlSegments() {
+  const messages = [
+    '',
+    'こんにちは',
+    'https://www.okiraku.chat/ を見て',
+    'ここ→https://example.com/a?b=c。',
+    '（http://example.com/x）',
+    '二つ https://a.example/ と http://b.example/path#frag',
+    'javascript:alert(1) ftp://x.example',
+    'https://example.com/「引用」',
+    '<https://example.com/>',
+    'https://example.com/】」』、',
+  ];
+  return {
+    cases: messages.map((message) => ({ message, expected: parseMessageSegments(message) })),
+  };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -1160,6 +1181,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'chat-options.json': chatOptions(),
     'server-messages.json': serverMessages(),
     'ui-messages.json': UI_MESSAGES,
+    'chat-texts.json': CHAT_TEXTS,
     'legal.json': {
       termsVersion: TERMS_VERSION,
       pages: Object.fromEntries(
@@ -1174,6 +1196,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'fixtures/room-log-events.json': await roomLogEvents(),
     'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
+    'fixtures/url-segments.json': urlSegments(),
     'fixtures/name-checks.json': nameChecks(),
     'fixtures/filter-list.json': filterList(),
     'fixtures/author-key.json': authorKey(),

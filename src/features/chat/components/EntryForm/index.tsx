@@ -7,6 +7,7 @@ import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { AVATAR_IDS } from '@features/chat/types';
 import { EMAIL_MAX, NAME_MAX } from '@features/chat/inputRules';
 import type { AvatarId } from '@features/chat/types';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 type EntryFormProps = {
   roomTitle?: string;
@@ -78,7 +79,7 @@ export default function EntryForm({
             できない)。min-w-0 で縮小を許可し、幅が足りないときだけ縮むようにする。 */}
         <div className="mb-1 flex items-center bg-[#feb6c1] px-2 py-1">
           <label className="font-bold whitespace-nowrap" htmlFor={nameId}>
-            おなまえ
+            {CHAT_TEXTS.entry.nameLabel}
           </label>
           <Input
             type="text"
@@ -92,17 +93,17 @@ export default function EntryForm({
             }}
             required
             autoFocus
-            aria-label="おなまえ"
+            aria-label={CHAT_TEXTS.entry.nameLabel}
             autoComplete="nickname"
             disabled={isPending}
             className="ml-2 min-w-0"
           />
-          <span className="ml-2 text-sm whitespace-nowrap">記入してね！</span>
+          <span className="ml-2 text-sm whitespace-nowrap">{CHAT_TEXTS.entry.nameHint}</span>
         </div>
         {/* ボタン群（名前の直下） */}
         <div className="mb-1 flex gap-1">
           <Button type="submit" disabled={isPending}>
-            {isPending ? '参加中...' : 'チャットに参加する'}
+            {isPending ? CHAT_TEXTS.entry.submitting : CHAT_TEXTS.entry.submit}
           </Button>
           <Button
             type="button"
@@ -115,13 +116,13 @@ export default function EntryForm({
               updateSettings({ name: '', color: '#ff69b4', email: '', avatar: 'none' });
             }}
           >
-            リセット
+            {CHAT_TEXTS.entry.reset}
           </Button>
         </div>
         {/* 色（テキスト入力 + カラーパレットボタン + こっそり） */}
         <div className="mb-1 flex items-center flex-wrap gap-x-2">
           <label htmlFor={colorId} className="whitespace-nowrap">
-            名前の色
+            {CHAT_TEXTS.entry.colorLabel}
           </label>
           <Input
             type="text"
@@ -130,7 +131,7 @@ export default function EntryForm({
             value={color}
             maxLength={12}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
-            aria-label="名前の色"
+            aria-label={CHAT_TEXTS.entry.colorLabel}
             disabled={isPending}
             className="w-20"
           />
@@ -139,7 +140,7 @@ export default function EntryForm({
             htmlFor={colorPickerId}
             className="text-green-700 underline cursor-pointer text-sm"
           >
-            カラーナビ
+            {CHAT_TEXTS.entry.colorNavi}
           </label>
           <input
             type="color"
@@ -156,17 +157,17 @@ export default function EntryForm({
               id={silentId}
               checked={silent}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSilent(e.target.checked)}
-              aria-label="こっそり"
+              aria-label={CHAT_TEXTS.entry.silent}
               disabled={isPending}
               className="w-3.5 h-3.5"
             />
-            <span className="text-sm">こっそり</span>
+            <span className="text-sm">{CHAT_TEXTS.entry.silent}</span>
           </label>
         </div>
         {/* メール（おなまえ欄と同じ理由で入力欄に min-w-0） */}
         <div className="mb-1 flex items-center">
           <label htmlFor={emailId} className="whitespace-nowrap">
-            E-Mail/URL:
+            {CHAT_TEXTS.entry.emailLabel}
           </label>
           <Input
             type="text"
@@ -176,8 +177,8 @@ export default function EntryForm({
             maxLength={EMAIL_MAX}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
             autoComplete="email"
-            placeholder="任意"
-            aria-label="E-Mail/URL"
+            placeholder={CHAT_TEXTS.entry.emailPlaceholder}
+            aria-label={CHAT_TEXTS.entry.emailAria}
             disabled={isPending}
             className="ml-2 min-w-0"
           />
@@ -193,10 +194,14 @@ export default function EntryForm({
                 checked={avatar === id}
                 onChange={() => setAvatar(id)}
                 disabled={isPending}
-                aria-label={id === 'none' ? 'アバターなし' : `アバター ${id}`}
+                aria-label={
+                  id === 'none'
+                    ? CHAT_TEXTS.entry.avatarNoneLabel
+                    : fillText(CHAT_TEXTS.entry.avatarLabel, { id })
+                }
               />
               {id === 'none' ? (
-                <span className="text-xs text-gray-500 ml-0.5">なし</span>
+                <span className="text-xs text-gray-500 ml-0.5">{CHAT_TEXTS.entry.avatarNone}</span>
               ) : (
                 <img
                   src={`${import.meta.env.BASE_URL}avatars/${id}.gif`}
@@ -215,8 +220,8 @@ export default function EntryForm({
           </div>
         )}
         <div className="text-xs text-gray-500 text-right mt-1">
-          <a href="https://www.cup.com/yui/" target="_blank" rel="noreferrer">
-            ゆいちゃっと Pro(Free)
+          <a href={CHAT_TEXTS.entry.creditUrl} target="_blank" rel="noreferrer">
+            {CHAT_TEXTS.entry.credit}
           </a>
         </div>
       </form>

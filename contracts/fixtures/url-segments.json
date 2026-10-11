@@ -1,0 +1,142 @@
+{
+  "cases": [
+    {
+      "message": "",
+      "expected": [
+        {
+          "type": "text",
+          "content": ""
+        }
+      ]
+    },
+    {
+      "message": "こんにちは",
+      "expected": [
+        {
+          "type": "text",
+          "content": "こんにちは"
+        }
+      ]
+    },
+    {
+      "message": "https://www.okiraku.chat/ を見て",
+      "expected": [
+        {
+          "type": "url",
+          "href": "https://www.okiraku.chat/"
+        },
+        {
+          "type": "text",
+          "content": " を見て"
+        }
+      ]
+    },
+    {
+      "message": "ここ→https://example.com/a?b=c。",
+      "expected": [
+        {
+          "type": "text",
+          "content": "ここ→"
+        },
+        {
+          "type": "url",
+          "href": "https://example.com/a?b=c"
+        },
+        {
+          "type": "text",
+          "content": "。"
+        }
+      ]
+    },
+    {
+      "message": "（http://example.com/x）",
+      "expected": [
+        {
+          "type": "text",
+          "content": "（"
+        },
+        {
+          "type": "url",
+          "href": "http://example.com/x"
+        },
+        {
+          "type": "text",
+          "content": "）"
+        }
+      ]
+    },
+    {
+      "message": "二つ https://a.example/ と http://b.example/path#frag",
+      "expected": [
+        {
+          "type": "text",
+          "content": "二つ "
+        },
+        {
+          "type": "url",
+          "href": "https://a.example/"
+        },
+        {
+          "type": "text",
+          "content": " と "
+        },
+        {
+          "type": "url",
+          "href": "http://b.example/path#frag"
+        }
+      ]
+    },
+    {
+      "message": "javascript:alert(1) ftp://x.example",
+      "expected": [
+        {
+          "type": "text",
+          "content": "javascript:alert(1) ftp://x.example"
+        }
+      ]
+    },
+    {
+      "message": "https://example.com/「引用」",
+      "expected": [
+        {
+          "type": "url",
+          "href": "https://example.com/「引用"
+        },
+        {
+          "type": "text",
+          "content": "」"
+        }
+      ]
+    },
+    {
+      "message": "<https://example.com/>",
+      "expected": [
+        {
+          "type": "text",
+          "content": "<"
+        },
+        {
+          "type": "url",
+          "href": "https://example.com/"
+        },
+        {
+          "type": "text",
+          "content": ">"
+        }
+      ]
+    },
+    {
+      "message": "https://example.com/】」』、",
+      "expected": [
+        {
+          "type": "url",
+          "href": "https://example.com/"
+        },
+        {
+          "type": "text",
+          "content": "】」』、"
+        }
+      ]
+    }
+  ]
+}
