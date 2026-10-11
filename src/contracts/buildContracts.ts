@@ -865,6 +865,13 @@ function nameChecks() {
     ...RESERVED_NAMES,
     ' 管理人 ',
     '　',
+    // 予約名は NFKC にして空白と見えない文字を除いてから比べる（save-chat の isReservedName）
+    '管 理 人',
+    '管理⼈',
+    '管\u200B理人',
+    '巫\u3000女',
+    '\u2060巫女\uFE0F',
+    '管理人さん',
   ];
   return { cases: names.map((name) => ({ name, expected: validateName(name) })) };
 }
