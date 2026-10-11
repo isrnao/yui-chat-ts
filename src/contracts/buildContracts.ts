@@ -25,6 +25,7 @@ import {
   FONT_COLOR_NAMES,
   FONT_SIZES,
   MESSAGE_MAX,
+  METADATA_KINDS,
   NAME_MAX,
   OPTIMISTIC_NONCE_MAX,
 } from '@features/chat/inputRules';
@@ -153,6 +154,8 @@ function chatOptions() {
     fontSizes: FONT_SIZES,
     fontColorNames: FONT_COLOR_NAMES,
     avatarIds: AVATAR_IDS,
+    /** metadata の kind（発言の種類。サーバーだけが normal 以外を書く） */
+    metadataKinds: METADATA_KINDS,
     windowRowOptions: {
       default: DEFAULT_WINDOW_ROW_OPTIONS,
       extended: EXTENDED_WINDOW_ROW_OPTIONS,
