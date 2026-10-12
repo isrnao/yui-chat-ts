@@ -19,7 +19,11 @@ export const REPORT_DETAIL_MAX = 500;
 /** 同じ IP・同じ端末の鍵から 1 時間に受ける通報の数 */
 export const REPORT_LIMIT_PER_HOUR = 10;
 
-export type ReportErrorCode = 'invalid_json' | 'invalid_chat_uuid' | 'invalid_reason' | 'invalid_detail';
+export type ReportErrorCode =
+  | 'invalid_json'
+  | 'invalid_chat_uuid'
+  | 'invalid_reason'
+  | 'invalid_detail';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -35,11 +39,13 @@ export function isReportReason(value: unknown): value is ReportReason {
 
 /** 本文（JSON を読んだもの）を確かめる。合わなければ誤りのコード */
 export function checkReport(body: unknown): ReportInput | { error: ReportErrorCode } {
-  if (typeof body !== 'object' || body === null || Array.isArray(body)) return { error: 'invalid_json' };
+  if (typeof body !== 'object' || body === null || Array.isArray(body))
+    return { error: 'invalid_json' };
   const { chat_uuid: chatUuid, reason, detail } = body as Record<string, unknown>;
   if (typeof chatUuid !== 'string' || !UUID.test(chatUuid)) return { error: 'invalid_chat_uuid' };
   if (!isReportReason(reason)) return { error: 'invalid_reason' };
-  if (detail !== undefined && detail !== null && typeof detail !== 'string') return { error: 'invalid_detail' };
+  if (detail !== undefined && detail !== null && typeof detail !== 'string')
+    return { error: 'invalid_detail' };
   const text = (detail ?? '').trim();
   if ([...text].length > REPORT_DETAIL_MAX) return { error: 'invalid_detail' };
   return { chatUuid: chatUuid.toLowerCase(), reason, detail: text };
