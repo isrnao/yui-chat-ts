@@ -15,9 +15,9 @@ function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: Roo
       <p className={`text-[11px] font-bold leading-tight ${toneClass[group.tone]}`}>{group.note}</p>
       <ul className="mt-1 list-outside list-[circle] pl-[14px] text-[12px] leading-[1.3]">
         {group.items.map((item) => (
-          <li key={item.label} className={`whitespace-nowrap ${toneMarkerClass[group.tone]}`}>
+          <li key={item.label} className={`${toneMarkerClass[group.tone]}`}>
             <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
-            <CountBadge count={resolveCount(item, liveCounts)} />
+            <CountBadge roomId={item.roomId} count={resolveCount(item, liveCounts)} />
           </li>
         ))}
       </ul>
@@ -79,9 +79,8 @@ export function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
           defaultValue={
             '<a href="https://www.okiraku.chat/" target="_blank" rel="noopener noreferrer">お気楽チャット - チャットで友達探し＆仲間作り</a>'
           }
-          onClick={(e) => e.currentTarget.select()}
           onFocus={(e) => e.currentTarget.select()}
-          aria-label="お気楽チャット紹介リンクのHTMLタグ (クリックで全選択)"
+          aria-label="お気楽チャット紹介リンクのHTMLタグ (フォーカスで全選択)"
           className="mt-3 w-full resize-y rounded border border-gray-300 bg-gray-50 p-2 font-mono text-[11px] leading-relaxed text-gray-800"
         />
         <p className="mt-3 text-[12px] leading-relaxed">

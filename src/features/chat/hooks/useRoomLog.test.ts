@@ -181,7 +181,12 @@ describe('useRoomLog（部屋単位の store）', () => {
       renderHook(() => useChatLog('superbeginner'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
       // 初回取得は接続を待たずに始まる
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(
+        1,
+        'superbeginner',
+        10,
+        expect.any(AbortSignal)
+      );
 
       await act(async () => {
         emitStatus('connected');
@@ -247,7 +252,11 @@ describe('useRoomLog（部屋単位の store）', () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
       await waitFor(() =>
-        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100)
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith(
+          'superbeginner',
+          100,
+          expect.any(AbortSignal)
+        )
       );
 
       await act(async () => {
@@ -255,7 +264,11 @@ describe('useRoomLog（部屋単位の store）', () => {
       });
 
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(3));
-      expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100);
+      expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith(
+        'superbeginner',
+        100,
+        expect.any(AbortSignal)
+      );
     });
 
     it('100 件より多く広げると、その件数を直接取得して既存の発言を残す', async () => {
@@ -268,7 +281,13 @@ describe('useRoomLog（部屋単位の store）', () => {
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
-      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 100));
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith(
+          'com_sb',
+          100,
+          expect.any(AbortSignal)
+        )
+      );
 
       const older = makeChat({ uuid: 'older', time: 0 });
       loadRecentChatLogsMock.mockResolvedValueOnce([existing, older]);
@@ -276,7 +295,13 @@ describe('useRoomLog（部屋単位の store）', () => {
         result.current.expand(1000);
       });
 
-      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('com_sb', 1000));
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith(
+          'com_sb',
+          1000,
+          expect.any(AbortSignal)
+        )
+      );
       await waitFor(() => expect(result.current.chatLog).toHaveLength(2));
     });
 
@@ -305,14 +330,24 @@ describe('useRoomLog（部屋単位の store）', () => {
 
       renderHook(() => useChatLog('superbeginner'));
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(1));
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(1, 'superbeginner', 10);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(
+        1,
+        'superbeginner',
+        10,
+        expect.any(AbortSignal)
+      );
 
       await act(async () => {
         emitStatus('connected');
       });
 
       await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledTimes(2));
-      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(2, 'superbeginner', 10);
+      expect(loadRecentChatLogsMock).toHaveBeenNthCalledWith(
+        2,
+        'superbeginner',
+        10,
+        expect.any(AbortSignal)
+      );
     });
 
     // 毎回 previous をマージすると、別クライアントで論理削除された発言や
@@ -340,14 +375,24 @@ describe('useRoomLog（部屋単位の store）', () => {
 
       const { result } = renderHook(() => useChatLog('superbeginner'));
 
-      await waitFor(() => expect(loadRecentChatLogsMock).toHaveBeenCalledWith('superbeginner', 10));
+      await waitFor(() =>
+        expect(loadRecentChatLogsMock).toHaveBeenCalledWith(
+          'superbeginner',
+          10,
+          expect.any(AbortSignal)
+        )
+      );
 
       await act(async () => {
         result.current.expand(FULL_CHAT_LOG_LIMIT);
       });
 
       await waitFor(() =>
-        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith('superbeginner', 100)
+        expect(loadRecentChatLogsMock).toHaveBeenLastCalledWith(
+          'superbeginner',
+          100,
+          expect.any(AbortSignal)
+        )
       );
       // 広げたあとに重ねて呼ばれない
       await act(async () => {

@@ -4,13 +4,14 @@ import {
   addTransitionType,
   startTransition,
   useState,
+  useId,
   lazy,
   Suspense,
 } from 'react';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { useChatSession } from '@features/chat/hooks/useChatSession';
+import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -53,10 +54,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
 
   const measurement = useConversationMeasurement();
   const store = getRoomLogStore(roomId);
-  const { chatLog, isLoading, loadError, addOptimistic, reload, expand } = useRoomLog(
-    store,
-    measurement.onRealtimeChat
-  );
+  const { chatLog, isLoading, loadError, realtimeStatus, addOptimistic, reload, expand } =
+    useRoomLog(store, measurement.onRealtimeChat);
   // localStorage に保存された前回入室時の設定を、入室者の状態の既定値にする
   const { settings } = useSettings();
   const identity = useChatIdentity(settings);
@@ -93,9 +92,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const roomRanking = useRoomRanking(roomId, showRanking);
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const [showFilter, setShowFilter] = useState(false);
+  const [filterActive, setFilterActive] = useState(false);
+  const [filterRequest, setFilterRequest] = useState(0);
+  const filterDialogId = useId();
   // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
-  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
+  const filterSummary = filterActive ? filterByIp(chatLog, ipFilter) : null;
 
   useLookSound(store, ipFilter);
 
@@ -103,7 +104,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setShowRanking(false);
-    setShowFilter(false);
+    setFilterRequest(0);
+    setFilterActive(false);
     setName('');
     return session.exit();
   };
@@ -121,7 +123,15 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
+      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
+          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
+      {realtimeStatus === 'disconnected' && (
+        <div className="px-[var(--page-gap)] text-xs" role="status">
+          接続が切れています。更新でログを取得できます。
+        </div>
+      )}
       <RetroSplitter
+        bottomScrollable={false}
         minTop={100}
         minBottom={100}
         topKind={entered ? 'chat' : 'entry'}
@@ -135,16 +145,20 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 expand(rows);
               }}
               windowRowOptions={getWindowRowOptions(roomId)}
+              sessionPending={session.phase === 'entering'}
+              failedMessage={session.failedSend?.chat.message}
+              onRetrySend={session.retry}
               onExit={handleExit}
               onSend={handleSend}
               onReload={reload}
               onShowRanking={openRanking}
               onBackToChat={closeRanking}
               filterCount={ipFilter.entries?.length ?? 0}
-              onToggleFilter={() => setShowFilter(true)}
-              avatar={avatar}
-              userName={name}
-              userColor={color}
+              filterDialogId={filterDialogId}
+              onToggleFilter={() => setFilterRequest((request) => request + 1)}
+              avatar={session.sessionIdentity?.avatar ?? avatar}
+              userName={session.sessionIdentity?.name ?? name}
+              userColor={session.sessionIdentity?.color ?? color}
             />
           ) : (
             <>
@@ -157,15 +171,18 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 email={email}
                 setEmail={setEmail}
                 error={entryError}
-                onEnter={async ({ name: n, color: c, silent, avatar: a }) => {
+                retryAvatar={entryError ? avatar : undefined}
+                isPending={session.phase === 'exiting'}
+                onEnter={async ({ name: n, color: c, silent, avatar: a, email: e }) => {
                   setAvatar(a);
                   setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
                   expand(FULL_CHAT_LOG_LIMIT);
                   try {
-                    await session.enter({ name: n, color: c, silent });
+                    await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                   } catch (err) {
-                    setEntryError(toEntryErrorMessage(err));
+                    if (!(err instanceof SupersededSessionError))
+                      setEntryError(toEntryErrorMessage(err));
                     throw err;
                   }
                 }}
@@ -182,7 +199,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 高さに合わせてスクロール量が変わってしまう） */}
             <Activity mode={showRanking ? 'hidden' : 'visible'}>
               <ViewTransition default={RANKING_ONLY}>
-                <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
+                <div
+                  className="h-full overflow-y-auto"
+                  data-log-scroll=""
+                  data-testid="chat-log-pane"
+                >
                   <Suspense
                     fallback={
                       <div className="mt-8 animate-pulse text-gray-400">
@@ -197,6 +218,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                       loadError={loadError}
                       onRetry={reload}
                       ipFilter={ipFilter}
+                      contained
                     />
                   </Suspense>
                 </div>
@@ -211,6 +233,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                     ranking={roomRanking.ranking}
                     isLoading={roomRanking.isLoading}
                     hasError={roomRanking.hasError}
+                    onRetry={roomRanking.retry}
+                    asOf={roomRanking.asOf}
                     roomTitle={room.title}
                     onBackToChat={closeRankingAnimated}
                   />
@@ -220,14 +244,17 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           </>
         }
       />
-      {filterSummary && (
+      {
         <FilterListDialog
           entries={ipFilter.entries ?? []}
-          hiddenCounts={filterSummary.hiddenCounts}
-          hiddenNames={filterSummary.hiddenNames}
-          onClose={() => setShowFilter(false)}
+          dialogId={filterDialogId}
+          request={filterRequest}
+          onOpen={() => setFilterActive(true)}
+          hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+          hiddenNames={filterSummary?.hiddenNames}
+          onClose={() => setFilterActive(false)}
         />
-      )}
+      }
     </main>
   );
 }

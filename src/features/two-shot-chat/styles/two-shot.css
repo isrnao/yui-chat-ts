@@ -14,9 +14,9 @@
  */
 
 .two-shot-scope,
-.two-shot-scope *,
-.two-shot-scope ::before,
-.two-shot-scope ::after {
+.two-shot-scope :where(*):not(:where(.native-modal, .native-modal *)),
+.two-shot-scope :where(*):not(:where(.native-modal, .native-modal *))::before,
+.two-shot-scope :where(*):not(:where(.native-modal, .native-modal *))::after {
   all: revert;
 }
 
@@ -51,17 +51,23 @@
 
 .two-shot-scope.ts-frames {
   --ts-top: 0.3;
+  --ts-border: 5px;
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-rows: calc((100% - 5px) * var(--ts-top)) 5px minmax(0, 1fr);
+  grid-template-rows: calc((100% - var(--ts-border)) * var(--ts-top)) var(--ts-border) minmax(
+      0,
+      1fr
+    );
   overflow: hidden;
 }
 
 /* Chromium は frameset の行の高さを 1px 単位で切り捨てる（800px なら 30% は 238px） */
 @supports (width: round(down, 1.5px, 1px)) {
   .two-shot-scope.ts-frames {
-    grid-template-rows: round(down, calc((100% - 5px) * var(--ts-top)), 1px) 5px minmax(0, 1fr);
+    grid-template-rows:
+      round(down, calc((100% - var(--ts-border)) * var(--ts-top)), 1px) var(--ts-border)
+      minmax(0, 1fr);
   }
 }
 
@@ -80,7 +86,7 @@
 .two-shot-scope .ts-frame-border {
   display: block;
   box-sizing: border-box;
-  height: 5px;
+  height: var(--ts-border);
   border-top: 1px solid #aaaaaa;
   border-bottom: 1px solid #000000;
   background: #555555;
@@ -204,4 +210,57 @@
 .two-shot-scope .ts-p {
   display: block;
   margin-block: 1em;
+}
+
+.two-shot-scope :is(button, input, select, textarea, a):focus-visible {
+  outline: 2px solid #060;
+  outline-offset: 2px;
+}
+.two-shot-scope .ts-sex-options,
+.two-shot-scope .ts-auto-options {
+  display: inline-block;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.two-shot-scope .ts-sex-options legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.two-shot-scope .ts-auto-options legend {
+  float: left;
+  font-weight: bold;
+}
+@media (pointer: coarse) {
+  .two-shot-scope.ts-frames {
+    --ts-border: 24px;
+  }
+  .two-shot-scope :is(button, input[type='button'], input[type='submit']) {
+    min-block-size: 44px;
+    min-inline-size: 44px;
+  }
+}
+@media (max-height: 240px) {
+  .two-shot-scope.ts-frames {
+    display: block;
+    overflow: auto;
+  }
+  .two-shot-scope .ts-frame-border {
+    display: none;
+  }
+  .two-shot-scope .ts-pane {
+    min-block-size: 100px;
+    overflow: visible;
+  }
+}
+@media (forced-colors: active) {
+  .two-shot-scope :is(button, input, select, textarea, a):focus-visible {
+    outline-color: Highlight;
+  }
+  .two-shot-scope .ts-frame-border {
+    background: ButtonFace;
+    border-color: ButtonText;
+  }
 }

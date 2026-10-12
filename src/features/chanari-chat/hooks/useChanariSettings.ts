@@ -1,6 +1,7 @@
+import { useNowMinute } from '@features/chat/hooks/useNowMinute';
 import { useSyncExternalStore } from 'react';
 
-import { draftsStore, saveDraft, type ChanariDraft } from '../utils/draftStore';
+import { draftsStore, saveDraft, isValidDraft, type ChanariDraft } from '../utils/draftStore';
 
 type SettingsPartial = Partial<Omit<ChanariDraft, 'version' | 'updatedAt' | 'roomId'>>;
 
@@ -20,7 +21,12 @@ export function useChanariSettings(roomId: string) {
     draftsStore.getSnapshot,
     draftsStore.getServerSnapshot
   );
-  const settings: Partial<ChanariDraft> = drafts[roomId] ?? EMPTY;
+  const now = useNowMinute();
+  const draft = drafts[roomId];
+  const settings: Partial<ChanariDraft> =
+    draft && draft.roomId === roomId && isValidDraft(draft, Math.max(now, draft.updatedAt))
+      ? draft
+      : EMPTY;
 
   // 保存はストアの現在値に差分を重ねる（同じ tick 内の連続更新も取りこぼさない）
   const updateSettings = (partial: SettingsPartial) => {

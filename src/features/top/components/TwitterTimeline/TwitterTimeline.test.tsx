@@ -47,7 +47,7 @@ describe('TwitterTimeline', () => {
     expect(widgetScript()?.getAttribute('src')).toBe('https://platform.twitter.com/widgets.js');
   });
 
-  it('script が既にあれば再読み込みせず再スキャンする', () => {
+  it('script が既にあれば再読み込みせず再スキャンする', async () => {
     const harness = installObserver();
     const load = vi.fn();
     vi.stubGlobal('twttr', { widgets: { load } });
@@ -58,7 +58,7 @@ describe('TwitterTimeline', () => {
     render(<TwitterTimeline screenName="okiraku" />);
     act(() => harness.enterViewport());
 
-    expect(load).toHaveBeenCalled();
+    await vi.waitFor(() => expect(load).toHaveBeenCalled());
     expect(document.querySelectorAll('#twitter-wjs')).toHaveLength(1);
   });
 });

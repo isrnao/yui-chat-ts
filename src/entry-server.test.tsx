@@ -14,7 +14,9 @@ vi.mock('@features/chat/rooms', async (importOriginal) => ({
 }));
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
-  fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+  fetchRoomCountsResult: vi
+    .fn()
+    .mockResolvedValue({ kind: 'ready', counts: {}, failedRooms: [], asOf: 1 }),
 }));
 
 vi.mock('@features/two-shot-chat/api/twoShotApi', () => ({
@@ -46,7 +48,9 @@ function collectHydrationErrors() {
   };
 }
 
-describe('SSG + hydrateRoot', () => {
+// 最初の検査がルート全体の変換を待つ。並列の pre-commit（typecheck・eslint と同時）では既定の 5 秒を超え、
+// 時間切れの後始末が次の検査に漏れて連鎖で落ちるので、この describe だけ猶予を持たせる
+describe('SSG + hydrateRoot', { timeout: 30_000 }, () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -95,6 +99,49 @@ describe('SSG + hydrateRoot', () => {
     expect(markup).toContain('おなまえ');
     expect(markup).toContain('<input');
     expect(warnings).toEqual([]);
+  });
+
+  it.each(['/chat/superbeginner', '/chanari/durarara'])(
+    '%s の SSG に Realtime の接続待ちの表示を入れない（つながった時に入室フォームが動くため）',
+    async (pathname) => {
+      window.history.replaceState(null, '', pathname);
+      const markup = await render(pathname);
+      expect(markup).not.toContain('接続中');
+      expect(markup).not.toContain('接続が切れています');
+    }
+  );
+
+  it('トップの SSG に人数の取得中の表示を入れない（取得後に部屋の一覧が動くため）', async () => {
+    window.history.replaceState(null, '', '/');
+    const markup = await render('/');
+    expect(markup).toContain('お気楽チャット');
+    expect(markup).not.toContain('人数を取得中');
+  });
+
+  it('hydrate前の名前・メール編集を保存設定で上書きしない', async () => {
+    window.history.replaceState(null, '', '/chat/superbeginner');
+    const markup = await render('/chat/superbeginner');
+    document.body.innerHTML = `<div id="root" data-ssg="1">${markup}</div>`;
+    const container = document.getElementById('root')!;
+    const name = container.querySelector<HTMLInputElement>('input[name="name"]')!;
+    const email = container.querySelector<HTMLInputElement>('input[name="email"]')!;
+    name.value = '先行入力';
+    email.value = 'early@example.com';
+    localStorage.setItem(
+      'yui-chat-settings',
+      JSON.stringify({ name: '保存名', email: 'saved@example.com' })
+    );
+    const captured = collectHydrationErrors();
+    await preloadRoute('/chat/superbeginner');
+    let root!: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(container, <App />);
+    });
+    expect(name.value).toBe('先行入力');
+    expect(email.value).toBe('early@example.com');
+    expect(captured.hydrationWarnings()).toEqual([]);
+    captured.restore();
+    await act(async () => root.unmount());
   });
 
   // SSG はブラウザの API（sessionStorage など）を読まずに入口を描く（.kiro/specs/two-shot-chat Requirement 1.5）

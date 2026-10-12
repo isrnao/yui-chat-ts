@@ -238,4 +238,38 @@ describe('RetroSplitter', () => {
     // 未操作のうちは inline の実効値を持たない (CSS が決める)
     expect(panes!.style.getPropertyValue('--splitter-top-h')).toBe('');
   });
+
+  it('右ボタンは無視し、矢印/Home/Endは範囲内で境界を動かす', () => {
+    render(
+      <RetroSplitter top={<div>TT</div>} bottom={<div>BB</div>} minTop={100} minBottom={100} />
+    );
+    const bar = getBar();
+    act(() => bar.dispatchEvent(new TestPointerEvent('pointerdown', { button: 2 })));
+    expect(document.body.style.userSelect).toBe('');
+    const initial = Number(bar.getAttribute('aria-valuenow'));
+    fireEvent.keyDown(bar, { key: 'ArrowUp' });
+    expect(Number(bar.getAttribute('aria-valuenow'))).toBeLessThan(initial);
+    fireEvent.keyDown(bar, { key: 'End' });
+    expect(bar.getAttribute('aria-valuenow')).toBe(bar.getAttribute('aria-valuemax'));
+    fireEvent.keyDown(bar, { key: 'Home' });
+    expect(bar.getAttribute('aria-valuenow')).toBe(bar.getAttribute('aria-valuemin'));
+  });
+
+  it('入退室で予約済みドラッグ更新を破棄する', () => {
+    let queued: Parameters<typeof window.requestAnimationFrame>[0] | undefined;
+    vi.mocked(window.requestAnimationFrame).mockImplementation((callback) => {
+      queued = callback;
+      return 42;
+    });
+    const { rerender } = render(
+      <RetroSplitter topKind="entry" top={<div>TT</div>} bottom={<div>BB</div>} />
+    );
+    pointer(getBar(), 'pointerdown');
+    pointer(getBar(), 'pointermove', { clientY: 400 });
+    expect(queued).toBeDefined();
+    rerender(<RetroSplitter topKind="chat" top={<div>TT</div>} bottom={<div>BB</div>} />);
+    expect(window.cancelAnimationFrame).toHaveBeenCalledWith(42);
+    expect(getPercentHeight(screen.getByText('TT').parentElement!)).toBe(18);
+    expect(document.body.style.userSelect).toBe('');
+  });
 });

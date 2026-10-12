@@ -24,7 +24,7 @@ function backToLobby(token: string) {
 function RoomScreen({ session, initial }: { session: ActiveSession; initial: RoomUiState }) {
   const [value, setValue] = useState('');
   const busy = useRef(false);
-  const [ui, dispatchAction] = useActionState(
+  const [ui, dispatchAction, isPending] = useActionState(
     (previous: RoomUiState, action: RoomAction): Promise<RoomUiState> =>
       reduceRoom(session, previous, action)
         .then((next) => {
@@ -66,6 +66,8 @@ function RoomScreen({ session, initial }: { session: ActiveSession; initial: Roo
       bottomLabel="ログ"
       top={
         <ChatForm
+          isPending={isPending}
+          terminal={ui.terminal}
           roomName={roomName}
           me={ui.me}
           seat={ui.seat}

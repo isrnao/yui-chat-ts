@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { StrictMode } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { useChanariSettings } from './useChanariSettings';
-import { STORAGE_KEY, ONE_YEAR_MS, saveDraft } from '../utils/draftStore';
+import { STORAGE_KEY, ONE_YEAR_MS, saveDraft, loadDraft } from '../utils/draftStore';
 
 function storedDrafts(): Record<string, Record<string, unknown>> {
   return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<
@@ -77,4 +77,30 @@ describe('useChanariSettings', () => {
     expect(renderHook(() => useChanariSettings('old')).result.current.settings).toEqual({});
     expect(renderHook(() => useChanariSettings('future')).result.current.settings).toEqual({});
   });
+});
+
+it('不正な型/色/部屋のdraftとcacheの期限越えを復元しない', () => {
+  localStorage.clear();
+  const now = Date.now();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      numeric: { version: 1, roomId: 'numeric', updatedAt: now, lastMessage: 42 },
+      array: { version: 1, roomId: 'array', updatedAt: now, lastMessage: ['a'] },
+      mismatch: { version: 1, roomId: 'other', updatedAt: now, lastMessage: 'bad' },
+      color: { version: 1, roomId: 'color', updatedAt: now, nameColor: 'expression(x)' },
+      expired: {
+        version: 1,
+        roomId: 'expired',
+        updatedAt: now - ONE_YEAR_MS + 1,
+        lastMessage: 'valid',
+      },
+    })
+  );
+  for (const key of ['numeric', 'array', 'mismatch', 'color']) expect(loadDraft(key)).toBeNull();
+  expect(loadDraft('expired')?.lastMessage).toBe('valid');
+  clock.mockReturnValue(now + 2);
+  expect(loadDraft('expired')).toBeNull();
+  clock.mockRestore();
 });

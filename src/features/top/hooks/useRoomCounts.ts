@@ -1,50 +1,76 @@
 import { useEffect, useState } from 'react';
-import { fetchRoomParticipantCounts, type RoomCountMap } from '../api/roomCountsApi';
-
-/** 取得状態 */
-export type UseRoomCountsState = {
-  counts: RoomCountMap;
+import { getListableRoomIds } from '@features/chat/rooms';
+import {
+  fetchRoomCountsResult,
+  type RoomCountMap,
+  type RoomCountResult,
+} from '../api/roomCountsApi';
+export type UseRoomCountsState = Omit<RoomCountResult, 'kind'> & {
+  kind: RoomCountResult['kind'] | 'loading';
   isLoading: boolean;
-  error: Error | null;
+  retry: () => void;
 };
-
-/** 参加人数を数える期間の既定値（6 時間）。既定引数に式を書くと React Compiler がコンパイルできない */
 const DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000;
-
-/**
- * トップページ用: Supabase から直近 `windowMs` 内のメッセージを取得し、
- * ルームごとのユニーク参加者数を返す。失敗時は空オブジェクトで解決する。
- *
- * デフォルトは 6 時間。
- */
 export function useRoomCounts(windowMs: number = DEFAULT_WINDOW_MS): UseRoomCountsState {
-  const [state, setState] = useState<UseRoomCountsState>({
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<Omit<UseRoomCountsState, 'retry'>>({
+    kind: 'loading',
     counts: {},
+    failedRooms: [...getListableRoomIds()],
     isLoading: true,
-    error: null,
   });
-
   useEffect(() => {
     let cancelled = false;
-
-    fetchRoomParticipantCounts(windowMs)
-      .then((counts) => {
+    let refreshed = Date.now();
+    const controller = new AbortController();
+    fetchRoomCountsResult(windowMs, controller.signal).then(
+      (result) => {
         if (cancelled) return;
-        setState({ counts, isLoading: false, error: null });
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setState({
-          counts: {},
-          isLoading: false,
-          error: error instanceof Error ? error : new Error(String(error)),
+        setState((previous) => {
+          const counts: RoomCountMap = { ...previous.counts, ...result.counts };
+          for (const room of getListableRoomIds()) {
+            if (!result.failedRooms.includes(room)) counts[room] = result.counts[room] ?? 0;
+          }
+          return { ...result, counts, asOf: result.asOf ?? previous.asOf, isLoading: false };
         });
-      });
-
+      },
+      () => {
+        if (!cancelled)
+          setState((previous) => ({
+            ...previous,
+            kind: 'failed',
+            failedRooms: [...getListableRoomIds()],
+            isLoading: false,
+          }));
+      }
+    );
+    const restore = (event: Event) => {
+      if (document.visibilityState === 'hidden') return;
+      const persisted =
+        typeof PageTransitionEvent !== 'undefined' &&
+        event instanceof PageTransitionEvent &&
+        event.persisted;
+      const age = Date.now() - refreshed;
+      if (age >= 60_000 || (persisted && age >= 1_000)) {
+        refreshed = Date.now();
+        setAttempt((value) => value + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', restore);
+    window.addEventListener('pageshow', restore);
     return () => {
       cancelled = true;
+      controller.abort();
+      document.removeEventListener('visibilitychange', restore);
+      window.removeEventListener('pageshow', restore);
     };
-  }, [windowMs]);
-
-  return state;
+  }, [windowMs, attempt]);
+  return {
+    ...state,
+    retry: () => {
+      if (state.isLoading) return;
+      setState((previous) => ({ ...previous, isLoading: true }));
+      setAttempt((value) => value + 1);
+    },
+  };
 }

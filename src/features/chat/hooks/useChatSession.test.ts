@@ -45,7 +45,7 @@ function chat(overrides: Partial<Chat>): Chat {
   };
 }
 
-function setup(target: SessionTarget, initialChats: Chat[] = []) {
+function setup(target: SessionTarget, initialChats: Chat[] = [], startEntered = false) {
   const source: LogSource = {
     initialLimit: 10,
     fetch: () => Promise.resolve(initialChats),
@@ -72,6 +72,12 @@ function setup(target: SessionTarget, initialChats: Chat[] = []) {
       measurement,
     })
   );
+  if (startEntered) {
+    act(() => {
+      void result.current.enter({ name: 'ゆい', color: '#ff69b4', silent: true });
+    });
+    vi.clearAllMocks();
+  }
   return { result, store, measurement, addOptimistic };
 }
 
@@ -136,7 +142,7 @@ describe('useChatSession', () => {
   });
 
   it('全部屋まとめの発言は返信先に保存し、アバターを metadata に足す', async () => {
-    const { result } = setup({ kind: 'all', replyTo: 'com_sb' });
+    const { result } = setup({ kind: 'all', replyTo: 'com_sb' }, [], true);
     await act(async () => {
       await result.current.send('こんにちは', { version: 1, fontStyle: { bold: true } });
     });
@@ -160,7 +166,7 @@ describe('useChatSession', () => {
   });
 
   it('look は部屋単位のビューだけ自分の音を鳴らし、Realtime の echo を自分の発言と見分けられるようにする', async () => {
-    const room = setup({ kind: 'room', roomId: 'superbeginner' });
+    const room = setup({ kind: 'room', roomId: 'superbeginner' }, [], true);
     await act(async () => {
       await room.result.current.send('look');
     });
@@ -171,7 +177,7 @@ describe('useChatSession', () => {
     expect(isOwnChat(sent)).toBe(true);
 
     vi.mocked(playNotificationSound).mockClear();
-    const all = setup({ kind: 'all', replyTo: 'superbeginner' });
+    const all = setup({ kind: 'all', replyTo: 'superbeginner' }, [], true);
     await act(async () => {
       await all.result.current.send('look');
     });
@@ -179,11 +185,15 @@ describe('useChatSession', () => {
   });
 
   it('clear はサーバーが消した発言だけをログから取り除く（同じ名前の別の発言は残す）', async () => {
-    const { result, store } = setup({ kind: 'room', roomId: 'superbeginner' }, [
-      chat({ uuid: 'mine', name: 'ゆい' }),
-      chat({ uuid: 'same-name-other-device', name: 'ゆい' }),
-      chat({ uuid: 'other', name: 'たろう' }),
-    ]);
+    const { result, store } = setup(
+      { kind: 'room', roomId: 'superbeginner' },
+      [
+        chat({ uuid: 'mine', name: 'ゆい' }),
+        chat({ uuid: 'same-name-other-device', name: 'ゆい' }),
+        chat({ uuid: 'other', name: 'たろう' }),
+      ],
+      true
+    );
     await flush();
 
     await act(async () => {
@@ -199,9 +209,11 @@ describe('useChatSession', () => {
   it('全部屋まとめの clear は返信先の部屋で消し、消えた件数が 0 ならエラーにする', async () => {
     vi.mocked(clearMyChats).mockResolvedValueOnce([]);
     // 手元のログに自分の発言があっても、サーバーが 0 件なら「削除対象の発言がありません」
-    const { result, store } = setup({ kind: 'all', replyTo: 'superbeginner' }, [
-      chat({ uuid: 'mine', name: 'ゆい', room_id: 'superbeginner' }),
-    ]);
+    const { result, store } = setup(
+      { kind: 'all', replyTo: 'superbeginner' },
+      [chat({ uuid: 'mine', name: 'ゆい', room_id: 'superbeginner' })],
+      true
+    );
     await flush();
 
     await act(async () => {
@@ -217,7 +229,7 @@ describe('useChatSession', () => {
   });
 
   it('cut と空の発言は保存しない', async () => {
-    const { result } = setup({ kind: 'room', roomId: 'superbeginner' });
+    const { result } = setup({ kind: 'room', roomId: 'superbeginner' }, [], true);
     await act(async () => {
       await result.current.send('cut');
       await result.current.send('   ');

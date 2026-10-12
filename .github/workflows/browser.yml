@@ -12,5 +12,18 @@ jobs:
         with:
           version: '10'
       - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test --coverage.enabled=false
       - run: pnpm exec playwright install --with-deps
+      - run: pnpm build:prod
+        env:
+          VITE_SUPABASE_URL: https://native-fixture.invalid
+          VITE_SUPABASE_ANON_KEY: fixture-only
       - run: pnpm test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-traces
+          path: test-results/
+          retention-days: 7

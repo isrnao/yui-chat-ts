@@ -9,7 +9,7 @@ type ChanariChatRoomProps = ComponentProps<typeof ChanariChatRoom>;
 type ChanariChatRoomStoryArgs = Partial<
   Pick<
     ChanariChatRoomProps,
-    | 'message'
+    | 'initialMessage'
     | 'nameColor'
     | 'speechColor'
     | 'reloadSeconds'
@@ -25,7 +25,7 @@ type ChanariChatRoomStoryArgs = Partial<
 >;
 
 function ChanariChatRoomContainer({
-  message: initialMessage = 'こんにちは',
+  initialMessage = 'こんにちは',
   nameColor: initialNameColor = '#ff69b4',
   speechColor: initialSpeechColor = '#333333',
   reloadSeconds: initialReloadSeconds = 15,
@@ -38,15 +38,13 @@ function ChanariChatRoomContainer({
   onClearMyLogs,
   onRestoreDraft,
 }: ChanariChatRoomStoryArgs = {}) {
-  const [message, setMessage] = useState(initialMessage);
   const [nameColor, setNameColor] = useState(initialNameColor);
   const [speechColor, setSpeechColor] = useState(initialSpeechColor);
   const [reloadSeconds, setReloadSeconds] = useState(initialReloadSeconds);
 
   return (
     <ChanariChatRoom
-      message={message}
-      setMessage={setMessage}
+      initialMessage={initialMessage}
       nameColor={nameColor}
       setNameColor={setNameColor}
       speechColor={speechColor}
@@ -73,13 +71,13 @@ const meta = {
   tags: ['autodocs'],
   decorators: [
     (Story) => (
-      <div className="chanari-scope min-w-[720px]">
+      <div className="chanari-scope w-full max-w-[720px]">
         <Story />
       </div>
     ),
   ],
   argTypes: {
-    message: {
+    initialMessage: {
       control: 'text',
       description: '発言入力欄の初期値',
     },
@@ -106,12 +104,11 @@ const noopNumberSetter = () => undefined;
 
 export const Default: Story = {
   args: {
-    message: 'こんにちは',
+    initialMessage: 'こんにちは',
     nameColor: '#ff69b4',
     speechColor: '#333333',
     reloadSeconds: 15,
     sid: 'storybook-session',
-    setMessage: noopStringSetter,
     setNameColor: noopStringSetter,
     setSpeechColor: noopStringSetter,
     setReloadSeconds: noopNumberSetter,
@@ -127,7 +124,7 @@ export const Default: Story = {
 export const OverLimit: Story = {
   args: {
     ...Default.args,
-    message: 'あ'.repeat(121),
+    initialMessage: 'あ'.repeat(121),
   },
   render: Default.render,
 };
