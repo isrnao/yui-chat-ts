@@ -115,3 +115,25 @@ test('popover unavailable keeps panel hidden and offers ordinary buttons', async
   await page.keyboard.press('Escape');
   await expect(panel).not.toBeVisible();
 });
+
+test('audio activation is explicit and separate from mute', async ({ page }) => {
+  await page.goto('/tests/browser/fixtures/components.html');
+  await page.getByRole('button', { name: '通知音を有効にする', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: '通知音の再生が可能です', exact: true })
+  ).toBeDisabled();
+  await page.getByLabel('通知音をミュート').check();
+  await expect(page.getByLabel('通知音をミュート')).toBeChecked();
+});
+test('reduced motion hides animated decoration and very short viewport preserves controls', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 320, height: 200 });
+  await page.goto('/tests/browser/fixtures/components.html');
+  await page.getByRole('textbox', { name: 'おなまえ', exact: true }).fill('短い画面');
+  await page.getByRole('button', { name: 'チャットに参加する' }).click();
+  await page.getByRole('textbox', { name: '発言', exact: true }).fill('短い画面でも送信');
+  await page.getByRole('button', { name: '発言', exact: true }).click();
+  await expect(page.getByLabel('送信結果')).toHaveText('短い画面でも送信');
+});

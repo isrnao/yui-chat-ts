@@ -137,3 +137,35 @@
     inset: auto 8px 8px auto;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .look-decoration {
+    display: none;
+  }
+  .chat-row-filterable img[src$='.gif'] {
+    animation: none;
+  }
+}
+@media (max-height: 240px) {
+  .splitter-panes {
+    display: block;
+    overflow: auto;
+  }
+  .splitter-panes > [role='separator'] {
+    display: none;
+  }
+  .splitter-panes > .splitter-top,
+  .splitter-panes > .splitter-bottom {
+    min-block-size: 100px;
+    overflow: visible;
+  }
+}
+
+.avatar-still {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-still {
+    display: inline;
+  }
+}

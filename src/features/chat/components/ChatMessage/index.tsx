@@ -1,3 +1,4 @@
+import { readLookCommand } from '@features/chat/utils/lookCommand';
 import { memo } from 'react';
 import type { HTMLAttributes } from 'react';
 import { formatLegacyDateTime } from '@shared/utils/format';
@@ -161,7 +162,6 @@ function MessageBody({
 }
 
 /** レガシーの look コマンド。発言の右にきらめきを出す */
-const LOOK_PATTERN = /^look$/i;
 const PROFILE_SUFFIX = CHAT_TEXTS.log.profileSuffix;
 /** save-chat の機能要求受付返信「…（Issue #112）」の Issue 番号部分 */
 const ISSUE_REF_PATTERN = /(Issue #(\d+))/;
@@ -241,10 +241,11 @@ function AdminMessage({
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
           alt={avatar}
-          className="inline-block w-5 h-5 mr-1 align-middle"
+          className="avatar-motion inline-block w-5 h-5 mr-1 align-middle"
           loading="lazy"
         />
       )}
+      {avatar && <span className="avatar-still">{avatar} </span>}
       <span className="font-bold" style={{ color: chat.color }}>
         {chat.name}
       </span>
@@ -350,10 +351,11 @@ function ChatMessage({
         <img
           src={`${import.meta.env.BASE_URL}avatars/${avatar}.gif`}
           alt={avatar}
-          className="inline-block w-5 h-5 mr-1 align-middle"
+          className="avatar-motion inline-block w-5 h-5 mr-1 align-middle"
           loading="lazy"
         />
       )}
+      {avatar && <span className="avatar-still">{avatar} </span>}
       <span
         className="font-bold"
         style={{ color: chat.color, fontSize: '1.08em' }}
@@ -383,7 +385,7 @@ function ChatMessage({
         <span className="font-bold text-gray-400 px-1">{'>'}</span>
       )}
       <MessageBody message={chat.message} chat={chat} filterable={filterable} />
-      {LOOK_PATTERN.test(chat.message.trim()) && (
+      {readLookCommand(chat.message) === 'look' && (
         // レガシーの rin.swf（18x18・12fps）を GIF に移植したもの
         <img
           src={`${import.meta.env.BASE_URL}rin.gif`}
@@ -391,7 +393,7 @@ function ChatMessage({
           aria-hidden="true"
           width={18}
           height={18}
-          className="inline-block ml-1 align-middle [image-rendering:pixelated]"
+          className="look-decoration inline-block ml-1 align-middle [image-rendering:pixelated]"
         />
       )}
       <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />

@@ -11,12 +11,14 @@ export default function RetroSplitter({
   topKind,
   minTop = 10,
   minBottom = 10,
+  bottomScrollable = true,
 }: {
   top: ReactNode;
   bottom: ReactNode;
   topKind?: SplitterTopKind;
   minTop?: number;
   minBottom?: number;
+  bottomScrollable?: boolean;
 }) {
   const paneId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -154,7 +156,7 @@ export default function RetroSplitter({
     >
       <div
         id={paneId}
-        className="min-h-0 overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
+        className="splitter-top min-h-0 overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
       >
         {top}
       </div>
@@ -179,7 +181,12 @@ export default function RetroSplitter({
       >
         <hr className="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full" />
       </div>
-      <div className="min-h-0 overflow-y-auto">{bottom}</div>
+      <div
+        className={`splitter-bottom min-h-0 ${bottomScrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        data-log-scroll=""
+      >
+        {bottom}
+      </div>
     </div>
   );
 }

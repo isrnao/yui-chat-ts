@@ -97,6 +97,32 @@ describe('SSG + hydrateRoot', () => {
     expect(warnings).toEqual([]);
   });
 
+  it('hydrate前の名前・メール編集を保存設定で上書きしない', async () => {
+    window.history.replaceState(null, '', '/chat/superbeginner');
+    const markup = await render('/chat/superbeginner');
+    document.body.innerHTML = `<div id="root" data-ssg="1">${markup}</div>`;
+    const container = document.getElementById('root')!;
+    const name = container.querySelector<HTMLInputElement>('input[name="name"]')!;
+    const email = container.querySelector<HTMLInputElement>('input[name="email"]')!;
+    name.value = '先行入力';
+    email.value = 'early@example.com';
+    localStorage.setItem(
+      'yui-chat-settings',
+      JSON.stringify({ name: '保存名', email: 'saved@example.com' })
+    );
+    const captured = collectHydrationErrors();
+    await preloadRoute('/chat/superbeginner');
+    let root!: ReturnType<typeof hydrateRoot>;
+    await act(async () => {
+      root = hydrateRoot(container, <App />);
+    });
+    expect(name.value).toBe('先行入力');
+    expect(email.value).toBe('early@example.com');
+    expect(captured.hydrationWarnings()).toEqual([]);
+    captured.restore();
+    await act(async () => root.unmount());
+  });
+
   // SSG はブラウザの API（sessionStorage など）を読まずに入口を描く（.kiro/specs/two-shot-chat Requirement 1.5）
   it('ツーショットチャットは入口を SSG し、不一致なく hydrate できる', async () => {
     const { markup, warnings } = await ssgThenHydrate('/chat/2shot/');

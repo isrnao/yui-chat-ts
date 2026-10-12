@@ -45,6 +45,7 @@ export default function ModalShell({
   const returnTo = useRef<Element | null>(null);
   const pressedOutside = useRef(false);
   const closeRequests = useRef(0);
+  const initialized = useRef(false);
   const notified = useRef(false);
   const [legacyOpen, setLegacyOpen] = useState(open ?? request > 0);
   useResetOnChange(`${native}:${String(open)}:${request}`, () => {
@@ -78,6 +79,19 @@ export default function ModalShell({
     if (!native) return;
     const node = nodeRef.current;
     if (!node) return;
+    if (!initialized.current) {
+      initialized.current = true;
+      if (open === undefined && node.open) {
+        returnTo.current =
+          takeDialogInvoker(id) ??
+          [...document.querySelectorAll<HTMLButtonElement>('button[commandfor]')].find(
+            (button) => button.getAttribute('commandfor') === id
+          ) ??
+          null;
+        effectOpened();
+        return;
+      }
+    }
     const shouldOpen = open ?? request > 0;
     if (shouldOpen && !node.open) {
       returnTo.current = takeDialogInvoker(id) ?? document.activeElement;
@@ -111,7 +125,9 @@ export default function ModalShell({
     () => () => {
       takeDialogInvoker(id);
       const node = nodeRef.current;
-      if (node?.open) node.close();
+      queueMicrotask(() => {
+        if (node?.open && (!node.isConnected || node.checkVisibility?.() === false)) node.close();
+      });
     },
     [id]
   );

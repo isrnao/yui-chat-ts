@@ -12,6 +12,7 @@ import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLog
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
 import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import SoundControls from '@features/chat/components/SoundControls';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -54,10 +55,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
 
   const measurement = useConversationMeasurement();
   const store = getRoomLogStore(roomId);
-  const { chatLog, isLoading, loadError, addOptimistic, reload, expand } = useRoomLog(
-    store,
-    measurement.onRealtimeChat
-  );
+  const { chatLog, isLoading, loadError, realtimeStatus, addOptimistic, reload, expand } =
+    useRoomLog(store, measurement.onRealtimeChat);
   // localStorage に保存された前回入室時の設定を、入室者の状態の既定値にする
   const { settings } = useSettings();
   const identity = useChatIdentity(settings);
@@ -125,7 +124,18 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
+      <div className="px-[var(--page-gap)] text-xs">
+        {realtimeStatus !== 'connected' && (
+          <span role="status">
+            {realtimeStatus === 'disconnected'
+              ? '接続が切れています。更新でログを取得できます。'
+              : '接続中…'}
+          </span>
+        )}
+        <SoundControls />
+      </div>
       <RetroSplitter
+        bottomScrollable={false}
         minTop={100}
         minBottom={100}
         topKind={entered ? 'chat' : 'entry'}
@@ -193,7 +203,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 高さに合わせてスクロール量が変わってしまう） */}
             <Activity mode={showRanking ? 'hidden' : 'visible'}>
               <ViewTransition default={RANKING_ONLY}>
-                <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
+                <div
+                  className="h-full overflow-y-auto"
+                  data-log-scroll=""
+                  data-testid="chat-log-pane"
+                >
                   <Suspense
                     fallback={
                       <div className="mt-8 animate-pulse text-gray-400">
@@ -208,6 +222,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                       loadError={loadError}
                       onRetry={reload}
                       ipFilter={ipFilter}
+                      contained
                     />
                   </Suspense>
                 </div>
@@ -222,6 +237,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                     ranking={roomRanking.ranking}
                     isLoading={roomRanking.isLoading}
                     hasError={roomRanking.hasError}
+                    onRetry={roomRanking.retry}
+                    asOf={roomRanking.asOf}
                     roomTitle={room.title}
                     onBackToChat={closeRankingAnimated}
                   />

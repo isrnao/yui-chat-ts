@@ -19,6 +19,26 @@ export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) =>
   const handleRealtimeChat = useEffectEvent((chat: Chat) => onRealtimeChat?.(chat));
   useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);
 
+  useEffect(() => {
+    let freshAt = Date.now();
+    const restore = (event?: Event) => {
+      if (document.visibilityState === 'hidden') return;
+      const persisted =
+        typeof PageTransitionEvent !== 'undefined' &&
+        event instanceof PageTransitionEvent &&
+        event.persisted;
+      if (persisted || Date.now() - freshAt >= 60_000) {
+        freshAt = Date.now();
+        store.reload('reconnect');
+      }
+    };
+    document.addEventListener('visibilitychange', restore);
+    window.addEventListener('pageshow', restore);
+    return () => {
+      document.removeEventListener('visibilitychange', restore);
+      window.removeEventListener('pageshow', restore);
+    };
+  }, [store]);
   const isLoading = state.status === 'loading';
   const loadError = state.status === 'error';
 

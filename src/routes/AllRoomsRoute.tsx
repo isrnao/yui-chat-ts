@@ -170,6 +170,7 @@ export default function AllRoomsRoute() {
                 </div>
               ) : (
                 <ChatLogList
+                  contained
                   chatLog={chatLog}
                   isLoading={isLoading}
                   windowRows={windowRows}

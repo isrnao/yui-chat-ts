@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useLayoutEffect, useRef, useEffectEvent } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
@@ -42,6 +42,7 @@ export default function EntryForm({
   isPending,
   retryAvatar,
 }: EntryFormProps) {
+  const formRef = useRef<HTMLFormElement>(null);
   const nameId = useId();
   const errorId = useId();
   const colorId = useId();
@@ -58,10 +59,30 @@ export default function EntryForm({
   // 保存済みアバターが復元されない。
   const [avatar, setAvatar] = useStoreBackedState<AvatarId>(retryAvatar ?? settings.avatar);
 
+  const preserveEdited = useEffectEvent(() => {
+    const form = formRef.current;
+    if (!form) return;
+    for (const [field, setter] of [
+      ['name', setName],
+      ['color', setColor],
+      ['email', setEmail],
+    ] as const) {
+      const input = form.elements.namedItem(field);
+      if (input instanceof HTMLInputElement && input.value !== input.defaultValue)
+        setter(input.value);
+    }
+    const checked = form.querySelector<HTMLInputElement>('input[type="radio"]:checked');
+    if (checked && !checked.defaultChecked) setAvatar(checked.value as AvatarId);
+  });
+  useLayoutEffect(() => {
+    preserveEdited();
+  }, []);
+
   return (
     <div className="flex flex-col">
       <header className="mb-1 text-2xl font-bold text-yui-pink font-yui">{roomTitle}</header>
       <form
+        ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
           // 入室の失敗は呼び出し元が error prop で表示する。入室中はこのフォーム自体が

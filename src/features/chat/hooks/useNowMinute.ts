@@ -21,7 +21,14 @@ export function useNowMinute(): number {
       }, MINUTE_MS);
     }, msUntilNextMinute);
 
+    const restore = () => {
+      if (document.visibilityState !== 'hidden') setNow(Date.now());
+    };
+    document.addEventListener('visibilitychange', restore);
+    window.addEventListener('pageshow', restore);
     return () => {
+      document.removeEventListener('visibilitychange', restore);
+      window.removeEventListener('pageshow', restore);
       clearTimeout(timeoutId);
       if (intervalId !== null) {
         clearInterval(intervalId);

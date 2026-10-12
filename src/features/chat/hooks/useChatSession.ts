@@ -1,3 +1,4 @@
+import { readLookCommand } from '@features/chat/utils/lookCommand';
 import { useEffect, useRef, useState } from 'react';
 import { generateOperationId } from '@shared/utils/uuid';
 import { clearMyChats } from '@features/chat/api/chatQueries';
@@ -238,10 +239,10 @@ export function useChatSession({
     // look/unlook: 自分の音は保存の完了で鳴らす（部屋単位のビューだけ）。ほかの参加者には、保存された発言の
     // INSERT が Realtime で届いて鳴る（useLookSound）。自分の echo では鳴らないよう、送る前に nonce を覚えている
     if (target.kind === 'room') {
-      if (original.trim() === 'look') {
+      if (readLookCommand(original) === 'look') {
         // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
         void playNotificationSound().catch(() => {});
-      } else if (original.trim() === 'unlook') {
+      } else if (readLookCommand(original) === 'unlook') {
         stopNotificationSound();
       }
     }

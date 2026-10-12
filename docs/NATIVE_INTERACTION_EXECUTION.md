@@ -45,3 +45,8 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R3
 
 通常/全部屋の確定行に名前付き操作buttonを追加し、名前/言葉/IPフィルタと直接通報を一つのpopoverへ接続。1,000行に1,000個のpopup内容を増やさず、panelは一つだけ。ダブルタップ/本文リンク/範囲選択/楽観行の禁止を維持。native autoのlight dismiss、CSS anchor＋狭い画面の固定配置、非対応時のhidden/外側操作/Escを独立実装。行消失・Activity終了でpopupを終了。関連33 tests/Compiler/型と32 browser tests合格。1,000button/1panelと320px内の配置を実ブラウザで検査。負荷の実機p75比較は未実施。
+
+
+## R4b
+
+通常部屋のconnecting/disconnected表示、ランキングの古い結果＋取得時刻/再試行を追加。Activityの読書位置を維持し、通常ログ/ランキングのscroll枠と共通ログ内のoverflowを整理。極小高さはscroll stack、reduced motionはpulse/spin/transitionとGIFの静的な代替表記へ適用。通知音の有効化をuser activationへ接続し、再生可否・ミュート・失敗を分離。look/unlookのcase-sensitive parserを表示/保存後/受信で共通化し、mute/unlook後の遅れたdecodeも鳴らさない。visibility/pageshowで時計と取得鮮度を更新し、本文/読書位置を保持。hydrate前のdirty入力を保存設定で上書きしないSSGテスト合格。ブラウザ音声の実機出力・BFCache/lock・支援技術は手動ゲートとして残す。

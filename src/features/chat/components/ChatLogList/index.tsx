@@ -79,6 +79,7 @@ function announceText(pending: PendingFilter): string {
 type Props = {
   /** 新しい順に並んだログ（useRoomLog が返すもの）。ここでは並べ直さない */
   chatLog: Chat[];
+  contained?: boolean;
   isLoading?: boolean;
   windowRows: number;
   showRoomName?: boolean;
@@ -97,6 +98,7 @@ type Props = {
 
 function ChatLogList({
   chatLog,
+  contained = false,
   isLoading = false,
   windowRows,
   showRoomName,
@@ -175,7 +177,7 @@ function ChatLogList({
   return (
     <div
       ref={listRef}
-      className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
+      className={`${contained ? '' : 'overflow-y-auto'} rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]`}
       data-testid="chat-log-list"
       data-chat-log-root=""
       tabIndex={-1}
