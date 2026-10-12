@@ -8,6 +8,7 @@ import {
   MainColumn,
   RightColumn,
 } from './components';
+import { RoomCountContext } from './hooks/roomCountContext';
 import { useRoomCounts } from './hooks/useRoomCounts';
 import { intro } from './data';
 
@@ -21,31 +22,52 @@ export default function TopPage() {
   });
   usePageView('お気楽チャット トップ');
 
-  const { counts: liveCounts } = useRoomCounts();
+  const countState = useRoomCounts();
+  const liveCounts = countState.counts;
 
   return (
-    <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
-      <a className="skip-link" href="#main-content">
-        本文へ移動
-      </a>
-      <Header />
-      <main
-        id="main-content"
-        tabIndex={-1}
-        className="mx-auto max-w-[990px] border-x border-gray-300 bg-white"
-      >
-        <section className="px-2 py-3">
-          <h2 className="text-[13px] font-bold text-blue-700">{intro.title}</h2>
-          <p className="mt-1 leading-relaxed">{intro.body.join('')}</p>
-        </section>
-        <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">
-          <LeftColumn liveCounts={liveCounts} />
-          <MainColumn liveCounts={liveCounts} />
-          <RightColumn />
-        </div>
-        <CommunitySection />
-      </main>
-      <Footer />
-    </div>
+    <RoomCountContext value={countState}>
+      <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
+        <a className="skip-link" href="#main-content">
+          本文へ移動
+        </a>
+        <Header />
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="mx-auto max-w-[990px] border-x border-gray-300 bg-white"
+        >
+          <section className="px-2 py-3">
+            <h2 className="text-[13px] font-bold text-blue-700">{intro.title}</h2>
+            <p className="mt-1 leading-relaxed">{intro.body.join('')}</p>
+          </section>
+          <p className="px-2 text-xs">人数は直近6時間の公開ログの発言者数です。</p>
+          {countState.kind !== 'ready' && (
+            <p role="status" className="px-2 text-xs">
+              {countState.kind === 'loading'
+                ? '人数を取得中…'
+                : countState.kind === 'partial'
+                  ? '一部の人数を取得できませんでした。'
+                  : '人数を取得できませんでした。'}
+              {countState.asOf && (
+                <> 前回取得: {new Date(countState.asOf).toLocaleTimeString('ja-JP')}</>
+              )}
+              {countState.kind !== 'loading' && (
+                <button type="button" disabled={countState.isLoading} onClick={countState.retry}>
+                  再試行
+                </button>
+              )}
+            </p>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">
+            <LeftColumn liveCounts={liveCounts} />
+            <MainColumn liveCounts={liveCounts} />
+            <RightColumn />
+          </div>
+          <CommunitySection />
+        </main>
+        <Footer />
+      </div>
+    </RoomCountContext>
   );
 }

@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { countTwoShotSeats, fetchRoomParticipantCounts, toRoomCountMap } from './roomCountsApi';
+import {
+  countTwoShotSeats,
+  fetchRoomParticipantCounts,
+  fetchRoomCountsResult,
+  toRoomCountMap,
+} from './roomCountsApi';
 
 // ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
 // このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
@@ -169,5 +174,20 @@ describe('fetchRoomParticipantCounts', () => {
     });
 
     await expect(fetchRoomParticipantCounts()).resolves.toEqual({});
+  });
+  it('成功の0件と失敗/未設定/部分成功を区別する', async () => {
+    mockFetch({ counts: () => json([]), lobby: () => json([]) });
+    expect(await fetchRoomCountsResult()).toMatchObject({
+      kind: 'ready',
+      counts: {},
+      failedRooms: [],
+      asOf: expect.any(Number),
+    });
+    mockFetch({ counts: () => json({}, 500), lobby: () => json([]) });
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'partial', counts: {} });
+    mockFetch({});
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'failed', counts: {} });
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'unavailable', counts: {} });
   });
 });

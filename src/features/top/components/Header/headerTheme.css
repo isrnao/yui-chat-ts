@@ -216,10 +216,15 @@
 }
 
 /* disabled プレースホルダーには hover を当てない (操作不能なのに反応するように見えるのを防ぐ) */
-.ochat-header__guide-link:not(:disabled):hover,
-.ochat-header__guide-link:not(:disabled):focus {
+.ochat-header__guide-link:not(:disabled):focus-visible {
   color: var(--ochat-h-guide-link-hover);
   text-decoration: underline;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ochat-header__guide-link:not(:disabled):hover {
+    color: var(--ochat-h-guide-link-hover);
+    text-decoration: underline;
+  }
 }
 
 .ochat-header__guide-icon {
@@ -298,8 +303,7 @@
  * 遷移可能なタブにのみアクティブ風の青グラデーションを当てる。
  */
 .ochat-header__primary-tab--active,
-.ochat-header__primary-tab:not(:disabled):hover,
-.ochat-header__primary-tab:not(:disabled):focus {
+.ochat-header__primary-tab:not(:disabled):focus-visible {
   background: linear-gradient(
     to bottom,
     var(--ochat-h-primary-tab-active-bg-top) 0%,
@@ -361,18 +365,24 @@
   background: transparent;
 }
 
-.ochat-header__secondary-tab--active {
+.ochat-header__secondary-tab[aria-current='page'] {
   /* アクティブタブは上辺に丸みを持つ白塗り */
   background: var(--ochat-h-secondary-tab-active-bg);
   color: var(--ochat-h-secondary-tab-active-fg);
   border-radius: 5px 5px 0 0;
 }
 
-.ochat-header__secondary-tab:hover,
-.ochat-header__secondary-tab:focus {
+.ochat-header__secondary-tab:focus-visible {
   background: var(--ochat-h-secondary-tab-active-bg);
   color: var(--ochat-h-secondary-tab-active-fg);
   border-radius: 5px 5px 0 0;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ochat-header__secondary-tab:hover {
+    background: var(--ochat-h-secondary-tab-active-bg);
+    color: var(--ochat-h-secondary-tab-active-fg);
+    border-radius: 5px 5px 0 0;
+  }
 }
 
 /* ===== レスポンシブ: モバイル時はロゴとガイドを縦積み ===== */
@@ -380,4 +390,11 @@
   .ochat-header__top {
     flex-direction: column;
   }
+}
+
+.ochat-header__secondary {
+  scroll-padding-inline: 8px;
+}
+.ochat-header__secondary-item {
+  scroll-margin-inline: 8px;
 }

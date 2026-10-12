@@ -14,7 +14,9 @@ vi.mock('@features/chat/rooms', async (importOriginal) => ({
 }));
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
-  fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+  fetchRoomCountsResult: vi
+    .fn()
+    .mockResolvedValue({ kind: 'ready', counts: {}, failedRooms: [], asOf: 1 }),
 }));
 
 vi.mock('@features/two-shot-chat/api/twoShotApi', () => ({

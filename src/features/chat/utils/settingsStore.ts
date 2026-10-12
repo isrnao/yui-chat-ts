@@ -8,6 +8,7 @@ export type UserSettings = {
   name: string;
   color: string;
   email: string;
+  /** 保存データとの互換用。現行routeの初期値は30で、この値を適用しない。 */
   windowRows: number;
   avatar: AvatarId;
   visitCount: number;

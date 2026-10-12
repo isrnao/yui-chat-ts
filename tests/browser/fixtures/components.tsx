@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../src/App.css';
+import TopPage from '../../../src/features/top/TopPage';
 import ChanariChatRoom from '../../../src/features/chanari-chat/components/ChanariChatRoom';
 import '../../../src/features/chanari-chat/styles/chanari.css';
 import SoundControls from '../../../src/features/chat/components/SoundControls';
@@ -36,6 +37,7 @@ export function Components() {
   const [entered, setEntered] = useState(false);
   const [rows, setRows] = useState(30);
   const [sent, setSent] = useState('');
+  if (new URLSearchParams(location.search).has('top')) return <TopPage />;
   return (
     <main className="h-dvh flex flex-col">
       <button

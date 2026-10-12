@@ -139,9 +139,7 @@ function SecondaryTabs({
       <ul className="ochat-header__secondary-list">
         {items.map((item, index) => {
           const isActive = index === activeIndex;
-          const className =
-            'ochat-header__secondary-tab' +
-            (isActive ? ' ochat-header__secondary-tab--active' : '');
+          const className = 'ochat-header__secondary-tab';
           return (
             <li key={item.label} className="ochat-header__secondary-item">
               <a

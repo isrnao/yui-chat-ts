@@ -54,3 +54,8 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R5a
 
 本文をChanariChatRoomへ局所化、初回seed/再入室空本文/明示復元を分離。300ms debounce・送信前・hidden・unmountで最後の非空draftを保存し、clear/退室で空保存しない。pending/busyと即時clear、旧画面応答無視、新しい編集を壊さない失敗回復、IME/書記素/コードポイント/説明IDを実装。schemaで型/色/部屋一致/有限時刻/期限を検査し、cache未更新でもloadDraftで再検査。名前20文字を維持しpicker/label/エラーを整備。表示のみ項目は非活性化し27/21選択肢とmetadata不変を維持、仕様/storiesを更新。上段containerの折返し、切断中だけのpollingにhidden停止/復帰一回を追加。型・lint・Compiler・関連22 tests・contracts生成・44 browser tests合格。
+
+
+## R5b
+
+人数sourceにready/partial/failed/unavailableを設け、成功の0件と未取得を区別。UIでloading/前回値/取得時刻/明示retryを公開し、同じ指標をオンライン人数と扱わない。トップはfetchだけで取得しSupabase bundleを追加しない。旧辞書APIは互換adapterとして保持。ナビの現在地をaria-current CSSへ統一、nowrapを削除、紹介textareaの毎click全選択を除去。X loaderはpending Promiseを共有し、load/error/timeoutと明示retry、接続中vendor containerだけの初期化へ整理。Adringの専用DOM分離/空白を作らない既存方式を維持。参照を調べて旧.okiraku-*規則を削除、windowRowsは保存データ互換欄として明記して30初期値を維持。型・lint・Compiler・関連46 tests・contracts生成合格。

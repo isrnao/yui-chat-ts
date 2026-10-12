@@ -151,3 +151,36 @@ test('chanari local draft and display-only fields work at 320px', async ({ page 
   const box = await input.boundingBox();
   expect(box!.x + box!.width).toBeLessThanOrEqual(320);
 });
+
+test('top counts distinguish failure from zero and readonly allows partial selection', async ({
+  page,
+}) => {
+  let calls = 0;
+  await page.route('https://native-fixture.invalid/**', (route) =>
+    route.fulfill({
+      status: calls++ === 0 ? 500 : 200,
+      contentType: 'application/json',
+      body: '[]',
+    })
+  );
+  await page.route('https://platform.twitter.com/**', (route) => route.abort());
+  await page.route('https://ar-cdn.net/**', (route) => route.abort());
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/tests/browser/fixtures/components.html?top=1');
+  await page.getByRole('button', { name: '再試行', exact: true }).first().click();
+  await expect(page.getByText('0人', { exact: true }).first()).toBeVisible();
+  const tag = page.getByRole('textbox', { name: /お気楽チャット紹介リンク/ });
+  await tag.focus();
+  expect(
+    await tag.evaluate(
+      (element: HTMLTextAreaElement) => element.selectionEnd - element.selectionStart
+    )
+  ).toBeGreaterThan(10);
+  await tag.evaluate((element: HTMLTextAreaElement) => element.setSelectionRange(2, 8));
+  await expect(tag).toHaveAttribute('readonly');
+  expect(
+    await tag.evaluate(
+      (element: HTMLTextAreaElement) => element.selectionEnd - element.selectionStart
+    )
+  ).toBe(6);
+});

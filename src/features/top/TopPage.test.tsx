@@ -6,7 +6,9 @@ import { RightColumn } from './components/RightColumn';
 // Supabase 未設定のときは useRoomCounts が即座に空オブジェクトで解決するが、
 // 念のため fetch 呼び出しをモックして確実に空を返すようにする。
 vi.mock('./api/roomCountsApi', () => ({
-  fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+  fetchRoomCountsResult: vi
+    .fn()
+    .mockResolvedValue({ kind: 'ready', counts: {}, failedRooms: [], asOf: 1 }),
 }));
 
 describe('<TopPage />', () => {
@@ -75,4 +77,22 @@ describe('<TopPage />', () => {
     expect(rightColumn?.className).toContain('lg:col-span-1');
     expect(rightColumn?.className).not.toContain('max-lg:col-span-2');
   });
+});
+
+it('取得失敗を0人へ変換せず、明示retryの成功で0人を表示する', async () => {
+  const { fetchRoomCountsResult } = await import('./api/roomCountsApi');
+  const { getListableRoomIds } = await import('@features/chat/rooms');
+  vi.mocked(fetchRoomCountsResult)
+    .mockResolvedValueOnce({
+      kind: 'failed',
+      counts: {},
+      failedRooms: [...getListableRoomIds()],
+    })
+    .mockResolvedValueOnce({ kind: 'ready', counts: {}, failedRooms: [], asOf: 1 });
+  render(<TopPage />);
+  const retry = await screen.findByRole('button', { name: '再試行' });
+  expect(screen.getAllByTitle('人数は未取得です').length).toBeGreaterThan(0);
+  const { fireEvent } = await import('@testing-library/react');
+  fireEvent.click(retry);
+  await waitFor(() => expect(screen.getAllByText('0人').length).toBeGreaterThan(0));
 });
