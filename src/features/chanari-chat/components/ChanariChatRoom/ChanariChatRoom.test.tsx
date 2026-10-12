@@ -65,9 +65,8 @@ it('即時clear・二重送信抑止・新しい編集を壊さない失敗復�
     target: { value: '新しい編集' },
   });
   await act(async () => reject(new Error('offline')));
+  // 新しい編集は残す。失敗した本文は送信前に下書きへ保存してあり、「発言復元」で戻せる
   expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('新しい編集');
-  fireEvent.click(screen.getByRole('button', { name: '送信できなかった本文を戻す' }));
-  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('こんにちは');
   expect(save).toHaveBeenCalledWith('こんにちは');
 });
 it('draftをdebounce保存し、終了時に最新の非空本文を保存する', () => {
@@ -104,18 +103,4 @@ it('draftをdebounce保存し、終了時に最新の非空本文を保存する
   unmount();
   expect(save).toHaveBeenLastCalledWith('他タブの候補');
   vi.useRealTimers();
-});
-
-it('同じ送信のretryを新しい投稿に変換せず、新しい本文を保持する', async () => {
-  const retry = vi.fn().mockResolvedValue(undefined);
-  const { props } = setup({
-    initialMessage: '新しい本文',
-    failedMessage: '失敗本文',
-    onRetrySend: retry,
-  });
-  fireEvent.click(screen.getByRole('button', { name: '同じ送信を再試行' }));
-  await act(async () => {});
-  expect(retry).toHaveBeenCalledTimes(1);
-  expect(props.onSend).not.toHaveBeenCalled();
-  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('新しい本文');
 });

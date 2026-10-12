@@ -113,8 +113,6 @@ export default function AllRoomsRoute() {
                 }}
                 windowRowOptions={getWindowRowOptions('all')}
                 sessionPending={session.phase === 'entering'}
-                failedMessage={session.failedSend?.chat.message}
-                onRetrySend={session.retry}
                 onExit={handleExit}
                 onSend={wrappedHandleSend}
                 onReload={reload}

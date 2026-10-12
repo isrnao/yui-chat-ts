@@ -107,8 +107,6 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               {entered ? (
                 <ChanariChatRoom
                   initialMessage={initialMessage}
-                  failedMessage={session.failedSend?.chat.message}
-                  onRetrySend={session.retry}
                   onSaveDraft={(lastMessage) => updateSettings({ lastMessage })}
                   onSend={(msg) => handleSend(msg)}
                   onReload={reload}

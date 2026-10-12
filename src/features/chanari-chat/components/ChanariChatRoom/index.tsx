@@ -11,8 +11,6 @@ import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariChatRoomProps = {
   initialMessage?: string;
-  failedMessage?: string;
-  onRetrySend?: () => Promise<void>;
   onSaveDraft?: (message: string) => void;
   onSend: (msg: string) => void | Promise<void>;
   onReload: () => void;
@@ -31,8 +29,6 @@ export type ChanariChatRoomProps = {
 };
 
 export default function ChanariChatRoom({
-  failedMessage,
-  onRetrySend,
   initialMessage = '',
   onSaveDraft,
   onSend,
@@ -53,7 +49,6 @@ export default function ChanariChatRoom({
   const [message, setMessage] = useState(initialMessage);
   const [actionError, setActionError] = useState('');
   const [pending, setPending] = useState(false);
-  const [failedBody, setFailedBody] = useState('');
   const busy = useRef(false);
   const latest = useRef({ message: initialMessage, lastNonempty: initialMessage });
   const alive = useRef(true);
@@ -102,9 +97,10 @@ export default function ChanariChatRoom({
     setPending(false);
     if (!result.ok) {
       setActionError(toUserMessage(result.error, fallback));
+      // 失敗した本文は送信前に下書きへ保存してある。入力欄が空なら戻し、新しい編集があれば
+      // そちらを残す（失敗した本文は「発言復元」で戻せる）
       if (body && latest.current.message === '') edit(body);
-      else if (body) setFailedBody(body);
-    } else setFailedBody('');
+    }
   };
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -179,9 +175,6 @@ export default function ChanariChatRoom({
         ariaLabel={CHANARI_TEXTS.speechColorPicker}
       />
       <br />
-      <span className="chanari-display-only">
-        発言色・文字サイズ・エフェクト・ATフィールドは表示のみです。
-      </span>
       {/* エフェクト */}
       <label>
         {CHANARI_TEXTS.effect}{' '}
@@ -277,30 +270,6 @@ export default function ChanariChatRoom({
       >
         {CHANARI_TEXTS.exit}
       </button>
-      {failedMessage && onRetrySend && (
-        <button
-          type="button"
-          disabled={pending || isPending}
-          onClick={() => {
-            if (busy.current || isPending) return;
-            if (message === failedMessage) edit('');
-            void run(onRetrySend, '同じ送信を再試行できませんでした。');
-          }}
-        >
-          同じ送信を再試行
-        </button>
-      )}
-      {failedBody && (
-        <button
-          type="button"
-          onClick={() => {
-            edit(failedBody);
-            setFailedBody('');
-          }}
-        >
-          送信できなかった本文を戻す
-        </button>
-      )}
       {error && (
         <div role="alert" style={{ color: 'red' }}>
           {error}

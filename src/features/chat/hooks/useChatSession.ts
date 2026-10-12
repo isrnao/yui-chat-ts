@@ -1,8 +1,7 @@
 import { readLookCommand } from '@features/chat/utils/lookCommand';
 import { useEffect, useRef, useState } from 'react';
-import { generateOperationId } from '@shared/utils/uuid';
 import { clearMyChats } from '@features/chat/api/chatQueries';
-import { createOptimisticChat, SaveChatRejectedError } from '@features/chat/api/saveChat';
+import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
@@ -36,7 +35,6 @@ type Identity = {
   avatar?: AvatarId;
   fontStyle?: ChatMetadata['fontStyle'];
 };
-type FailedSend = { roomId: RoomId; chat: Chat; operationId: string; createdAt: number };
 export class SupersededSessionError extends Error {
   constructor() {
     super('Session request superseded');
@@ -86,7 +84,6 @@ export function useChatSession({
   const [phase, setPhase] = useState<Phase>('idle');
   const [sessionIdentity, setSessionIdentity] = useState<Identity | null>(null);
   const [isSending, setIsSending] = useState(false);
-  const [failedSend, setFailedSend] = useState<FailedSend | null>(null);
   const lifetime = useRef<{
     epoch: number;
     active: boolean;
@@ -197,7 +194,6 @@ export function useChatSession({
     const farewell = { event: 'exit', name: me.name, color: me.color } as const;
     lifetime.current.phase = 'exiting';
     setPhase('exiting');
-    setFailedSend(null);
     await sendAdminEvent(sessionRoomId, farewell)
       .catch((error: unknown) => {
         if (isCurrent(epoch)) throw error;
@@ -258,13 +254,11 @@ export function useChatSession({
     const trimmed = message.trim();
 
     if (trimmed === 'cut') {
-      setFailedSend(null);
       trackEvent('command_used', { room_id: sendTo, command: 'cut' });
       return;
     }
 
     if (trimmed === 'clear') {
-      setFailedSend(null);
       // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
       // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
       lifetime.current.busy = true;
@@ -300,53 +294,18 @@ export function useChatSession({
     // Realtime の echo（保存の応答より先に届くことがある）を自分の発言と見分けるため、送る前に覚える
     rememberOwnChat(optimistic);
 
-    const operationId = generateOperationId();
-    const createdAt = Date.now();
     lifetime.current.busy = true;
     setIsSending(true);
-    setFailedSend(null);
-    const savedChat = await sendUserMessage(sendTo, optimistic, operationId)
-      .catch((error: unknown) => {
-        // 再試行できるのは結果が分からない失敗だけ。入力検証の拒否（400）は同じ要求を送り直しても変わらない
-        if (isCurrent(epoch) && !(error instanceof SaveChatRejectedError))
-          setFailedSend({ roomId: sendTo, chat: optimistic, operationId, createdAt });
-        throw error;
-      })
-      .finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.busy = false;
-          setIsSending(false);
-        }
-      });
+    const savedChat = await sendUserMessage(sendTo, optimistic).finally(() => {
+      if (isCurrent(epoch)) {
+        lifetime.current.busy = false;
+        setIsSending(false);
+      }
+    });
     if (!isCurrent(epoch)) return;
     afterSaved(sendTo, message, savedChat);
   };
 
-  const retry = async () => {
-    if (!failedSend || lifetime.current.busy || lifetime.current.phase !== 'entered') return;
-    if (Date.now() - failedSend.createdAt >= 24 * 60 * 60 * 1000)
-      throw new UserFacingError('再試行の期限が終了しました。送信結果をご確認ください。');
-    const epoch = lifetime.current.epoch;
-    lifetime.current.busy = true;
-    setIsSending(true);
-    await sendUserMessage(failedSend.roomId, failedSend.chat, failedSend.operationId)
-      .then((saved) => {
-        if (isCurrent(epoch)) {
-          setFailedSend(null);
-          afterSaved(failedSend.roomId, failedSend.chat.message, saved);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isCurrent(epoch) && error instanceof SaveChatRejectedError) setFailedSend(null);
-        throw error;
-      })
-      .finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.busy = false;
-          setIsSending(false);
-        }
-      });
-  };
   const updateIdentity = (patch: Pick<Identity, 'color'>) => {
     const current = lifetime.current.identity;
     if (!current) return;
@@ -359,8 +318,6 @@ export function useChatSession({
     phase,
     sessionIdentity,
     isSending,
-    failedSend,
-    retry,
     updateIdentity,
     enter,
     exit,

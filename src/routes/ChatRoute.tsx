@@ -146,8 +146,6 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               }}
               windowRowOptions={getWindowRowOptions(roomId)}
               sessionPending={session.phase === 'entering'}
-              failedMessage={session.failedSend?.chat.message}
-              onRetrySend={session.retry}
               onExit={handleExit}
               onSend={handleSend}
               onReload={reload}

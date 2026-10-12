@@ -79,7 +79,7 @@ export default function ChanariEntryForm({
           ariaLabel="名前色カラーピッカー"
         />
         <label>
-          {CHANARI_TEXTS.speechColor}（表示のみ）
+          {CHANARI_TEXTS.speechColor}
           <input
             type="text"
             size={7}
