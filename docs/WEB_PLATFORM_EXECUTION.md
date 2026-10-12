@@ -10,17 +10,17 @@
 
 ## タスク
 
-| 順序 | 優先度・タスク                                                            | 予定ブランチ                                   | 状態         |
-| ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------ |
-| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | 実装・検証中 |
-| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | 未着手       |
-| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | 未着手       |
-| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 未着手       |
-| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手       |
-| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手       |
-| 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手       |
-| 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手       |
-| 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手       |
+| 順序 | 優先度・タスク                                                            | 予定ブランチ                                   | 状態                                                                            |
+| ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
+| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち |
+| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | 未着手                                                                          |
+| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | 未着手                                                                          |
+| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 未着手                                                                          |
+| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手                                                                          |
+| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                          |
+| 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                          |
+| 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                          |
+| 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手                                                                          |
 
 ユーザー指定により#237（計測URL保護）と#242（通報導線）は対象外とし、not plannedでクローズ。次のfeatureはWP3 #238とする。P2の既存ReportDialogフォーム簡素化は残す。P2候補は比較と採否記録を含む。対応方針は最新版Chrome（Desktop/Android）とSafari（macOS/iOS）。自動試験と実機確認を区別する。
 
@@ -41,3 +41,15 @@ WP1aのローカル結果（2026-10-13）：
 - 全Vitest初回は729/730成功。失敗した新hookのReact Compiler `finally`未対応を同じ処理の書換えで解消し、Compiler全ファイル検査とhook試験4件が成功。
 - Chromium/Desktop WebKit/Mobile WebKitの51ケース成功（うち送信安全性24ケース）。初回の並列実行では負荷下の既存Chromium 3ケースがtimeout。単体試験と競合しない1 workerで全ケースを再実行して成功。
 - 実Chrome/Safari、実Android/iOS、VoiceOverは未確認。自動結果だけで#236を閉じない。
+
+WP1a最終自動確認: pnpm 10.34.6を別のclean checkoutでfrozen installし、全Vitest（coverageあり）成功。同じソースの[PR #247 CI](https://github.com/isrnao/yui-chat-ts/actions/runs/38316880395/job/115035516878)でもtypecheck/lint・**95ファイル730件成功**を確認（Node 24.21.0、旧workflowは未固定pnpm 12.11.2）。新しいpnpm固定の検証は次のWP3で追跡する。
+
+## WP3：CI・ブラウザ条件の統一
+
+#236の最終commit `db3c06f16efe5e9b5072341fcef4db9ffc5eee60`からfeatureを作成。`packageManager`をpnpm 10.34.6に固定し、ci/browserはNode 24・frozen install・pnpm cacheを揃える。別version指定がpinと衝突しないようChromatic/save-chat/two-shotのpnpm導入も同じpackageManagerへ合わせる。lockfileと依存バージョンは変更しない。
+
+必須PlaywrightはChromium/Desktop WebKit/Mobile WebKitとし、FirefoxのprojectとCIでのブラウザ取得を除外。実機の最低版・OS下限・担当者の未確認事項は[BROWSER_SUPPORT.md](BROWSER_SUPPORT.md)に明示する。
+
+別checkoutに元のnode_modulesをコピーせず、pnpm 10.34.6で649パッケージをfrozen installした。全Vitest、typecheck、lint、公開ビルド（164ページSSG）が成功。ローカルNodeは22.22.3であり、Node 24の最終保証は対象PRのCIで確認する。
+
+WP3のclean checkoutでも、変更後の3 projectで**51ブラウザケース成功**。Node/pnpm/frozenのYAML整合とPlaywrightのproject一覧を確認。実機・VoiceOver、ブラウザ最低版/OS下限の確定は未完了として残す。

@@ -655,10 +655,12 @@ on:
 jobs:
   test:
     - actions/checkout@v4
-    - actions/setup-node@v6  (node 24)
-    - npm install -g pnpm
-    - pnpm install
-    - pnpm test # continue-on-error: true
+    - pnpm/action-setup@v4  (packageManager: pnpm@10.34.6)
+    - actions/setup-node@v6  (node 24, cache: pnpm)
+    - pnpm install --frozen-lockfile
+    - pnpm typecheck
+    - pnpm lint
+    - pnpm test # failure is required
 ```
 
 `.github/workflows/chromatic.yml` — Storybook ビジュアルリグレッション
@@ -674,7 +676,7 @@ env:
 jobs:
   chromatic-deployment:
     - actions/checkout@v6
-    - pnpm/action-setup@v6   (version: 10)
+    - pnpm/action-setup@v6   (packageManager)
     - actions/setup-node@v6  (node-version 24, cache: pnpm)
     - pnpm install --frozen-lockfile
     - pnpm build-storybook

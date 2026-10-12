@@ -2,6 +2,7 @@
   "name": "yui-chat-ts",
   "private": false,
   "version": "1.0.0",
+  "packageManager": "pnpm@10.34.6",
   "type": "module",
   "description": "お気楽チャットTSは放課後学生タウンの雰囲気を楽しめる無料のブラウザチャットです。",
   "keywords": [

@@ -12,16 +12,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install pnpm (packageManager)
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '24'
-
-      - name: Install pnpm
-        run: npm install -g pnpm
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       # 型情報を使うルール（no-floating-promises など）を含めて lint する
       # （.kiro/specs/react-2026-refactoring Requirement 11.3）

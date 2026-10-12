@@ -14,7 +14,7 @@
 
 ## 作業チェックリスト
 
-### P0 — WP1：初期HTMLの安全性・計測URL
+### P0 — WP1：初期HTMLの送信安全性
 
 - [ ] **WP1a**：通常・ChanariのSSG入室フォームをHTML出力時点から送信不可にし、フォームごとの準備完了後にだけ解禁する。入力欄とHydration前の先行入力は保持する。
 
@@ -28,7 +28,7 @@
 
 - [ ] `packageManager`に検証したpnpmの正確な版を固定し、`ci.yml`と`browser.yml`のNode/pnpm・frozen installを統一。clean checkoutで全品質ゲートを確認する。
 - [ ] Playwright必須構成をChromium・Desktop WebKit・Mobile WebKit中心に整理し、Firefoxは対応対象外として必須から除外。実Chrome/Safari（Android/iOSを含む）の手動確認責任・最低版を記録する。
-- [ ] WP1・WP2・通報導線の不足する回帰試験を該当PRで追加する。既存テスト通過だけでJS未準備時の送信やGitHub Pages相当の404を保証したと見なさない。
+- [ ] WP1・WP2・採用したP2変更の不足する回帰試験を該当PRで追加する。既存テスト通過だけでJS未準備時の送信やGitHub Pages相当の404を保証したと見なさない。
 
 ### P2 — WP4 / UI簡素化
 

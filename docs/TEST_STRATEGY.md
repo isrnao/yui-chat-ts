@@ -10,16 +10,16 @@
 
 ## 2. テストの種類と方針
 
-| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                                         |
-| -------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）                  |
-| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                               |
-| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等                |
-| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                                              |
-| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                                              |
-| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                                           |
-| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                                    |
-| ブラウザUI     | tests/browser/                                                                                                 | Playwright: Chromium / Firefox / WebKit / mobile WebKit。production部品と本番SSGを検証 |
+| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）                |
+| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                             |
+| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等              |
+| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                                            |
+| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                                            |
+| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                                         |
+| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                                  |
+| ブラウザUI     | tests/browser/                                                                                                 | Playwright: Chromium / Desktop WebKit / Mobile WebKit。production部品と本番SSGを検証 |
 
 - テストは **Testing Library** 中心、ユーザー目線重視
 - 外部 API（Supabase 等）・Web API（`localStorage`, `BroadcastChannel`, `requestIdleCallback`）は必要に応じてモック
@@ -74,9 +74,10 @@ src/features/chat/api/
 
 ## 6. CI / CD 連携
 
-- PR トリガーで `pnpm test`（Vitest）を実行
+- PRトリガーでtypecheck・lint・`pnpm test`（Vitest）を必須実行。Node.js 24と`packageManager`指定のpnpm 10.34.6、`--frozen-lockfile`を使う。
+- browser.ymlは同じNode/pnpm条件で公開SSGビルドとChromium/Desktop WebKit/Mobile WebKitを必須実行。Firefoxは支持対象外。実Chrome/Safariの支持範囲・手動確認の未確認事項は[BROWSER_SUPPORT.md](BROWSER_SUPPORT.md)で管理する。
 - Chromatic は push / PR（main, develop）で Storybook をビルドしビジュアル差分を検出
-  - Node.js 24 / pnpm 10 / `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`
+  - Node.js 24 / `packageManager`指定のpnpm / `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`
   - `onlyChanged: true` で差分のみ検証
 
 ---

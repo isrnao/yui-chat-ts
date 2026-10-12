@@ -5,15 +5,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v6
         with:
           node-version: '24'
-      - uses: pnpm/action-setup@v4
-        with:
-          version: '10'
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       # 型・lint・Vitest は ci.yml が必須の確認として走らせる
-      - run: pnpm exec playwright install --with-deps
+      - run: pnpm exec playwright install --with-deps chromium webkit
       - run: pnpm build:prod
         env:
           VITE_SUPABASE_URL: https://native-fixture.invalid
