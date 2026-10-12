@@ -12,7 +12,9 @@ import type { Chat } from '@features/chat/types';
  */
 export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) => void) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
-  const [chatLog, addOptimistic] = useOptimistic(state.chats, reduceOptimisticChat);
+  const [chatLog, addOptimistic] = useOptimistic(state.chats, (current, incoming: Chat) =>
+    reduceOptimisticChat(current, store.project?.(incoming) ?? incoming)
+  );
 
   const handleRealtimeChat = useEffectEvent((chat: Chat) => onRealtimeChat?.(chat));
   useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);

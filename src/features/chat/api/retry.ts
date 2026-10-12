@@ -27,6 +27,7 @@ export async function retryWithBackoff<T>(
     attempts = 3,
     baseDelayMs = 1000,
     shouldRetry = (error) => !(error instanceof NonRetryableError),
+    signal,
   }: {
     attempts?: number;
     baseDelayMs?: number;
@@ -35,15 +36,30 @@ export async function retryWithBackoff<T>(
      * 既定は NonRetryableError 以外を再試行する
      */
     shouldRetry?: (error: unknown) => boolean;
+    signal?: AbortSignal;
   } = {}
 ): Promise<T> {
   for (let attempt = 1; ; attempt++) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     try {
       return await fn(attempt);
     } catch (error) {
-      if (attempt >= attempts || !shouldRetry(error)) throw error;
+      if (signal?.aborted || attempt >= attempts || !shouldRetry(error)) throw error;
       const waitTime = baseDelayMs * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => signal?.removeEventListener('abort', onAbort);
+        const onAbort = () => {
+          clearTimeout(timer);
+          cleanup();
+          reject(new DOMException('Aborted', 'AbortError'));
+        };
+        const timer = setTimeout(() => {
+          cleanup();
+          resolve();
+        }, waitTime);
+        signal?.addEventListener('abort', onAbort, { once: true });
+        if (signal?.aborted) onAbort();
+      });
     }
   }
 }

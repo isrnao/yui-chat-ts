@@ -157,8 +157,14 @@ describe('ChatRoute の段階的なログ取得', () => {
 
     render(<ChatRoute roomId="superbeginner" />);
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10));
-    expect(loadRecentChatLogs).not.toHaveBeenCalledWith('superbeginner', 100);
+    await waitFor(() =>
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, expect.any(AbortSignal))
+    );
+    expect(loadRecentChatLogs).not.toHaveBeenCalledWith(
+      'superbeginner',
+      100,
+      expect.any(AbortSignal)
+    );
   });
 
   it('「チャットに参加する」で全件取得へ広げる', async () => {
@@ -166,7 +172,9 @@ describe('ChatRoute の段階的なログ取得', () => {
 
     await enterRoom();
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 100));
+    await waitFor(() =>
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 100, expect.any(AbortSignal))
+    );
   });
 });
 

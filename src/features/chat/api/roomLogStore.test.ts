@@ -30,6 +30,7 @@ function chat(uuid: string, n: number): Chat {
 function fakeSource(initialLimit = 10) {
   const fetches: Array<{
     limit: number;
+    signal?: AbortSignal;
     resolve: (chats: Chat[]) => void;
     reject: (error: Error) => void;
   }> = [];
@@ -38,9 +39,9 @@ function fakeSource(initialLimit = 10) {
   const unsubscribe = vi.fn();
   const source: LogSource = {
     initialLimit,
-    fetch: (limit) =>
+    fetch: (limit, signal) =>
       new Promise<Chat[]>((resolve, reject) => {
-        fetches.push({ limit, resolve, reject });
+        fetches.push({ limit, signal, resolve, reject });
       }),
     subscribe: vi.fn((insert, status) => {
       onInsert = insert;
@@ -61,6 +62,40 @@ const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 const messages = (chats: Chat[]) => chats.map((c) => c.message);
 
 describe('Room_Log_Store', () => {
+  it('manual連打を共有し、reconnectは旧readを中断して新しい世代を取得する', async () => {
+    const fake = fakeSource();
+    const store = createRoomLogStore(fake.source);
+    const off = store.subscribe(() => {});
+    store.reload();
+    store.reload();
+    expect(fake.fetches).toHaveLength(1);
+    fake.status('connected');
+    expect(fake.fetches).toHaveLength(2);
+    expect(fake.fetches[0]!.signal!.aborted).toBe(true);
+    off();
+    await flush();
+    expect(fake.fetches[1]!.signal!.aborted).toBe(true);
+  });
+
+  it('fetch/保存応答/Realtime/楽観行で同じsourceの表示形にする', async () => {
+    const fake = fakeSource();
+    fake.source.project = (row) => ({ ...row, email: undefined, ua: '' });
+    const store = createRoomLogStore(fake.source);
+    store.subscribe(() => {});
+    const raw = { ...chat('raw', 3), email: 'synthetic@example.invalid', ua: 'agent' };
+    fake.fetches[0]!.resolve([raw]);
+    await flush();
+    store.applySaved({ ...raw, uuid: chat('saved', 4).uuid });
+    fake.insert({ ...raw, uuid: chat('insert', 5).uuid });
+    expect(store.getSnapshot().chats).toHaveLength(3);
+    expect(store.getSnapshot().chats.every((row) => row.email === undefined && row.ua === '')).toBe(
+      true
+    );
+    expect(store.project?.({ ...raw, optimistic: true })).toMatchObject({
+      email: undefined,
+      ua: '',
+    });
+  });
   it('最初の購読で Realtime を張ってから取得を始め、結果を ready で公開する', async () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);
@@ -151,7 +186,7 @@ describe('Room_Log_Store', () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);
     store.subscribe(() => {});
-    store.reload();
+    store.reload('reconnect');
 
     fake.fetches[1]!.resolve([chat('new', 2)]);
     fake.fetches[0]!.resolve([chat('stale', 1)]);
@@ -219,7 +254,7 @@ describe('Room_Log_Store', () => {
     const fake = fakeSource();
     const store = createRoomLogStore(fake.source);
     store.subscribe(() => {});
-    store.reload();
+    store.reload('reconnect');
 
     // 取得（1 件目の reload）の途中で自分の発言の保存が終わる
     store.applySaved(chat('mine', 5));

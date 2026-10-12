@@ -29,7 +29,8 @@ export interface LogSource {
   /** 初期表示で取得する件数 */
   initialLimit: number;
   /** 直近 `limit` 件を取得する。キャッシュは持たず、呼ぶたびにサーバーへ問い合わせる */
-  fetch(limit: number): Promise<Chat[]>;
+  fetch(limit: number, signal?: AbortSignal): Promise<Chat[]>;
+  project?: (chat: Chat) => Chat;
   subscribe(
     onInsert: (chat: Chat) => void,
     onStatus: (status: RealtimeStatus) => void
@@ -44,7 +45,8 @@ export interface RoomLogStore {
   /** SSG / hydration 用。最初の getSnapshot と同じ参照 */
   getServerSnapshot(): RoomLogState;
   /** サーバーから取り直す */
-  reload(): void;
+  reload(reason?: 'manual' | 'reconnect'): void;
+  project?: (chat: Chat) => Chat;
   /** 取得件数を増やす（減らさない）。既に足りていれば何もしない */
   expand(limit: number): void;
   /** 保存の確定値（や Realtime の INSERT）を uuid で合流させる */
@@ -62,6 +64,7 @@ export const FULL_CHAT_LOG_LIMIT = 100;
 export const ALL_ROOMS_INITIAL_LIMIT = 200;
 
 export function createRoomLogStore(source: LogSource): RoomLogStore {
+  const project = source.project ?? ((chat: Chat) => chat);
   const initialState: RoomLogState = { status: 'loading', chats: [], realtime: 'connecting' };
   let state = initialState;
   const listeners = new Set<() => void>();
@@ -80,6 +83,7 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
    */
   let updatesDuringFetch: ChatLogUpdate[] | null = null;
   let releaseScheduled = false;
+  let inFlight: { controller: AbortController; requested: number } | null = null;
 
   const setState = (next: Partial<RoomLogState>) => {
     state = { ...state, ...next };
@@ -95,7 +99,11 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     if (updatesDuringFetch === updates) updatesDuringFetch = null;
   };
 
-  const startFetch = () => {
+  const startFetch = (reason: 'manual' | 'reconnect' | 'expand' | 'initial' = 'manual') => {
+    if ((reason === 'manual' || reason === 'initial') && inFlight?.requested === limit) return;
+    inFlight?.controller.abort();
+    const controller = new AbortController();
+    inFlight = { controller, requested: limit };
     const current = ++generation;
     const updates: ChatLogUpdate[] = [];
     updatesDuringFetch = updates;
@@ -104,26 +112,30 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     // 拡張で残すのは取得開始時のログ。取得中の変更は下の updates で順番に反映する。
     const previousChats = state.chats;
 
-    source.fetch(requested).then(
+    source.fetch(requested, controller.signal).then(
       (logs) => {
         if (current !== generation) return;
+        inFlight = null;
         displayedLimit = requested;
         // 拡張のときだけ表示中の発言を残す。それ以外は取得結果を正とする
         // （別クライアントで論理削除された発言や、件数の窓から外れた発言を残さないため）
-        let chats = isExpansion ? mergeChatLogByUuid(logs, previousChats) : logs;
+        const projected = logs.map(project);
+        let chats = isExpansion ? mergeChatLogByUuid(projected, previousChats) : projected;
         for (const update of updates) chats = update(chats);
         stopTracking(updates);
         setState({ status: 'ready', chats });
       },
       () => {
         if (current !== generation) return;
+        inFlight = null;
         stopTracking(updates);
         setState({ status: 'error' });
       }
     );
   };
 
-  const handleInsert = (chat: Chat) => {
+  const handleInsert = (incoming: Chat) => {
+    const chat = project(incoming);
     for (const listener of insertListeners) listener(chat);
     applyUpdate((chats) => mergeChatLogByUuid(chats, chat));
   };
@@ -136,7 +148,7 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     // 購読は SUBSCRIBED を待たずに返るため、初回は「snapshot が確定した時刻」から
     // 「SUBSCRIBED 到達」までの INSERT がどこにも入らない。再接続時も、切れていた間の
     // 発言は再配送されない。取得の開始自体は接続を待たない（初回描画を待たせないため）。
-    if (status === 'connected' && previous !== 'connected') store.reload();
+    if (status === 'connected' && previous !== 'connected') store.reload('reconnect');
   };
 
   const start = () => {
@@ -148,13 +160,15 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     lastStatus = 'connecting';
     // 購読の確立を先に始めてから取得する
     realtime = source.subscribe(handleInsert, handleStatus);
-    startFetch();
+    startFetch('initial');
   };
 
   const dispose = () => {
     realtime?.unsubscribe();
     realtime = null;
     generation++; // 進行中の取得の結果を捨てる
+    inFlight?.controller.abort();
+    inFlight = null;
     updatesDuringFetch = null;
   };
 
@@ -177,17 +191,18 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
     },
     getSnapshot: () => state,
     getServerSnapshot: () => initialState,
-    reload() {
-      startFetch();
+    project,
+    reload(reason = 'manual') {
+      startFetch(reason);
     },
     expand(next) {
       if (next <= limit) return;
       limit = next;
-      startFetch();
+      startFetch('expand');
     },
     applySaved(chat) {
       // 保存の確定値も clear と同じ列に記録し、取得完了時に発生順で反映する
-      applyUpdate((chats) => mergeChatLogByUuid(chats, chat));
+      applyUpdate((chats) => mergeChatLogByUuid(chats, project(chat)));
     },
     update: applyUpdate,
     onInsert(listener) {
@@ -203,14 +218,15 @@ export function createRoomLogStore(source: LogSource): RoomLogStore {
 function roomSource(roomId: RoomId): LogSource {
   return {
     initialLimit: INITIAL_CHAT_LOG_LIMIT,
-    fetch: (limit) => loadRecentChatLogs(roomId, limit),
+    fetch: (limit, signal) => loadRecentChatLogs(roomId, limit, signal),
     subscribe: (onInsert, onStatus) => subscribeChatLogs(roomId, onInsert, onStatus),
   };
 }
 
 const allRoomsSource: LogSource = {
   initialLimit: ALL_ROOMS_INITIAL_LIMIT,
-  fetch: (limit) => loadAllRoomsChatLogs(limit),
+  fetch: (limit, signal) => loadAllRoomsChatLogs(limit, signal),
+  project: (chat) => ({ ...chat, email: undefined, ua: '' }),
   subscribe: (onInsert, onStatus) => subscribeAllRoomsChatLogs(onInsert, onStatus),
 };
 

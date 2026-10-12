@@ -90,10 +90,9 @@ export default function AllRoomsRoute() {
           <h1>{ROOM_META.title}</h1>
           <p>{ROOM_META.description}</p>
         </header>
-        {(loadError || subscribeError) && (
-          <div className="text-red-500 text-xs px-[var(--page-gap)] py-1">
-            {loadError && 'チャットログの読み込みに失敗しました。'}
-            {subscribeError && 'リアルタイム購読の確立に失敗しました。'}
+        {subscribeError && (
+          <div role="status" className="text-xs px-[var(--page-gap)]">
+            再接続中...
           </div>
         )}
         <RetroSplitter
@@ -172,6 +171,8 @@ export default function AllRoomsRoute() {
                   windowRows={windowRows}
                   showRoomName
                   onRoomClick={handleRoomClick}
+                  loadError={loadError}
+                  onRetry={reload}
                   hideParticipants
                   ipFilter={ipFilter}
                 />
