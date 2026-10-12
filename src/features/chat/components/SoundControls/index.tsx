@@ -33,7 +33,9 @@ export default function SoundControls() {
         />
         通知音をミュート
       </label>
-      {failed && <span role="status">音声を有効にできませんでした。もう一度お試しください。</span>}
+      {failed && !enabled && (
+        <span role="status">音声を有効にできませんでした。もう一度お試しください。</span>
+      )}
     </span>
   );
 }
