@@ -36,3 +36,7 @@ Chromium 156 / Firefox 157 / WebKit 27.2とモバイルWebKitで12テスト合�
 ## R4c
 
 LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全部屋でemail/uaが一時表示される差を解消。manual連打はin-flightを共有、reconnect/expandは新世代で再取得。最後の解除と不要readへAbortSignalを伝搬し、backoffも中断可能にした。初回接続時の穴埋め・取得中INSERT/clear順・取得拡張・2,000件capを維持。全部屋の取得失敗は共通ログの再試行へ接続。型・lint・Compiler・対象50 tests合格。
+
+## R2
+
+常設一覧をInvoker Commands/adapterへ、動的確認と通報をcommit後のshowModalへ移行。native経路の手動inert/Tab trap/Esc監視を除去し、旧経路を隔離。終了時の対象snapshot、取消優先focus、論理的な起点消失時のログfocusを保持。背景pointer開始とclickを照合して互換clickの誤取消を防止。通報をform化し、二重送信/例外/旧対象の遅延応答を処理。transitionは一回更新・所有者cleanup・元inline値復元・scroll枠計測へ整理。型・lint・Compiler・対象63 tests、production native/fallbackを含む24 browser tests合格。

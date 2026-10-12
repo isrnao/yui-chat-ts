@@ -1,3 +1,8 @@
+import {
+  hasNativeDialog,
+  hasInvokerCommands,
+  rememberDialogInvoker,
+} from '@shared/utils/dialogControl';
 import { asyncResult } from '@shared/utils/asyncResult';
 import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
@@ -43,6 +48,7 @@ export type ChatRoomProps = {
   filterCount?: number;
   /** 「フィルタ」リンクで編集画面を開閉する。渡したときだけ「細字」の右にリンクを出す */
   onToggleFilter?: () => void;
+  filterDialogId?: string;
   sessionPending?: boolean;
   failedMessage?: string;
   onRetrySend?: () => Promise<void>;
@@ -64,6 +70,7 @@ export default function ChatRoom({
   onResetReplyTarget,
   filterCount = 0,
   onToggleFilter,
+  filterDialogId,
   sessionPending = false,
   failedMessage,
   onRetrySend,
@@ -368,7 +375,15 @@ export default function ChatRoom({
         </label>
 
         {onToggleFilter && (
-          <button type="button" className="ml-2 underline cursor-pointer" onClick={onToggleFilter}>
+          <button
+            type="button"
+            className="ml-2 underline cursor-pointer"
+            {...(filterDialogId ? { commandfor: filterDialogId, command: 'show-modal' } : {})}
+            onClick={(event) => {
+              if (filterDialogId) rememberDialogInvoker(filterDialogId, event.currentTarget);
+              if (!filterDialogId || !hasNativeDialog() || !hasInvokerCommands()) onToggleFilter();
+            }}
+          >
             {filterCount > 0
               ? fillText(CHAT_TEXTS.room.filterCount, { count: filterCount })
               : CHAT_TEXTS.room.filter}

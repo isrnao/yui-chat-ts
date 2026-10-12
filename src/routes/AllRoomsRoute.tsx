@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useId, useState, lazy, Suspense } from 'react';
 import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
@@ -56,13 +56,16 @@ export default function AllRoomsRoute() {
   const [entryError, setEntryError] = useState('');
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const [showFilter, setShowFilter] = useState(false);
-  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
+  const [filterActive, setFilterActive] = useState(false);
+  const [filterRequest, setFilterRequest] = useState(0);
+  const filterDialogId = useId();
+  const filterSummary = filterActive ? filterByIp(chatLog, ipFilter) : null;
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
-    setShowFilter(false);
+    setFilterRequest(0);
+    setFilterActive(false);
     setName('');
     return session.exit();
   };
@@ -121,7 +124,8 @@ export default function AllRoomsRoute() {
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
                 filterCount={ipFilter.entries?.length ?? 0}
-                onToggleFilter={() => setShowFilter(true)}
+                filterDialogId={filterDialogId}
+                onToggleFilter={() => setFilterRequest((request) => request + 1)}
               />
             ) : (
               <>
@@ -180,14 +184,17 @@ export default function AllRoomsRoute() {
             </Suspense>
           }
         />
-        {filterSummary && (
+        {
           <FilterListDialog
             entries={ipFilter.entries ?? []}
-            hiddenCounts={filterSummary.hiddenCounts}
-            hiddenNames={filterSummary.hiddenNames}
-            onClose={() => setShowFilter(false)}
+            dialogId={filterDialogId}
+            request={filterRequest}
+            onOpen={() => setFilterActive(true)}
+            hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+            hiddenNames={filterSummary?.hiddenNames}
+            onClose={() => setFilterActive(false)}
           />
-        )}
+        }
       </main>
     </ErrorBoundary>
   );

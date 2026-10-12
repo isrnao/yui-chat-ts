@@ -6,6 +6,7 @@ import { FILTER_WORD_MAX_LENGTH } from '@features/chat/utils/ipFilterStore';
 import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 type Props = {
+  active?: boolean;
   /** ダブルタップした発言の本文 */
   message: string;
   /** 非表示にする言葉 */
@@ -25,7 +26,14 @@ type Props = {
  * - 選択の変化（selectionchange）は document の出来事なので Effect で購読する。値の書き込みは useEffectEvent で
  *   最新の onChange を呼び、購読をやり直さない
  */
-export default function WordPicker({ message, value, onChange, matchCount, onSubmit }: Props) {
+export default function WordPicker({
+  message,
+  value,
+  onChange,
+  matchCount,
+  onSubmit,
+  active = true,
+}: Props) {
   const inputId = useId();
   const sourceRef = useRef<HTMLParagraphElement>(null);
 
@@ -38,10 +46,11 @@ export default function WordPicker({ message, value, onChange, matchCount, onSub
   });
 
   useEffect(() => {
+    if (!active) return;
     const listener = () => onSelectionChange();
     document.addEventListener('selectionchange', listener);
     return () => document.removeEventListener('selectionchange', listener);
-  }, []);
+  }, [active]);
 
   return (
     <div className="mt-2">

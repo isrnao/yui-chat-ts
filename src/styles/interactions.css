@@ -58,3 +58,46 @@
 .skip-link:focus {
   transform: none;
 }
+
+.native-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  block-size: fit-content;
+  max-inline-size: calc(100vw - 2 * var(--page-gap, 12px));
+  max-block-size: 90dvh;
+  overflow: auto;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms,
+    transform 140ms,
+    display 140ms allow-discrete,
+    overlay 140ms allow-discrete;
+}
+.native-modal[open] {
+  opacity: 1;
+  transform: none;
+}
+.native-modal::backdrop {
+  background: rgb(0 0 0 / 30%);
+}
+@starting-style {
+  .native-modal[open] {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-modal {
+    transition: none;
+    transform: none;
+  }
+}
+@supports (field-sizing: content) {
+  .native-modal textarea {
+    field-sizing: content;
+    min-block-size: 3lh;
+    max-block-size: 10lh;
+  }
+}

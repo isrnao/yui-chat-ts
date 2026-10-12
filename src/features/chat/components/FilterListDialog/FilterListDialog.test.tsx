@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
 import FilterListDialog from './index';
 import {
   addFilteredIp,
@@ -118,15 +118,19 @@ describe('FilterListDialog', () => {
     expect(getSnapshot()).toEqual([]);
   });
 
-  it('×・Esc・背景のクリックで閉じる。窓の中のクリックでは閉じない', () => {
+  it.each(['button', 'escape', 'backdrop'])('%sで閉じ、中身のクリックでは閉じない', (method) => {
     const onClose = vi.fn();
     render(<FilterListDialog entries={[]} hiddenCounts={new Map()} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    const backdrop = screen.getByRole('dialog').parentElement!;
-    fireEvent.pointerDown(backdrop);
-    fireEvent.click(backdrop);
     fireEvent.click(screen.getByText(/フィルタしているものはありません/));
-    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onClose).not.toHaveBeenCalled();
+    if (method === 'button') fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
+    if (method === 'escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    if (method === 'backdrop') {
+      const backdrop = screen.getByRole('dialog').parentElement!;
+      fireEvent.pointerDown(backdrop);
+      fireEvent.click(backdrop);
+    }
+    expect(onClose).toHaveBeenCalledTimes(1);
+    cleanup();
   });
 });

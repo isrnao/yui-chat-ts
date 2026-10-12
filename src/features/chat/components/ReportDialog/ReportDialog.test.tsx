@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ReportDialog from './index';
 import { CHAT_TEXTS } from '@features/chat/chatTexts';
@@ -36,5 +36,38 @@ describe('ReportDialog', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(CHAT_TEXTS.report.rateLimited);
     await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
     expect(await screen.findByRole('alert')).toHaveTextContent(CHAT_TEXTS.report.failed);
+  });
+  it('例外でも内容を保持して手動で再送できる', async () => {
+    const user = userEvent.setup();
+    const send = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce('ok');
+    render(<ReportDialog chatUuid="c-1" send={send} onClose={() => {}} />);
+    await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam));
+    await user.type(screen.getByLabelText(CHAT_TEXTS.report.detailLabel), '保存する説明');
+    await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(CHAT_TEXTS.report.failed);
+    expect(screen.getByLabelText(CHAT_TEXTS.report.detailLabel)).toHaveValue('保存する説明');
+    await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
+    expect(send).toHaveBeenCalledTimes(2);
+  });
+  it('対象変更後に旧応答を適用せず、理由を新しく選ぶ', async () => {
+    const user = userEvent.setup();
+    let finish!: (value: 'ok') => void;
+    const send = vi.fn(
+      () =>
+        new Promise<'ok'>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const { rerender } = render(
+      <ReportDialog open chatUuid="c-1" send={send} onClose={() => {}} />
+    );
+    await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam));
+    await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
+    await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.sending }));
+    expect(send).toHaveBeenCalledTimes(1);
+    rerender(<ReportDialog open chatUuid="c-2" send={send} onClose={() => {}} />);
+    await act(async () => finish('ok'));
+    expect(screen.queryByText(CHAT_TEXTS.report.accepted)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: CHAT_TEXTS.report.send })).toBeDisabled();
   });
 });

@@ -5,6 +5,8 @@ import ModalShell from '../shared/ModalShell';
 import { CHAT_TEXTS } from '@features/chat/chatTexts';
 
 type Props = {
+  open?: boolean;
+  dialogId?: string;
   /** 見出し（例:「219.*.*.253 の発言をフィルタ（非表示に）しますか？」） */
   title: string;
   /** 見出しの下の説明 */
@@ -37,6 +39,8 @@ const SWITCH_ATTRIBUTE = { switch: '' };
  * - 開いたときは「やめる」にフォーカスする（うっかり確定しないように）。Esc と背景のクリックでやめる（ModalShell）
  */
 export default function FilterConfirmDialog({
+  open,
+  dialogId,
   title,
   description,
   children,
@@ -50,6 +54,8 @@ export default function FilterConfirmDialog({
 
   return (
     <ModalShell
+      open={open}
+      dialogId={dialogId}
       role="alertdialog"
       labelledBy={titleId}
       describedBy={descriptionId}
@@ -84,7 +90,7 @@ export default function FilterConfirmDialog({
             className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
         </span>
-        <Button type="button" onClick={onCancel} autoFocus>
+        <Button type="button" onClick={onCancel} autoFocus data-dialog-initial-focus>
           {CHAT_TEXTS.filter.cancel}
         </Button>
       </div>

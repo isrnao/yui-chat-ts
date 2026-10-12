@@ -16,6 +16,9 @@ export const FILTER_TRANSITION_ATTR = 'data-filter-transition';
  * - 非対応のブラウザと、動きを減らす設定ではアニメーションなしで更新する（Requirement 7.5）
  * - 同じ名前の要素が 2 つある（2 本の指で別の行を押していた）などで省かれても、更新そのものは行われる
  */
+type Running = { cleanup: () => void; transition?: ViewTransition };
+let running: Running | null = null;
+
 export function runFilterTransition(update: () => void, prepare?: () => () => void): void {
   const reduceMotion =
     typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,21 +26,46 @@ export function runFilterTransition(update: () => void, prepare?: () => () => vo
     update();
     return;
   }
-
+  running?.transition?.skipTransition?.();
+  running?.cleanup();
   const root = document.documentElement;
-  root.setAttribute(FILTER_TRANSITION_ATTR, '');
-  // 古い状態を撮る前に名前を付け（nameRowsInView）、終わったら外す
-  const unprepare = prepare?.();
-  const transition = document.startViewTransition(() => {
-    flushSync(update);
-  });
-  // 省かれたときに ready は reject される。未処理の reject として報告させない
-  transition.ready.catch(() => {});
-  const cleanup = () => {
-    root.removeAttribute(FILTER_TRANSITION_ATTR);
-    unprepare?.();
+  const previous = root.getAttribute(FILTER_TRANSITION_ATTR);
+  let unprepare = () => {};
+  let cleaned = false;
+  let applied = false;
+  const applyOnce = () => {
+    if (!applied) {
+      applied = true;
+      update();
+    }
   };
-  transition.finished.then(cleanup, cleanup);
+  const entry: Running = {
+    cleanup: () => {
+      if (cleaned) return;
+      cleaned = true;
+      if (running === entry) {
+        if (previous === null) root.removeAttribute(FILTER_TRANSITION_ATTR);
+        else root.setAttribute(FILTER_TRANSITION_ATTR, previous);
+        running = null;
+      }
+      unprepare();
+    },
+  };
+  running = entry;
+  root.setAttribute(FILTER_TRANSITION_ATTR, '');
+  try {
+    unprepare = prepare?.() ?? (() => {});
+    entry.transition = document.startViewTransition(() => flushSync(applyOnce));
+  } catch {
+    try {
+      applyOnce();
+    } finally {
+      entry.cleanup();
+    }
+    return;
+  }
+  entry.transition.ready.catch(() => {});
+  void entry.transition.finished.then(entry.cleanup, entry.cleanup);
 }
 
 /** 発言の行に付ける属性。値は発言の uuid（ChatMessage が付ける） */
@@ -58,24 +86,35 @@ const toIdent = (value: string) => value.replace(/[^A-Za-z0-9_-]/g, '_');
  */
 export function nameRowsInView(container: HTMLElement | null): () => void {
   if (!container) return () => {};
-  const limit = window.innerHeight * 2;
-  const named: HTMLElement[] = [];
+  const viewport = container.closest<HTMLElement>('[data-log-scroll]');
+  const bounds = viewport?.getBoundingClientRect();
+  const top = bounds?.top ?? 0;
+  const limit = (bounds?.bottom ?? window.innerHeight) + (bounds?.height ?? window.innerHeight);
+  const named: { element: HTMLElement; previous: string; assigned: string }[] = [];
   const name = (element: HTMLElement, value: string) => {
+    named.push({ element, previous: element.style.viewTransitionName, assigned: value });
     element.style.viewTransitionName = value;
-    named.push(element);
   };
 
-  for (const row of container.querySelectorAll<HTMLElement>(`[${ROW_UUID_ATTR}]`)) {
-    const rect = row.getBoundingClientRect();
-    if (rect.top > limit) break;
-    if (rect.bottom < 0) continue;
-    const id = toIdent(row.getAttribute(ROW_UUID_ATTR) ?? '');
-    name(row, `filter-row-${id}`);
-    const divider = row.nextElementSibling;
-    if (divider instanceof HTMLHRElement) name(divider, `filter-hr-${id}`);
+  const cleanup = () => {
+    for (const { element, previous, assigned } of named) {
+      if (element.style.viewTransitionName === assigned)
+        element.style.viewTransitionName = previous;
+    }
+  };
+  try {
+    for (const row of container.querySelectorAll<HTMLElement>(`[${ROW_UUID_ATTR}]`)) {
+      const rect = row.getBoundingClientRect();
+      if (rect.top > limit) break;
+      if (rect.bottom < top) continue;
+      const id = toIdent(row.getAttribute(ROW_UUID_ATTR) ?? '');
+      name(row, `filter-row-${id}`);
+      const divider = row.nextElementSibling;
+      if (divider instanceof HTMLHRElement) name(divider, `filter-hr-${id}`);
+    }
+  } catch (error) {
+    cleanup();
+    throw error;
   }
-
-  return () => {
-    for (const element of named) element.style.viewTransitionName = '';
-  };
+  return cleanup;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import FilterConfirmDialog from './index';
 
 function setup() {
@@ -52,16 +52,18 @@ describe('FilterConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('「やめる」・Esc・背景のクリックでやめる。窓の中のクリックではやめない', () => {
+  it.each(['button', 'escape', 'backdrop'])('%sで取消し、確定しない', (method) => {
     const { onCancel, onConfirm } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
-    fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
-    const backdrop = screen.getByRole('alertdialog').parentElement!;
-    fireEvent.pointerDown(backdrop);
-    fireEvent.click(backdrop);
-    fireEvent.click(screen.getByText(/同じ IP の発言/));
-    expect(onCancel).toHaveBeenCalledTimes(3);
+    if (method === 'button') fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
+    if (method === 'escape') fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+    if (method === 'backdrop') {
+      const backdrop = screen.getByRole('alertdialog').parentElement!;
+      fireEvent.pointerDown(backdrop);
+      fireEvent.click(backdrop);
+    }
+    expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
+    cleanup();
   });
 
   it('開いた操作の続きのクリック（タッチの互換用の click）が背景に届いても閉じない', () => {

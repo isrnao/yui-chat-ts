@@ -4,6 +4,7 @@ import {
   addTransitionType,
   startTransition,
   useState,
+  useId,
   lazy,
   Suspense,
 } from 'react';
@@ -93,9 +94,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const roomRanking = useRoomRanking(roomId, showRanking);
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const [showFilter, setShowFilter] = useState(false);
+  const [filterActive, setFilterActive] = useState(false);
+  const [filterRequest, setFilterRequest] = useState(0);
+  const filterDialogId = useId();
   // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
-  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
+  const filterSummary = filterActive ? filterByIp(chatLog, ipFilter) : null;
 
   useLookSound(store, ipFilter);
 
@@ -103,7 +106,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setShowRanking(false);
-    setShowFilter(false);
+    setFilterRequest(0);
+    setFilterActive(false);
     setName('');
     return session.exit();
   };
@@ -144,7 +148,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onShowRanking={openRanking}
               onBackToChat={closeRanking}
               filterCount={ipFilter.entries?.length ?? 0}
-              onToggleFilter={() => setShowFilter(true)}
+              filterDialogId={filterDialogId}
+              onToggleFilter={() => setFilterRequest((request) => request + 1)}
               avatar={session.sessionIdentity?.avatar ?? avatar}
               userName={session.sessionIdentity?.name ?? name}
               userColor={session.sessionIdentity?.color ?? color}
@@ -226,14 +231,17 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           </>
         }
       />
-      {filterSummary && (
+      {
         <FilterListDialog
           entries={ipFilter.entries ?? []}
-          hiddenCounts={filterSummary.hiddenCounts}
-          hiddenNames={filterSummary.hiddenNames}
-          onClose={() => setShowFilter(false)}
+          dialogId={filterDialogId}
+          request={filterRequest}
+          onOpen={() => setFilterActive(true)}
+          hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+          hiddenNames={filterSummary?.hiddenNames}
+          onClose={() => setFilterActive(false)}
         />
-      )}
+      }
     </main>
   );
 }
