@@ -18,7 +18,7 @@
 | R5a  | 実装済み・自動検証（手動ゲートは末尾） | [#228](https://github.com/isrnao/yui-chat-ts/pull/228) / Chanari/draft          |
 | R5b  | 実装済み・自動検証（手動ゲートは末尾） | [#229](https://github.com/isrnao/yui-chat-ts/pull/229) / トップ/人数/widget     |
 | R6   | 実装済み・自動検証（手動ゲートは末尾） | [#230](https://github.com/isrnao/yui-chat-ts/pull/230) / 停止中専用2shot        |
-| R7   | 実装済み・自動検証（手動ゲートは末尾） | feature/native-interactions-r7-integration / 最終補完/採用記録                                                  |
+| R7   | 実装済み・自動検証（手動ゲートは末尾） | [#231](https://github.com/isrnao/yui-chat-ts/pull/231) / 最終補完/採用記録                                                  |
 
 実ブラウザの結果と、実機でしか確認できない項目を区別して追記する。新機能計画F01〜F11の未実装機能は今回の58項目の実装と分離する。
 
@@ -150,4 +150,4 @@ production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_S
 
 残る手動ゲート: 実機iOS Safari/Android WebViewのソフトキーボード・回転・200%拡大・OSハプティック/音声出力、VoiceOver/NVDA、実機forced colors、実BFCache/画面lock、外部X/広告の配信制限、1,000行の同一実機p75/メモリ前後比較。自動webkitやmobile emulationをこれらの実機合格と記録しない。browser下限/端末比率が未確定なのでfallbackは削除しない。これらの確認と各PRレビューを完了してから公開採用する。専用2shot再開は今回に含めない。
 
-統合PRはdevelop_native-interactions → develop_contractsの#220。コードはR0→R1→R4a→R4c→R2→R3→R4b→R5a→R5b→R6→R7に積み、各baseへ下位から順に取り込む。各featureの変更がdevelopへ到達するまでは、develop branchだけを本番成果として扱わない。全PRはレビュー/手動ゲートのためdraft、未merge・未deploy。
+統合PRはdevelop_native-interactions → develop_contractsの#220。コードはR0→R1→R4a→R4c→R2→R3→R4b→R5a→R5b→R6→R7に積み、レビュー後、R7→R6→R5b→R5a→R4b→R3→R2→R4c→R4a→R1→R0の順に各PRの親baseへ取り込み、最後に統合PR #220をdevelop_contractsへ取り込む。各featureの変更がdevelopへ到達するまでは、develop branchだけを本番成果として扱わない。全PRはレビュー/手動ゲートのためdraft、未merge・未deploy。
