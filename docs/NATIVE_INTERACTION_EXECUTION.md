@@ -151,3 +151,5 @@ production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_S
 残る手動ゲート: 実機iOS Safari/Android WebViewのソフトキーボード・回転・200%拡大・OSハプティック/音声出力、VoiceOver/NVDA、実機forced colors、実BFCache/画面lock、外部X/広告の配信制限、1,000行の同一実機p75/メモリ前後比較。自動webkitやmobile emulationをこれらの実機合格と記録しない。browser下限/端末比率が未確定なのでfallbackは削除しない。これらの確認と各PRレビューを完了してから公開採用する。専用2shot再開は今回に含めない。
 
 統合PRはdevelop_native-interactions → develop_contractsの#220。コードはR0→R1→R4a→R4c→R2→R3→R4b→R5a→R5b→R6→R7に積み、レビュー後、R7→R6→R5b→R5a→R4b→R3→R2→R4c→R4a→R1→R0の順に各PRの親baseへ取り込み、最後に統合PR #220をdevelop_contractsへ取り込む。各featureの変更がdevelopへ到達するまでは、develop branchだけを本番成果として扱わない。全PRはレビュー/手動ゲートのためdraft、未merge・未deploy。
+
+CIの実ログ確認で、旧continue-on-errorがCompiler全ファイル検査の5秒timeoutを隠すケースを検出した。検査内容/対象/opt-out規則は変更せず、このproject全体検査だけ30秒へ変更してR4a以降へ反映。新browser jobは型/lint/全Vitestを必須化してからSSG/browserを実行する。表示上の緑だけで採用しない。
