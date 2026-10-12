@@ -1,3 +1,4 @@
+import { requestDialogClose } from '@shared/utils/dialogControl';
 import { asyncResult } from '@shared/utils/asyncResult';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
@@ -38,6 +39,8 @@ export default function ReportDialog({
   open,
   dialogId,
 }: Props) {
+  const fallbackDialogId = useId();
+  const id = dialogId ?? fallbackDialogId;
   const titleId = useId();
   const descriptionId = useId();
   const detailId = useId();
@@ -78,7 +81,7 @@ export default function ReportDialog({
   return (
     <ModalShell
       open={open}
-      dialogId={dialogId}
+      dialogId={id}
       role="dialog"
       labelledBy={titleId}
       describedBy={descriptionId}
@@ -150,7 +153,12 @@ export default function ReportDialog({
         )}
         <div className="mt-3 flex justify-end gap-2">
           {state === 'ok' ? (
-            <Button type="button" onClick={onClose} autoFocus data-dialog-initial-focus>
+            <Button
+              type="button"
+              onClick={() => requestDialogClose(id)}
+              autoFocus
+              data-dialog-initial-focus
+            >
               {CHAT_TEXTS.report.close}
             </Button>
           ) : (
@@ -158,7 +166,12 @@ export default function ReportDialog({
               <Button type="submit" disabled={!reason || state === 'sending'}>
                 {state === 'sending' ? CHAT_TEXTS.report.sending : CHAT_TEXTS.report.send}
               </Button>
-              <Button type="button" onClick={onClose} autoFocus data-dialog-initial-focus>
+              <Button
+                type="button"
+                onClick={() => requestDialogClose(id)}
+                autoFocus
+                data-dialog-initial-focus
+              >
                 {CHAT_TEXTS.report.cancel}
               </Button>
             </>

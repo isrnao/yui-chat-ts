@@ -105,3 +105,17 @@ it('draftをdebounce保存し、終了時に最新の非空本文を保存する
   expect(save).toHaveBeenLastCalledWith('他タブの候補');
   vi.useRealTimers();
 });
+
+it('同じ送信のretryを新しい投稿に変換せず、新しい本文を保持する', async () => {
+  const retry = vi.fn().mockResolvedValue(undefined);
+  const { props } = setup({
+    initialMessage: '新しい本文',
+    failedMessage: '失敗本文',
+    onRetrySend: retry,
+  });
+  fireEvent.click(screen.getByRole('button', { name: '同じ送信を再試行' }));
+  await act(async () => {});
+  expect(retry).toHaveBeenCalledTimes(1);
+  expect(props.onSend).not.toHaveBeenCalled();
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('新しい本文');
+});

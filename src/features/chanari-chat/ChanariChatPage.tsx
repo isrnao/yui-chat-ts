@@ -111,6 +111,8 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               {entered ? (
                 <ChanariChatRoom
                   initialMessage={initialMessage}
+                  failedMessage={session.failedSend?.chat.message}
+                  onRetrySend={session.retry}
                   onSaveDraft={(lastMessage) => updateSettings({ lastMessage })}
                   onSend={(msg) => handleSend(msg)}
                   onReload={reload}
@@ -138,18 +140,19 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                   speechColor={speechColor}
                   setSpeechColor={setSpeechColor}
                   sid=""
+                  isPending={session.phase === 'exiting'}
                   error={entryError}
                   onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
                     setInitialMessage(
                       entryCount === 0 ? (loadDraft(roomId)?.lastMessage ?? '') : ''
                     );
-                    setEntryCount((count) => count + 1);
                     updateSettings({ name: n, nameColor: nc, speechColor: sc });
                     setEntryError('');
                     // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
                     expand(FULL_CHAT_LOG_LIMIT);
                     try {
                       await session.enter({ name: n, color: nc, silent: false });
+                      setEntryCount((count) => count + 1);
                     } catch (err) {
                       if (!(err instanceof SupersededSessionError))
                         setEntryError(toEntryErrorMessage(err));

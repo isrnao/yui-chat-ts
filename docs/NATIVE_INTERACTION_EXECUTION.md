@@ -6,18 +6,19 @@
 
 [計画](INTERACTION_REFACTORING_PLAN.md)の58項目を、R0 → R1 → R4a → R4c → R2 → R3 → R4b → R5a → R5b → R6の順にstacked PRへ分割する。各PRのbaseは直前のfeatureブランチとし、最初だけdevelopをbaseとする。専用ツーショットの改修も停止flagを維持したまま検証する。
 
-| 単位 | 状態   | 検証・PR                   |
-| ---- | ------ | -------------------------- |
-| R0   | 実装中 | ブラウザ検証基盤と互換試作 |
-| R1   | 未着手 | 操作・フォーム・splitter   |
-| R4a  | 未着手 | sessionと送信要求          |
-| R4c  | 未着手 | ログsourceと取得           |
-| R2   | 未着手 | dialog・通報・transition   |
-| R3   | 未着手 | 行アクションpopover        |
-| R4b  | 未着手 | 接続・音・復帰・motion     |
-| R5a  | 未着手 | Chanariとdraft             |
-| R5b  | 未着手 | トップ・人数・埋め込み     |
-| R6   | 未着手 | 停止中の専用ツーショット   |
+| 単位 | 実装状態                               | PR / 範囲                                                                       |
+| ---- | -------------------------------------- | ------------------------------------------------------------------------------- |
+| R0   | 実装済み・自動検証（手動ゲートは末尾） | [#221](https://github.com/isrnao/yui-chat-ts/pull/221) / ブラウザ基盤/互換試作  |
+| R1   | 実装済み・自動検証（手動ゲートは末尾） | [#222](https://github.com/isrnao/yui-chat-ts/pull/222) / 操作/フォーム/splitter |
+| R4a  | 実装済み・自動検証（手動ゲートは末尾） | [#223](https://github.com/isrnao/yui-chat-ts/pull/223) / session/要求snapshot   |
+| R4c  | 実装済み・自動検証（手動ゲートは末尾） | [#224](https://github.com/isrnao/yui-chat-ts/pull/224) / projection/read        |
+| R2   | 実装済み・自動検証（手動ゲートは末尾） | [#225](https://github.com/isrnao/yui-chat-ts/pull/225) / dialog/通報/transition |
+| R3   | 実装済み・自動検証（手動ゲートは末尾） | [#226](https://github.com/isrnao/yui-chat-ts/pull/226) / 共通popover            |
+| R4b  | 実装済み・自動検証（手動ゲートは末尾） | [#227](https://github.com/isrnao/yui-chat-ts/pull/227) / 接続/音/復帰/scroll    |
+| R5a  | 実装済み・自動検証（手動ゲートは末尾） | [#228](https://github.com/isrnao/yui-chat-ts/pull/228) / Chanari/draft          |
+| R5b  | 実装済み・自動検証（手動ゲートは末尾） | [#229](https://github.com/isrnao/yui-chat-ts/pull/229) / トップ/人数/widget     |
+| R6   | 実装済み・自動検証（手動ゲートは末尾） | [#230](https://github.com/isrnao/yui-chat-ts/pull/230) / 停止中専用2shot        |
+| R7   | 実装済み・自動検証（手動ゲートは末尾） | feature/native-interactions-r7-integration / 最終補完/採用記録                                                  |
 
 実ブラウザの結果と、実機でしか確認できない項目を区別して追記する。新機能計画F01〜F11の未実装機能は今回の58項目の実装と分離する。
 
@@ -41,11 +42,9 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 
 常設一覧をInvoker Commands/adapterへ、動的確認と通報をcommit後のshowModalへ移行。native経路の手動inert/Tab trap/Esc監視を除去し、旧経路を隔離。終了時の対象snapshot、取消優先focus、論理的な起点消失時のログfocusを保持。背景pointer開始とclickを照合して互換clickの誤取消を防止。通報をform化し、二重送信/例外/旧対象の遅延応答を処理。transitionは一回更新・所有者cleanup・元inline値復元・scroll枠計測へ整理。型・lint・Compiler・対象63 tests、production native/fallbackを含む24 browser tests合格。
 
-
 ## R3
 
 通常/全部屋の確定行に名前付き操作buttonを追加し、名前/言葉/IPフィルタと直接通報を一つのpopoverへ接続。1,000行に1,000個のpopup内容を増やさず、panelは一つだけ。ダブルタップ/本文リンク/範囲選択/楽観行の禁止を維持。native autoのlight dismiss、CSS anchor＋狭い画面の固定配置、非対応時のhidden/外側操作/Escを独立実装。行消失・Activity終了でpopupを終了。関連33 tests/Compiler/型と32 browser tests合格。1,000button/1panelと320px内の配置を実ブラウザで検査。負荷の実機p75比較は未実施。
-
 
 ## R4b
 
@@ -55,16 +54,100 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 
 本文をChanariChatRoomへ局所化、初回seed/再入室空本文/明示復元を分離。300ms debounce・送信前・hidden・unmountで最後の非空draftを保存し、clear/退室で空保存しない。pending/busyと即時clear、旧画面応答無視、新しい編集を壊さない失敗回復、IME/書記素/コードポイント/説明IDを実装。schemaで型/色/部屋一致/有限時刻/期限を検査し、cache未更新でもloadDraftで再検査。名前20文字を維持しpicker/label/エラーを整備。表示のみ項目は非活性化し27/21選択肢とmetadata不変を維持、仕様/storiesを更新。上段containerの折返し、切断中だけのpollingにhidden停止/復帰一回を追加。型・lint・Compiler・関連22 tests・contracts生成・44 browser tests合格。
 
-
 ## R5b
 
-人数sourceにready/partial/failed/unavailableを設け、成功の0件と未取得を区別。UIでloading/前回値/取得時刻/明示retryを公開し、同じ指標をオンライン人数と扱わない。トップはfetchだけで取得しSupabase bundleを追加しない。旧辞書APIは互換adapterとして保持。ナビの現在地をaria-current CSSへ統一、nowrapを削除、紹介textareaの毎click全選択を除去。X loaderはpending Promiseを共有し、load/error/timeoutと明示retry、接続中vendor containerだけの初期化へ整理。Adringの専用DOM分離/空白を作らない既存方式を維持。参照を調べて旧.okiraku-*規則を削除、windowRowsは保存データ互換欄として明記して30初期値を維持。型・lint・Compiler・関連46 tests・contracts生成合格。
-
+人数sourceにready/partial/failed/unavailableを設け、成功の0件と未取得を区別。UIでloading/前回値/取得時刻/明示retryを公開し、同じ指標をオンライン人数と扱わない。トップはfetchだけで取得しSupabase bundleを追加しない。旧辞書APIは互換adapterとして保持。ナビの現在地をaria-current CSSへ統一、nowrapを削除、紹介textareaの毎click全選択を除去。X loaderはpending Promiseを共有し、load/error/timeoutと明示retry、接続中vendor containerだけの初期化へ整理。Adringの専用DOM分離/空白を作らない既存方式を維持。参照を調べて旧.okiraku-\*規則を削除、windowRowsは保存データ互換欄として明記して30初期値を維持。型・lint・Compiler・関連46 tests・contracts生成合格。
 
 ## R6
 
 公開停止flagを維持した専用UIの独立改修。close/kick/leaveは共通dialogで具体的な操作を確認し、取消は通信なし・確定一回。RoomScreenのpending/terminalをUIへ公開、radioはfieldset/change＋選択済みclickでキーと再押下を一回扱う。IME/初回だけのfocus/コードポイントとUTF-16上限差を整備し、requiredでE1等を遮断しない。FrameLayoutは245px固定/20%可変を維持し、バー厚clampを共有、primary pointer/rAF取消/Home/End/実寸ARIA/coarse24px/極小高さstackを追加。all:revertからnative dialogを除外してfocus/forced colorsを専用指定、通知見出しfocus/一覧の短いstatusを追加。関連164 testsとCompiler/型/停止flag回帰合格。
 
-## 最終補完（R7、実装中）
+## 最終補完（R7）
 
 最終の網羅確認で、GIFのreduced motionはCSS animation停止だけでは成立しないため実際の非表示＋静的表記へ修正。popoverの任意開閉transitionとWordPickerのform/required、旧closeイベントのcounter消費と演出取消/cleanup例外も補完した。
+
+Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操作/新規投稿と分離。退出中と専用Lobby入室中のpending表示を補完。requestClose/小さなcancel adapterで必須入力と独立して閉じ、古いcloseイベントが新しいキー操作のfocusを奪わないよう、論理invokerとブラウザの直前focusを区別した。decode後のunlook/mute、backoff abort、期限cacheと固定clockを検証。Linux Firefoxの音声デバイス不可では成功表示を強制せず、失敗表示/再試行/ミュートを検査する。音声テスト修正をR4b以降、期限テストの固定clockをR5a以降へ戻す。
+
+## 58項目の実装対応表
+
+「実装済み」はソースと自動検証を意味する。OS/支援技術/実機の受け入れ条件を合格扱いにする意味ではない。任意CSS機能は必須操作から独立し、未対応でも操作を維持する。
+
+| 計画ID | 実装PR       | 確認                                                          |
+| ------ | ------------ | ------------------------------------------------------------- |
+| C01    | R1           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C02    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C03    | R2           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C04    | R1/R4a/R4b   | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C05    | R1           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C06    | R1/R4a       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C07    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C08    | R4b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C09    | R3           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C10    | R3           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C11    | R1/R2/R7     | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C12    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C13    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C14    | R1/R6        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C15    | R4a/R4c/R4b  | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N01    | R5a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N02    | R5a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N03    | R5a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N04    | R5a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N05    | R5a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N06    | R5a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| N07    | R5a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H01    | R1/R5b       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H02    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H03    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H04    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H05    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| H06    | R1/R4a       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T01    | R6/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T02    | R6           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T03    | R6           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T04    | R6           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T05    | R6           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| T06    | R6           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X01    | R4b/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X02    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X03    | R1/R5b/R6    | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X04    | R2/R3/R4b/R7 | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X05    | R4c/R4b      | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X06    | R1/R6        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| X07    | R0/R4b/R5b   | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A01    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A02    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A03    | R4a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A04    | R4c          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A05    | R4b/R5b      | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A06    | R1           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A07    | R2           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A08    | R1/R6        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A09    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A10    | R1           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A11    | R5a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A12    | R4c/R4b      | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A13    | R4b/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A14    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A15    | R1/R5b       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A16    | R0/R4b/R7    | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A17    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+
+## 全体最適の再確認
+
+- 開閉はnative dialog/popover、validity/checked/disabled/focusはHTML/CSSへ渡す。非対応経路だけに旧focus trap/外側操作/Escの補助を隔離。動的対象・送信snapshot・保存/復元・取得世代・権限はReact/storeに残す。
+- UIの取消と通信の取消を分離する。readにはAbortSignal、保存済み投稿/通報には取消の成功を主張しない。同じ送信retryは同じ要求IDを保ち、期限後に新規へ変換しない。
+- source別projectionとUUID/nonce、INSERT/clear/取得中の順序、2,000件cap、全部屋の返信先、Activityの読書位置を維持。更新/音/計測をCSSの表示状態から推測しない。
+- 静的コンテンツ/MPAリンク/元のURL/SSG、既存の入室エラーと専用token/terminalを維持。未提供FAQ/DND/認証/Push/添付/リアクションなどF01〜F11を追加していない。
+- Chanari上段と専用2shotのscopeを分離し、通常ログへスタイルを漏らさない。未定義色/死んだhash/未参照CSSを整理し、保存windowRowsは互換を維持。全CSS layer化・全React state削除・browser下限の一律切上げは行わない。
+- 仕様/stories/生成contractsと実装を対応させた。全契約はexporterで確認し、JSONを手で変更していない。
+
+## 最終の検証と採用ゲート
+
+ローカル: 型/lint/React Compiler、全711 Vitest、production build/SSG（トップ＋82通常部屋＋81Chanari、専用2shot停止維持）、Storybook buildを確認。全56 browser tests合格。ブラウザはChromium 156/Firefox 157/WebKit 27.2/mobile WebKitのproduction componentとfallback、1,000行/1panel、320px/縦200px、音声成功または失敗復帰、専用radio/確認/splitter、本番SSGのJS遅延中編集を検査する。最終件数とCIはPRの最新headのchecksと照合する。
+
+production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_SUPABASE_ANON_KEY=fixture-onlyの検証用設定。未設定でのRealtime初期化エラーは既存の環境条件であり、検証用buildを本番配信に流用しない。CI browser jobもこの設定でビルドし、外部保存をしないsynthetic fixture/API応答で検証する。既存CIのcontinue-on-errorなVitest成功だけを根拠にせず、ローカル全テストとbrowser jobを採用根拠とする。
+
+残る手動ゲート: 実機iOS Safari/Android WebViewのソフトキーボード・回転・200%拡大・OSハプティック/音声出力、VoiceOver/NVDA、実機forced colors、実BFCache/画面lock、外部X/広告の配信制限、1,000行の同一実機p75/メモリ前後比較。自動webkitやmobile emulationをこれらの実機合格と記録しない。browser下限/端末比率が未確定なのでfallbackは削除しない。これらの確認と各PRレビューを完了してから公開採用する。専用2shot再開は今回に含めない。
+
+統合PRはdevelop_native-interactions → develop_contractsの#220。コードはR0→R1→R4a→R4c→R2→R3→R4b→R5a→R5b→R6→R7に積み、各baseへ下位から順に取り込む。各featureの変更がdevelopへ到達するまでは、develop branchだけを本番成果として扱わない。全PRはレビュー/手動ゲートのためdraft、未merge・未deploy。

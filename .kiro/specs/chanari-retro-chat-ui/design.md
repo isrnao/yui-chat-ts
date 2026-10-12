@@ -1,5 +1,7 @@
 # 技術設計ドキュメント: chanari-retro-chat-ui
 
+> 2026-10-12: ネイティブインタラクション改訂は末尾の同日節を優先する。旧本文の再現方針との差分はその節で管理する。
+
 ## 概要
 
 本仕様は、既存の `src/features/chat/` チャット UI とは独立した「もう 1 つの UI」を新規に追加し、chanari.com 2012 年版なりきりチャットのルック & フィールを**チャット画面の「上部」だけ**再現することを目的とする。バックエンド（Supabase 連携、Realtime、各種フック、`chatApi`、`rooms.ts`、`types.ts`）および共有コンポーネント（`Button`, `Input`, `Divider`, `ParticipantsList`, `ChatMessage`, `ChatLogList`, `RetroSplitter` など）は `features/chat` の既存実装を**無改変で再利用**する。
@@ -1059,7 +1061,6 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 5. **`App.tsx` で `ChanariChatPage` を `lazy + Suspense` 化**: 既存 `ChatLogList` と同じパターン。
 6. **上下レイアウトは `<main>` 直下の `RetroSplitter` で統一**: 既存 `ChatPage` と同じ構造を踏襲し、見た目の分断を top 内に閉じる。
 7. **`clearDraft` は公開しない**: 呼び出し箇所が無いため未実装。将来の要件に応じて追加する。
-
 
 ## 2026-10-12 インタラクション改訂（R5a）
 

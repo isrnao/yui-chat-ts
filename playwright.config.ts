@@ -7,15 +7,22 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: [['list'], ['html', { open: 'never' }]],
   use: { baseURL: 'http://127.0.0.1:4179', trace: 'retain-on-failure' },
-  webServer: {
-    env: {
-      VITE_SUPABASE_URL: 'https://native-fixture.invalid',
-      VITE_SUPABASE_ANON_KEY: 'fixture-only',
+  webServer: [
+    {
+      env: {
+        VITE_SUPABASE_URL: 'https://native-fixture.invalid',
+        VITE_SUPABASE_ANON_KEY: 'fixture-only',
+      },
+      command: 'pnpm dev --host 127.0.0.1 --port 4179 --strictPort',
+      url: 'http://127.0.0.1:4179',
+      reuseExistingServer: !process.env.CI,
     },
-    command: 'pnpm dev --host 127.0.0.1 --port 4179 --strictPort',
-    url: 'http://127.0.0.1:4179',
-    reuseExistingServer: !process.env.CI,
-  },
+    {
+      command: 'pnpm preview --host 127.0.0.1 --port 4180 --strictPort',
+      url: 'http://127.0.0.1:4180',
+      reuseExistingServer: !process.env.CI,
+    },
+  ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },

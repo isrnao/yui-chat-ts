@@ -32,11 +32,13 @@ function focusOnMount(element: HTMLInputElement | null) {
  * いつも make = false で送る（空室に入れば待機中の管制者になる）。
  */
 export default function EntryForm({
+  isPending = false,
   values,
   onChange,
   action,
   homeHref,
 }: {
+  isPending?: boolean;
   values: EntryValues;
   onChange: (patch: Partial<EntryValues>) => void;
   action: (formData: FormData) => void | Promise<void>;
@@ -77,17 +79,20 @@ export default function EntryForm({
       <h2 style={{ fontSize: '19px', marginBottom: '7px' }}>{TWO_SHOT_CONFIG.title}</h2>
       {/* 折り返したとき、チェックボックスだけの行なども同じ quirk で低くなる。文字は span に入れて行の高さを持たせる */}
       <form
+        aria-busy={isPending || undefined}
         name="InputForm"
         className="ts-line-quirk"
         style={{ margin: 0 }}
         onSubmit={(event) => {
           event.preventDefault();
+          if (isPending) return;
           const formData = new FormData(event.currentTarget, event.nativeEvent.submitter);
           startTransition(() => action(formData));
         }}
       >
         <span>{TWO_SHOT_CONFIG.nameLabel}</span>{' '}
         <input
+          disabled={isPending}
           type="text"
           name="chat_name"
           aria-label={TWO_SHOT_CONFIG.nameLabel}
@@ -102,6 +107,7 @@ export default function EntryForm({
           {SEX_ORDER.map((sex) => (
             <label key={sex}>
               <input
+                disabled={isPending}
                 type="radio"
                 name="sex"
                 value={sex}
@@ -113,6 +119,7 @@ export default function EntryForm({
           ))}
         </fieldset>
         <select
+          disabled={isPending}
           name="room"
           aria-label="部屋"
           value={values.room}
@@ -125,9 +132,10 @@ export default function EntryForm({
             </option>
           ))}
         </select>{' '}
-        <input type="submit" value="入室" />{' '}
+        <input disabled={isPending} type="submit" value="入室" />{' '}
         <label>
           <input
+            disabled={isPending}
             type="checkbox"
             name="cookie"
             value="1"
@@ -139,6 +147,7 @@ export default function EntryForm({
         <br />
         <span>{TWO_SHOT_CONFIG.profileLabel}</span>{' '}
         <input
+          disabled={isPending}
           type="text"
           name="mes"
           aria-label={TWO_SHOT_CONFIG.profileLabel}

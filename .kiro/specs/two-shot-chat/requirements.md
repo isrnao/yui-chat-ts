@@ -1,5 +1,7 @@
 # Requirements Document: two-shot-chat
 
+> 2026-10-12: ネイティブインタラクション改訂は末尾の同日節を優先する。旧本文の再現方針との差分はその節で管理する。
+
 ## Introduction
 
 CGI-RESCUE の「2SHOT-CHAT v5.0.1」（Perl CGI、2011 年）を、2026 年の React の設計（React 19 の Actions、外部ストア、
@@ -501,7 +503,6 @@ Oracle はリポジトリの外に置く。
 | Two_Shot_Page のルートチャンク（gzip）                                       | 15 kB 以下                                        |
 | React Compiler で未コンパイルの関数（本機能）                                | 0                                                 |
 | 入室から Room_Screen が操作できるまで（Two_Shot_API の p95、東京リージョン） | 1 秒以内                                          |
-
 
 ## 2026-10-12 ネイティブインタラクション改訂（R6）
 

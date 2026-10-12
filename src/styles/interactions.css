@@ -142,8 +142,8 @@
   .look-decoration {
     display: none;
   }
-  .chat-row-filterable img[src$='.gif'] {
-    animation: none;
+  .avatar-motion {
+    display: none;
   }
 }
 @media (max-height: 240px) {
@@ -167,5 +167,28 @@
 @media (prefers-reduced-motion: reduce) {
   .avatar-still {
     display: inline;
+  }
+}
+
+@supports selector(:popover-open) {
+  .message-action-panel[popover] {
+    opacity: 0;
+    transition:
+      opacity 120ms,
+      display 120ms allow-discrete,
+      overlay 120ms allow-discrete;
+  }
+  .message-action-panel:popover-open {
+    opacity: 1;
+  }
+  @starting-style {
+    .message-action-panel:popover-open {
+      opacity: 0;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .message-action-panel[popover] {
+    transition: none;
   }
 }

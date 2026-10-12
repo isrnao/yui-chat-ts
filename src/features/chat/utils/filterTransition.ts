@@ -26,7 +26,11 @@ export function runFilterTransition(update: () => void, prepare?: () => () => vo
     update();
     return;
   }
-  running?.transition?.skipTransition?.();
+  try {
+    running?.transition?.skipTransition?.();
+  } catch {
+    /* 演出の取消失敗はフィルタを妨げない */
+  }
   running?.cleanup();
   const root = document.documentElement;
   const previous = root.getAttribute(FILTER_TRANSITION_ATTR);
@@ -48,7 +52,11 @@ export function runFilterTransition(update: () => void, prepare?: () => () => vo
         else root.setAttribute(FILTER_TRANSITION_ATTR, previous);
         running = null;
       }
-      unprepare();
+      try {
+        unprepare();
+      } catch {
+        /* cleanupは業務更新を妨げない */
+      }
     },
   };
   running = entry;

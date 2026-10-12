@@ -1,3 +1,4 @@
+import { requestDialogClose } from '@shared/utils/dialogControl';
 import { useId } from 'react';
 import type { ReactNode } from 'react';
 import Button from '@shared/components/Button';
@@ -49,13 +50,15 @@ export default function FilterConfirmDialog({
   onCancel,
   onReport,
 }: Props) {
+  const fallbackDialogId = useId();
+  const id = dialogId ?? fallbackDialogId;
   const titleId = useId();
   const descriptionId = useId();
 
   return (
     <ModalShell
       open={open}
-      dialogId={dialogId}
+      dialogId={id}
       role="alertdialog"
       labelledBy={titleId}
       describedBy={descriptionId}
@@ -90,7 +93,12 @@ export default function FilterConfirmDialog({
             className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
         </span>
-        <Button type="button" onClick={onCancel} autoFocus data-dialog-initial-focus>
+        <Button
+          type="button"
+          onClick={() => requestDialogClose(id)}
+          autoFocus
+          data-dialog-initial-focus
+        >
           {CHAT_TEXTS.filter.cancel}
         </Button>
       </div>

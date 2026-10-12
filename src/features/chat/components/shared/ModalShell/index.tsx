@@ -5,6 +5,7 @@ import {
   hasNativeDialog,
   restoreDialogFocus,
   takeDialogInvoker,
+  takeDialogOrigin,
 } from '@shared/utils/dialogControl';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
@@ -42,6 +43,7 @@ export default function ModalShell({
   const id = dialogId ?? fallbackId;
   const native = useSyncExternalStore(subscribe, hasNativeDialog, serverSnapshot);
   const nodeRef = useRef<HTMLDialogElement>(null);
+  const previousFocus = useRef<Element | null>(null);
   const returnTo = useRef<Element | null>(null);
   const pressedOutside = useRef(false);
   const closeRequests = useRef(0);
@@ -94,7 +96,9 @@ export default function ModalShell({
     }
     const shouldOpen = open ?? request > 0;
     if (shouldOpen && !node.open) {
-      returnTo.current = takeDialogInvoker(id) ?? document.activeElement;
+      const origin = takeDialogOrigin(id);
+      previousFocus.current = origin?.previous ?? document.activeElement;
+      returnTo.current = origin?.element ?? document.activeElement;
       node.showModal();
       node
         .querySelector<HTMLElement>('[data-dialog-initial-focus]')
@@ -157,15 +161,27 @@ export default function ModalShell({
         cancel();
       }}
       onClose={() => {
+        const requested = closeRequests.current > 0;
+        if (requested) closeRequests.current--;
         if (nodeRef.current?.open) return;
-        if (closeRequests.current > 0) closeRequests.current--;
-        else if (open === true) onCancel();
+        if (!requested && open === true) onCancel();
         notifyClosed();
-        restoreDialogFocus(returnTo.current);
+        const active = document.activeElement;
+        if (
+          active === document.body ||
+          active === returnTo.current ||
+          active === previousFocus.current ||
+          nodeRef.current?.contains(active)
+        )
+          restoreDialogFocus(returnTo.current);
       }}
       onToggle={() => {
         if (nodeRef.current?.open) {
-          returnTo.current = takeDialogInvoker(id) ?? returnTo.current ?? document.activeElement;
+          const origin = takeDialogOrigin(id);
+          if (origin) {
+            returnTo.current = origin.element;
+            previousFocus.current = origin.previous;
+          }
           notifyOpen();
         }
       }}

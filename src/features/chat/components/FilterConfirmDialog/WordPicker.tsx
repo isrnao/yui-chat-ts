@@ -53,7 +53,13 @@ export default function WordPicker({
   }, [active]);
 
   return (
-    <div className="mt-2">
+    <form
+      className="mt-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (active && value.trim()) onSubmit();
+      }}
+    >
       <p
         ref={sourceRef}
         className="max-h-24 overflow-y-auto border-2 border-ie-gray [border-style:inset] bg-white p-1 text-xs break-all select-text"
@@ -65,6 +71,8 @@ export default function WordPicker({
         {CHAT_TEXTS.wordPicker.label}
       </label>
       <Input
+        required
+        pattern=".*\S.*"
         id={inputId}
         type="text"
         value={value}
@@ -83,6 +91,6 @@ export default function WordPicker({
           ? fillText(CHAT_TEXTS.wordPicker.matches, { count: matchCount })
           : CHAT_TEXTS.wordPicker.empty}
       </p>
-    </div>
+    </form>
   );
 }

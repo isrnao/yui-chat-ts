@@ -1,5 +1,7 @@
 # Requirements Document
 
+> 2026-10-12: ネイティブインタラクション改訂は末尾の同日節を優先する。旧本文の再現方針との差分はその節で管理する。
+
 ## Introduction
 
 本機能 (chanari-retro-chat-ui) は、既存の `src/features/chat/` チャット UI とは独立した「もう 1 つの UI」を新規に追加し、2012 年当時の chanari.com「なりきりチャット」の入室前フォーム (f4 / `id="main2"`) と入室後フォーム (f1 / `id="main"`) をピクセルに近いレベルで再現することを目的とする。
@@ -377,7 +379,6 @@
 | P-6      | `draftStore` の round-trip 保存                          | Requirement 13.3                           |
 | P-7      | `matchChanariRoute` の整合性 (build → match が identity) | Requirement 1.1, 1.6, 1.7                  |
 | P-8      | `matchChanariRoute` の未知ルート拒否                     | Requirement 1.3, 1.8                       |
-
 
 ## 2026-10-12 インタラクション改訂（R5a）
 

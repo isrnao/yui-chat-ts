@@ -11,6 +11,8 @@ import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariChatRoomProps = {
   initialMessage?: string;
+  failedMessage?: string;
+  onRetrySend?: () => Promise<void>;
   onSaveDraft?: (message: string) => void;
   onSend: (msg: string) => void | Promise<void>;
   onReload: () => void;
@@ -29,6 +31,8 @@ export type ChanariChatRoomProps = {
 };
 
 export default function ChanariChatRoom({
+  failedMessage,
+  onRetrySend,
   initialMessage = '',
   onSaveDraft,
   onSend,
@@ -273,6 +277,19 @@ export default function ChanariChatRoom({
       >
         {CHANARI_TEXTS.exit}
       </button>
+      {failedMessage && onRetrySend && (
+        <button
+          type="button"
+          disabled={pending || isPending}
+          onClick={() => {
+            if (busy.current || isPending) return;
+            if (message === failedMessage) edit('');
+            void run(onRetrySend, '同じ送信を再試行できませんでした。');
+          }}
+        >
+          同じ送信を再試行
+        </button>
+      )}
       {failedBody && (
         <button
           type="button"
