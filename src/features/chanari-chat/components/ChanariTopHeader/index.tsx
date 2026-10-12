@@ -1,3 +1,5 @@
+import { CHANARI_TEXTS } from '../../chanariTexts';
+
 export type ChanariTopHeaderProps = {
   backHref: string;
   /** 戻るリンクの文言。省略時は遷移先が外部 URL かどうかで自動選択する。 */
@@ -39,7 +41,7 @@ export default function ChanariTopHeader({
   // backHref が in-app トップを指している既定状態では「お気楽チャットトップへ」と表示し、
   // 外部のなりきりサイトに戻すユースケースでは従来の文言を使う。
   const resolvedBackLabel =
-    backLabel ?? (backExternal ? 'なりきりチャットにもどる' : 'お気楽チャットトップへ');
+    backLabel ?? (backExternal ? CHANARI_TEXTS.backToNarikiri : CHANARI_TEXTS.backToTop);
 
   return (
     <>
@@ -59,7 +61,7 @@ export default function ChanariTopHeader({
               href={helpHref}
               {...(helpExternal ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
             >
-              ヘルプ
+              {CHANARI_TEXTS.help}
             </a>
           </div>
         )}

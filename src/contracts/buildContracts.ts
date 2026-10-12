@@ -55,6 +55,7 @@ import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
 import { validateName } from '@features/chat/utils/validation';
 import { UI_MESSAGES } from '@features/chat/uiMessages';
 import { CHAT_TEXTS } from '@features/chat/chatTexts';
+import { CHANARI_OPTIONS, CHANARI_TEXTS } from '@features/chanari-chat/chanariTexts';
 import { parseMessageSegments } from '@features/chat/utils/urlLinker';
 import { LEGAL_PAGE_PATHS, TERMS_VERSION } from '@features/legal/legal';
 import { buildAbsoluteUrl } from '@shared/utils/seo';
@@ -1195,6 +1196,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'server-messages.json': serverMessages(),
     'ui-messages.json': UI_MESSAGES,
     'chat-texts.json': CHAT_TEXTS,
+    'chanari.json': { texts: CHANARI_TEXTS, ...CHANARI_OPTIONS },
     'legal.json': {
       termsVersion: TERMS_VERSION,
       pages: Object.fromEntries(
