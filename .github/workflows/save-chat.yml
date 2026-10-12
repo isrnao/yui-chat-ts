@@ -9,6 +9,7 @@ on:
     types: [opened, reopened, synchronize]
     paths:
       - 'supabase/functions/save-chat/**'
+      - 'supabase/functions/report-chat/**'
       - 'src/features/chat/rooms.ts'
       - 'src/features/chat/roomsTable.test.ts'
       - 'supabase/migrations/**'
@@ -53,9 +54,16 @@ jobs:
       - name: Test
         working-directory: supabase/functions/save-chat
         run: deno test --no-lock --allow-env --allow-read .
+      # 通報（Task 0.6）。save-chat の telemetry.ts を使うので同じジョブで確かめる
+      - name: Check（report-chat）
+        working-directory: supabase/functions/report-chat
+        run: deno check --no-lock index.ts
+      - name: Test（report-chat）
+        working-directory: supabase/functions/report-chat
+        run: deno test --no-lock --allow-env --allow-read .
 
   database:
-    name: 実 DB（マイグレーションと chats の pgTAP）
+    name: 実 DB（マイグレーションと chats・chat_reports の pgTAP）
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -66,7 +74,7 @@ jobs:
         run: supabase db start
       # two_shot.sql は two-shot.yml が走らせる
       - name: Test
-        run: supabase test db supabase/tests/chats.sql
+        run: supabase test db supabase/tests/chats.sql supabase/tests/chat_reports.sql
 
   realtime:
     name: Realtime（anon に読めない列が届かない）

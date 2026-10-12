@@ -15,6 +15,7 @@ import { nameRowsInView, runFilterTransition } from '@features/chat/utils/filter
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
+import ReportDialog from '../ReportDialog';
 import WordPicker from '../FilterConfirmDialog/WordPicker';
 import Divider from '../shared/Divider';
 import { UI_MESSAGES } from '@features/chat/uiMessages';
@@ -32,10 +33,11 @@ function isMutableRow(chat: Chat): boolean {
 }
 
 /** 確認の窓を出しているフィルタ。言葉は窓の中で選び直す */
-type PendingFilter =
+type PendingFilter = (
   | { kind: 'ip'; ip: string }
   | { kind: 'name'; name: string }
-  | { kind: 'word'; message: string; word: string };
+  | { kind: 'word'; message: string; word: string }
+) & { chatUuid: string };
 
 /** 確認の窓の見出しと説明（Requirement 2.1・9） */
 function confirmText(pending: PendingFilter): { title: string; description: string } {
@@ -112,12 +114,15 @@ function ChatLogList({
   const [announcement, setAnnouncement] = useState('');
   // 確認の窓を出しているフィルタ（Requirement 2）
   const [pending, setPending] = useState<PendingFilter | null>(null);
+  // 通報の窓を出している発言（確認の窓の「通報する」から開く。Task 0.6）
+  const [reporting, setReporting] = useState<string | null>(null);
   // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
   const listRef = useRef<HTMLDivElement>(null);
   const requestFilter = (request: FilterRequest) => {
-    if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip });
-    else if (request.kind === 'name') setPending({ kind: 'name', name: request.name });
-    else setPending({ kind: 'word', message: request.message, word: request.selected });
+    const { chatUuid } = request;
+    if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip, chatUuid });
+    else if (request.kind === 'name') setPending({ kind: 'name', name: request.name, chatUuid });
+    else setPending({ kind: 'word', message: request.message, word: request.selected, chatUuid });
   };
   const changeWord = (word: string) =>
     setPending((current) => (current?.kind === 'word' ? { ...current, word } : current));
@@ -195,6 +200,10 @@ function ChatLogList({
           confirmDisabled={pending.kind === 'word' && !normalizeFilterWord(pending.word)}
           onConfirm={confirmFilter}
           onCancel={() => setPending(null)}
+          onReport={() => {
+            setReporting(pending.chatUuid);
+            setPending(null);
+          }}
         >
           {pending.kind === 'word' && (
             <WordPicker
@@ -206,6 +215,9 @@ function ChatLogList({
             />
           )}
         </FilterConfirmDialog>
+      )}
+      {reporting !== null && (
+        <ReportDialog chatUuid={reporting} onClose={() => setReporting(null)} />
       )}
     </div>
   );

@@ -83,6 +83,37 @@ export const CHAT_TEXTS = {
     ipAnnounce: '{ip} の発言を非表示にしました。「フィルタ」から解除できます。',
     nameAnnounce: '「{name}」の発言を非表示にしました。「フィルタ」から解除できます。',
     wordAnnounce: '「{word}」を含む発言を非表示にしました。「フィルタ」から解除できます。',
+    confirm: 'フィルタする',
+    cancel: 'やめる',
+  },
+  /** 通報（.kiro/specs/android-native-app design.md §7.6、Task 0.6）。フィルタの確認の窓から開く */
+  report: {
+    action: '通報する',
+    title: 'この発言を運営に通報しますか？',
+    description: '通報は運営だけが見ます。相手には知らされません。',
+    reasonLabel: '理由',
+    detailLabel: '説明（任意・500 文字まで）',
+    send: '通報する',
+    sending: '送っています...',
+    cancel: 'やめる',
+    close: '閉じる',
+    accepted: '通報を受け付けました。運営が確かめます。ありがとうございました。',
+    rateLimited: '通報が多すぎます。時間をおいてもう一度お試しください。',
+    notFound: 'この発言は見つかりませんでした。',
+    failed: '通報を送れませんでした。時間をおいてもう一度お試しください。',
+    childSafetyHelp:
+      '子どもが危ない目にあっているときは、すぐに警察（110）か児童相談所の虐待対応ダイヤル（189）に連絡してください。インターネット上の違法な情報は、インターネット・ホットラインセンターにも通報できます。',
+    childSafetyLinkLabel: 'インターネット・ホットラインセンター',
+    childSafetyLinkUrl: 'https://www.internethotline.jp/',
+  },
+  /** 通報の理由（キーは report-chat の REPORT_REASONS） */
+  reportReasons: {
+    spam: '宣伝・スパム',
+    harassment: '嫌がらせ・誹謗中傷',
+    sexual: '性的な内容',
+    child_safety: '児童の安全に関わる',
+    personal_info: '個人情報の書き込み',
+    other: 'その他',
   },
 } as const;
 
