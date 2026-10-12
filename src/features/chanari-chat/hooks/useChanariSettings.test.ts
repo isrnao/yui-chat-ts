@@ -82,6 +82,7 @@ describe('useChanariSettings', () => {
 it('不正な型/色/部屋のdraftとcacheの期限越えを復元しない', () => {
   localStorage.clear();
   const now = Date.now();
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
@@ -99,7 +100,7 @@ it('不正な型/色/部屋のdraftとcacheの期限越えを復元しない', (
   );
   for (const key of ['numeric', 'array', 'mismatch', 'color']) expect(loadDraft(key)).toBeNull();
   expect(loadDraft('expired')?.lastMessage).toBe('valid');
-  const clock = vi.spyOn(Date, 'now').mockReturnValue(now + 2);
+  clock.mockReturnValue(now + 2);
   expect(loadDraft('expired')).toBeNull();
   clock.mockRestore();
 });
