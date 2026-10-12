@@ -42,21 +42,19 @@ export default function TopPage() {
             <p className="mt-1 leading-relaxed">{intro.body.join('')}</p>
           </section>
           <p className="px-2 text-xs">人数は直近6時間の公開ログの発言者数です。</p>
-          {countState.kind !== 'ready' && (
+          {/* 出すのは失敗したときだけ。取得中の表示は SSG の HTML にも入り、取得が終わると消えて
+              部屋の一覧を押し上げる（レイアウトシフト）ので出さない */}
+          {countState.kind !== 'ready' && countState.kind !== 'loading' && (
             <p role="status" className="px-2 text-xs">
-              {countState.kind === 'loading'
-                ? '人数を取得中…'
-                : countState.kind === 'partial'
-                  ? '一部の人数を取得できませんでした。'
-                  : '人数を取得できませんでした。'}
+              {countState.kind === 'partial'
+                ? '一部の人数を取得できませんでした。'
+                : '人数を取得できませんでした。'}
               {countState.asOf && (
                 <> 前回取得: {new Date(countState.asOf).toLocaleTimeString('ja-JP')}</>
               )}
-              {countState.kind !== 'loading' && (
-                <button type="button" disabled={countState.isLoading} onClick={countState.retry}>
-                  再試行
-                </button>
-              )}
+              <button type="button" disabled={countState.isLoading} onClick={countState.retry}>
+                再試行
+              </button>
             </p>
           )}
           <div className="grid grid-cols-1 md:grid-cols-[176px_1fr] lg:grid-cols-[176px_1fr_360px]">

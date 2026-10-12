@@ -85,11 +85,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
-      {realtimeStatus !== 'connected' && (
+      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
+          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
+      {realtimeStatus === 'disconnected' && (
         <div className="px-[var(--page-gap)] text-xs" role="status">
-          {realtimeStatus === 'disconnected'
-            ? '接続が切れています。更新でログを取得できます。'
-            : '接続中…'}
+          接続が切れています。更新でログを取得できます。
         </div>
       )}
       <RetroSplitter

@@ -101,6 +101,23 @@ describe('SSG + hydrateRoot', { timeout: 30_000 }, () => {
     expect(warnings).toEqual([]);
   });
 
+  it.each(['/chat/superbeginner', '/chanari/durarara'])(
+    '%s の SSG に Realtime の接続待ちの表示を入れない（つながった時に入室フォームが動くため）',
+    async (pathname) => {
+      window.history.replaceState(null, '', pathname);
+      const markup = await render(pathname);
+      expect(markup).not.toContain('接続中');
+      expect(markup).not.toContain('接続が切れています');
+    }
+  );
+
+  it('トップの SSG に人数の取得中の表示を入れない（取得後に部屋の一覧が動くため）', async () => {
+    window.history.replaceState(null, '', '/');
+    const markup = await render('/');
+    expect(markup).toContain('お気楽チャット');
+    expect(markup).not.toContain('人数を取得中');
+  });
+
   it('hydrate前の名前・メール編集を保存設定で上書きしない', async () => {
     window.history.replaceState(null, '', '/chat/superbeginner');
     const markup = await render('/chat/superbeginner');
