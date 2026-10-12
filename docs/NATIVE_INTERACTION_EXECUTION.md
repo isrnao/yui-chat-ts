@@ -144,7 +144,7 @@ Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操�
 
 ## 最終の検証と採用ゲート
 
-ローカル: 型/lint/React Compiler、全712 Vitest、production build/SSG（トップ＋82通常部屋＋81Chanari、専用2shot停止維持）、Storybook buildを確認。全60 browser tests（56既存＋未解決audio強制4構成）を検証。ブラウザはChromium 156/Firefox 157/WebKit 27.2/mobile WebKitのproduction componentとfallback、1,000行/1panel、320px/縦200px、音声成功または失敗復帰、専用radio/確認/splitter、本番SSGのJS遅延中編集を検査する。最終件数とCIはPRの最新headのchecksと照合する。
+ローカル: 型/lint/React Compiler、全712 Vitest、production build/SSG（トップ＋82通常部屋＋81Chanari、専用2shot停止維持）、Storybook buildを確認。全64 browser tests（native/fallback/実際のGIF/未解決audio/起点消失/SSG）を検証。ブラウザはChromium 156/Firefox 157/WebKit 27.2/mobile WebKitのproduction componentとfallback、1,000行/1panel、320px/縦200px、音声成功または失敗復帰、専用radio/確認/splitter、本番SSGのJS遅延中編集を検査する。最終件数とCIはPRの最新headのchecksと照合する。
 
 production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_SUPABASE_ANON_KEY=fixture-onlyの検証用設定。未設定でのRealtime初期化エラーは既存の環境条件であり、検証用buildを本番配信に流用しない。CI browser jobもこの設定でビルドし、外部保存をしないsynthetic fixture/API応答で検証する。既存CIのcontinue-on-errorなVitest成功だけを根拠にせず、ローカル全テストとbrowser jobを採用根拠とする。
 
@@ -153,3 +153,7 @@ production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_S
 統合PRはdevelop_native-interactions → develop_contractsの#220。コードはR0→R1→R4a→R4c→R2→R3→R4b→R5a→R5b→R6→R7に積み、レビュー後、R7→R6→R5b→R5a→R4b→R3→R2→R4c→R4a→R1→R0の順に各PRの親baseへ取り込み、最後に統合PR #220をdevelop_contractsへ取り込む。各featureの変更がdevelopへ到達するまでは、develop branchだけを本番成果として扱わない。全PRはレビュー/手動ゲートのためdraft、未merge・未deploy。
 
 CIの実ログ確認で、旧continue-on-errorがCompiler全ファイル検査の5秒timeoutを隠すケースを検出した。検査内容/対象/opt-out規則は変更せず、このproject全体検査だけ30秒へ変更してR4a以降へ反映。新browser jobは型/lint/全Vitestを必須化してからSSG/browserを実行する。表示上の緑だけで採用しない。
+
+reduced motionの最終確認では、入室前のavatar選択画像もログと同じ静的表記へ切替え、実際のlook/GIFをfixtureへ置いて非表示/代替表示をブラウザで検査する。
+
+Legacy dialogの起点がフィルタで消えた場合も、接続解除/元inert復元後にログ領域へfocusを戻す。dialog APIを無効化した実ブラウザで行消失とfocusを確認する。

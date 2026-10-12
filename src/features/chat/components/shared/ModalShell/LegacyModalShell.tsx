@@ -29,7 +29,7 @@ const FOCUSABLE =
  * - document.body の直下に出し（ポータル）、開いている間はそれ以外の body の子に inert を付ける。背後の
  *   リンクやボタンは操作もフォーカスもできなくなる（aria-modal を付けるだけでは Tab で背後へ出られた）
  * - Tab / Shift+Tab は窓の中で回す。Esc は document で受ける（フォーカスが窓の外にあっても閉じる）
- * - 閉じたら、開く前にフォーカスしていた要素へ戻す。その要素が消えていたら（フィルタで行が消えたときなど）戻さない
+ * - 閉じたら、開く前にフォーカスしていた要素へ戻す。その要素が消えていたら（フィルタで行が消えたときなど）ログ領域へ戻す
  * - 最初のフォーカスは中身の autoFocus に任せる
  * - 背景のクリックで閉じるのは、背景の上で押し始めたときだけ。窓を開いた操作の続き（タッチの互換用の click など）が
  *   背景に届いても閉じない
@@ -95,9 +95,7 @@ export default function ModalShell({
       // StrictMode の開発時の仮のアンマウントでは、窓はまだ DOM にある。そのときは戻さない
       // （戻すと autoFocus で窓に当てたフォーカスが外へ出る）
       if (backdrop?.isConnected) return;
-      if (returnFocusTo instanceof HTMLElement && returnFocusTo.isConnected) {
-        restoreDialogFocus(returnFocusTo);
-      }
+      restoreDialogFocus(returnFocusTo);
     };
   }, [returnFocusTo]);
 

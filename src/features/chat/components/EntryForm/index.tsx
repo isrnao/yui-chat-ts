@@ -238,12 +238,15 @@ export default function EntryForm({
               {id === 'none' ? (
                 <span className="text-xs text-gray-500 ml-0.5">{CHAT_TEXTS.entry.avatarNone}</span>
               ) : (
-                <img
-                  src={`${import.meta.env.BASE_URL}avatars/${id}.gif`}
-                  alt={id}
-                  className="w-6 h-6 ml-0.5"
-                  loading="lazy"
-                />
+                <>
+                  <img
+                    src={`${import.meta.env.BASE_URL}avatars/${id}.gif`}
+                    alt={id}
+                    className="avatar-motion w-6 h-6 ml-0.5"
+                    loading="lazy"
+                  />
+                  <span className="avatar-still text-xs ml-0.5">{id}</span>
+                </>
               )}
             </label>
           ))}

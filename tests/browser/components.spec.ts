@@ -139,6 +139,9 @@ test('reduced motion hides animated decoration and very short viewport preserves
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.setViewportSize({ width: 320, height: 200 });
   await page.goto('/tests/browser/fixtures/components.html');
+  await expect(page.locator('.look-decoration')).not.toBeVisible();
+  await expect(page.locator('.avatar-motion').first()).not.toBeVisible();
+  await expect(page.locator('.avatar-still').first()).toBeVisible();
   await page.getByRole('textbox', { name: 'おなまえ', exact: true }).fill('短い画面');
   await page.getByRole('button', { name: 'チャットに参加する' }).click();
   await page.getByRole('textbox', { name: '発言', exact: true }).fill('短い画面でも送信');
@@ -240,4 +243,24 @@ test('unresolved audio activation returns to a retryable failure', async ({ page
   await expect(page.getByRole('button', { name: '通知音を有効にする', exact: true })).toBeEnabled();
   await page.getByLabel('通知音をミュート').check();
   await expect(page.getByLabel('通知音をミュート')).toBeChecked();
+});
+
+test('fallback returns focus to the log when filtering removes its invoker', async ({ page }) => {
+  await page.addInitScript(() =>
+    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
+      value: undefined,
+      configurable: true,
+    })
+  );
+  await page.goto('/tests/browser/fixtures/components.html');
+  await page.getByRole('button', { name: '利用者0の発言への操作', exact: true }).click();
+  await page
+    .getByRole('group', { name: '発言への操作' })
+    .getByRole('button', { name: '名前をフィルタ', exact: true })
+    .click();
+  await page.getByRole('alertdialog').getByTestId('filter-confirm-haptic-switch').click();
+  await expect(
+    page.getByRole('button', { name: '利用者0の発言への操作', exact: true })
+  ).toHaveCount(0);
+  await expect(page.getByTestId('chat-log-list')).toBeFocused();
 });

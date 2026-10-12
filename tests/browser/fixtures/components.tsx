@@ -21,7 +21,8 @@ import RetroSplitter from '../../../src/features/chat/components/RetroSplitter';
 const fixtureChats: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
   uuid: `fixture-${i}`,
   name: `利用者${i}`,
-  message: 'こんにちは https://example.com',
+  message: i === 0 ? 'look' : 'こんにちは https://example.com',
+  ...(i === 0 ? { metadata: { version: 1, avatar: 'hoshi1' } } : {}),
   color: '#000000',
   time: Date.now(),
   ip_masked: '10.*.*.1',
