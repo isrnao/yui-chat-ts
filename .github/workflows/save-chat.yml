@@ -1,6 +1,6 @@
 # .github/workflows/save-chat.yml
 # 発言の保存（Edge Function save-chat）と chats テーブルの検証。どれか 1 つでも失敗したら落とす。
-# ci.yml は Deno と DB のテストを走らせず、Vitest も continue-on-error なので、サーバーの規則の保証には使わない
+# ci.yml は Deno と DB のテストを走らせないので、サーバーの規則はここで保証する
 # （docs/SERVER_SIDE_LOGIC_REFACTORING.md §9 の P1、Issue #175）。
 name: save-chat
 

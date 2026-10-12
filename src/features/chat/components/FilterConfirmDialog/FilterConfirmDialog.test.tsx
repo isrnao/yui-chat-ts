@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { pressBackdrop } from '../../../../test/dialog';
 import FilterConfirmDialog from './index';
 
 function setup() {
@@ -7,6 +8,7 @@ function setup() {
   const onCancel = vi.fn();
   render(
     <FilterConfirmDialog
+      open
       title="219.*.*.253 の発言をフィルタ（非表示に）しますか？"
       description="同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。"
       onConfirm={onConfirm}
@@ -22,7 +24,8 @@ describe('FilterConfirmDialog', () => {
     const dialog = screen.getByRole('alertdialog', {
       name: '219.*.*.253 の発言をフィルタ（非表示に）しますか？',
     });
-    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // showModal() で開くモーダル（背後の inert と Tab の閉じ込めはブラウザが受け持つ）
+    expect(dialog).toHaveAttribute('open');
     expect(dialog).toHaveAccessibleDescription(
       '同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。'
     );
@@ -52,23 +55,23 @@ describe('FilterConfirmDialog', () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
-  it('「やめる」・Esc・背景のクリックでやめる。窓の中のクリックではやめない', () => {
+  it.each(['button', 'escape', 'backdrop'])('%sで取消し、確定しない', (method) => {
     const { onCancel, onConfirm } = setup();
-    fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
-    fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
-    const backdrop = screen.getByRole('alertdialog').parentElement!;
-    fireEvent.pointerDown(backdrop);
-    fireEvent.click(backdrop);
-    fireEvent.click(screen.getByText(/同じ IP の発言/));
-    expect(onCancel).toHaveBeenCalledTimes(3);
+    if (method === 'button') fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
+    if (method === 'escape') fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
+    if (method === 'backdrop') {
+      pressBackdrop(screen.getByRole('alertdialog'));
+    }
+    expect(onCancel).toHaveBeenCalledTimes(1);
     expect(onConfirm).not.toHaveBeenCalled();
+    cleanup();
   });
 
   it('開いた操作の続きのクリック（タッチの互換用の click）が背景に届いても閉じない', () => {
     // タッチのダブルタップで開くと、その指の下に窓の背景が来る。押し始めは発言の行なので、背景の上で
     // pointerdown は起きていない
     const { onCancel } = setup();
-    fireEvent.click(screen.getByRole('alertdialog').parentElement!);
+    fireEvent.click(screen.getByRole('alertdialog'), { clientX: -1, clientY: -1 });
     expect(onCancel).not.toHaveBeenCalled();
   });
 
@@ -76,6 +79,7 @@ describe('FilterConfirmDialog', () => {
     const onConfirm = vi.fn();
     render(
       <FilterConfirmDialog
+        open
         title="t"
         description="d"
         confirmDisabled

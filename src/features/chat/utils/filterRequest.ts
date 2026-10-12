@@ -1,3 +1,4 @@
+import { readSelectionWithin } from '@shared/utils/readSelectionWithin';
 import type { Chat } from '@features/chat/types';
 import { isFilterableIp } from './ipFilterStore';
 
@@ -25,9 +26,7 @@ export type FilterRequest = (
 /** element の中で選ばれている文字（選択がなければ、または外にあれば空） */
 function selectedTextIn(element: Element): string {
   const selection = typeof window === 'undefined' ? null : window.getSelection();
-  if (!selection || selection.isCollapsed || !selection.anchorNode) return '';
-  if (!element.contains(selection.anchorNode)) return '';
-  return selection.toString().trim();
+  return readSelectionWithin(element, selection);
 }
 
 /**

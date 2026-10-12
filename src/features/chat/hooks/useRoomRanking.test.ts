@@ -56,7 +56,7 @@ describe('useRoomRanking', () => {
   it('無効の間は取得しない', () => {
     const { result } = renderHook(() => useRoomRanking('anime', false));
     expect(mockedLoad).not.toHaveBeenCalled();
-    expect(result.current).toEqual({ ranking: null, isLoading: false, hasError: false });
+    expect(result.current).toMatchObject({ ranking: null, isLoading: false, hasError: false });
   });
 
   // 数 ms で返る取得でも毎回「読み込み中」を出すとチラつく
@@ -72,7 +72,11 @@ describe('useRoomRanking', () => {
     await flush();
     advance(RANKING_LOADING_DELAY_MS * 2);
 
-    expect(result.current).toEqual({ ranking: [entry('A', 3)], isLoading: false, hasError: false });
+    expect(result.current).toMatchObject({
+      ranking: [entry('A', 3)],
+      isLoading: false,
+      hasError: false,
+    });
     expect(seen).not.toContain(true);
     expect(mockedLoad).toHaveBeenCalledWith('anime');
   });
@@ -85,11 +89,15 @@ describe('useRoomRanking', () => {
     advance(RANKING_LOADING_DELAY_MS - 1);
     expect(result.current.isLoading).toBe(false);
     advance(1);
-    expect(result.current).toEqual({ ranking: null, isLoading: true, hasError: false });
+    expect(result.current).toMatchObject({ ranking: null, isLoading: true, hasError: false });
 
     pending.resolve([entry('A', 3)]);
     await flush();
-    expect(result.current).toEqual({ ranking: [entry('A', 3)], isLoading: false, hasError: false });
+    expect(result.current).toMatchObject({
+      ranking: [entry('A', 3)],
+      isLoading: false,
+      hasError: false,
+    });
   });
 
   it('開き直したときは前回の結果を出したまま取り直し、終わったら差し替える', async () => {
@@ -111,7 +119,11 @@ describe('useRoomRanking', () => {
 
     pending.resolve([entry('A', 2)]);
     await flush();
-    expect(result.current).toEqual({ ranking: [entry('A', 2)], isLoading: false, hasError: false });
+    expect(result.current).toMatchObject({
+      ranking: [entry('A', 2)],
+      isLoading: false,
+      hasError: false,
+    });
     expect(mockedLoad).toHaveBeenCalledTimes(2);
   });
 
@@ -121,7 +133,7 @@ describe('useRoomRanking', () => {
       initialProps: { enabled: true },
     });
     await flush();
-    expect(result.current).toEqual({ ranking: null, isLoading: false, hasError: true });
+    expect(result.current).toMatchObject({ ranking: null, isLoading: false, hasError: true });
 
     mockedLoad.mockResolvedValueOnce([entry('A', 1)]);
     rerender({ enabled: false });
@@ -135,7 +147,11 @@ describe('useRoomRanking', () => {
     rerender({ enabled: false });
     rerender({ enabled: true });
     await flush();
-    expect(result.current).toEqual({ ranking: [entry('A', 1)], isLoading: false, hasError: true });
+    expect(result.current).toMatchObject({
+      ranking: [entry('A', 1)],
+      isLoading: false,
+      hasError: true,
+    });
   });
 
   it('部屋が変わったら前の部屋の結果を出さず、遅れて届いた結果も捨てる', async () => {
@@ -158,4 +174,22 @@ describe('useRoomRanking', () => {
     await flush();
     expect(result.current.ranking).toEqual([entry('C', 7)]);
   });
+});
+
+it('前回結果を保持して明示retryし、成功時刻を更新する', async () => {
+  const load = vi.mocked(loadChatRanking);
+  load
+    .mockResolvedValueOnce([entry('A', 1)])
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce([entry('B', 2)]);
+  const { result } = renderHook(() => useRoomRanking('game', true));
+  await act(async () => {});
+  act(() => result.current.retry!());
+  await act(async () => {});
+  expect(result.current.hasError).toBe(true);
+  expect(result.current.ranking?.[0]?.name).toBe('A');
+  act(() => result.current.retry!());
+  await act(async () => {});
+  expect(result.current.ranking?.[0]?.name).toBe('B');
+  expect(result.current.asOf).toEqual(expect.any(Number));
 });

@@ -39,3 +39,17 @@ describe('useNowMinute', () => {
     expect(result.current).toBe(fixedTime + 120_000);
   });
 });
+
+it('BFCache/visibility復帰でタイマーを待たず現在時刻を反映する', () => {
+  vi.useFakeTimers();
+  const { result } = renderHook(() => useNowMinute());
+  const future = Date.now() + 300_000;
+  const persisted = Object.assign(new Event('pageshow'), { persisted: true });
+  act(() => {
+    vi.setSystemTime(future);
+    window.dispatchEvent(persisted);
+    vi.advanceTimersByTime(50);
+  });
+  expect(result.current).toBe(future + 50);
+  vi.useRealTimers();
+});

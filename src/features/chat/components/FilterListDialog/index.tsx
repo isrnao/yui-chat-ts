@@ -8,6 +8,7 @@ import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 type Names = ReadonlyMap<string, readonly string[]>;
 
 type Props = {
+  open: boolean;
   /** フィルタの一覧（IP・名前・言葉）。追加した順 */
   entries: readonly FilterEntry[];
   /** 現在のログで、フィルタ（filterKey）ごとに隠れている発言の数（filterByIp の結果） */
@@ -56,6 +57,7 @@ function describe(
  * Esc・背景・× で閉じる
  */
 export default function FilterListDialog({
+  open,
   entries,
   hiddenCounts,
   hiddenNames = NO_NAMES,
@@ -64,7 +66,7 @@ export default function FilterListDialog({
   const titleId = useId();
 
   return (
-    <ModalShell labelledBy={titleId} onCancel={onClose} className="w-full max-w-xs">
+    <ModalShell open={open} labelledBy={titleId} onCancel={onClose} className="w-full max-w-xs">
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="font-bold">
           {entries.length > 0
@@ -77,6 +79,7 @@ export default function FilterListDialog({
           onClick={onClose}
           aria-label={CHAT_TEXTS.filterList.close}
           autoFocus
+          data-dialog-initial-focus
         >
           ×
         </button>

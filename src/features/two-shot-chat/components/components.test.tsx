@@ -138,10 +138,10 @@ describe('EntryForm', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('ツーショットチャット');
     const name = screen.getByRole('textbox', { name: 'ハンドルネーム' });
     expect(name).toHaveAttribute('size', '10');
-    expect(name).toHaveAttribute('maxlength', '30');
+    expect(name).toHaveAttribute('maxlength', '60');
     const profile = screen.getByRole('textbox', { name: '待機用プロフィール' });
     expect(profile).toHaveAttribute('size', '50');
-    expect(profile).toHaveAttribute('maxlength', '50');
+    expect(profile).toHaveAttribute('maxlength', '100');
     const options = within(screen.getByRole('combobox', { name: '部屋' })).getAllByRole('option');
     expect(options.map((o) => o.textContent)).toEqual([
       '選択してください',
@@ -363,24 +363,29 @@ describe('ChatForm', () => {
     expect(screen.getByRole('textbox', { name: '発言' })).toHaveAttribute('size', '60');
   });
 
-  it('確認ダイアログでキャンセルすると何もしない', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+  it('取消とEscでclose/kickを送らない', () => {
     const handlers = setup(0);
     fireEvent.click(screen.getByRole('button', { name: '閉鎖' }));
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName('閉鎖します. よろしいですか？');
+    expect(screen.getByRole('button', { name: 'やめる' })).toHaveFocus();
+    fireEvent.click(screen.getByRole('button', { name: 'やめる' }));
     fireEvent.click(screen.getByRole('button', { name: '相手を退室' }));
-    expect(confirm.mock.calls).toEqual([
-      ['閉鎖します. よろしいですか？'],
-      ['相手を退室させます. よろしいですか？'],
-    ]);
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      '相手を退室させます. よろしいですか？'
+    );
+    fireEvent.keyDown(screen.getByRole('alertdialog'), { key: 'Escape' });
     expect(handlers.onClose).not.toHaveBeenCalled();
     expect(handlers.onKick).not.toHaveBeenCalled();
   });
-
-  it('確認すると操作する', () => {
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+  it('確定したleaveだけを一回実行する', () => {
     const handlers = setup(1);
     fireEvent.click(screen.getByRole('button', { name: '退室' }));
-    expect(confirm).toHaveBeenCalledWith('あなただけ退室します. よろしいですか？');
+    expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+      'あなただけ退室します. よろしいですか？'
+    );
+    const confirm = screen.getByRole('button', { name: '実行する' });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
     expect(handlers.onLeave).toHaveBeenCalledTimes(1);
   });
 

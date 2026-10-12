@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, cleanup, within } from '@testing-library/react';
+import { pressBackdrop } from '../../../../test/dialog';
 import FilterListDialog from './index';
 import {
   addFilteredIp,
@@ -22,14 +23,15 @@ describe('FilterListDialog', () => {
   });
 
   it('モーダルの「フィルタ」として開き、閉じるボタンにフォーカスする', () => {
-    render(<FilterListDialog entries={[ip('a')]} hiddenCounts={new Map()} onClose={noop} />);
+    render(<FilterListDialog open entries={[ip('a')]} hiddenCounts={new Map()} onClose={noop} />);
     const dialog = screen.getByRole('dialog', { name: 'フィルタ（1）' });
-    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    // showModal() で開くモーダル（背後の inert と Tab の閉じ込めはブラウザが受け持つ）
+    expect(dialog).toHaveAttribute('open');
     expect(screen.getByRole('button', { name: '閉じる' })).toHaveFocus();
   });
 
   it('フィルタが空なら案内を出す', () => {
-    render(<FilterListDialog entries={[]} hiddenCounts={new Map()} onClose={noop} />);
+    render(<FilterListDialog open entries={[]} hiddenCounts={new Map()} onClose={noop} />);
     expect(screen.getByRole('dialog', { name: 'フィルタ' })).toBeInTheDocument();
     expect(screen.getByText(/フィルタしているものはありません。/)).toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
@@ -38,6 +40,7 @@ describe('FilterListDialog', () => {
   it('IP の行は「おなまえ」と「IP・件数」と解除。1 件なら「すべて解除」は出さない', () => {
     render(
       <FilterListDialog
+        open
         entries={[ip('219.*.*.253')]}
         hiddenCounts={new Map([['ip:219.*.*.253', 3]])}
         hiddenNames={new Map([['219.*.*.253', ['たろう', 'じろう']]])}
@@ -56,6 +59,7 @@ describe('FilterListDialog', () => {
   it('IP の行は、保存した「おなまえ」を今のログの名前の後ろに重複なく続け、どちらにもなければ —', () => {
     render(
       <FilterListDialog
+        open
         entries={[
           ip('219.*.*.253', ['じろう', 'たろう']),
           ip('2001:*', ['はなこ']),
@@ -77,6 +81,7 @@ describe('FilterListDialog', () => {
   it('名前と言葉の行は、見出しと「名前・件数」「言葉・件数」を出す', () => {
     render(
       <FilterListDialog
+        open
         entries={[
           { kind: 'name', name: 'たろう' },
           { kind: 'word', word: 'うざい' },
@@ -108,25 +113,29 @@ describe('FilterListDialog', () => {
     addFilteredName('b');
     addFilteredWord('c');
     const { rerender } = render(
-      <FilterListDialog entries={getSnapshot()} hiddenCounts={new Map()} onClose={noop} />
+      <FilterListDialog open entries={getSnapshot()} hiddenCounts={new Map()} onClose={noop} />
     );
     fireEvent.click(screen.getByRole('button', { name: '名前「b」のフィルタを解除' }));
     expect(getSnapshot().map((entry) => entry.kind)).toEqual(['ip', 'word']);
 
-    rerender(<FilterListDialog entries={getSnapshot()} hiddenCounts={new Map()} onClose={noop} />);
+    rerender(
+      <FilterListDialog open entries={getSnapshot()} hiddenCounts={new Map()} onClose={noop} />
+    );
     fireEvent.click(screen.getByRole('button', { name: 'すべて解除' }));
     expect(getSnapshot()).toEqual([]);
   });
 
-  it('×・Esc・背景のクリックで閉じる。窓の中のクリックでは閉じない', () => {
+  it.each(['button', 'escape', 'backdrop'])('%sで閉じ、中身のクリックでは閉じない', (method) => {
     const onClose = vi.fn();
-    render(<FilterListDialog entries={[]} hiddenCounts={new Map()} onClose={onClose} />);
-    fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
-    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
-    const backdrop = screen.getByRole('dialog').parentElement!;
-    fireEvent.pointerDown(backdrop);
-    fireEvent.click(backdrop);
+    render(<FilterListDialog open entries={[]} hiddenCounts={new Map()} onClose={onClose} />);
     fireEvent.click(screen.getByText(/フィルタしているものはありません/));
-    expect(onClose).toHaveBeenCalledTimes(3);
+    expect(onClose).not.toHaveBeenCalled();
+    if (method === 'button') fireEvent.click(screen.getByRole('button', { name: '閉じる' }));
+    if (method === 'escape') fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
+    if (method === 'backdrop') {
+      pressBackdrop(screen.getByRole('dialog'));
+    }
+    expect(onClose).toHaveBeenCalledTimes(1);
+    cleanup();
   });
 });

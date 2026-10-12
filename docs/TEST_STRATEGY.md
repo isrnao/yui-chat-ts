@@ -10,16 +10,16 @@
 
 ## 2. テストの種類と方針
 
-| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                          |
-| -------------- | -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）   |
-| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                |
-| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等 |
-| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                               |
-| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                               |
-| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                            |
-| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                     |
-| E2E (将来)     | （未実装）                                                                                                     | Playwright 等                                                           |
+| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）                  |
+| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                               |
+| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等                |
+| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                                              |
+| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                                              |
+| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                                           |
+| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                                    |
+| ブラウザUI     | tests/browser/                                                                                                 | Playwright: Chromium / Firefox / WebKit / mobile WebKit。production部品と本番SSGを検証 |
 
 - テストは **Testing Library** 中心、ユーザー目線重視
 - 外部 API（Supabase 等）・Web API（`localStorage`, `BroadcastChannel`, `requestIdleCallback`）は必要に応じてモック
@@ -107,3 +107,7 @@ src/features/chat/api/
 | Supabase 未設定でもトップが破綻しない                               | `roomCountsApi.test.ts` / `TopPage.test.tsx`       |
 
 ---
+
+2026-10-12: pnpm test:browserでsynthetic data/APIを使ったUIを検証する。native-fixture.invalidは試験設定であり本番接続ではない。UI fixtureは投稿・入退室・通報の実APIを呼ばず、Top Layer/focus/IME/Tab/配置/1,000行/短い画面を確認する。SSGとhydrate前編集はVitest統合でも検証する。自動webkit/mobile emulationをiPhone実機・VoiceOver・OSハプティック合格として扱わない。
+
+SSG browser testの前提: 検証用VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEYでビルドしたdistを配信する。ローカルのpnpm test:browserはpreviewの起動前にこの設定でpnpm build:prodを実行する（distは上書きされる）。CIのbrowser.ymlは先に同じ設定でpnpm build:prodを実行し、previewはビルドし直さない。

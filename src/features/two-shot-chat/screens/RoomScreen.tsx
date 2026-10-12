@@ -7,7 +7,7 @@ import ChatLog from '../components/ChatLog';
 import FrameLayout from '../components/FrameLayout';
 import NoticePage from '../components/NoticePage';
 import { getTwoShotRoomName, TWO_SHOT_CONFIG } from '../config';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import { reduceRoom, type RoomAction, type RoomUiState } from './roomReducer';
 
 const HOME_HREF = import.meta.env.BASE_URL;
@@ -24,7 +24,7 @@ function backToLobby(token: string) {
 function RoomScreen({ session, initial }: { session: ActiveSession; initial: RoomUiState }) {
   const [value, setValue] = useState('');
   const busy = useRef(false);
-  const [ui, dispatchAction] = useActionState(
+  const [ui, dispatchAction, isPending] = useActionState(
     (previous: RoomUiState, action: RoomAction): Promise<RoomUiState> =>
       reduceRoom(session, previous, action)
         .then((next) => {
@@ -52,7 +52,7 @@ function RoomScreen({ session, initial }: { session: ActiveSession; initial: Roo
   };
 
   // 自動更新はログを表示している間だけ
-  useAutoRefresh(
+  useVisibleInterval(
     ui.auto,
     () => dispatch({ type: 'read' }),
     ui.bottom.kind === 'log' && !ui.terminal && ui.auto > 0
@@ -66,6 +66,8 @@ function RoomScreen({ session, initial }: { session: ActiveSession; initial: Roo
       bottomLabel="ログ"
       top={
         <ChatForm
+          isPending={isPending}
+          terminal={ui.terminal}
           roomName={roomName}
           me={ui.me}
           seat={ui.seat}

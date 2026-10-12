@@ -545,7 +545,7 @@ type LogStep =
   | { type: 'status'; status: RealtimeStatus }
   | { type: 'saved'; chat: Chat }
   | { type: 'remove'; uuids: string[] }
-  | { type: 'reload' }
+  | { type: 'reload'; reason?: 'reconnect' }
   | { type: 'expand'; limit: number };
 
 /** 発言 1 件。uuid は v7 の形で、時刻 n の大小が並びを決める。本文は名札（id）にする */
@@ -600,7 +600,7 @@ async function runRoomLog(steps: LogStep[]) {
         break;
       }
       case 'reload':
-        store.reload();
+        store.reload(step.reason);
         break;
       case 'expand':
         store.expand(step.limit);
@@ -686,7 +686,7 @@ async function roomLogEvents() {
       name: '新しい取得が始まったら古い取得の結果は捨てる',
       steps: [
         { type: 'start' },
-        { type: 'reload' },
+        { type: 'reload', reason: 'reconnect' },
         { type: 'resolve', fetch: 2, rows: [b] },
         { type: 'resolve', fetch: 1, rows: [a] },
       ],

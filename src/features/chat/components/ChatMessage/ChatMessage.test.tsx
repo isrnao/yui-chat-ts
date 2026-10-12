@@ -38,7 +38,7 @@ describe('ChatMessage', () => {
     expect(screen.getByText('Hello World')).toBeInTheDocument();
     expect(screen.getByText('(DATE(1680000000000) 192.168.1.*)')).toBeInTheDocument();
 
-    const emailLink = screen.getByRole('link', { name: '>' });
+    const emailLink = screen.getByRole('link', { name: /の連絡先を開く/ });
     expect(emailLink).toHaveAttribute('href', 'mailto:alice@example.com');
     expect(emailLink).toHaveAttribute('target', '_blank');
   });

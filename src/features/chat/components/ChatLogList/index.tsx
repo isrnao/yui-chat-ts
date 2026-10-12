@@ -1,3 +1,4 @@
+import { useRetainedValue } from '@shared/hooks/useRetainedValue';
 import { Fragment, memo, useRef, useState } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
@@ -75,6 +76,7 @@ function announceText(pending: PendingFilter): string {
 type Props = {
   /** 新しい順に並んだログ（useRoomLog が返すもの）。ここでは並べ直さない */
   chatLog: Chat[];
+  contained?: boolean;
   isLoading?: boolean;
   windowRows: number;
   showRoomName?: boolean;
@@ -93,6 +95,7 @@ type Props = {
 
 function ChatLogList({
   chatLog,
+  contained = false,
   isLoading = false,
   windowRows,
   showRoomName,
@@ -118,6 +121,11 @@ function ChatLogList({
   const [reporting, setReporting] = useState<string | null>(null);
   // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
   const listRef = useRef<HTMLDivElement>(null);
+  const displayPending = useRetainedValue(pending);
+  const displayReporting = useRetainedValue(reporting);
+  const matchCount =
+    useRetainedValue(pending?.kind === 'word' ? countWordMatches(chatLog, pending.word) : null) ??
+    0;
   const requestFilter = (request: FilterRequest) => {
     const { chatUuid } = request;
     if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip, chatUuid });
@@ -154,8 +162,10 @@ function ChatLogList({
   return (
     <div
       ref={listRef}
-      className="overflow-y-auto rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]"
+      className={`${contained ? '' : 'overflow-y-auto'} rounded-none mt-2 pb-4 font-yui px-[var(--page-gap)]`}
       data-testid="chat-log-list"
+      data-chat-log-root=""
+      tabIndex={-1}
     >
       {!hideParticipants && <ParticipantsList chatLog={chatLog} />}
       {ipFilter && (
@@ -194,30 +204,40 @@ function ChatLogList({
           <Divider />
         </Fragment>
       ))}
-      {pending !== null && (
+      {displayPending !== null && (
         <FilterConfirmDialog
-          {...confirmText(pending)}
-          confirmDisabled={pending.kind === 'word' && !normalizeFilterWord(pending.word)}
+          open={pending !== null}
+          returnFocus={() => listRef.current}
+          {...confirmText(displayPending)}
+          confirmDisabled={
+            displayPending.kind === 'word' && !normalizeFilterWord(displayPending.word)
+          }
           onConfirm={confirmFilter}
           onCancel={() => setPending(null)}
           onReport={() => {
-            setReporting(pending.chatUuid);
+            if (pending) setReporting(pending.chatUuid);
             setPending(null);
           }}
         >
-          {pending.kind === 'word' && (
+          {displayPending.kind === 'word' && (
             <WordPicker
-              message={pending.message}
-              value={pending.word}
+              active={pending !== null}
+              message={displayPending.message}
+              value={displayPending.word}
               onChange={changeWord}
-              matchCount={countWordMatches(chatLog, pending.word)}
+              matchCount={matchCount}
               onSubmit={confirmFilter}
             />
           )}
         </FilterConfirmDialog>
       )}
-      {reporting !== null && (
-        <ReportDialog chatUuid={reporting} onClose={() => setReporting(null)} />
+      {displayReporting !== null && (
+        <ReportDialog
+          open={reporting !== null}
+          returnFocus={() => listRef.current}
+          chatUuid={displayReporting}
+          onClose={() => setReporting(null)}
+        />
       )}
     </div>
   );

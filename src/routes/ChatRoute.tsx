@@ -11,6 +11,7 @@ import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLog
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
 import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -53,10 +54,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
 
   const measurement = useConversationMeasurement();
   const store = getRoomLogStore(roomId);
-  const { chatLog, isLoading, loadError, addOptimistic, reload, expand } = useRoomLog(
-    store,
-    measurement.onRealtimeChat
-  );
+  const { chatLog, isLoading, loadError, realtimeStatus, addOptimistic, reload, expand } =
+    useRoomLog(store, measurement.onRealtimeChat);
   // localStorage に保存された前回入室時の設定を、入室者の状態の既定値にする
   const { settings } = useSettings();
   const identity = useChatIdentity(settings);
@@ -121,7 +120,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
+      <RealtimeStatusNotice status={realtimeStatus} />
       <RetroSplitter
+        bottomScrollable={false}
         minTop={100}
         minBottom={100}
         topKind={entered ? 'chat' : 'entry'}
@@ -135,6 +136,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 expand(rows);
               }}
               windowRowOptions={getWindowRowOptions(roomId)}
+              sessionPending={session.phase === 'entering'}
               onExit={handleExit}
               onSend={handleSend}
               onReload={reload}
@@ -142,9 +144,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               onBackToChat={closeRanking}
               filterCount={ipFilter.entries?.length ?? 0}
               onToggleFilter={() => setShowFilter(true)}
-              avatar={avatar}
-              userName={name}
-              userColor={color}
+              avatar={session.sessionIdentity?.avatar ?? avatar}
+              userName={session.sessionIdentity?.name ?? name}
+              userColor={session.sessionIdentity?.color ?? color}
             />
           ) : (
             <>
@@ -157,13 +159,15 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 email={email}
                 setEmail={setEmail}
                 error={entryError}
-                onEnter={async ({ name: n, color: c, silent, avatar: a }) => {
+                retryAvatar={entryError ? avatar : undefined}
+                isPending={session.phase === 'exiting'}
+                onEnter={async ({ name: n, color: c, silent, avatar: a, email: e }) => {
                   setAvatar(a);
                   setEntryError('');
                   // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
                   expand(FULL_CHAT_LOG_LIMIT);
                   try {
-                    await session.enter({ name: n, color: c, silent });
+                    await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                   } catch (err) {
                     setEntryError(toEntryErrorMessage(err));
                     throw err;
@@ -182,7 +186,11 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                 高さに合わせてスクロール量が変わってしまう） */}
             <Activity mode={showRanking ? 'hidden' : 'visible'}>
               <ViewTransition default={RANKING_ONLY}>
-                <div className="h-full overflow-y-auto" data-testid="chat-log-pane">
+                <div
+                  className="h-full overflow-y-auto"
+                  data-log-scroll=""
+                  data-testid="chat-log-pane"
+                >
                   <Suspense
                     fallback={
                       <div className="mt-8 animate-pulse text-gray-400">
@@ -197,6 +205,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                       loadError={loadError}
                       onRetry={reload}
                       ipFilter={ipFilter}
+                      contained
                     />
                   </Suspense>
                 </div>
@@ -211,6 +220,8 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                     ranking={roomRanking.ranking}
                     isLoading={roomRanking.isLoading}
                     hasError={roomRanking.hasError}
+                    onRetry={roomRanking.retry}
+                    asOf={roomRanking.asOf}
                     roomTitle={room.title}
                     onBackToChat={closeRankingAnimated}
                   />
@@ -220,14 +231,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           </>
         }
       />
-      {filterSummary && (
-        <FilterListDialog
-          entries={ipFilter.entries ?? []}
-          hiddenCounts={filterSummary.hiddenCounts}
-          hiddenNames={filterSummary.hiddenNames}
-          onClose={() => setShowFilter(false)}
-        />
-      )}
+      <FilterListDialog
+        entries={ipFilter.entries ?? []}
+        open={showFilter}
+        hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+        hiddenNames={filterSummary?.hiddenNames}
+        onClose={() => setShowFilter(false)}
+      />
     </main>
   );
 }

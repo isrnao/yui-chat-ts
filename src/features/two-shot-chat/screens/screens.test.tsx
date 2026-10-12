@@ -292,11 +292,11 @@ describe('入室後', () => {
 
   it('相手を退室させると自動更新を「なし」に戻す', async () => {
     const state = await enterAsOwner();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     api.callTwoShot.mockResolvedValue(roomResponse(state));
     await act(async () => fireEvent.click(screen.getByRole('radio', { name: '自動(20秒)' })));
     await waitFor(() => expect(screen.getByRole('radio', { name: '自動(20秒)' })).toBeChecked());
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '相手を退室' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '実行する' })));
     await waitFor(() => expect(screen.getByRole('radio', { name: 'なし' })).toBeChecked());
     expect(api.callTwoShot.mock.calls.map(([request]) => request.op)).toEqual([
       'enter',
@@ -307,9 +307,9 @@ describe('入室後', () => {
 
   it('閉鎖すると下のペインだけ E8 になり、直前の画面でログに戻れる。空室状況へで入口に戻る', async () => {
     await enterAsOwner();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     api.callTwoShot.mockResolvedValueOnce({ ok: false, notice: 'E8', placement: 'pane' });
     await act(async () => fireEvent.click(screen.getByRole('button', { name: '閉鎖' })));
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: '実行する' })));
     const bottom = screen.getByRole('region', { name: 'ログ' });
     expect(within(bottom).getByRole('heading', { name: '閉鎖' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: '入力画面' })).toBeInTheDocument();

@@ -1,5 +1,7 @@
 # Requirements Document
 
+> 2026-10-12: ネイティブインタラクション改訂は末尾の同日節を優先する。旧本文の再現方針との差分はその節で管理する。
+
 ## Introduction
 
 本機能 (chanari-retro-chat-ui) は、既存の `src/features/chat/` チャット UI とは独立した「もう 1 つの UI」を新規に追加し、2012 年当時の chanari.com「なりきりチャット」の入室前フォーム (f4 / `id="main2"`) と入室後フォーム (f1 / `id="main"`) をピクセルに近いレベルで再現することを目的とする。
@@ -377,3 +379,29 @@
 | P-6      | `draftStore` の round-trip 保存                          | Requirement 13.3                           |
 | P-7      | `matchChanariRoute` の整合性 (build → match が identity) | Requirement 1.1, 1.6, 1.7                  |
 | P-8      | `matchChanariRoute` の未知ルート拒否                     | Requirement 1.3, 1.8                       |
+
+## 2026-10-12 インタラクション改訂（R5a）
+
+設計は [design.md](./design.md) の同日節を参照する。
+
+### Requirement 24: 上段フォームの本文・下書き・非活性項目（R5a）
+
+**User Story:** 利用者として、Chanari の上段フォームで書きかけの本文を失わず、使えない項目は使えないと分かる状態で操作したい。入力を安心して続けるため。
+
+#### Acceptance Criteria
+
+1. THE Chanari_App SHALL Chanari の折返しを上段 container だけに適用し、Shared_Chat_Log_List の色・文字サイズに波及させない
+2. THE Chanari_Entry_Form SHALL 名前の上限を従来どおり 20 文字に保つ
+3. THE Chanari_Chat_Room SHALL 本文の state を自身で持ち、ページとは初回の seed・明示的な復元・保存 callback でだけ連携する
+4. WHEN 利用者が再入室する, THE Chanari_Chat_Room SHALL 本文を空で始める
+5. WHEN 本文が空でない状態で 300ms 入力が止まる、送信の直前、タブが hidden になる、または部品が unmount される, THE Draft_Store SHALL 部屋ごとに最後の空でない draft を保存する
+6. WHEN `clear` を送る、または退室する, THE Draft_Store SHALL 保存済みの draft を空にしない
+7. WHEN draft を保存または復元する, THE Draft_Store SHALL 型・色・部屋の一致・有限の時刻・1 年の期限を検査し、満たさない値を使わない
+8. WHEN 別のタブで draft が変わる, THE Chanari_Chat_Room SHALL 編集中の本文を上書きせず、発言復元 button を押したときに最新の候補を取得する
+9. WHILE 送信が pending である, THE Chanari_Chat_Room SHALL 二重の要求を出さない
+10. IF 送信に失敗する, THEN THE Chanari_Chat_Room SHALL 失敗後に入力された新しい本文を壊さずに本文を回復する
+11. THE Chanari_Chat_Room SHALL 本文に 120 書記素と共通のコードポイント上限を適用し、IME の確定を送信として扱わない
+12. THE Chanari_Chat_Room SHALL 発言色・エフェクト 27 種・文字サイズ 21 種・エフェクト無効・AT フィールドを操作できる飾りとして描画し、エフェクト・文字サイズ・エフェクト無効・AT フィールドの状態は自身のローカル state にだけ持ち、metadata・送信・ログの描画に接続しない（Requirement 10・16・17）
+13. WHEN 利用者が名前色を明示的に変更する, THE Chanari_Page SHALL その値を session identity に反映する
+14. WHILE Realtime が接続中である, THE Reload_Interval_Hook SHALL polling を行わない
+15. WHILE Realtime が切断中でタブが hidden である, THE Reload_Interval_Hook SHALL timer を止め、WHEN タブが再び表示される, THE Reload_Interval_Hook SHALL 一回だけ取得する

@@ -1,3 +1,4 @@
+import { readLookCommand } from '@features/chat/utils/lookCommand';
 import { useEffect, useEffectEvent, useState } from 'react';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import type { Chat } from '@features/chat/types';
@@ -35,7 +36,7 @@ export function useLookSound(
   const handleInsert = useEffectEvent((chat: Chat) => {
     if (isOwnChat(chat)) return;
     if (filter && filterByIp([chat], filter).visible.length === 0) return;
-    const command = chat.message.trim();
+    const command = readLookCommand(chat.message);
     if (command === 'look') {
       // 再生できなくても（音声が許可されていないなど）通知の受信は続ける
       void playNotificationSound().catch(() => {});

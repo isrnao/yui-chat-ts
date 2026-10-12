@@ -75,90 +75,84 @@ export function toRoomCountMap(rows: readonly RoomCountRow[]): RoomCountMap {
   return result;
 }
 
-/**
- * 直近 `windowMs` の部屋ごとの参加人数。サーバー側の RPC で集計し、部屋の数ぶんの行だけを受け取る
- * （.kiro/specs/react-2026-refactoring Requirement 14）。
- *
- * 失敗したら（404 を含む）空オブジェクトを返す（左カラムは「0人」で描画を続ける）。以前は 404（RPC の適用前）の
- * ときに発言の行を最大 5000 行取得してクライアントで数えていたが、RPC は本番に適用済みなので消した（Issue #187）。
- * RPC は負荷の上限として 24 時間より前を見ないので、`windowMs` は 24 時間以内で使う。
- *
- * ツーショットチャットだけは、今席に着いている人数を two_shot_lobby() から並行して取る。
- * 片方が失敗しても、もう片方の人数は残す（失敗した側の部屋は「0人」）。
- */
-export async function fetchRoomParticipantCounts(
-  windowMs: number = 6 * 60 * 60 * 1000
-): Promise<RoomCountMap> {
-  if (!isSupabaseConfigured()) {
-    return {};
+export type RoomCountResult = {
+  kind: 'ready' | 'partial' | 'failed' | 'unavailable';
+  counts: RoomCountMap;
+  failedRooms: RoomId[];
+  asOf?: number;
+};
+type Read<T> = { ok: true; value: T } | { ok: false };
+async function read<T>(
+  url: string,
+  headers: Record<string, string>,
+  body: unknown,
+  parse: (value: unknown) => T | null,
+  signal?: AbortSignal
+): Promise<Read<T>> {
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      ...(signal ? { signal } : {}),
+    });
+    if (!response.ok) return { ok: false };
+    const value = parse(await response.json());
+    return value === null ? { ok: false } : { ok: true, value };
+  } catch {
+    return { ok: false };
   }
-
+}
+function parseCounts(value: unknown): RoomCountMap | null {
+  if (
+    !Array.isArray(value) ||
+    !value.every(
+      (row) =>
+        typeof row === 'object' &&
+        row !== null &&
+        (row.room_id === null || typeof row.room_id === 'string') &&
+        (row.participants === null ||
+          (Number.isSafeInteger(row.participants) && row.participants >= 0))
+    )
+  )
+    return null;
+  return toRoomCountMap(value as RoomCountRow[]);
+}
+/** 状態を保持する公開UI用。失敗したsourceを0人へ変換しない。 */
+export async function fetchRoomCountsResult(
+  windowMs = 6 * 60 * 60 * 1000,
+  signal?: AbortSignal
+): Promise<RoomCountResult> {
+  if (!isSupabaseConfigured())
+    return { kind: 'unavailable', counts: {}, failedRooms: [...getListableRoomIds()] };
   const baseUrl = import.meta.env.VITE_SUPABASE_URL;
   const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  const since = Date.now() - windowMs;
   const headers = {
     apikey: anonKey,
     Authorization: `Bearer ${anonKey}`,
     Accept: 'application/json',
   };
-
-  const [publicCounts, twoShotSeated] = await Promise.all([
-    fetchPublicCounts(baseUrl, since, headers),
-    // 止めている間は席の人数を問い合わせない（`2shot` は公開ログで数える）
-    TWO_SHOT_CHAT_ENABLED ? fetchTwoShotSeated(baseUrl, headers) : Promise.resolve(0),
+  const [publicRead, seats] = await Promise.all([
+    read(
+      buildRoomCountsRpcUrl(baseUrl),
+      headers,
+      { since_ms: Date.now() - windowMs },
+      parseCounts,
+      signal
+    ),
+    TWO_SHOT_CHAT_ENABLED
+      ? read(buildTwoShotLobbyUrl(baseUrl), headers, {}, countTwoShotSeats, signal)
+      : Promise.resolve({ ok: true, value: 0 } as const),
   ]);
-  return twoShotSeated > 0 ? { ...publicCounts, [TWO_SHOT_ROOM_ID]: twoShotSeated } : publicCounts;
-}
-
-/** 公開ログの部屋の人数。失敗したら空 */
-async function fetchPublicCounts(
-  baseUrl: string,
-  since: number,
-  headers: Record<string, string>
-): Promise<RoomCountMap> {
-  try {
-    const response = await fetch(buildRoomCountsRpcUrl(baseUrl), {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ since_ms: since }),
-    });
-    if (response.ok) {
-      return toRoomCountMap((await response.json()) as RoomCountRow[]);
-    }
-    if (import.meta.env.DEV) {
-      console.warn('[roomCountsApi] rpc failed:', response.status, response.statusText);
-    }
-    return {};
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('[roomCountsApi] unexpected error:', err);
-    }
-    return {};
-  }
-}
-
-/** ツーショットチャットで席に着いている人数。失敗（RPC の適用前の 404 を含む）や形の違う応答は 0 */
-async function fetchTwoShotSeated(
-  baseUrl: string,
-  headers: Record<string, string>
-): Promise<number> {
-  try {
-    const response = await fetch(buildTwoShotLobbyUrl(baseUrl), {
-      method: 'POST',
-      headers: { ...headers, 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!response.ok) {
-      if (import.meta.env.DEV) {
-        console.warn('[roomCountsApi] two_shot_lobby failed:', response.status);
-      }
-      return 0;
-    }
-    return countTwoShotSeats(await response.json()) ?? 0;
-  } catch (err) {
-    if (import.meta.env.DEV) {
-      console.warn('[roomCountsApi] two_shot_lobby error:', err);
-    }
-    return 0;
-  }
+  const failedRooms: RoomId[] = publicRead.ok ? [] : getPublicCountRoomIds();
+  if (!seats.ok && TWO_SHOT_CHAT_ENABLED) failedRooms.push(TWO_SHOT_ROOM_ID);
+  const counts = publicRead.ok ? publicRead.value : {};
+  if (seats.ok && TWO_SHOT_CHAT_ENABLED && seats.value > 0) counts[TWO_SHOT_ROOM_ID] = seats.value;
+  const anySuccess = publicRead.ok || (TWO_SHOT_CHAT_ENABLED && seats.ok);
+  return {
+    kind: failedRooms.length === 0 ? 'ready' : anySuccess ? 'partial' : 'failed',
+    counts,
+    failedRooms,
+    ...(anySuccess ? { asOf: Date.now() } : {}),
+  };
 }

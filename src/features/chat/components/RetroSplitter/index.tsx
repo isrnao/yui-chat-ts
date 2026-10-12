@@ -1,6 +1,8 @@
-import { useRef, useState, useEffect, useLayoutEffect } from 'react';
-import type { ReactNode, KeyboardEvent, PointerEvent, CSSProperties } from 'react';
+import { splitterBounds } from '@shared/utils/splitterBounds';
+import { useId, useRef, useState, useLayoutEffect } from 'react';
+import type { ReactNode, KeyboardEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
+import { useSplitterDrag } from '@shared/hooks/useSplitterDrag';
 
 /**
  * 上側に表示している画面の種類。初期高さの出し分けに使う。
@@ -14,27 +16,8 @@ export type SplitterTopKind = 'chat' | 'entry';
  * .splitter-panes が持つ。JS で matchMedia を見ると SSG と hydration で値が
  * 食い違い、デスクトップで必ずレイアウトシフトが出るため CSS に寄せている。
  */
-
-/** topKind 未指定時の初期高さ(%) */
-const FALLBACK_TOP_HEIGHT = 30;
-
-/** 初期高さ(%)。desktop 未指定ならビューポート幅によらず base を使う */
-type TopHeightPreset = { base: number; desktop?: number };
-
-const TOP_HEIGHT_PRESETS: Record<SplitterTopKind, TopHeightPreset> = {
-  chat: { base: 18 },
-  entry: { base: 26, desktop: 24 },
-};
-
-/** プリセット値 (%) を CSS 変数として渡す。ビューポート出し分けは CSS が行う。 */
-function resolveTopHeightVars(topKind: SplitterTopKind | undefined): {
-  base: number;
-  desktop: number;
-} {
-  if (topKind == null) return { base: FALLBACK_TOP_HEIGHT, desktop: FALLBACK_TOP_HEIGHT };
-  const preset = TOP_HEIGHT_PRESETS[topKind];
-  return { base: preset.base, desktop: preset.desktop ?? preset.base };
-}
+/** 初期高さ(%)。topKind 未指定なら 30%。ビューポートの出し分けは CSS が行う */
+const PRESETS = { chat: { base: 18, desktop: 18 }, entry: { base: 26, desktop: 24 } };
 
 export default function RetroSplitter({
   top,
@@ -42,6 +25,7 @@ export default function RetroSplitter({
   topKind,
   minTop = 10,
   minBottom = 10,
+  bottomScrollable = true,
 }: {
   top: ReactNode;
   bottom: ReactNode;
@@ -49,190 +33,110 @@ export default function RetroSplitter({
   topKind?: SplitterTopKind;
   minTop?: number;
   minBottom?: number;
+  bottomScrollable?: boolean;
 }) {
+  const paneId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  // 上側の画面に応じて初期高さを決定（マウント時のみ参照）
-  // 初期高さはビューポート出し分けを含めて CSS が決める (SSG と hydration で
-  // 値が食い違わないようにするため)。JS は操作後の値だけを持つ。
-  const topHeightVars = resolveTopHeightVars(topKind);
-  const [adjustedTopHeight, setAdjustedTopHeight] = useState<number | null>(null);
-  // 操作前は CSS が実効値を決めるので、JS からは base 値を近似として扱う
-  // (aria-valuenow と、ドラッグ開始時の基準に使う)。
-  const topHeight = adjustedTopHeight ?? topHeightVars.base; // percent
-  const [dragging, setDragging] = useState(false);
-  const rafRef = useRef<number | null>(null);
-  const metricsRef = useRef({ height: 0, top: 0 });
-  const [metrics, setMetrics] = useState({ height: 0, top: 0 });
+  const preset = topKind ? PRESETS[topKind] : { base: 30, desktop: 30 };
+  const [adjusted, setAdjusted] = useState<number | null>(null);
+  const [metrics, setMetrics] = useState({ height: 0, cssTop: preset.base, bar: 5 });
+  // ドラッグを始めたときの上側の高さ(%)と全体の高さ(px)。以後は移動量を足して割合にする
+  const dragStart = useRef({ value: 0, height: 0 });
 
-  // 親要素のジオメトリ変化をバッチで検知
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
-
-    const updateMetrics = () => {
-      const rect = node.getBoundingClientRect();
-      const nextMetrics = { height: rect.height, top: rect.top };
-      metricsRef.current = nextMetrics;
-      setMetrics((prev) => {
-        const heightDiff = Math.abs(prev.height - nextMetrics.height);
-        const topDiff = Math.abs(prev.top - nextMetrics.top);
-        return heightDiff > 0.5 || topDiff > 0.5 ? nextMetrics : prev;
+    const measure = () => {
+      const styles = getComputedStyle(node);
+      const cssTop = Number.parseFloat(styles.getPropertyValue('--splitter-top-h'));
+      setMetrics({
+        height: node.getBoundingClientRect().height,
+        cssTop: Number.isFinite(cssTop) ? cssTop : preset.base,
+        bar: Number.parseFloat(styles.getPropertyValue('--splitter-bar-height')) || 5,
       });
     };
-
-    updateMetrics();
-
-    const observer = new ResizeObserver(() => {
-      updateMetrics();
-    });
+    measure();
+    // 高さ（ウィンドウの大きさ・ソフトキーボード）とバーの太さ（coarse pointer の切替）の変化で測り直す
+    const observer = new ResizeObserver(measure);
     observer.observe(node);
-
-    const handleViewportChange = () => updateMetrics();
-    window.addEventListener('scroll', handleViewportChange, { passive: true });
-    window.addEventListener('resize', handleViewportChange);
-    window.addEventListener('orientationchange', handleViewportChange);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('scroll', handleViewportChange);
-      window.removeEventListener('resize', handleViewportChange);
-      window.removeEventListener('orientationchange', handleViewportChange);
-    };
-  }, []);
-
-  // ポインタの位置を上側の高さ(%)に変換する（最小の高さで上下を挟む）
-  const calcPercent = (clientY: number) => {
-    const { height, top } = metricsRef.current;
-    if (!height) return topHeight;
-    let percent = ((clientY - top) / height) * 100;
-    percent = Math.max((minTop / height) * 100, percent);
-    percent = Math.min(100 - (minBottom / height) * 100, percent);
-    return percent;
+    if (node.children[1]) observer.observe(node.children[1]);
+    return () => observer.disconnect();
+  }, [preset.base, preset.desktop]);
+  const bounds = (height: number, bar: number) => {
+    if (height <= 0) return { min: 0, max: 100 };
+    const { min, max } = splitterBounds(height, bar, minTop, minBottom);
+    return { min: (min / height) * 100, max: (max / height) * 100 };
   };
-
-  // ドラッグは Pointer Events + setPointerCapture で扱う。マウス・タッチ・ペンのどれでも動き、
-  // バーの外にポインタが出ても move / up がバーに届くので、window へリスナーを張らなくてよい
-  // （以前はマウスしか扱えず、window の mousemove / mouseup と、その張り替えのための useCallback を持っていた）
-  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    setDragging(true);
-  };
-
-  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
-    const { clientY } = e;
-    // 1 フレームに 1 回だけ高さを更新する
-    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-    rafRef.current = requestAnimationFrame(() => {
-      rafRef.current = null;
-      setAdjustedTopHeight(calcPercent(clientY));
-    });
-  };
-
-  const stopDragging = () => setDragging(false);
-
-  // ドラッグ中はカーソルと、テキスト選択の禁止を body に当てる（React の外の DOM への同期）。
-  // バーの外にポインタが出ても選択範囲が伸びないよう body に当てる。以前は .splitter-panes に
-  // select-none を常時付けており、チャットログ・入室フォームを含む全チャット欄で文字が選択できなかった
-  useEffect(() => {
-    if (!dragging) return;
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    return () => {
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-  }, [dragging]);
-
-  useEffect(
-    () => () => {
-      if (rafRef.current !== null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
+  const range = bounds(metrics.height, metrics.bar);
+  const clamp = (value: number) => Math.max(range.min, Math.min(range.max, value));
+  const value = clamp(adjusted ?? metrics.cssTop);
+  const { dragging, handlers } = useSplitterDrag({
+    onStart: () => {
+      dragStart.current = {
+        value,
+        height: containerRef.current?.getBoundingClientRect().height ?? metrics.height,
+      };
     },
-    []
-  );
-
-  // 入室前後で上側の画面が入れ替わったら初期高さに戻す
-  // useResetOnChange = effect 内 setState を避ける公式推奨「前回値検知」パターン
-  useResetOnChange(topKind, () => {
-    // null に戻すことで、新しい topKind のプリセット値に再び追随させる
-    setAdjustedTopHeight(null);
+    onDrag: (deltaY) => {
+      const { value: from, height } = dragStart.current;
+      if (height > 0) setAdjusted(clamp(from + (deltaY / height) * 100));
+    },
+    resetKey: topKind,
   });
-
-  // キーボード操作でもドラッグできるように
-  const onBarKeyDown = (e: KeyboardEvent) => {
-    const height = metrics.height || metricsRef.current.height || 1;
-    const adjust = (delta: number, clamp: (value: number) => number) => {
-      setAdjustedTopHeight((previous) => clamp((previous ?? topHeightVars.base) + delta));
-    };
-    if (e.key === 'ArrowUp') {
-      adjust(2, (value) => Math.min(value, 100 - (minBottom / height) * 100));
-    }
-    if (e.key === 'ArrowDown') {
-      adjust(-2, (value) => Math.max(value, (minTop / height) * 100));
-    }
+  useResetOnChange(topKind, () => setAdjusted(null));
+  const onKeyDown = (event: KeyboardEvent) => {
+    let next: number;
+    if (event.key === 'ArrowUp') next = value - 2;
+    else if (event.key === 'ArrowDown') next = value + 2;
+    else if (event.key === 'Home') next = range.min;
+    else if (event.key === 'End') next = range.max;
+    else return;
+    event.preventDefault();
+    setAdjusted(clamp(next));
   };
-
-  const containerHeight = metrics.height;
-  const minPercent = containerHeight ? (minTop / containerHeight) * 100 : 0;
-  const maxPercent = containerHeight ? 100 - (minBottom / containerHeight) * 100 : 100;
-  const clampedMinPercent = Math.max(0, Math.min(minPercent, 100));
-  const clampedMaxPercent = Math.max(clampedMinPercent, Math.min(maxPercent, 100));
-
   return (
     <div
       ref={containerRef}
-      className="splitter-panes flex flex-1 flex-col bg-transparent min-h-0 h-full"
+      className="splitter-panes grid flex-1 min-h-0 h-full"
+      data-dragging={dragging || undefined}
       style={
         {
-          '--splitter-top-base': `${topHeightVars.base}%`,
-          '--splitter-top-desktop': `${topHeightVars.desktop}%`,
-          // 操作後はこの inline 値が CSS のメディアクエリを上書きする
-          ...(adjustedTopHeight === null ? {} : { '--splitter-top-h': `${adjustedTopHeight}%` }),
+          '--splitter-top-base': `${preset.base}%`,
+          '--splitter-top-desktop': `${preset.desktop}%`,
+          '--splitter-min-top': `min(${minTop}px, calc((100% - var(--splitter-bar-height, 5px)) / 2))`,
+          '--splitter-min-bottom': `min(${minBottom}px, calc((100% - var(--splitter-bar-height, 5px)) / 2))`,
+          ...(adjusted === null ? {} : { '--splitter-top-h': `${value}%` }),
+          gridTemplateRows:
+            'clamp(var(--splitter-min-top), var(--splitter-top-h), calc(100% - var(--splitter-bar-height, 5px) - var(--splitter-min-bottom))) var(--splitter-bar-height, 5px) minmax(0, 1fr)',
         } as CSSProperties
       }
     >
-      {/* 上側エリア */}
       <div
-        className="overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
-        style={{
-          height: 'var(--splitter-top-h)',
-          minHeight: minTop,
-        }}
+        id={paneId}
+        className="splitter-top min-h-0 overflow-y-auto px-[var(--page-gap)] pb-[var(--page-gap)]"
       >
         {top}
       </div>
-      {/* 分割バー */}
       <div
         role="separator"
         aria-label="上下の領域を分割するバー"
         aria-description="上下の境界です。矢印キーで調整できます"
         aria-orientation="horizontal"
-        aria-valuenow={Math.round(topHeight)}
-        aria-valuemin={Math.round(clampedMinPercent)}
-        aria-valuemax={Math.round(clampedMaxPercent)}
+        aria-controls={paneId}
+        aria-valuenow={Math.round(value)}
+        aria-valuemin={Math.round(range.min)}
+        aria-valuemax={Math.round(range.max)}
         tabIndex={0}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={stopDragging}
-        onPointerCancel={stopDragging}
-        onLostPointerCapture={stopDragging}
-        onKeyDown={onBarKeyDown}
-        // 指でドラッグしてもページがスクロールしないようにする
+        {...handlers}
+        onKeyDown={onKeyDown}
         style={{ touchAction: 'none' }}
-        className="bleed-x cursor-row-resize outline-none"
+        className="bleed-x cursor-row-resize flex items-center"
       >
         <hr className="border-0 border-t-4 border-b border-t-ie-gray border-b-white w-full" />
       </div>
-      {/* 下側エリア */}
       <div
-        className="overflow-y-auto min-h-0"
-        style={{
-          height: 'calc(100% - var(--splitter-top-h))',
-          minHeight: minBottom,
-        }}
+        className={`splitter-bottom min-h-0 ${bottomScrollable ? 'overflow-y-auto' : 'overflow-hidden'}`}
+        data-log-scroll=""
       >
         {bottom}
       </div>

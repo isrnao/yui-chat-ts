@@ -8,7 +8,8 @@
 
 .chanari-scope {
   background: #ffd;
-  min-width: 640px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
   padding: 4px 8px;
   font-family: 'DotGothic16', 'MS PGothic', 'ＭＳ Ｐゴシック', Osaka, sans-serif;
   font-size: 12px;
@@ -77,7 +78,10 @@
 
 .chanari-scope .chanari-form-row {
   margin-bottom: 4px;
-  white-space: nowrap;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
 }
 
 .chanari-scope input[type='text'],
@@ -101,9 +105,11 @@
   background: #eee;
 }
 
-.chanari-scope input[type='submit']:hover,
-.chanari-scope button:hover {
-  background: #ddd;
+@media (hover: hover) and (pointer: fine) {
+  .chanari-scope input[type='submit']:hover,
+  .chanari-scope button:hover {
+    background: #ddd;
+  }
 }
 
 .chanari-scope input[type='submit']:disabled,
@@ -113,12 +119,12 @@
 }
 
 /* --- Character counter --- */
-.chanari-scope #wdcnt {
+.chanari-scope .chanari-count {
   color: #060;
   font-weight: bold;
 }
 
-.chanari-scope #wderr {
+.chanari-scope .chanari-count-error {
   color: #c00;
   font-weight: bold;
   margin-left: 4px;
@@ -129,4 +135,35 @@
   color: #c00;
   font-weight: bold;
   margin-top: 4px;
+}
+
+.chanari-container {
+  container: chanari / inline-size;
+}
+.chanari-scope input[type='text'] {
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+.chanari-scope label {
+  max-inline-size: 100%;
+}
+.chanari-color-picker:has(input:focus-visible) {
+  outline: 2px solid #060;
+  outline-offset: 2px;
+}
+.chanari-color-picker:has(input:disabled) {
+  opacity: 0.5;
+  cursor: default !important;
+}
+@container chanari (max-width: 480px) {
+  .chanari-scope input[size='60'] {
+    inline-size: calc(100cqi - 80px);
+  }
+  .chanari-scope #desc {
+    float: none;
+    max-inline-size: 100%;
+  }
+  .chanari-scope #chat-topheader-right {
+    float: none;
+  }
 }

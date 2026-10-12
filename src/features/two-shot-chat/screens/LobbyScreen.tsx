@@ -13,7 +13,7 @@ import NoticePage from '../components/NoticePage';
 import RoomList from '../components/RoomList';
 import TwoShotScope from '../components/Scope';
 import { TWO_SHOT_CONFIG } from '../config';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import type { EnterRequest } from '../protocol';
 
 type LobbyUi = { kind: 'lobby' } | { kind: 'notice'; code: ErrorCode };
@@ -128,7 +128,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
   const values: EntryValues = { ...stored, ...edited };
 
   const busy = useRef(false);
-  const [ui, dispatch] = useActionState(
+  const [ui, dispatch, isPending] = useActionState(
     async (_previous: LobbyUi, action: LobbyAction): Promise<LobbyUi> => {
       if (action.type === 'dismiss') return { kind: 'lobby' };
       // React Compiler は catch のない try / finally をコンパイルできないので、Promise の finally で戻す
@@ -139,7 +139,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
     { kind: 'lobby' }
   );
 
-  useAutoRefresh(TWO_SHOT_CONFIG.lobbyReloadSeconds, lobbyStore.reload, lobbyAuto);
+  useVisibleInterval(TWO_SHOT_CONFIG.lobbyReloadSeconds, lobbyStore.reload, lobbyAuto);
 
   if (ui.kind === 'notice') {
     const dismiss = () => {
@@ -166,6 +166,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
       bottomLabel="空室状況"
       top={
         <EntryForm
+          isPending={isPending}
           values={values}
           homeHref={HOME_HREF}
           onChange={(patch) => setEdited((previous) => ({ ...previous, ...patch }))}

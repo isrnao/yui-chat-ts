@@ -78,9 +78,10 @@ function collectCompileErrors(): string[] {
   return failures;
 }
 
+// 全本番ファイルを同期で変換する検査。CIのCPUでは既定5秒を超えるため、この検査だけ猶予を持たせる。
 test('src の本番コードに React Compiler がコンパイルできない関数がない', () => {
   expect(collectCompileErrors()).toEqual([]);
-});
+}, 30_000);
 
 test('opt-out は理由のコメントが直前にある場合だけ認める', () => {
   const lines = ['function A() {', '  // 理由', "  'use no memo';", '}'];

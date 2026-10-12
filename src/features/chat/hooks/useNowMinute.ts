@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePageReturn } from '@shared/hooks/usePageReturn';
 
 const MINUTE_MS = 60_000;
 
@@ -28,6 +29,8 @@ export function useNowMinute(): number {
       }
     };
   }, []);
+  // 隠れている間はタイマーが遅れるので、戻ったときに今の時刻へ合わせる
+  usePageReturn(() => setNow(Date.now()));
 
   return now;
 }

@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { readLookCommand } from '@features/chat/utils/lookCommand';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { clearMyChats } from '@features/chat/api/chatQueries';
 import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
+import { SupersededSessionError } from '@features/chat/utils/entryError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/serverMessages';
@@ -21,7 +23,56 @@ import { rememberOwnChat } from '@features/chat/utils/ownMessages';
  */
 export type SessionTarget = { kind: 'room'; roomId: RoomId } | { kind: 'all'; replyTo: RoomId };
 
+function metadataCopy(metadata: ChatMetadata | undefined): ChatMetadata | undefined {
+  return metadata ? (JSON.parse(JSON.stringify(metadata)) as ChatMetadata) : undefined;
+}
+
 type TrackedCommand = 'look' | 'unlook' | 'fortune';
+type Phase = 'idle' | 'entering' | 'entered' | 'exiting';
+type Identity = {
+  name: string;
+  color: string;
+  email: string;
+  avatar?: AvatarId;
+  fontStyle?: ChatMetadata['fontStyle'];
+};
+
+type SessionState = { phase: Phase; identity: Identity | null; sending: boolean };
+const IDLE: SessionState = { phase: 'idle', identity: null, sending: false };
+
+/**
+ * 入室の状態の持ち主。描画（useSyncExternalStore）と、await をまたぐ判定（今の段階・送信中か）の
+ * 両方がここを読む。以前は ref と useState に同じ値を二重に持ち、変えるたびに両方へ書いていた。
+ * epoch は入退室ごとに進め、古い入室・送信の完了が新しい状態を書き換えないようにする。
+ */
+function createSessionStore() {
+  let state = IDLE;
+  let epoch = 0;
+  let active = true;
+  const listeners = new Set<() => void>();
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => state,
+    set(patch: Partial<SessionState>) {
+      state = { ...state, ...patch };
+      for (const listener of listeners) listener();
+    },
+    /** 新しい入退室を始める。それより前の操作の完了は isCurrent が false になる */
+    begin: () => ++epoch,
+    epoch: () => epoch,
+    isCurrent: (value: number) => active && epoch === value,
+    /** アンマウントで、進行中の操作の完了を捨てる */
+    setActive(value: boolean) {
+      active = value;
+      if (!value) epoch++;
+    },
+  };
+}
 
 function getTrackedCommand(message: string): TrackedCommand | undefined {
   if (message === 'look' || message === 'unlook') return message;
@@ -39,7 +90,7 @@ function getTrackedCommand(message: string): TrackedCommand | undefined {
  *
  * 部屋単位と全部屋まとめで意図して違う点（design.md §7 の表）:
  * - clear の対象がない場合: 部屋単位は何もしない、全部屋まとめは「削除対象の発言がありません」を投げる
- * - look / unlook: 部屋単位だけ通知音と Broadcast を行う
+ * - look / unlook: 部屋単位だけ自分の通知音を鳴らす（ほかの参加者は Realtime の INSERT で鳴る）
  * - metadata: 全部屋まとめはアバターと書式を足して合成する
  * - analytics の room_id: 部屋単位は部屋、全部屋まとめは返信先
  */
@@ -62,7 +113,17 @@ export function useChatSession({
   addOptimistic: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const [entered, setEntered] = useState(false);
+  const [session] = useState(createSessionStore);
+  const {
+    phase,
+    identity: sessionIdentity,
+    sending: isSending,
+  } = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
+  useEffect(() => {
+    session.setActive(true);
+    return () => session.setActive(false);
+  }, [session]);
+  const isCurrent = session.isCurrent;
   const { sendUserMessage, sendAdminEvent } = useChatSender({
     addOptimistic,
     mergeChat: store.applySaved,
@@ -79,11 +140,16 @@ export function useChatSession({
     name,
     color,
     silent = false,
+    email,
+    avatar,
   }: {
     name: string;
     color: string;
     silent?: boolean;
+    email?: string;
+    avatar?: AvatarId;
   }) => {
+    if (session.getSnapshot().phase !== 'idle') throw new SupersededSessionError();
     measurement.onJoinStarted(sessionRoomId);
     const err = validateName(name);
     if (err) {
@@ -91,32 +157,43 @@ export function useChatSession({
       throw new UserFacingError(err);
     }
     // 保存を待たずにチャット画面へ切り替える
-    setEntered(true);
+    const epoch = session.begin();
+    const enteredIdentity = {
+      ...identity,
+      name: name.trim(),
+      color,
+      email: email ?? identity.email,
+      avatar: avatar ?? identity.avatar,
+    };
+    session.set({ phase: 'entering', identity: enteredIdentity });
 
-    try {
-      if (!silent) {
-        // レガシー互換の「{n}回目:LAST LOGIN:...」表示用に訪問情報を metadata へ載せる
-        const { visitCount, previousLogin } = getSettingsSnapshot();
-        await sendAdminEvent(sessionRoomId, {
-          event: 'enter',
-          name,
-          color,
-          visitCount,
-          lastLogin: previousLogin,
-        });
-      }
-
+    const complete = () => {
+      if (!isCurrent(epoch)) throw new SupersededSessionError();
+      session.set({ phase: 'entered' });
       const entryContext = measurement.onEntered();
       trackEvent('chat_enter', {
         room_id: sessionRoomId,
         room_title: sessionTitle,
         entry_context: entryContext,
       });
-    } catch (error) {
-      setEntered(false);
+    };
+    if (silent) {
+      complete();
+      return;
+    }
+    const { visitCount, previousLogin } = getSettingsSnapshot();
+    await sendAdminEvent(sessionRoomId, {
+      event: 'enter',
+      name: enteredIdentity.name,
+      color,
+      visitCount,
+      lastLogin: previousLogin,
+    }).then(complete, (error: unknown) => {
+      if (!isCurrent(epoch)) throw new SupersededSessionError();
+      session.set(IDLE);
       measurement.onJoinFailed(sessionRoomId, 'save_error');
       throw error;
-    }
+    });
   };
 
   /**
@@ -124,22 +201,54 @@ export function useChatSession({
    * 入力欄やランキングの表示は、呼び出し元が exit を呼ぶ前に戻す。
    */
   const exit = async (): Promise<void> => {
+    const current = session.getSnapshot();
+    if (current.phase === 'idle' || current.phase === 'exiting') return;
+    const epoch = session.begin();
+    const me = current.identity ?? identity;
     trackEvent('chat_exit', { room_id: sessionRoomId, room_title: sessionTitle });
     measurement.onExited();
 
     // 退室の名前と色は、呼び出し元が入力欄を戻す前の値を使う
-    const farewell = { event: 'exit', name: identity.name, color: identity.color } as const;
-    setEntered(false);
-    await sendAdminEvent(sessionRoomId, farewell);
+    const farewell = { event: 'exit', name: me.name, color: me.color } as const;
+    session.set({ phase: 'exiting' });
+    await sendAdminEvent(sessionRoomId, farewell)
+      .catch((error: unknown) => {
+        if (isCurrent(epoch)) throw error;
+      })
+      .finally(() => {
+        if (isCurrent(epoch)) session.set(IDLE);
+      });
   };
 
   /** 送信するメッセージの metadata。全部屋まとめはアイデンティティのアバターと書式を足す */
-  const resolveMetadata = (metadata?: ChatMetadata): ChatMetadata | undefined => {
+  const resolveMetadata = (me: Identity, metadata?: ChatMetadata): ChatMetadata | undefined => {
     if (target.kind === 'room') return metadata;
     const base: ChatMetadata = { version: 1 };
-    if (identity.fontStyle) base.fontStyle = identity.fontStyle;
-    if (identity.avatar && identity.avatar !== 'none') base.avatar = identity.avatar;
+    if (me.fontStyle) base.fontStyle = me.fontStyle;
+    if (me.avatar && me.avatar !== 'none') base.avatar = me.avatar;
     return metadata ? { ...base, ...metadata } : base;
+  };
+
+  /** 保存が確定した発言の後処理（計測と、look / unlook の自分の音） */
+  const afterSaved = (roomId: RoomId, original: string, saved: Chat) => {
+    const trackedCommand = getTrackedCommand(original.trim());
+    if (trackedCommand) {
+      trackEvent('command_used', { room_id: roomId, command: trackedCommand });
+    } else {
+      trackEvent('message_sent', { room_id: roomId, message_length: original.length });
+      measurement.onOwnMessageSaved(saved);
+    }
+
+    // look/unlook: 自分の音は保存の完了で鳴らす（部屋単位のビューだけ）。ほかの参加者には、保存された発言の
+    // INSERT が Realtime で届いて鳴る（useLookSound）。自分の echo では鳴らないよう、送る前に nonce を覚えている
+    if (target.kind === 'room') {
+      if (readLookCommand(original) === 'look') {
+        // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
+        void playNotificationSound().catch(() => {});
+      } else if (readLookCommand(original) === 'unlook') {
+        stopNotificationSound();
+      }
+    }
   };
 
   /**
@@ -148,6 +257,11 @@ export function useChatSession({
    */
   const sendMessage = async (message: string, metadata?: ChatMetadata): Promise<void> => {
     if (isBlankMessage(message)) return;
+    const current = session.getSnapshot();
+    if (current.phase !== 'entered') throw new UserFacingError('入室の完了をお待ちください。');
+    if (current.sending) throw new UserFacingError('送信の完了をお待ちください。');
+    const me = current.identity ?? identity;
+    const epoch = session.epoch();
     const trimmed = message.trim();
 
     if (trimmed === 'cut') {
@@ -158,7 +272,10 @@ export function useChatSession({
     if (trimmed === 'clear') {
       // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
       // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
-      const cleared = await clearMyChats(sendTo, identity.name);
+      session.set({ sending: true });
+      const cleared = await clearMyChats(sendTo, me.name).finally(() => {
+        if (isCurrent(epoch)) session.set({ sending: false });
+      });
       // 何も消えなかった clear は使用として数えない
       if (cleared.length === 0) throw new UserFacingError('削除対象の発言がありません');
       trackEvent('command_used', { room_id: sendTo, command: 'clear' });
@@ -170,39 +287,40 @@ export function useChatSession({
     const trackedCommand = getTrackedCommand(trimmed);
     const optimistic = createOptimisticChat({
       room_id: sendTo,
-      name: identity.name,
-      color: identity.color,
+      name: me.name,
+      color: me.color,
       message,
       client_time: Date.now(),
-      email: identity.email,
+      email: me.email,
       ip_masked: '',
       ua: '',
-      metadata: resolveMetadata(metadata),
+      metadata: metadataCopy(resolveMetadata(me, metadata)),
     });
 
     if (!trackedCommand) measurement.onOwnMessagePending(optimistic);
     // Realtime の echo（保存の応答より先に届くことがある）を自分の発言と見分けるため、送る前に覚える
     rememberOwnChat(optimistic);
 
-    const savedChat = await sendUserMessage(sendTo, optimistic);
-    if (trackedCommand) {
-      trackEvent('command_used', { room_id: sendTo, command: trackedCommand });
-    } else {
-      trackEvent('message_sent', { room_id: sendTo, message_length: message.length });
-      measurement.onOwnMessageSaved(savedChat);
-    }
-
-    // look/unlook: 自分の音は保存の完了で鳴らす（部屋単位のビューだけ）。ほかの参加者には、保存された発言の
-    // INSERT が Realtime で届いて鳴る（useLookSound）。自分の echo では鳴らないよう、送る前に nonce を覚えている
-    if (target.kind === 'room') {
-      if (trimmed === 'look') {
-        // 再生できなくても（音声が許可されていないなど）発言は成立しているので無視する
-        void playNotificationSound().catch(() => {});
-      } else if (trimmed === 'unlook') {
-        stopNotificationSound();
-      }
-    }
+    session.set({ sending: true });
+    const savedChat = await sendUserMessage(sendTo, optimistic).finally(() => {
+      if (isCurrent(epoch)) session.set({ sending: false });
+    });
+    if (!isCurrent(epoch)) return;
+    afterSaved(sendTo, message, savedChat);
   };
 
-  return { entered, enter, exit, send: sendMessage };
+  const updateIdentity = (patch: Pick<Identity, 'color'>) => {
+    const current = session.getSnapshot().identity;
+    if (current) session.set({ identity: { ...current, ...patch } });
+  };
+  return {
+    entered: phase === 'entering' || phase === 'entered',
+    phase,
+    sessionIdentity,
+    isSending,
+    updateIdentity,
+    enter,
+    exit,
+    send: sendMessage,
+  };
 }

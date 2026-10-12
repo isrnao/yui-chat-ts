@@ -20,6 +20,8 @@ export type RoomRankingState = {
   isLoading: boolean;
   /** 直近の取得が失敗したか */
   hasError: boolean;
+  retry?: () => void;
+  asOf?: number;
 };
 
 const EMPTY: RoomRankingState = { ranking: null, isLoading: false, hasError: false };
@@ -36,6 +38,7 @@ const EMPTY: RoomRankingState = { ranking: null, isLoading: false, hasError: fal
  * - 初回でも、取得が RANKING_LOADING_DELAY_MS 以内に返れば「読み込み中」は出さない
  */
 export function useRoomRanking(roomId: RoomId, enabled: boolean): RoomRankingState {
+  const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<RoomRankingState>(EMPTY);
 
   // 部屋が変わったら前の部屋の結果は出さない。
@@ -61,7 +64,7 @@ export function useRoomRanking(roomId: RoomId, enabled: boolean): RoomRankingSta
     loadChatRanking(roomId)
       .then(
         (ranking) => {
-          if (!ignore) setState({ ranking, isLoading: false, hasError: false });
+          if (!ignore) setState({ ranking, isLoading: false, hasError: false, asOf: Date.now() });
         },
         () => {
           // 前回の結果があればそれを出し続ける (表示側で判断する)
@@ -74,7 +77,7 @@ export function useRoomRanking(roomId: RoomId, enabled: boolean): RoomRankingSta
       ignore = true;
       clearTimeout(timer);
     };
-  }, [roomId, enabled]);
+  }, [roomId, enabled, attempt]);
 
-  return state;
+  return { ...state, retry: () => setAttempt((value) => value + 1) };
 }

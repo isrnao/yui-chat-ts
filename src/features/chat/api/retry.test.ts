@@ -39,3 +39,17 @@ describe('warnIfSlow', () => {
     warn.mockRestore();
   });
 });
+
+it('backoff待機中のabortは次のreadを開始しない', async () => {
+  vi.useFakeTimers();
+  const controller = new AbortController();
+  const operation = vi.fn().mockRejectedValue(new Error('offline'));
+  const promise = retryWithBackoff(operation, { signal: controller.signal });
+  const rejected = expect(promise).rejects.toMatchObject({ name: 'AbortError' });
+  await Promise.resolve();
+  controller.abort();
+  await rejected;
+  vi.advanceTimersByTime(10_000);
+  expect(operation).toHaveBeenCalledTimes(1);
+  vi.useRealTimers();
+});

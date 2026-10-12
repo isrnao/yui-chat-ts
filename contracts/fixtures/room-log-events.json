@@ -656,7 +656,8 @@
           "type": "start"
         },
         {
-          "type": "reload"
+          "type": "reload",
+          "reason": "reconnect"
         },
         {
           "type": "resolve",

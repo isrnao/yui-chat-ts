@@ -7,7 +7,7 @@ export default function Input({ className = '', ...props }: ComponentPropsWithRe
   return (
     <input
       className={
-        'border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors outline-none font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd] ' +
+        'border-2 border-ie-gray [border-style:inset] bg-white px-2 py-0.5 text-sm rounded-none shadow-none transition-colors font-yui focus:border-2 focus:border-ie-blue focus:bg-[#f8fafd] ' +
         className
       }
       {...props}

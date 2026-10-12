@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { countTwoShotSeats, fetchRoomParticipantCounts, toRoomCountMap } from './roomCountsApi';
+import { countTwoShotSeats, fetchRoomCountsResult, toRoomCountMap } from './roomCountsApi';
 
 // ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
 // このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
@@ -40,7 +40,10 @@ describe('countTwoShotSeats', () => {
   });
 });
 
-describe('fetchRoomParticipantCounts', () => {
+/** 人数の辞書だけを見る（失敗の扱いは fetchRoomCountsResult の kind / failedRooms で別に確かめる） */
+const countsOf = async (windowMs?: number) => (await fetchRoomCountsResult(windowMs)).counts;
+
+describe('fetchRoomCountsResult の人数', () => {
   const ORIGINAL_FETCH = globalThis.fetch;
   const COUNTS_RPC = 'https://example.supabase.co/rest/v1/rpc/room_participant_counts';
   const LOBBY_RPC = 'https://example.supabase.co/rest/v1/rpc/two_shot_lobby';
@@ -86,7 +89,7 @@ describe('fetchRoomParticipantCounts', () => {
   it('apikey / Authorization を付けて、参加人数の RPC と two-shot の空室状況を並行して POST で呼ぶ', async () => {
     const spy = mockFetch({ counts: () => json([]), lobby: () => json([]) });
 
-    await fetchRoomParticipantCounts(60_000);
+    await countsOf(60_000);
 
     expect(spy).toHaveBeenCalledTimes(2);
     const calls = new Map(spy.mock.calls.map(([url, init]) => [String(url), init]));
@@ -105,7 +108,7 @@ describe('fetchRoomParticipantCounts', () => {
   it('2shot は公開ログの人数ではなく、席に着いている人数にする', async () => {
     mockFetch({ counts: () => json(counts), lobby: () => json(lobby) });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({
+    await expect(countsOf()).resolves.toEqual({
       superbeginner: 2,
       '2shot': 3,
     });
@@ -114,7 +117,7 @@ describe('fetchRoomParticipantCounts', () => {
   it('誰も席にいなければ 2shot は出さない（0人）', async () => {
     mockFetch({ counts: () => json(counts), lobby: () => json([lobby[2]]) });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ superbeginner: 2 });
+    await expect(countsOf()).resolves.toEqual({ superbeginner: 2 });
   });
 
   // RPC は本番に適用済み（Issue #187）。404 でも発言の行（最大 5000 行）を取りに行かない
@@ -124,7 +127,7 @@ describe('fetchRoomParticipantCounts', () => {
       lobby: () => json(lobby),
     });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ '2shot': 3 });
+    await expect(countsOf()).resolves.toEqual({ '2shot': 3 });
     expect(spy).toHaveBeenCalledTimes(2);
     expect(spy.mock.calls.some(([url]) => String(url).includes('/rest/v1/chats'))).toBe(false);
   });
@@ -137,13 +140,13 @@ describe('fetchRoomParticipantCounts', () => {
       () => Promise.reject(new Error('offline')),
     ]) {
       mockFetch({ counts: () => json(counts), lobby: lobbyReply });
-      await expect(fetchRoomParticipantCounts()).resolves.toEqual({ superbeginner: 2 });
+      await expect(countsOf()).resolves.toEqual({ superbeginner: 2 });
     }
   });
 
   it('参加人数の RPC だけ失敗しても、2shot の人数は残す', async () => {
     mockFetch({ counts: () => new Response('nope', { status: 500 }), lobby: () => json(lobby) });
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({ '2shot': 3 });
+    await expect(countsOf()).resolves.toEqual({ '2shot': 3 });
   });
 
   // 環境変数が無い環境 (Storybook / CI の一部) で通信しない既存挙動を保つ
@@ -152,14 +155,14 @@ describe('fetchRoomParticipantCounts', () => {
     vi.stubEnv('VITE_SUPABASE_ANON_KEY', '');
     const spy = mockFetch({ counts: () => json([]), lobby: () => json([]) });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({});
+    await expect(countsOf()).resolves.toEqual({});
     expect(spy).not.toHaveBeenCalled();
   });
 
   it('どちらも非 2xx なら空を返す (人数バッジ非表示へフォールバック)', async () => {
     mockFetch({});
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({});
+    await expect(countsOf()).resolves.toEqual({});
   });
 
   it('通信が例外を投げても空を返す', async () => {
@@ -168,6 +171,21 @@ describe('fetchRoomParticipantCounts', () => {
       lobby: () => Promise.reject(new Error('offline')),
     });
 
-    await expect(fetchRoomParticipantCounts()).resolves.toEqual({});
+    await expect(countsOf()).resolves.toEqual({});
+  });
+  it('成功の0件と失敗/未設定/部分成功を区別する', async () => {
+    mockFetch({ counts: () => json([]), lobby: () => json([]) });
+    expect(await fetchRoomCountsResult()).toMatchObject({
+      kind: 'ready',
+      counts: {},
+      failedRooms: [],
+      asOf: expect.any(Number),
+    });
+    mockFetch({ counts: () => json({}, 500), lobby: () => json([]) });
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'partial', counts: {} });
+    mockFetch({});
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'failed', counts: {} });
+    vi.stubEnv('VITE_SUPABASE_URL', '');
+    expect(await fetchRoomCountsResult()).toMatchObject({ kind: 'unavailable', counts: {} });
   });
 });

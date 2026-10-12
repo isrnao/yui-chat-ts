@@ -1,6 +1,9 @@
-import { useId, useRef } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Sex } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG, type AutoSeconds } from '../../config';
+import ModalShell from '@features/chat/components/shared/ModalShell';
+import Button from '@shared/components/Button';
+import { useRetainedValue } from '@shared/hooks/useRetainedValue';
 import SexLabel from '../SexLabel';
 import { CONFIRM_MESSAGES } from '../../utils/confirmMessages';
 
@@ -24,6 +27,8 @@ const AUTO_LABELS: Record<AutoSeconds, string> = {
  * 送れるように <form> にする（表の外に置き、入力欄とボタンは form 属性で結びつける。表の行の中に <form> は置けない）。
  */
 export default function ChatForm({
+  isPending = false,
+  terminal = false,
   roomName,
   me,
   seat,
@@ -37,6 +42,8 @@ export default function ChatForm({
   onKick,
   onLeave,
 }: {
+  isPending?: boolean;
+  terminal?: boolean;
   roomName: string;
   me: { name: string; sex: Sex };
   seat: 0 | 1;
@@ -50,9 +57,15 @@ export default function ChatForm({
   onKick: () => void;
   onLeave: () => void;
 }) {
+  const [confirmation, setConfirmation] = useState<'close' | 'kick' | 'leave' | null>(null);
+  const displayConfirmation = useRetainedValue(confirmation);
+  const armed = useRef(false);
+  const titleId = useId();
   const formId = useId();
   const radioName = useId();
   const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useLayoutEffect(() => focusOnMount(inputRef.current), []);
 
   // 原作の Reload(): 発言欄を空にして、その時点の自動更新の設定で取り直す
   const reload = () => {
@@ -61,12 +74,13 @@ export default function ChatForm({
   };
 
   return (
-    <div className="ts-doc">
+    <div className="ts-doc" aria-busy={isPending || undefined}>
       <form
         id={formId}
         hidden
         onSubmit={(event) => {
           event.preventDefault();
+          if (isPending) return;
           onSay(value);
           // 保存されたら親が発言欄を空にする。送れなかったときは文字が残るので、全選択して送り直せるようにする
           // （原作は送信の 0.5 秒後に、文字を残したまま全選択していた。sendTimer）
@@ -85,7 +99,7 @@ export default function ChatForm({
               {me.name}(<SexLabel sex={me.sex} />)
             </td>
             <td className="ts-center">
-              <input type="button" value="いつでも手動更新" onClick={reload} />
+              <input type="button" value="いつでも手動更新" disabled={isPending} onClick={reload} />
             </td>
             {seat === 0 ? (
               <>
@@ -93,8 +107,13 @@ export default function ChatForm({
                   <input
                     type="button"
                     value=" 閉鎖 "
-                    onClick={() => {
-                      if (window.confirm(CONFIRM_MESSAGES.close)) onClose();
+                    disabled={isPending || terminal}
+                    onClick={(event) => {
+                      if (isPending) return;
+                      armed.current = true;
+                      // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                      event.currentTarget.focus();
+                      setConfirmation('close');
                     }}
                   />
                 </td>
@@ -102,8 +121,13 @@ export default function ChatForm({
                   <input
                     type="button"
                     value="相手を退室"
-                    onClick={() => {
-                      if (window.confirm(CONFIRM_MESSAGES.kick)) onKick();
+                    disabled={isPending || terminal}
+                    onClick={(event) => {
+                      if (isPending) return;
+                      armed.current = true;
+                      // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                      event.currentTarget.focus();
+                      setConfirmation('kick');
                     }}
                   />
                 </td>
@@ -113,8 +137,13 @@ export default function ChatForm({
                 <input
                   type="button"
                   value=" 退室 "
-                  onClick={() => {
-                    if (window.confirm(CONFIRM_MESSAGES.leave)) onLeave();
+                  disabled={isPending || terminal}
+                  onClick={(event) => {
+                    if (isPending) return;
+                    armed.current = true;
+                    // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                    event.currentTarget.focus();
+                    setConfirmation('leave');
                   }}
                 />
               </td>
@@ -127,42 +156,97 @@ export default function ChatForm({
                 name="Value"
                 aria-label="発言"
                 size={60}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter' &&
+                    (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229)
+                  )
+                    event.preventDefault();
+                }}
                 form={formId}
                 value={value}
                 onChange={(event) => onValueChange(event.target.value)}
-                ref={(element) => {
-                  inputRef.current = element;
-                  focusOnMount(element);
-                }}
+                ref={inputRef}
               />{' '}
-              <input type="submit" value="発言" form={formId} />
+              <input type="submit" disabled={isPending} value="発言" form={formId} />
             </td>
             <td className="ts-center" colSpan={3}>
               {NBSP}
-              <b>自動更新</b>
-              {TWO_SHOT_CONFIG.chatReloadOptions.map((seconds, index) => (
-                <label key={seconds}>
-                  {' '}
-                  <input
-                    type="radio"
-                    name={radioName}
-                    value={seconds}
-                    checked={auto === seconds}
-                    readOnly
-                    // 原作は onClick で Reload() する（選び直さなくても押せば取り直す）
-                    onClick={() => {
-                      onValueChange('');
-                      onSetAuto(seconds);
-                    }}
-                  />
-                  {AUTO_LABELS[seconds]}
-                  {index === TWO_SHOT_CONFIG.chatReloadOptions.length - 1 && NBSP}
-                </label>
-              ))}
+              <fieldset className="ts-auto-options">
+                <legend>自動更新</legend>
+                {TWO_SHOT_CONFIG.chatReloadOptions.map((seconds, index) => (
+                  <label key={seconds}>
+                    {' '}
+                    <input
+                      type="radio"
+                      name={radioName}
+                      value={seconds}
+                      checked={auto === seconds}
+                      disabled={isPending}
+                      onChange={() => {
+                        if (auto !== seconds) {
+                          onValueChange('');
+                          onSetAuto(seconds);
+                        }
+                      }}
+                      // 原作は onClick で Reload() する（選び直さなくても押せば取り直す）
+                      onClick={() => {
+                        if (auto === seconds) {
+                          onValueChange('');
+                          onSetAuto(seconds);
+                        }
+                      }}
+                    />
+                    {AUTO_LABELS[seconds]}
+                    {index === TWO_SHOT_CONFIG.chatReloadOptions.length - 1 && NBSP}
+                  </label>
+                ))}
+              </fieldset>
             </td>
           </tr>
         </tbody>
       </table>
+      {displayConfirmation && (
+        <ModalShell
+          open={confirmation !== null && !terminal}
+          role="alertdialog"
+          labelledBy={titleId}
+          onCancel={() => {
+            armed.current = false;
+            setConfirmation(null);
+          }}
+        >
+          <p id={titleId}>{CONFIRM_MESSAGES[displayConfirmation]}</p>
+          {/* ダイアログは all: revert の対象外なので、chat 側の確認と同じ Button で押せる見た目にする */}
+          <div className="mt-3 flex justify-end gap-2">
+            <Button
+              type="button"
+              data-dialog-initial-focus
+              autoFocus
+              onClick={() => {
+                armed.current = false;
+                setConfirmation(null);
+              }}
+            >
+              やめる
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending || terminal}
+              onClick={() => {
+                if (!armed.current || !confirmation || isPending || terminal) return;
+                armed.current = false;
+                setConfirmation(null);
+                if (confirmation === 'close') onClose();
+                else if (confirmation === 'kick') onKick();
+                else onLeave();
+              }}
+            >
+              実行する
+            </Button>
+          </div>
+        </ModalShell>
+      )}
       {/* 原作は <p><small>…</small>。Quirks モードの行の高さに合わせて、小さい文字のブロックにする */}
       <div className="ts-p">
         <small className="ts-small-block">

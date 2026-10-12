@@ -165,3 +165,34 @@ describe('runFilterTransition の prepare', () => {
     expect(order).toEqual(['prepare', 'capture', 'update', 'unprepare']);
   });
 });
+
+it('prepareとAPIの同期例外でも一回更新して属性を戻す', () => {
+  for (const preparationThrows of [true, false]) {
+    Object.assign(document, {
+      startViewTransition: () => {
+        throw new Error('unsupported');
+      },
+    });
+    const update = vi.fn();
+    runFilterTransition(update, () => {
+      if (preparationThrows) throw new Error('measurement');
+      return () => {};
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(document.documentElement.hasAttribute(FILTER_TRANSITION_ATTR)).toBe(false);
+  }
+  delete (document as Doc).startViewTransition;
+});
+it('旧finishedが新しいtransitionの属性を解除しない', async () => {
+  const old = stubViewTransition();
+  runFilterTransition(vi.fn());
+  const next = stubViewTransition();
+  runFilterTransition(vi.fn());
+  old.finish();
+  await Promise.resolve();
+  expect(document.documentElement.hasAttribute(FILTER_TRANSITION_ATTR)).toBe(true);
+  next.finish();
+  await Promise.resolve();
+  expect(document.documentElement.hasAttribute(FILTER_TRANSITION_ATTR)).toBe(false);
+  delete (document as Doc).startViewTransition;
+});

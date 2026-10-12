@@ -62,11 +62,6 @@ export const guideMenu: readonly GuideMenuEntry[] = [
   //   href: '#',
   // },
   {
-    label: 'チャットの使い方',
-    iconKind: 'tutorial',
-    href: '#chat-howto',
-  },
-  {
     label: 'チャットのルール・マナー',
     iconKind: 'heart',
     href: '#chat-rules',

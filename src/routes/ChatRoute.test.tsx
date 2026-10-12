@@ -139,7 +139,8 @@ describe('ChatRoute のフォーカス', () => {
       ua: 'test-ua',
     });
 
-    await waitFor(() => expect(screen.getByText('こんばんは')).toBeInTheDocument());
+    // ログ一覧は lazy。並列で走る pre-commit では初回の読み込みが既定の 1 秒を超えることがある
+    expect(await screen.findByText('こんばんは', {}, { timeout: 5_000 })).toBeInTheDocument();
     expect(document.activeElement).toBe(select);
   });
 });
@@ -157,8 +158,14 @@ describe('ChatRoute の段階的なログ取得', () => {
 
     render(<ChatRoute roomId="superbeginner" />);
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10));
-    expect(loadRecentChatLogs).not.toHaveBeenCalledWith('superbeginner', 100);
+    await waitFor(() =>
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, expect.any(AbortSignal))
+    );
+    expect(loadRecentChatLogs).not.toHaveBeenCalledWith(
+      'superbeginner',
+      100,
+      expect.any(AbortSignal)
+    );
   });
 
   it('「チャットに参加する」で全件取得へ広げる', async () => {
@@ -166,7 +173,9 @@ describe('ChatRoute の段階的なログ取得', () => {
 
     await enterRoom();
 
-    await waitFor(() => expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 100));
+    await waitFor(() =>
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 100, expect.any(AbortSignal))
+    );
   });
 });
 

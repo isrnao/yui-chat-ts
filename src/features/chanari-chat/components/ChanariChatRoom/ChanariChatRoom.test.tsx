@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 import ChanariChatRoom, { type ChanariChatRoomProps } from './index';
 
 function setup(overrides: Partial<ChanariChatRoomProps> = {}) {
   const props: ChanariChatRoomProps = {
-    message: 'こんにちは',
-    setMessage: vi.fn(),
+    initialMessage: 'こんにちは',
     onSend: vi.fn(() => Promise.resolve()),
     onReload: vi.fn(),
     onExit: vi.fn(),
@@ -46,4 +45,87 @@ describe('ChanariChatRoom の失敗表示', () => {
     expect(alert).toHaveTextContent('ログを消去できませんでした');
     expect(alert).not.toHaveTextContent('Failed to');
   });
+});
+
+it('即時clear・二重送信抑止・新しい編集を壊さない失敗復元', async () => {
+  let reject!: (error: Error) => void;
+  const send = vi.fn(
+    () =>
+      new Promise<void>((_, fail) => {
+        reject = fail;
+      })
+  );
+  const save = vi.fn();
+  const { form } = setup({ onSend: send, onSaveDraft: save });
+  fireEvent.submit(form);
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('');
+  fireEvent.submit(form);
+  expect(send).toHaveBeenCalledTimes(1);
+  fireEvent.change(screen.getByRole('textbox', { name: '発言' }), {
+    target: { value: '新しい編集' },
+  });
+  await act(async () => reject(new Error('offline')));
+  // 新しい編集は残す。失敗した本文は送信前に下書きへ保存してあり、「発言復元」で戻せる
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('新しい編集');
+  expect(save).toHaveBeenCalledWith('こんにちは');
+});
+it('draftをdebounce保存し、終了時に最新の非空本文を保存する', () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  const { unmount } = render(
+    <ChanariChatRoom
+      initialMessage=""
+      onSaveDraft={save}
+      onSend={() => {}}
+      onReload={() => {}}
+      onExit={() => {}}
+      onClearMyLogs={() => {}}
+      nameColor="#ff69b4"
+      setNameColor={() => {}}
+      speechColor="#000000"
+      setSpeechColor={() => {}}
+      reloadSeconds={7}
+      setReloadSeconds={() => {}}
+      onRestoreDraft={() => '他タブの候補'}
+      sid=""
+    />
+  );
+  const input = screen.getByRole('textbox', { name: '発言' });
+  fireEvent.change(input, { target: { value: 'あ' } });
+  fireEvent.change(input, { target: { value: 'あいう' } });
+  act(() => vi.advanceTimersByTime(299));
+  expect(save).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(save).toHaveBeenLastCalledWith('あいう');
+  fireEvent.click(screen.getByRole('button', { name: '発言復元' }));
+  expect(input).toHaveValue('他タブの候補');
+  unmount();
+  expect(save).toHaveBeenLastCalledWith('他タブの候補');
+  vi.useRealTimers();
+});
+
+it('発言色・エフェクト・文字サイズ・エフェクト無効・AT フィールドは操作でき、送信には渡さない', async () => {
+  const { props, form } = setup();
+  fireEvent.change(screen.getByRole('textbox', { name: '発言色' }), {
+    target: { value: '#00ff00' },
+  });
+  expect(props.setSpeechColor).toHaveBeenCalledWith('#00ff00');
+  const effect = screen.getByRole('combobox', { name: 'エフェクト' }) as HTMLSelectElement;
+  const fontSize = screen.getByRole('combobox', { name: '文字サイズ' }) as HTMLSelectElement;
+  fireEvent.change(effect, { target: { value: effect.options[1]!.value } });
+  fireEvent.change(fontSize, { target: { value: fontSize.options[1]!.value } });
+  expect(effect.value).toBe(effect.options[1]!.value);
+  expect(fontSize.value).toBe(fontSize.options[1]!.value);
+  const disableEffect = screen.getByRole('checkbox', { name: 'エフェクト無効' });
+  fireEvent.click(disableEffect);
+  expect(disableEffect).toBeChecked();
+  const atField = screen.getByRole('button', { name: 'AT フィールド' });
+  fireEvent.click(atField);
+  expect(atField).toHaveAttribute('aria-pressed', 'true');
+
+  fireEvent.submit(form);
+  await act(async () => {});
+  // 送信は本文だけ。飾りの状態は metadata にも引数にも入れない（Requirement 17）
+  expect(props.onSend).toHaveBeenCalledExactlyOnceWith('こんにちは');
 });

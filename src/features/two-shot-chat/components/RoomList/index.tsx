@@ -129,6 +129,13 @@ export default function RoomList({
           〕
         </>
       )}
+      <span role="status">
+        {lobby.kind === 'error'
+          ? '空室状況を取得できませんでした。手動更新で再試行できます。'
+          : lobby.kind === 'loaded'
+            ? '空室状況を更新しました。'
+            : ''}
+      </span>
       <br />
       <br />
       <SafetyNotice reportHref={reportHref} />

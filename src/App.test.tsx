@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
 import { loadRecentChatLogs } from '@features/chat/api/chatQueries';
-import { fetchRoomParticipantCounts } from '@features/top/api/roomCountsApi';
+import { fetchRoomCountsResult } from '@features/top/api/roomCountsApi';
 import { fetchLobby } from '@features/two-shot-chat/api/twoShotApi';
 
 // ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
@@ -37,7 +37,9 @@ vi.mock('@features/chat/utils/webAudioPlayer', () => ({
 }));
 
 vi.mock('@features/top/api/roomCountsApi', () => ({
-  fetchRoomParticipantCounts: vi.fn().mockResolvedValue({}),
+  fetchRoomCountsResult: vi
+    .fn()
+    .mockResolvedValue({ kind: 'ready', counts: {}, failedRooms: [], asOf: 1 }),
 }));
 
 vi.mock('@features/two-shot-chat/api/twoShotApi', () => ({
@@ -73,7 +75,9 @@ async function renderApp() {
   render(<App />);
 }
 
-describe('<App />', () => {
+// ルートごとの lazy なチャンクを初めて変換する検査がある。並列の pre-commit（typecheck・eslint と同時）では
+// 既定の 5 秒を超え、時間切れの後に描画が残って次の検査も落ちるので、この describe だけ猶予を持たせる
+describe('<App />', { timeout: 30_000 }, () => {
   // トップは入口なので lazy にしない。同期レンダーで本文が出ること自体が要件
   // (lazy に戻すと findBy が必要になり、実画面では読み込み待ちが挟まる)
   it('shows the top page immediately without route loading fallback', async () => {
@@ -88,7 +92,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(fetchRoomParticipantCounts).toHaveBeenCalled();
+      expect(fetchRoomCountsResult).toHaveBeenCalled();
     });
   });
 
@@ -108,7 +112,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, expect.any(AbortSignal));
     });
   });
 
@@ -127,7 +131,7 @@ describe('<App />', () => {
     );
 
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('durarara', 10, expect.any(AbortSignal));
     });
     await waitFor(() => {
       expect(screen.queryByText('チャットログを読み込み中...')).not.toBeInTheDocument();
@@ -171,7 +175,7 @@ describe('<App />', () => {
 
     // 確定 roomId でログを取得する
     await waitFor(() => {
-      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10);
+      expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, expect.any(AbortSignal));
     });
   });
 

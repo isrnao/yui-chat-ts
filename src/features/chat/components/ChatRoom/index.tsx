@@ -1,3 +1,4 @@
+import { asyncResult } from '@shared/utils/asyncResult';
 import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
 import { FONT_COLOR_NAMES, FONT_COLOR_CSS } from '@features/chat/types';
@@ -5,7 +6,7 @@ import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
-import { MESSAGE_MAX } from '@features/chat/inputRules';
+import { countGraphemes, MESSAGE_MAX, MESSAGE_MAX_CODE_POINTS } from '@features/chat/inputRules';
 import { UI_MESSAGES } from '@features/chat/uiMessages';
 import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
@@ -42,6 +43,8 @@ export type ChatRoomProps = {
   filterCount?: number;
   /** 「フィルタ」リンクで編集画面を開閉する。渡したときだけ「細字」の右にリンクを出す */
   onToggleFilter?: () => void;
+  /** 入室の保存を待っている間。発言の操作を止める */
+  sessionPending?: boolean;
 };
 
 export default function ChatRoom({
@@ -60,6 +63,7 @@ export default function ChatRoom({
   onResetReplyTarget,
   filterCount = 0,
   onToggleFilter,
+  sessionPending = false,
 }: ChatRoomProps) {
   const messageId = useId();
   // 発言欄の値はこの部品の中だけで持つ。ルートで持つと 1 文字ごとにルート全体
@@ -70,6 +74,13 @@ export default function ChatRoom({
   const fontColorId = useId();
   const boldId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
+  const overLimit =
+    countGraphemes(message) > MESSAGE_MAX || Array.from(message).length > MESSAGE_MAX_CODE_POINTS;
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(
+      overLimit ? `発言は${MESSAGE_MAX}文字以内で入力してください。` : ''
+    );
+  }, [overLimit]);
 
   // フォントスタイル状態（デフォルト太字 = bold が常に true なので metadata は常に付与される）
   const [fontSize, setFontSize] = useState<FontSize>(2);
@@ -99,17 +110,22 @@ export default function ChatRoom({
       // [消す] は name="command" value="clear" の submit ボタン。押されたボタンの値だけがフォームに入る
       const msg =
         formData.get('command') === 'clear' ? 'clear' : (formData.get('message')?.toString() ?? '');
+      const command = formData.get('command');
       if (!msg.trim()) return;
-      try {
-        const metadata = buildMetadata();
-        await onSend(msg, metadata);
-        return '';
-      } catch (err) {
-        return toUserMessage(err, SEND_FAILED_MESSAGE);
+      const metadata = buildMetadata();
+      const outcome = await asyncResult(() => onSend(msg, metadata));
+      if (!outcome.ok) {
+        const original = formData.get('message')?.toString() ?? '';
+        if (command !== 'clear' && msg.trim() !== 'cut')
+          setMessage((current) => (current === '' ? original : current));
+        return toUserMessage(outcome.error, SEND_FAILED_MESSAGE);
       }
+      return '';
     },
     ''
   );
+
+  const sending = isPending || sessionPending;
 
   // 送信アクションが完了したときだけ入力欄へフォーカスを戻す。
   // 以前は依存に chatLog が入っていたため、他人の発言が Realtime で届くたびに
@@ -117,22 +133,30 @@ export default function ChatRoom({
   // DOM のフォーカスは React 外部との同期なので Effect が正当な置き場所であり、
   // onSend 内で直接 focus すると input がまだ disabled のことがあるため使わない。
   const wasPendingRef = useRef(false);
+  const submitFocusRef = useRef<Element | null>(null);
   useEffect(() => {
-    if (isPending) {
+    if (sending) {
       wasPendingRef.current = true;
       return;
     }
     if (!wasPendingRef.current) return;
     wasPendingRef.current = false;
-    inputRef.current?.focus();
-  }, [isPending]);
+    const active = document.activeElement;
+    if (
+      active === document.body ||
+      active === inputRef.current ||
+      active === submitFocusRef.current ||
+      inputRef.current?.form?.contains(active)
+    )
+      inputRef.current?.focus();
+  }, [sending]);
 
   return (
     <div className="flex flex-col font-yui">
       {/* 1行目: [退室] [ランキング] のリンク群 */}
       <div className="mb-1 flex gap-2 text-green-700 text-sm">
-        <a
-          href="#"
+        <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             // 退室するとこの部品はアンマウントされる。退室メッセージの保存の失敗は受け取るだけにする
@@ -141,10 +165,10 @@ export default function ChatRoom({
           className="underline"
         >
           {CHAT_TEXTS.room.exit}
-        </a>
+        </button>
         {onShowRanking && (
-          <a
-            href="#"
+          <button
+            type="button"
             onClick={(e) => {
               e.preventDefault();
               onShowRanking();
@@ -152,17 +176,23 @@ export default function ChatRoom({
             className="underline"
           >
             {CHAT_TEXTS.room.ranking}
-          </a>
+          </button>
         )}
       </div>
 
       {/* 2行目: [更新] [発言] ボタン + [消す] + おなまえ表示 */}
       <form
         action={formAction}
+        aria-busy={sending || undefined}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229))
+            event.preventDefault();
+        }}
         // onSubmit は action より先に同じイベントの中で呼ばれる。ここで入力欄を空にすると、
         // 保存を待たずに空になる（action の中で空にすると Action の終わりまで反映されない）。
         // action に渡る FormData は、この更新が画面に反映される前の値で作られる。
         onSubmit={() => {
+          submitFocusRef.current = document.activeElement;
           // 送信可否に関わらずチャット表示へ戻す（空入力でも「戻る」操作として機能させる）
           onBackToChat?.();
           setMessage('');
@@ -177,12 +207,11 @@ export default function ChatRoom({
               onBackToChat?.();
               onReload();
             }}
-            tabIndex={-1}
-            disabled={isPending}
+            disabled={sending}
           >
             {CHAT_TEXTS.room.reload}
           </Button>
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={sending}>
             {CHAT_TEXTS.room.send}
           </Button>
           {/* レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す） */}
@@ -190,8 +219,12 @@ export default function ChatRoom({
             type="submit"
             name="command"
             value="clear"
-            onClick={() => setMessage('')}
-            disabled={isPending}
+            formNoValidate
+            onClick={() => {
+              inputRef.current?.setCustomValidity('');
+              setMessage('');
+            }}
+            disabled={sending}
             title={CLEAR_BUTTON_TITLE}
           >
             {CHAT_TEXTS.room.clear}
@@ -231,17 +264,22 @@ export default function ChatRoom({
             id={messageId}
             name="message"
             value={message}
-            maxLength={MESSAGE_MAX}
+            maxLength={MESSAGE_MAX_CODE_POINTS * 2}
+            aria-invalid={overLimit || undefined}
             size={60}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setMessage(e.target.value)}
-            disabled={isPending}
+            disabled={sending}
             ref={inputRef}
             autoFocus
             aria-label={CHAT_TEXTS.room.messagePlaceholder}
             className="max-w-full"
           />
         </div>
-        {error && <div className="w-full text-xs text-red-500 mt-1">{error}</div>}
+        {error && (
+          <div role="alert" className="w-full text-xs text-red-500 mt-1">
+            {error}
+          </div>
+        )}
       </form>
 
       {/* 4行目: ログ行数 + Size + 色 + 細字 */}
@@ -253,7 +291,7 @@ export default function ChatRoom({
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}
           aria-label={CHAT_TEXTS.room.rowsAria}
-          disabled={isPending}
+          disabled={sending}
         >
           {windowRowOptions.map((v) => (
             <option key={v} value={v}>
@@ -309,7 +347,15 @@ export default function ChatRoom({
         </label>
 
         {onToggleFilter && (
-          <button type="button" className="ml-2 underline cursor-pointer" onClick={onToggleFilter}>
+          <button
+            type="button"
+            className="ml-2 underline cursor-pointer"
+            onClick={(event) => {
+              // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+              event.currentTarget.focus();
+              onToggleFilter();
+            }}
+          >
             {filterCount > 0
               ? fillText(CHAT_TEXTS.room.filterCount, { count: filterCount })
               : CHAT_TEXTS.room.filter}
