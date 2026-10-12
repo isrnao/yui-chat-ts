@@ -7,6 +7,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { checkReport, REPORT_LIMIT_PER_HOUR, type ReportErrorCode } from './schema.ts';
 import { parseTraceparent, SpanKind, type Tracer } from '../save-chat/telemetry.ts';
+import { readClient } from '../save-chat/handler.ts';
 
 export interface HandlerDeps {
   tracer: Tracer;
@@ -69,7 +70,11 @@ export function createHandler(deps: HandlerDeps) {
       'POST report-chat',
       parseTraceparent(req.headers.get('traceparent')),
       SpanKind.SERVER,
-      { 'http.request.method': req.method, 'http.route': '/report-chat' }
+      {
+        'http.request.method': req.method,
+        'http.route': '/report-chat',
+        'client.app': readClient(req.headers),
+      }
     );
     let response: Response;
     try {
