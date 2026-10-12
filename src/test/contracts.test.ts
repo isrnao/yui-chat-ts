@@ -34,12 +34,15 @@ describe('Contracts', () => {
   const previousTz = process.env.TZ;
   let files: Record<string, string>;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     // fixtures の日時の表記はこのゾーンで作る（Android のテストも同じゾーンで比べる）
     process.env.TZ = FIXTURE_TIME_ZONE;
     const themeCss = readFileSync(join(ROOT, 'src/styles/theme.css'), 'utf8');
     files = Object.fromEntries(
-      Object.entries(buildContracts(themeCss)).map(([path, value]) => [path, serialize(value)])
+      Object.entries(await buildContracts(themeCss)).map(([path, value]) => [
+        path,
+        serialize(value),
+      ])
     );
   });
 

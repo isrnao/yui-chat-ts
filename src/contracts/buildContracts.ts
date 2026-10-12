@@ -25,10 +25,19 @@ import {
   FONT_COLOR_NAMES,
   FONT_SIZES,
   MESSAGE_MAX,
+  METADATA_KINDS,
   NAME_MAX,
   OPTIMISTIC_NONCE_MAX,
 } from '@features/chat/inputRules';
 import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
+import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
+import { validateName } from '@features/chat/utils/validation';
+import {
+  createRoomLogStore,
+  INITIAL_CHAT_LOG_LIMIT,
+  type LogSource,
+} from '@features/chat/api/roomLogStore';
+import type { RealtimeStatus } from '@features/chat/api/realtime';
 import { buildAdminChat, enterMessage, exitMessage } from '@features/chat/serverMessages';
 import {
   ADMIN_AVATAR,
@@ -57,10 +66,16 @@ import { reduceOptimisticChat } from '@features/chat/utils/optimisticLog';
 import { mergeChatLogByUuid } from '@features/chat/utils/aggregatedLog';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import {
+  addFilteredIp,
+  addFilteredName,
+  addFilteredWord,
+  clearFilters,
   FILTER_LIST_LIMIT,
   FILTER_NAMES_LIMIT,
   FILTER_WORD_MAX_LENGTH,
+  getSnapshot as getFilterSnapshot,
   normalizeFilterWord,
+  removeFilter,
 } from '@features/chat/utils/ipFilterStore';
 
 /** 互換の無い変更（キーの削除・意味の変更）で上げる。Android は知らない版を読んだらビルドを落とす */
@@ -152,6 +167,8 @@ function chatOptions() {
     fontSizes: FONT_SIZES,
     fontColorNames: FONT_COLOR_NAMES,
     avatarIds: AVATAR_IDS,
+    /** metadata の kind（発言の種類。サーバーだけが normal 以外を書く） */
+    metadataKinds: METADATA_KINDS,
     windowRowOptions: {
       default: DEFAULT_WINDOW_ROW_OPTIONS,
       extended: EXTENDED_WINDOW_ROW_OPTIONS,
@@ -319,6 +336,544 @@ function optimistic() {
       expectedUuids: reduceOptimisticChat(step.state, step.chat).map((c) => c.uuid),
     })),
   };
+}
+
+/**
+ * DB と Realtime の行の読み方（Web の normalizeChat）。古い行は形がそろっていないので、項目ごとに型を確かめ、
+ * 合わないものは既定値にする（metadata は許可した値だけを残す）。
+ */
+function normalizeChatRows() {
+  const inputs: { name: string; row: unknown }[] = [
+    {
+      name: '新しい行はそのまま',
+      row: {
+        uuid: v7(T0),
+        room_id: DEFAULT_ROOM_ID,
+        name: 'ゆい',
+        color: '#ff69b4',
+        message: 'こんにちは',
+        time: T0,
+        system: false,
+        email: 'yui@example.com',
+        ip_masked: '219.107.106.*',
+        ua: 'Mozilla/5.0',
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 3, fontColor: 'red', bold: true },
+          avatar: 'hoshi1',
+        },
+      },
+    },
+    {
+      name: '知らない部屋は既定の部屋にする',
+      row: {
+        uuid: v7(T0),
+        room_id: 'no-such-room',
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+      },
+    },
+    {
+      name: '型の違う項目は既定値にする',
+      row: {
+        uuid: 1,
+        room_id: null,
+        name: 2,
+        color: null,
+        message: ['x'],
+        time: '1',
+        email: 3,
+        ip_masked: 4,
+        ua: 5,
+      },
+    },
+    { name: '行でなければ空の行', row: 'not a row' },
+    {
+      name: '未対応の版の metadata は捨てる',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: { version: 2, avatar: 'hoshi1' },
+      },
+    },
+    {
+      name: 'metadata は許可した値だけを残す',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 9, fontColor: 'pink', bold: 'yes' },
+          avatar: 'none',
+          kind: 'secret',
+          userColor: 7,
+          visitCount: '3',
+          lastLogin: T0,
+          optimisticNonce: 'n-1',
+          extra: true,
+        },
+      },
+    },
+    {
+      name: '文字の飾りが 1 つでも合えば残す',
+      row: {
+        uuid: v7(T0),
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        metadata: {
+          version: 1,
+          fontStyle: { fontSize: 2, fontColor: 'nocolor' },
+          avatar: 'tuki1',
+          kind: 'fortune',
+        },
+      },
+    },
+    {
+      name: '入退室の構造は名前があるときだけ読む',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'ゆいさん、Welcome to …',
+        time: T0,
+        system: true,
+        metadata: {
+          version: 1,
+          kind: 'admin',
+          userColor: '#ff69b4',
+          visitCount: 49,
+          event: 'enter',
+          subject: { name: 'ゆい', color: '#ff69b4' },
+        },
+      },
+    },
+    {
+      name: '名前の無い入退室の構造は捨てる',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'x',
+        time: T0,
+        metadata: { version: 1, kind: 'admin', event: 'exit', subject: { name: '' } },
+      },
+    },
+    {
+      name: '入退室の色が文字列でなければ空',
+      row: {
+        uuid: v7(T0),
+        name: '管理人',
+        color: 'red',
+        message: 'x',
+        time: T0,
+        metadata: { version: 1, kind: 'admin', event: 'exit', subject: { name: 'ゆい', color: 1 } },
+      },
+    },
+    {
+      name: '楽観的な行の項目も読む',
+      row: {
+        uuid: 'temp-1',
+        name: 'ゆい',
+        color: '#000',
+        message: 'a',
+        time: T0,
+        client_time: T0,
+        optimistic: true,
+      },
+    },
+  ];
+  return { cases: inputs.map(({ name, row }) => ({ name, row, expected: normalizeChat(row) })) };
+}
+
+// --- Room_Log_Store の規則（design.md §6.2） ---
+
+type LogStep =
+  | { type: 'start' }
+  | { type: 'resolve'; fetch: number; rows: Chat[] }
+  | { type: 'reject'; fetch: number }
+  | { type: 'insert'; chat: Chat }
+  | { type: 'status'; status: RealtimeStatus }
+  | { type: 'saved'; chat: Chat }
+  | { type: 'remove'; uuids: string[] }
+  | { type: 'reload' }
+  | { type: 'expand'; limit: number };
+
+/** 発言 1 件。uuid は v7 の形で、時刻 n の大小が並びを決める。本文は名札（id）にする */
+function logChat(id: string, n: number): Chat {
+  return row({ uuid: v7(T0 + n * 1000, n), time: T0 + n * 1000, message: id });
+}
+
+/**
+ * Web の Room_Log_Store を、偽の取得と Realtime で 1 歩ずつ動かし、各歩の後の状態を記録する。
+ * 取得の結果（resolve / reject）は、何番目の取得に返すかを `fetch`（1 から）で指す。
+ */
+async function runRoomLog(steps: LogStep[]) {
+  const fetches: { limit: number; resolve: (chats: Chat[]) => void; reject: (e: Error) => void }[] =
+    [];
+  let onInsert: ((chat: Chat) => void) | null = null;
+  let onStatus: ((status: RealtimeStatus) => void) | null = null;
+  const source: LogSource = {
+    initialLimit: INITIAL_CHAT_LOG_LIMIT,
+    fetch: (limit) =>
+      new Promise<Chat[]>((resolve, reject) => fetches.push({ limit, resolve, reject })),
+    subscribe: (insert, status) => {
+      onInsert = insert;
+      onStatus = status;
+      return { unsubscribe() {} };
+    },
+  };
+  const store = createRoomLogStore(source);
+  const snapshots = [];
+  for (const step of steps) {
+    switch (step.type) {
+      case 'start':
+        store.subscribe(() => {});
+        break;
+      case 'resolve':
+        fetches[step.fetch - 1]!.resolve(step.rows);
+        break;
+      case 'reject':
+        fetches[step.fetch - 1]!.reject(new Error('failed'));
+        break;
+      case 'insert':
+        onInsert!(step.chat);
+        break;
+      case 'status':
+        onStatus!(step.status);
+        break;
+      case 'saved':
+        store.applySaved(step.chat);
+        break;
+      case 'remove': {
+        const removed = new Set(step.uuids);
+        store.update((chats) => chats.filter((c) => !removed.has(c.uuid)));
+        break;
+      }
+      case 'reload':
+        store.reload();
+        break;
+      case 'expand':
+        store.expand(step.limit);
+        break;
+    }
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    const state = store.getSnapshot();
+    snapshots.push({
+      status: state.status,
+      messages: state.chats.map((c) => c.message),
+      realtime: state.realtime,
+      fetches: fetches.map((f) => f.limit),
+    });
+  }
+  return snapshots;
+}
+
+/**
+ * Room_Log_Store の場面（Web の roomLogStore.test.ts と同じ）。購読をやめた後の再開は含めない
+ * （アプリは最後の状態を残してすぐ出す。design.md §6.2 で Web と意図して違う）。
+ */
+async function roomLogEvents() {
+  const a = logChat('a', 1);
+  const b = logChat('b', 2);
+  const c = logChat('c', 3);
+  const d = logChat('d', 4);
+  const scenarios: { name: string; steps: LogStep[] }[] = [
+    {
+      name: '最初の購読で Realtime を張ってから取得を始め、結果を ready で公開する',
+      steps: [{ type: 'start' }, { type: 'resolve', fetch: 1, rows: [b, a] }],
+    },
+    {
+      name: '取得中に届いた発言は取得結果に無くても残す',
+      steps: [
+        { type: 'start' },
+        { type: 'insert', chat: c },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+      ],
+    },
+    {
+      name: '順番どおりでなく届いた発言も、新しい順の位置に入る',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [d, a] },
+        { type: 'insert', chat: b },
+        { type: 'insert', chat: c },
+      ],
+    },
+    {
+      name: 'connected に遷移したときだけ取り直す',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [a] },
+        { type: 'status', status: 'connected' },
+        { type: 'status', status: 'connected' },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+        { type: 'status', status: 'disconnected' },
+        { type: 'status', status: 'connected' },
+        { type: 'resolve', fetch: 3, rows: [c, b, a] },
+      ],
+    },
+    {
+      name: '拡張では表示中の発言を残し、通常の取り直しでは取得結果を正とする',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [d, c] },
+        { type: 'expand', limit: 100 },
+        { type: 'resolve', fetch: 2, rows: [c, b, a] },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 3, rows: [c, a] },
+      ],
+    },
+    {
+      name: '件数は減らす方向に戻さない',
+      steps: [
+        { type: 'start' },
+        { type: 'expand', limit: 100 },
+        { type: 'expand', limit: 30 },
+        { type: 'expand', limit: 100 },
+      ],
+    },
+    {
+      name: '新しい取得が始まったら古い取得の結果は捨てる',
+      steps: [
+        { type: 'start' },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 2, rows: [b] },
+        { type: 'resolve', fetch: 1, rows: [a] },
+      ],
+    },
+    {
+      name: '取得に失敗すると error にし、表示中の行は残す',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'reload' },
+        { type: 'reject', fetch: 2 },
+      ],
+    },
+    {
+      name: '取得中に合流した保存の確定値は、古い取得結果で消さない',
+      steps: [
+        { type: 'start' },
+        { type: 'saved', chat: c },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+      ],
+    },
+    {
+      name: '取得中に行った書き換え（clear の反映）は、古い取得結果で巻き戻さない',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'reload' },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+      ],
+    },
+    {
+      name: '同じ取得中に削除と新着が繰り返されても、最後の削除後の発言だけ残す',
+      steps: [
+        { type: 'start' },
+        { type: 'insert', chat: a },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'insert', chat: b },
+        { type: 'remove', uuids: [b.uuid] },
+        { type: 'insert', chat: c },
+        { type: 'resolve', fetch: 1, rows: [a] },
+      ],
+    },
+    {
+      name: '取得が終わった後の書き換えは、次の取得結果には適用しない',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'remove', uuids: [a.uuid] },
+        { type: 'reload' },
+        { type: 'resolve', fetch: 2, rows: [b, a] },
+      ],
+    },
+    {
+      name: '同じ uuid の保存の確定値は置き換える',
+      steps: [
+        { type: 'start' },
+        { type: 'resolve', fetch: 1, rows: [b, a] },
+        { type: 'saved', chat: { ...b, message: 'b2' } },
+      ],
+    },
+  ];
+  const cases = [];
+  for (const scenario of scenarios) {
+    cases.push({ ...scenario, expected: await runRoomLog(scenario.steps) });
+  }
+  return { initialLimit: INITIAL_CHAT_LOG_LIMIT, cases };
+}
+
+// --- Filter_List の操作（Web の ipFilterStore、.kiro/specs/chat-ip-mute） ---
+
+type FilterOp =
+  | { type: 'addIp'; ip: string; names: string[] }
+  | { type: 'addName'; name: string }
+  | { type: 'addWord'; word: string }
+  | { type: 'remove'; key: string }
+  | { type: 'clear' };
+
+/**
+ * Filter_List の読み込み（古い保存形式・壊れた値）と操作（重複・名前のまとめ方・上限）。Web の ipFilterStore に通して
+ * 期待値にする。保存先の localStorage は jsdom のもの
+ */
+function filterList() {
+  const key = 'yui-chat-muted-ips';
+  const parseCases: { name: string; raw: unknown }[] = [
+    { name: '種類を持つ前の形（IP の文字列だけ）', raw: ['1.2.3.*', '', '*', 7] },
+    {
+      name: '種類を持つ前の形（ip と names）',
+      raw: [{ ip: '1.2.3.*', names: ['a', 'a', 1, '', 'b'] }],
+    },
+    {
+      name: '3 種類と、使えない値',
+      raw: [
+        { kind: 'name', name: 'ゆい' },
+        { kind: 'name', name: '  ' },
+        { kind: 'word', word: '  ばか  ' },
+        { kind: 'word', word: '' },
+        { kind: 'other', ip: '1.2.3.*' },
+        { kind: 'ip', ip: '4.5.6.*', names: 'x' },
+      ],
+    },
+    {
+      name: '重複は最初のものを残す',
+      raw: [{ kind: 'name', name: 'a' }, { kind: 'name', name: 'a' }, '1.1.1.*'],
+    },
+    {
+      name: '長い言葉は上限まで',
+      raw: [{ kind: 'word', word: 'あ'.repeat(FILTER_WORD_MAX_LENGTH + 5) }],
+    },
+    {
+      name: '件数が上限を超えたら末尾を残す',
+      raw: Array.from({ length: FILTER_LIST_LIMIT + 3 }, (_, i) => ({
+        kind: 'name',
+        name: `n${i}`,
+      })),
+    },
+    {
+      name: '1 つの IP の名前は上限まで',
+      raw: [
+        { ip: '1.2.3.*', names: Array.from({ length: FILTER_NAMES_LIMIT + 2 }, (_, i) => `n${i}`) },
+      ],
+    },
+    { name: '配列でなければ空', raw: { ip: '1.2.3.*' } },
+  ];
+  const parse = parseCases.map(({ name, raw }) => {
+    localStorage.setItem(key, JSON.stringify(raw));
+    return { name, raw, expected: getFilterSnapshot() };
+  });
+
+  const scenarios: { name: string; ops: FilterOp[] }[] = [
+    {
+      name: '同じ IP に名前を足すと、まだない名前だけを前に足す',
+      ops: [
+        { type: 'addIp', ip: '1.2.3.*', names: ['a', 'b'] },
+        { type: 'addIp', ip: '1.2.3.*', names: ['c', 'a'] },
+        { type: 'addIp', ip: '1.2.3.*', names: ['a'] },
+      ],
+    },
+    {
+      name: '分からない IP は足さない',
+      ops: [
+        { type: 'addIp', ip: '*', names: ['a'] },
+        { type: 'addIp', ip: '', names: [] },
+      ],
+    },
+    {
+      name: '名前と言葉は重ねて足さず、言葉は整える',
+      ops: [
+        { type: 'addName', name: 'ゆい' },
+        { type: 'addName', name: 'ゆい' },
+        { type: 'addName', name: '  ' },
+        { type: 'addWord', word: '  ばか ' },
+        { type: 'addWord', word: 'ばか' },
+        { type: 'addWord', word: '   ' },
+      ],
+    },
+    {
+      name: '1 件ずつ外し、まとめて外す',
+      ops: [
+        { type: 'addIp', ip: '1.2.3.*', names: [] },
+        { type: 'addName', name: 'ゆい' },
+        { type: 'remove', key: 'ip:1.2.3.*' },
+        { type: 'remove', key: 'name:none' },
+        { type: 'addWord', word: 'x' },
+        { type: 'clear' },
+      ],
+    },
+    {
+      name: '上限を超えたら古いものから捨てる',
+      ops: Array.from({ length: FILTER_LIST_LIMIT + 2 }, (_, i) => ({
+        type: 'addName' as const,
+        name: `n${i}`,
+      })),
+    },
+  ];
+  const cases = scenarios.map(({ name, ops }) => {
+    localStorage.removeItem(key);
+    const expected = ops.map((op) => {
+      switch (op.type) {
+        case 'addIp':
+          addFilteredIp(op.ip, op.names);
+          break;
+        case 'addName':
+          addFilteredName(op.name);
+          break;
+        case 'addWord':
+          addFilteredWord(op.word);
+          break;
+        case 'remove':
+          removeFilter(op.key);
+          break;
+        case 'clear':
+          clearFilters();
+          break;
+      }
+      return getFilterSnapshot();
+    });
+    return { name, ops, expected };
+  });
+  localStorage.removeItem(key);
+  return { parse, cases };
+}
+
+/**
+ * 入室フォームの名前の検査（Web の validateName）。画面での先回りの検査で、最後の判定はサーバー（save-chat）。
+ * 画面は UTF-16 の単位で数えるので、コードポイントで数えるサーバーより厳しい
+ */
+function nameChecks() {
+  const names = [
+    'ゆい',
+    '',
+    '   ',
+    'あ'.repeat(NAME_MAX),
+    'あ'.repeat(NAME_MAX + 1),
+    '😀'.repeat(13),
+    ...RESERVED_NAMES,
+    ' 管理人 ',
+    '　',
+    // 予約名は NFKC にして空白と見えない文字を除いてから比べる（save-chat の isReservedName）
+    '管 理 人',
+    '管理⼈',
+    '管\u200B理人',
+    '巫\u3000女',
+    '\u2060巫女\uFE0F',
+    '管理人さん',
+  ];
+  return { cases: names.map((name) => ({ name, expected: validateName(name) })) };
 }
 
 function roomLogMerge() {
@@ -496,7 +1051,7 @@ function adminMessages() {
 }
 
 /** contracts/ に書き出す全ファイル。fixtures の日時は FIXTURE_TIME_ZONE で作ること（呼び出し側が TZ を合わせる） */
-export function buildContracts(themeCss: string): ContractFiles {
+export async function buildContracts(themeCss: string): Promise<ContractFiles> {
   const files: ContractFiles = {
     'rooms.json': rooms(),
     'directory.json': directory(),
@@ -508,7 +1063,11 @@ export function buildContracts(themeCss: string): ContractFiles {
     'fixtures/participants.json': participants(),
     'fixtures/optimistic.json': optimistic(),
     'fixtures/room-log-merge.json': roomLogMerge(),
+    'fixtures/room-log-events.json': await roomLogEvents(),
+    'fixtures/normalize-chat.json': normalizeChatRows(),
     'fixtures/filters.json': filters(),
+    'fixtures/name-checks.json': nameChecks(),
+    'fixtures/filter-list.json': filterList(),
     'fixtures/author-key.json': authorKey(),
     'fixtures/save-chat/input-checks.json': saveChatInputChecks(),
     'fixtures/save-chat/server-messages.json': adminMessages(),

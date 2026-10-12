@@ -51,6 +51,11 @@
     "tuki3",
     "tuki4"
   ],
+  "metadataKinds": [
+    "normal",
+    "fortune",
+    "admin"
+  ],
   "windowRowOptions": {
     "default": [
       30,
