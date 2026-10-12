@@ -501,3 +501,12 @@ Oracle はリポジトリの外に置く。
 | Two_Shot_Page のルートチャンク（gzip）                                       | 15 kB 以下                                        |
 | React Compiler で未コンパイルの関数（本機能）                                | 0                                                 |
 | 入室から Room_Screen が操作できるまで（Two_Shot_API の p95、東京リージョン） | 1 秒以内                                          |
+
+
+## 2026-10-12 ネイティブインタラクション改訂（R6）
+
+公開停止flagはfalseのまま維持する。close/kick/leaveは共通dialogで具体的な文言を確認し、取消を初期focus、確定した操作だけ一回Reducerへ渡す。seat/token/terminal・入室pending token・原作のE1等の通知フローは維持する。
+
+自動更新radioはfieldset/legendを持ち、変更をchange、選択済みの再押下をclickで一回扱う。RoomScreenのbusy guardを維持してpendingをdisabled/aria-busyへ公開する。入力focusは初回だけとし、受信更新で編集位置を奪わない。IME確定を送信しない。名前30/プロフィール50コードポイントの従来UI上限を維持し、HTML maxlengthのUTF-16単位差は2倍の安全上限とcustom validityで補う。requiredは追加せず通知経路を維持する。
+
+FrameLayoutは245px固定待合室と20%可変部屋を維持する。バー厚を除いたclamp計算を通常画面と共有し、primary pointer/右button除外/rAF取消/Home/End/実寸ARIAを整備する。coarse pointerでバー24px、縦240px以下はscroll stackへ切り替える。専用all:revertは共通native dialogを除外し、focus/forced colorsを専用スコープで明示する。NoticePageは見出しへfocusし、RoomListは短いstatusだけを通知する。

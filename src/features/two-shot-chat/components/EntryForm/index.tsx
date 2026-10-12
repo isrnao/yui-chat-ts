@@ -1,4 +1,4 @@
-import { startTransition } from 'react';
+import { startTransition, useEffect, useLayoutEffect, useEffectEvent, useRef } from 'react';
 import type { Sex } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { NAME_MAX } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG } from '../../config';
@@ -42,6 +42,30 @@ export default function EntryForm({
   action: (formData: FormData) => void | Promise<void>;
   homeHref: string;
 }) {
+  const nameRef = useRef<HTMLInputElement>(null);
+  const profileRef = useRef<HTMLInputElement>(null);
+  const preserve = useEffectEvent(() => {
+    const patch: Partial<EntryValues> = {};
+    if (nameRef.current && nameRef.current.value !== nameRef.current.defaultValue)
+      patch.name = nameRef.current.value;
+    if (profileRef.current && profileRef.current.value !== profileRef.current.defaultValue)
+      patch.profile = profileRef.current.value;
+    if (Object.keys(patch).length) onChange(patch);
+  });
+  useLayoutEffect(() => {
+    preserve();
+    if (document.activeElement === document.body) focusOnMount(nameRef.current);
+  }, []);
+  useEffect(() => {
+    nameRef.current?.setCustomValidity(
+      [...values.name].length > NAME_MAX ? '名前は30文字以内で入力してください。' : ''
+    );
+    profileRef.current?.setCustomValidity(
+      [...values.profile].length > TWO_SHOT_CONFIG.profileMaxLength
+        ? `プロフィールは${TWO_SHOT_CONFIG.profileMaxLength}文字以内で入力してください。`
+        : ''
+    );
+  }, [values.name, values.profile]);
   return (
     <div className="ts-doc">
       {/* Quirks モードでは、小さいリンクだけの行の高さに <h1> の大きい文字の高さを含めない。ts-line-quirk で合わせる */}
@@ -68,23 +92,26 @@ export default function EntryForm({
           name="chat_name"
           aria-label={TWO_SHOT_CONFIG.nameLabel}
           size={10}
-          maxLength={NAME_MAX}
+          maxLength={NAME_MAX * 2}
           value={values.name}
           onChange={(e) => onChange({ name: e.target.value })}
-          ref={focusOnMount}
+          ref={nameRef}
         />{' '}
-        {SEX_ORDER.map((sex) => (
-          <label key={sex}>
-            <input
-              type="radio"
-              name="sex"
-              value={sex}
-              checked={values.sex === sex}
-              onChange={() => onChange({ sex })}
-            />
-            <SexLabel sex={sex} />{' '}
-          </label>
-        ))}
+        <fieldset className="ts-sex-options">
+          <legend className="sr-only">性別</legend>
+          {SEX_ORDER.map((sex) => (
+            <label key={sex}>
+              <input
+                type="radio"
+                name="sex"
+                value={sex}
+                checked={values.sex === sex}
+                onChange={() => onChange({ sex })}
+              />
+              <SexLabel sex={sex} />{' '}
+            </label>
+          ))}
+        </fieldset>
         <select
           name="room"
           aria-label="部屋"
@@ -116,7 +143,8 @@ export default function EntryForm({
           name="mes"
           aria-label={TWO_SHOT_CONFIG.profileLabel}
           size={50}
-          maxLength={TWO_SHOT_CONFIG.profileMaxLength}
+          ref={profileRef}
+          maxLength={TWO_SHOT_CONFIG.profileMaxLength * 2}
           value={values.profile}
           onChange={(e) => onChange({ profile: e.target.value })}
         />

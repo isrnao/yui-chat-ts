@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../src/App.css';
+import TwoShotForm from '../../../src/features/two-shot-chat/components/ChatForm';
+import TwoShotFrame from '../../../src/features/two-shot-chat/components/FrameLayout';
+import type { AutoSeconds } from '../../../src/features/two-shot-chat/config';
 import TopPage from '../../../src/features/top/TopPage';
 import ChanariChatRoom from '../../../src/features/chanari-chat/components/ChanariChatRoom';
 import '../../../src/features/chanari-chat/styles/chanari.css';
@@ -24,6 +27,44 @@ const fixtureChats: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
   ip_masked: '10.*.*.1',
   ua: '',
 }));
+function TwoShotFixture() {
+  const [value, setValue] = useState('');
+  const [auto, setAuto] = useState<AutoSeconds>(0);
+  const [commands, setCommands] = useState(0);
+  const [radioChanges, setRadioChanges] = useState(0);
+  return (
+    <TwoShotFrame
+      initialTopPercent={20}
+      topLabel="入力画面"
+      bottomLabel="ログ"
+      top={
+        <TwoShotForm
+          roomName="検証室"
+          me={{ name: '検証', sex: 'M' }}
+          seat={0}
+          value={value}
+          onValueChange={setValue}
+          auto={auto}
+          onSay={() => {}}
+          onReload={() => {}}
+          onSetAuto={(next) => {
+            setAuto(next);
+            setRadioChanges((count) => count + 1);
+          }}
+          onClose={() => setCommands((count) => count + 1)}
+          onKick={() => setCommands((count) => count + 1)}
+          onLeave={() => setCommands((count) => count + 1)}
+        />
+      }
+      bottom={
+        <>
+          <output aria-label="専用操作回数">{commands}</output>
+          <output aria-label="radio変更回数">{radioChanges}</output>
+        </>
+      }
+    />
+  );
+}
 export function Components() {
   const filter = useIpFilter();
   const chanari = new URLSearchParams(location.search).has('chanari');
@@ -37,6 +78,7 @@ export function Components() {
   const [entered, setEntered] = useState(false);
   const [rows, setRows] = useState(30);
   const [sent, setSent] = useState('');
+  if (new URLSearchParams(location.search).has('two-shot')) return <TwoShotFixture />;
   if (new URLSearchParams(location.search).has('top')) return <TopPage />;
   return (
     <main className="h-dvh flex flex-col">

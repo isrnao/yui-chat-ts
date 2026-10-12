@@ -184,3 +184,32 @@ test('top counts distinguish failure from zero and readonly allows partial selec
     )
   ).toBe(6);
 });
+
+test('disabled-route two-shot components preserve confirmation and radio keyboard rules', async ({
+  page,
+}) => {
+  await page.goto('/tests/browser/fixtures/components.html?two-shot=1');
+  await page.getByRole('button', { name: '閉鎖', exact: true }).click();
+  const dialog = page.getByRole('alertdialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'やめる' })).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByLabel('専用操作回数')).toHaveText('0');
+  await page.getByRole('button', { name: '相手を退室', exact: true }).click();
+  await dialog.getByRole('button', { name: '実行する', exact: true }).click();
+  await expect(page.getByLabel('専用操作回数')).toHaveText('1');
+  await page.getByRole('radio', { name: 'なし', exact: true }).focus();
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('radio', { name: '自動(20秒)', exact: true })).toBeChecked();
+  await expect(page.getByLabel('radio変更回数')).toHaveText('1');
+  const splitter = page.getByRole('separator', { name: 'フレームの境界' });
+  await splitter.focus();
+  await page.keyboard.press('End');
+  expect(await splitter.getAttribute('aria-valuenow')).toBe(
+    await splitter.getAttribute('aria-valuemax')
+  );
+  await page.keyboard.press('Home');
+  expect(await splitter.getAttribute('aria-valuenow')).toBe(
+    await splitter.getAttribute('aria-valuemin')
+  );
+});

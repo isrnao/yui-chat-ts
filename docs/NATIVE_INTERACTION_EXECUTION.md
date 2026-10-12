@@ -59,3 +59,12 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R5b
 
 人数sourceにready/partial/failed/unavailableを設け、成功の0件と未取得を区別。UIでloading/前回値/取得時刻/明示retryを公開し、同じ指標をオンライン人数と扱わない。トップはfetchだけで取得しSupabase bundleを追加しない。旧辞書APIは互換adapterとして保持。ナビの現在地をaria-current CSSへ統一、nowrapを削除、紹介textareaの毎click全選択を除去。X loaderはpending Promiseを共有し、load/error/timeoutと明示retry、接続中vendor containerだけの初期化へ整理。Adringの専用DOM分離/空白を作らない既存方式を維持。参照を調べて旧.okiraku-*規則を削除、windowRowsは保存データ互換欄として明記して30初期値を維持。型・lint・Compiler・関連46 tests・contracts生成合格。
+
+
+## R6
+
+公開停止flagを維持した専用UIの独立改修。close/kick/leaveは共通dialogで具体的な操作を確認し、取消は通信なし・確定一回。RoomScreenのpending/terminalをUIへ公開、radioはfieldset/change＋選択済みclickでキーと再押下を一回扱う。IME/初回だけのfocus/コードポイントとUTF-16上限差を整備し、requiredでE1等を遮断しない。FrameLayoutは245px固定/20%可変を維持し、バー厚clampを共有、primary pointer/rAF取消/Home/End/実寸ARIA/coarse24px/極小高さstackを追加。all:revertからnative dialogを除外してfocus/forced colorsを専用指定、通知見出しfocus/一覧の短いstatusを追加。関連164 testsとCompiler/型/停止flag回帰合格。
+
+## 最終補完（R7、実装中）
+
+最終の網羅確認で、GIFのreduced motionはCSS animation停止だけでは成立しないため実際の非表示＋静的表記へ修正。popoverの任意開閉transitionとWordPickerのform/required、旧closeイベントのcounter消費と演出取消/cleanup例外も補完した。

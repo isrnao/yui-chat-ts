@@ -1,3 +1,4 @@
+import { splitterBounds } from '@shared/utils/splitterBounds';
 import { useId, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import type { ReactNode, KeyboardEvent, PointerEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
@@ -71,10 +72,8 @@ export default function RetroSplitter({
   });
   const bounds = (height: number, bar: number) => {
     if (height <= 0) return { min: 0, max: 100 };
-    const available = Math.max(0, height - bar);
-    const floor = Math.min(minTop, available / 2);
-    const ceiling = available - Math.min(minBottom, available / 2);
-    return { min: (floor / height) * 100, max: (ceiling / height) * 100 };
+    const { min, max } = splitterBounds(height, bar, minTop, minBottom);
+    return { min: (min / height) * 100, max: (max / height) * 100 };
   };
   const range = bounds(metrics.height, metrics.bar);
   const clamp = (value: number) => Math.max(range.min, Math.min(range.max, value));
