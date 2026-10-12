@@ -25,9 +25,13 @@ jobs:
 
       # 型情報を使うルール（no-floating-promises など）を含めて lint する
       # （.kiro/specs/react-2026-refactoring Requirement 11.3）
+      - name: Typecheck
+        run: pnpm typecheck
+
       - name: Lint
         run: pnpm lint
 
+      # 型・lint・全 Vitest（React Compiler の全ファイル検査を含む）の必須の確認はここだけで行う。
+      # browser.yml はブラウザのテストだけを走らせる
       - name: Run tests
         run: pnpm test
-        continue-on-error: true

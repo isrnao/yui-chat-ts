@@ -85,7 +85,7 @@ src/
 │   │   │   ├── ChanariColorPicker/  # index.tsx + Storybook story
 │   │   │   ├── ChanariCharCounter/  # index.tsx + Storybook story
 │   │   │   └── ChanariTopHeader/    # index.tsx + Storybook story
-│   │   ├── hooks/                   # useChanariSettings / useReloadInterval
+│   │   ├── hooks/                   # useChanariSettings
 │   │   ├── utils/                   # countChars / colorCode / draftStore / 各種 options
 │   │   └── styles/                  # Chanari 専用 scoped CSS
 │   └── top/                         # 旧トップページ機能
@@ -339,13 +339,14 @@ fetchRoomParticipantCounts()
 | フック               | 用途                                                                                                                                              | React API                                                 |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
 | `useRoomLog`         | Room_Log_Store（取得・購読・取り直し）を読み、楽観的更新を重ねる                                                                                  | `useSyncExternalStore`, `useOptimistic`, `useEffectEvent` |
-| `useChatSession`     | 入室・退室・送信・コマンド（部屋単位・全部屋まとめ共通）                                                                                          | `useState`（入室状態のみ）                                |
+| `useChatSession`     | 入室・退室・送信・コマンド（部屋単位・全部屋まとめ共通）                                                                                          | `useSyncExternalStore`（入室状態の小さな store）          |
 | `useChatIdentity`    | 名前・色・メール・アバター（永続化ストアの値を既定にする）                                                                                        | `useStoreBackedState`                                     |
 | `useParticipants`    | 参加者リスト導出                                                                                                                                  | `useDeferredValue`（メモ化は React Compiler）             |
 | `useNowMinute`       | 1 分境界で再評価する現在時刻                                                                                                                      | `useState`, `useEffect` (`setTimeout` + `setInterval`)    |
 | `useRoomCounts`      | トップ用ルーム別参加人数                                                                                                                          | `useState`, `useEffect`                                   |
 | `useChanariSettings` | Chanari の設定永続化                                                                                                                              | `useState`, `useEffect` (`localStorage`)                  |
-| `useReloadInterval`  | Chanari のリロード間隔タイマー                                                                                                                    | `useEffect`                                               |
+| `useVisibleInterval` | 表示中だけの定期実行（Chanari の切断時の取得・ツーショットの自動更新、`shared/hooks`）                                                            | `useEffect`, `useEffectEvent`                             |
+| `usePageReturn`      | ページへ戻ったときの通知（隠れていた時間・BFCache 復帰、`shared/hooks`）。`useRoomLog`・`useRoomCounts`・`useNowMinute` が使う                    | `useEffect`, `useEffectEvent`                             |
 | `useSEO`             | メタ・OGP・Twitter Card・canonical の動的更新 (title / description / og:image を変更すると og:_ / twitter:_ / canonical / structured data も追従) | `useEffect`                                               |
 
 ### 6.2 Room_Log_Store（`features/chat/api/roomLogStore.ts`）
@@ -513,7 +514,7 @@ type Chat = {
 - `/chanari/:roomId` 配下で動作。通常チャットと完全に分離した UI / 設定ストア
 - `localStorage` に設定（名前色・発言色・リロード秒数・フォントサイズ・効果）と下書きを永続化
 - `ChanariCharCounter` でメッセージ長を可視化
-- `useReloadInterval` で N 秒ごとに `loadChatLogs` を再取得
+- Realtime が切れている間だけ、`useVisibleInterval` で N 秒ごとにログを取り直す
 - `colorCode.ts` でユーザー入力色の正規化、`countChars.ts` で文字数算出
 - `ChanariChatRoom` / `ChanariEntryForm` / `ChanariColorPicker` / `ChanariCharCounter` / `ChanariTopHeader` は各フォルダ内に Storybook story を持ち、`chanari-scope` decorator で専用 CSS を適用して表示確認します。
 

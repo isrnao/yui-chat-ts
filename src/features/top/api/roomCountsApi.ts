@@ -156,9 +156,3 @@ export async function fetchRoomCountsResult(
     ...(anySuccess ? { asOf: Date.now() } : {}),
   };
 }
-/** 辞書を必要とする既存呼出用。公開UIはfetchRoomCountsResultで状態を読む。 */
-export async function fetchRoomParticipantCounts(
-  windowMs = 6 * 60 * 60 * 1000
-): Promise<RoomCountMap> {
-  return (await fetchRoomCountsResult(windowMs)).counts;
-}

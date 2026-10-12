@@ -24,6 +24,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm test` - Run all tests once
 - `pnpm watch:test` - Run tests in watch mode
 - `pnpm test:ui` - Run tests with UI interface
+- `pnpm test:browser` - Run Playwright browser tests (`tests/browser/`). Locally the preview server first runs
+  `build:prod` with the fixture env (`VITE_SUPABASE_URL=https://native-fixture.invalid`), overwriting `dist`
 - Tests include coverage reporting with 50% minimum threshold
 - Test files are located alongside source files (e.g., `Component.test.tsx`)
 
@@ -65,6 +67,27 @@ compiler. What is deliberately **kept**:
 - `memo()` on `ChatLogList` / `ChatMessage` (component-level bailout for the long list).
 
 Do not add _new_ manual memoization — let the compiler handle it.
+
+## Native interactions (HTML/CSS)
+
+Open/closed, pressed, focus and validity states are left to HTML/CSS; data, session and fetch state stay in React
+and stores (`docs/NATIVE_INTERACTION_EXECUTION.md`).
+
+- **Dialogs**: `features/chat/components/shared/ModalShell` wraps a native `<dialog>` opened with `showModal()`.
+  It is controlled only by `open`; Esc and backdrop clicks call `onCancel`. On close, focus goes to `returnFocus`
+  (if given), else the element focused when it opened, else the log root (`[data-chat-log-root]`). Buttons that
+  open a dialog focus themselves on click (Safari does not). There is no non-`<dialog>` fallback (the build
+  targets es2022). In Vitest, `src/test/setup.ts` adds `showModal` / `close` / Esc-cancel to jsdom and
+  `src/test/dialog.ts` has `pressBackdrop`.
+- **CSS**: `src/styles/interactions.css` keeps generic element rules (`:focus-visible`, `:user-invalid`, hover,
+  forced colors) in `@layer base` so Tailwind utilities can override them; only the reduced-motion rules stay
+  unlayered on purpose.
+- **Shared hooks** (`src/shared/hooks`): `usePageReturn` (page became visible again / BFCache restore, with the
+  time it was hidden — judge staleness by hidden time, not time since the last fetch), `useVisibleInterval`
+  (interval only while visible), `useSplitterDrag` (pointer-capture drag for `RetroSplitter` and the two-shot
+  `FrameLayout`).
+- **Status rows**: show status text only on failure (`RealtimeStatusNotice` for a disconnected Realtime, the top
+  page's count failure). Loading/connecting text would be in the SSG HTML and shift the layout when it disappears.
 
 ## Architecture Overview
 
