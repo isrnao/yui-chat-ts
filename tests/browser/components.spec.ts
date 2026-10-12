@@ -72,3 +72,46 @@ test('production fallback traps focus and cancels without invoking confirmation'
   await expect(dialog).not.toBeVisible();
   await expect(page.getByLabel('確定回数')).toHaveText('0');
 });
+
+test('1000 production rows share one action panel and reach filter/report by keyboard', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/tests/browser/fixtures/components.html');
+  await expect(page.locator('[data-message-actions]')).toHaveCount(1000);
+  await expect(page.locator('.message-action-panel')).toHaveCount(1);
+  const opener = page.getByRole('button', { name: '利用者0の発言への操作', exact: true });
+  await opener.focus();
+  await page.keyboard.press('Enter');
+  const panel = page.getByRole('group', { name: '発言への操作' });
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+  await panel.getByRole('button', { name: '名前をフィルタ', exact: true }).click();
+  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+  await opener.click();
+  await panel.getByRole('button', { name: '通報する', exact: true }).click();
+  await expect(
+    page.getByRole('dialog', { name: 'この発言を運営に通報しますか？', exact: true })
+  ).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(opener).toBeFocused();
+});
+test('popover unavailable keeps panel hidden and offers ordinary buttons', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+      value: undefined,
+      configurable: true,
+    });
+  });
+  await page.goto('/tests/browser/fixtures/components.html');
+  const panel = page.locator('.message-action-panel');
+  await expect(panel).not.toBeVisible();
+  await page.getByRole('button', { name: '利用者0の発言への操作', exact: true }).click();
+  await expect(panel).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(panel).not.toBeVisible();
+});

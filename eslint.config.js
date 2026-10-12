@@ -13,6 +13,8 @@ export default [
   {
     ignores: [
       'dist',
+      'playwright-report/**',
+      'test-results/**',
       'dist-ssr',
       'coverage',
       'docs',

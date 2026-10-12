@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../src/App.css';
+import ChatLogList from '../../../src/features/chat/components/ChatLogList';
+import { useIpFilter } from '../../../src/features/chat/hooks/useIpFilter';
+import type { Chat } from '../../../src/features/chat/types';
 import EntryForm from '../../../src/features/chat/components/EntryForm';
 import ChatRoom from '../../../src/features/chat/components/ChatRoom';
 import FilterConfirmDialog from '../../../src/features/chat/components/FilterConfirmDialog';
@@ -8,7 +11,17 @@ import FilterListDialog from '../../../src/features/chat/components/FilterListDi
 import { hasInvokerCommands, rememberDialogInvoker } from '../../../src/shared/utils/dialogControl';
 import RetroSplitter from '../../../src/features/chat/components/RetroSplitter';
 
+const fixtureChats: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
+  uuid: `fixture-${i}`,
+  name: `利用者${i}`,
+  message: 'こんにちは https://example.com',
+  color: '#000000',
+  time: Date.now(),
+  ip_masked: '10.*.*.1',
+  ua: '',
+}));
 export function Components() {
+  const filter = useIpFilter();
   const [confirm, setConfirm] = useState(false);
   const [request, setRequest] = useState(0);
   const [applied, setApplied] = useState(0);
@@ -90,6 +103,12 @@ export function Components() {
         bottom={
           <section aria-label="過去ログ">
             <p>過去ログ</p>
+            <ChatLogList
+              chatLog={fixtureChats}
+              windowRows={1000}
+              ipFilter={filter}
+              hideParticipants
+            />
             <output aria-label="送信結果">{sent}</output>
           </section>
         }

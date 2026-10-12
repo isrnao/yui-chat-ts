@@ -40,3 +40,8 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R2
 
 常設一覧をInvoker Commands/adapterへ、動的確認と通報をcommit後のshowModalへ移行。native経路の手動inert/Tab trap/Esc監視を除去し、旧経路を隔離。終了時の対象snapshot、取消優先focus、論理的な起点消失時のログfocusを保持。背景pointer開始とclickを照合して互換clickの誤取消を防止。通報をform化し、二重送信/例外/旧対象の遅延応答を処理。transitionは一回更新・所有者cleanup・元inline値復元・scroll枠計測へ整理。型・lint・Compiler・対象63 tests、production native/fallbackを含む24 browser tests合格。
+
+
+## R3
+
+通常/全部屋の確定行に名前付き操作buttonを追加し、名前/言葉/IPフィルタと直接通報を一つのpopoverへ接続。1,000行に1,000個のpopup内容を増やさず、panelは一つだけ。ダブルタップ/本文リンク/範囲選択/楽観行の禁止を維持。native autoのlight dismiss、CSS anchor＋狭い画面の固定配置、非対応時のhidden/外側操作/Escを独立実装。行消失・Activity終了でpopupを終了。関連33 tests/Compiler/型と32 browser tests合格。1,000button/1panelと320px内の配置を実ブラウザで検査。負荷の実機p75比較は未実施。

@@ -10,7 +10,8 @@ export function takeDialogInvoker(id: string): HTMLElement | null {
 export function hasInvokerCommands(): boolean {
   return (
     hasNativeDialog() &&
-    typeof HTMLButtonElement !== 'undefined' && 'commandForElement' in HTMLButtonElement.prototype
+    typeof HTMLButtonElement !== 'undefined' &&
+    'commandForElement' in HTMLButtonElement.prototype
   );
 }
 export function hasNativeDialog(): boolean {
