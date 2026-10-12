@@ -40,6 +40,7 @@
     "predeploy": "pnpm run build:prod",
     "deploy": "gh-pages -d dist",
     "test": "vitest run",
+    "contracts:export": "UPDATE_CONTRACTS=1 vitest run src/test/contracts.test.ts --coverage.enabled=false",
     "watch:test": "vitest",
     "test:ui": "vitest run --ui",
     "format": "prettier --write .",

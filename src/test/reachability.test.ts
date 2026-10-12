@@ -24,6 +24,8 @@ const ENTRIES = [
   'src/main.tsx',
   'src/entry-server.tsx',
   ...listFiles('scripts', false).filter((file) => file.endsWith('.ts')),
+  // contracts/ の生成元。エイリアスを使うソースを読むので scripts/ ではなく Vitest から呼ぶ（pnpm contracts:export）
+  'src/contracts/buildContracts.ts',
 ];
 const EXTENSIONS = ['', '.ts', '.tsx', '/index.ts', '/index.tsx'];
 const IMPORT_PATTERN =

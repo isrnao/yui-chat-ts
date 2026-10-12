@@ -1,0 +1,136 @@
+{
+  "windowMs": 300000,
+  "cases": [
+    {
+      "name": "直近 5 分と入退室",
+      "now": 1791717000000,
+      "log": [
+        {
+          "name": "ゆい",
+          "color": "#ff69b4",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa6-d8e0-7000-8000-000000000000",
+          "time": 1791716940000
+        },
+        {
+          "name": "管理人",
+          "color": "#ffffff",
+          "message": "ほしさん、またきておくれやすぅ。",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa5-ee80-7000-8000-000000000000",
+          "time": 1791716880000,
+          "system": true,
+          "metadata": {
+            "version": 1,
+            "avatar": "hoshi1",
+            "kind": "admin",
+            "userColor": "#0000ff",
+            "fontStyle": {
+              "bold": true
+            },
+            "event": "exit",
+            "subject": {
+              "name": "ほし",
+              "color": "#0000ff"
+            }
+          }
+        },
+        {
+          "name": "ほし",
+          "color": "#0000ff",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa5-0420-7000-8000-000000000000",
+          "time": 1791716820000
+        },
+        {
+          "name": "管理人",
+          "color": "#ffffff",
+          "message": "つき さん、Welcome to お気楽チャット☆",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa4-19c0-7000-8000-000000000000",
+          "time": 1791716760000,
+          "system": true,
+          "metadata": {
+            "version": 1,
+            "avatar": "hoshi1",
+            "kind": "admin",
+            "userColor": "#008000",
+            "fontStyle": {
+              "bold": true
+            },
+            "event": "enter",
+            "subject": {
+              "name": "つき",
+              "color": "#008000"
+            }
+          }
+        },
+        {
+          "name": "管理人",
+          "color": "#ffffff",
+          "message": "そら さん、Welcome to お気楽チャット☆",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa3-a490-7000-8000-000000000000",
+          "time": 1791716730000,
+          "system": true,
+          "metadata": {
+            "version": 1,
+            "kind": "admin",
+            "userColor": "navy"
+          }
+        },
+        {
+          "name": "むかし",
+          "color": "#808080",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa2-4500-7000-8000-000000000000",
+          "time": 1791716640000
+        },
+        {
+          "name": "巫女",
+          "color": "hotpink",
+          "message": "大吉で〜す。うまい話が転がり込んできます。仕事は早目に片付けて出かけましょう。＞ゆいさん",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-4e10-7000-8000-000000000000",
+          "time": 1791716970000,
+          "system": true,
+          "metadata": {
+            "version": 1,
+            "kind": "fortune",
+            "avatar": "miko1",
+            "fontStyle": {
+              "bold": true
+            }
+          }
+        }
+      ],
+      "expected": [
+        {
+          "uuid": "01a12aa3-a490-7000-8000-000000000000",
+          "name": "そら",
+          "color": "navy"
+        },
+        {
+          "uuid": "01a12aa4-19c0-7000-8000-000000000000",
+          "name": "つき",
+          "color": "#008000"
+        },
+        {
+          "uuid": "01a12aa6-d8e0-7000-8000-000000000000",
+          "name": "ゆい",
+          "color": "#ff69b4"
+        }
+      ]
+    }
+  ]
+}

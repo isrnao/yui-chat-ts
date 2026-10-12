@@ -1,0 +1,14 @@
+{
+  "admin": {
+    "name": "管理人",
+    "color": "#ffffff",
+    "avatar": "hoshi1"
+  },
+  "fortune": {
+    "name": "巫女",
+    "color": "hotpink",
+    "avatar": "miko1"
+  },
+  "enterTemplate": "{name} さん、Welcome to お気楽チャット☆",
+  "exitTemplate": "{name}さん、またきておくれやすぅ。"
+}

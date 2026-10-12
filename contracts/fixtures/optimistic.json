@@ -1,0 +1,172 @@
+{
+  "cases": [
+    {
+      "name": "確定行がまだ無いので重ねる",
+      "state": [
+        {
+          "name": "ほし",
+          "color": "#ff69b4",
+          "message": "やあ",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-bf58-7000-8000-000000000000",
+          "time": 1791716999000
+        }
+      ],
+      "chat": {
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "message": "こんにちは",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "temp-1",
+        "time": 1823253000000,
+        "client_time": 1791717000000,
+        "optimistic": true,
+        "metadata": {
+          "version": 1,
+          "optimisticNonce": "nonce-1"
+        }
+      },
+      "expectedUuids": [
+        "temp-1",
+        "01a12aa7-bf58-7000-8000-000000000000"
+      ]
+    },
+    {
+      "name": "同じ nonce の確定行があるので重ねない",
+      "state": [
+        {
+          "name": "ゆい",
+          "color": "#ff69b4",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-c340-7000-8000-000000000000",
+          "time": 1791717000000,
+          "metadata": {
+            "version": 1,
+            "optimisticNonce": "nonce-1"
+          }
+        },
+        {
+          "name": "ほし",
+          "color": "#ff69b4",
+          "message": "やあ",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-bf58-7000-8000-000000000000",
+          "time": 1791716999000
+        }
+      ],
+      "chat": {
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "message": "こんにちは",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "temp-1",
+        "time": 1823253000000,
+        "client_time": 1791717000000,
+        "optimistic": true,
+        "metadata": {
+          "version": 1,
+          "optimisticNonce": "nonce-1"
+        }
+      },
+      "expectedUuids": [
+        "01a12aa7-c340-7000-8000-000000000000",
+        "01a12aa7-bf58-7000-8000-000000000000"
+      ]
+    },
+    {
+      "name": "nonce の無い古い行は client_time と中身で比べる",
+      "state": [
+        {
+          "name": "ゆい",
+          "color": "#ff69b4",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-c340-7000-8000-000000000000",
+          "time": 1791717000000,
+          "metadata": {
+            "version": 1
+          },
+          "client_time": 1791717000000
+        },
+        {
+          "name": "ほし",
+          "color": "#ff69b4",
+          "message": "やあ",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-bf58-7000-8000-000000000000",
+          "time": 1791716999000
+        }
+      ],
+      "chat": {
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "message": "こんにちは",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "temp-1",
+        "time": 1823253000000,
+        "client_time": 1791717000000,
+        "optimistic": true,
+        "metadata": {
+          "version": 1
+        }
+      },
+      "expectedUuids": [
+        "01a12aa7-c340-7000-8000-000000000000",
+        "01a12aa7-bf58-7000-8000-000000000000"
+      ]
+    },
+    {
+      "name": "同じ uuid は置き換える",
+      "state": [
+        {
+          "name": "ゆい",
+          "color": "#ff69b4",
+          "message": "こんにちは",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-c340-7000-8000-000000000000",
+          "time": 1791717000000,
+          "metadata": {
+            "version": 1,
+            "optimisticNonce": "nonce-1"
+          }
+        },
+        {
+          "name": "ほし",
+          "color": "#ff69b4",
+          "message": "やあ",
+          "ip_masked": "",
+          "ua": "",
+          "uuid": "01a12aa7-bf58-7000-8000-000000000000",
+          "time": 1791716999000
+        }
+      ],
+      "chat": {
+        "name": "ゆい",
+        "color": "#ff69b4",
+        "message": "直した",
+        "ip_masked": "",
+        "ua": "",
+        "uuid": "01a12aa7-c340-7000-8000-000000000000",
+        "time": 1791717000000,
+        "metadata": {
+          "version": 1,
+          "optimisticNonce": "nonce-1"
+        }
+      },
+      "expectedUuids": [
+        "01a12aa7-c340-7000-8000-000000000000",
+        "01a12aa7-bf58-7000-8000-000000000000"
+      ]
+    }
+  ]
+}
