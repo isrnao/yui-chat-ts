@@ -1,24 +1,7 @@
 // Web Audio API を利用した音声再生モジュール
 // lookコマンドの通知音（rin.mp3 / rin.webm）を再生する
 
-let muted = false;
 let playbackEpoch = 0;
-const listeners = new Set<() => void>();
-const changed = () => {
-  for (const listener of listeners) listener();
-};
-export const subscribeAudio = (listener: () => void) => {
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-  };
-};
-export const isAudioMuted = () => muted;
-export function setAudioMuted(value: boolean): void {
-  muted = value;
-  if (value) stopNotificationSound();
-  changed();
-}
 let audioContext: AudioContext | null = null;
 let audioBuffer: AudioBuffer | null = null;
 let currentSource: AudioBufferSourceNode | null = null;
@@ -47,8 +30,6 @@ function selectSoundUrl(): string {
 function getAudioContext(): AudioContext {
   if (audioContext == null) {
     audioContext = new AudioContext();
-    audioContext.addEventListener?.('statechange', changed);
-    changed();
   }
   return audioContext;
 }
@@ -86,7 +67,6 @@ async function loadAudioBuffer(): Promise<AudioBuffer> {
  * エラーはキャッチしてログ出力のみ行い、チャット機能を妨げない。
  */
 export async function playNotificationSound(): Promise<void> {
-  if (muted) return;
   stopNotificationSound();
   const epoch = playbackEpoch;
   try {
@@ -97,7 +77,7 @@ export async function playNotificationSound(): Promise<void> {
     }
     const buffer = await loadAudioBuffer();
 
-    if (muted || epoch !== playbackEpoch) return;
+    if (epoch !== playbackEpoch) return;
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -158,7 +138,6 @@ export async function unlockAudio(): Promise<void> {
         );
       }),
     ]);
-    changed();
   } catch (err) {
     console.warn('[webAudioPlayer] AudioContext の有効化に失敗しました:', err);
   } finally {

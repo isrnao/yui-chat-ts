@@ -7,7 +7,6 @@ import type { AutoSeconds } from '../../../src/features/two-shot-chat/config';
 import TopPage from '../../../src/features/top/TopPage';
 import ChanariChatRoom from '../../../src/features/chanari-chat/components/ChanariChatRoom';
 import '../../../src/features/chanari-chat/styles/chanari.css';
-import SoundControls from '../../../src/features/chat/components/SoundControls';
 import ChatLogList from '../../../src/features/chat/components/ChatLogList';
 import { useIpFilter } from '../../../src/features/chat/hooks/useIpFilter';
 import type { Chat } from '../../../src/features/chat/types';
@@ -92,7 +91,6 @@ export function Components() {
       >
         確認を開く
       </button>
-      <SoundControls />
       <output aria-label="確定回数">{applied}</output>
       <FilterConfirmDialog
         dialogId="fixture-confirm"

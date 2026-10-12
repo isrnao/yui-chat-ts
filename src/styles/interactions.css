@@ -102,42 +102,6 @@
   }
 }
 
-.message-action-panel {
-  position: fixed;
-  inset: auto 8px 8px auto;
-  margin: 0;
-  z-index: 40;
-  max-inline-size: calc(100vw - 16px);
-  max-block-size: calc(100dvh - 16px);
-  overflow: auto;
-  background: var(--color-ie-bg, #efefef);
-  color: #222;
-  padding: 8px;
-  border: 2px outset #ccc;
-}
-.message-action-panel button {
-  display: block;
-  inline-size: 100%;
-  padding: 6px;
-  text-align: start;
-}
-.message-action-panel[hidden] {
-  display: none;
-}
-@supports (position-area: block-end) and (position-try-fallbacks: flip-block) {
-  .message-action-panel[popover] {
-    inset: auto;
-    position-area: block-end span-inline-start;
-    position-try-fallbacks: flip-block, flip-inline;
-  }
-}
-@media (max-width: 480px) {
-  .message-action-panel[popover] {
-    position-area: none;
-    inset: auto 8px 8px auto;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .look-decoration {
     display: none;
@@ -167,28 +131,5 @@
 @media (prefers-reduced-motion: reduce) {
   .avatar-still {
     display: inline;
-  }
-}
-
-@supports selector(:popover-open) {
-  .message-action-panel[popover] {
-    opacity: 0;
-    transition:
-      opacity 120ms,
-      display 120ms allow-discrete,
-      overlay 120ms allow-discrete;
-  }
-  .message-action-panel:popover-open {
-    opacity: 1;
-  }
-  @starting-style {
-    .message-action-panel:popover-open {
-      opacity: 0;
-    }
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .message-action-panel[popover] {
-    transition: none;
   }
 }

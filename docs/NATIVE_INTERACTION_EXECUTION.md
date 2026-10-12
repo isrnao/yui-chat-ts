@@ -19,6 +19,7 @@
 | R5b  | 実装済み・自動検証（手動ゲートは末尾） | [#229](https://github.com/isrnao/yui-chat-ts/pull/229) / トップ/人数/widget     |
 | R6   | 実装済み・自動検証（手動ゲートは末尾） | [#230](https://github.com/isrnao/yui-chat-ts/pull/230) / 停止中専用2shot        |
 | R7   | 実装済み・自動検証（手動ゲートは末尾） | [#231](https://github.com/isrnao/yui-chat-ts/pull/231) / 最終補完/採用記録      |
+| R8   | 実装済み・自動検証（手動ゲートは末尾） | 追加UIの撤去（下記「R8」）                                                      |
 
 実ブラウザの結果と、実機でしか確認できない項目を区別して追記する。新機能計画F01〜F11の未実装機能は今回の58項目の実装と分離する。
 
@@ -45,6 +46,10 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R3
 
 通常/全部屋の確定行に名前付き操作buttonを追加し、名前/言葉/IPフィルタと直接通報を一つのpopoverへ接続。1,000行に1,000個のpopup内容を増やさず、panelは一つだけ。ダブルタップ/本文リンク/範囲選択/楽観行の禁止を維持。native autoのlight dismiss、CSS anchor＋狭い画面の固定配置、非対応時のhidden/外側操作/Escを独立実装。行消失・Activity終了でpopupを終了。関連33 tests/Compiler/型と32 browser tests合格。1,000button/1panelと320px内の配置を実ブラウザで検査。負荷の実機p75比較は未実施。
+
+## R8
+
+R3の発言ごとの「操作」button/popover（C09/C10）と、R4bの「通知音を有効にする」「通知音をミュート」（A13の表示部分）を撤去した。どちらもCSS/HTMLへの移行ではなく画面への機能追加だったため。フィルタ・通報は従来どおり行のダブルタップ → 確認dialog（「通報する」）で到達する。通知音は従来どおりユーザー操作内の再生時にAudioContextをresumeする。look/unlookの共通parser、unlook後に遅れたdecodeを鳴らさない処理、resumeの時間上限、接続状態の表示は維持。browser testsはダブルタップ経由のフィルタ・通報・focus復帰へ置き換えた。
 
 ## R4b
 
@@ -82,8 +87,8 @@ Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操�
 | C06    | R1/R4a       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | C07    | R4a          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | C08    | R4b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
-| C09    | R3           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
-| C10    | R3           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| C09    | R3/R8        | R8で撤去 / 既存のダブルタップ導線を維持                       |
+| C10    | R3/R8        | R8で撤去 / C09の撤去に伴い不要                                |
 | C11    | R1/R2/R7     | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | C12    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | C13    | R2/R7        | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
@@ -127,7 +132,7 @@ Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操�
 | A10    | R1           | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | A11    | R5a/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | A12    | R4c/R4b      | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
-| A13    | R4b/R7       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
+| A13    | R4b/R7/R8    | R8で許可・ミュートUIを撤去 / 他は維持                         |
 | A14    | R5b          | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | A15    | R1/R5b       | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |
 | A16    | R0/R4b/R7    | 実装済み / 関連Vitest・Compiler・ブラウザ。環境別ゲートは下記 |

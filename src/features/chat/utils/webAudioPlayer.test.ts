@@ -5,7 +5,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.resetModules();
 });
-it('unlook/mute後にdecodeが完了しても古い音を開始しない', async () => {
+it('unlook後にdecodeが完了しても古い音を開始しない', async () => {
   vi.resetModules();
   const source = { buffer: null, connect: vi.fn(), start: vi.fn(), stop: vi.fn(), onended: null };
   let decode!: (buffer: object) => void;
@@ -36,9 +36,6 @@ it('unlook/mute後にdecodeが完了しても古い音を開始しない', async
   player.stopNotificationSound();
   decode({});
   await sound;
-  expect(source.start).not.toHaveBeenCalled();
-  player.setAudioMuted(true);
-  await player.playNotificationSound();
   expect(source.start).not.toHaveBeenCalled();
 });
 

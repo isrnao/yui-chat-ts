@@ -14,8 +14,6 @@ import {
 import type { FilterRequest } from '@features/chat/utils/filterRequest';
 import { tapHaptic } from '@features/chat/utils/haptics';
 import { nameRowsInView, runFilterTransition } from '@features/chat/utils/filterTransition';
-import MessageActions from '../MessageActions';
-import type { MessageActionTarget } from '../MessageActions';
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
@@ -124,10 +122,6 @@ function ChatLogList({
   const [reporting, setReporting] = useState<string | null>(null);
   // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
   const listRef = useRef<HTMLDivElement>(null);
-  const actionsId = useId();
-  const [actionTarget, setActionTarget] = useState<MessageActionTarget | null>(null);
-  const openActions = (chat: Chat, row: HTMLElement, button: HTMLButtonElement) =>
-    setActionTarget({ chat, row, button });
   const filterDialogId = useId();
   const reportDialogId = useId();
   const displayPending = useRetainedValue(pending);
@@ -137,12 +131,7 @@ function ChatLogList({
     0;
   const requestFilter = (request: FilterRequest) => {
     const { chatUuid } = request;
-    rememberDialogInvoker(
-      filterDialogId,
-      request.row.querySelector<HTMLElement>('[data-message-actions]') ??
-        listRef.current ??
-        request.row
-    );
+    rememberDialogInvoker(filterDialogId, listRef.current ?? request.row);
     if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip, chatUuid });
     else if (request.kind === 'name') setPending({ kind: 'name', name: request.name, chatUuid });
     else setPending({ kind: 'word', message: request.message, word: request.selected, chatUuid });
@@ -215,25 +204,10 @@ function ChatLogList({
             onRoomClick={onRoomClick}
             deferOffscreen={deferOffscreen}
             onFilterRequest={ipFilter && isMutableRow(c) ? requestFilter : undefined}
-            actionPopoverId={ipFilter ? actionsId : undefined}
-            onActions={ipFilter && isMutableRow(c) ? openActions : undefined}
           />
           <Divider />
         </Fragment>
       ))}
-      {ipFilter && (
-        <MessageActions
-          id={actionsId}
-          target={actionTarget}
-          visible={!!actionTarget && chats.some((chat) => chat.uuid === actionTarget.chat.uuid)}
-          onDismiss={() => setActionTarget(null)}
-          onFilter={requestFilter}
-          onReport={(uuid, button) => {
-            rememberDialogInvoker(reportDialogId, button);
-            setReporting(uuid);
-          }}
-        />
-      )}
       {displayPending !== null && (
         <FilterConfirmDialog
           open={pending !== null}

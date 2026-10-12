@@ -5,7 +5,6 @@ import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLog
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
 import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
-import SoundControls from '@features/chat/components/SoundControls';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
@@ -86,16 +85,13 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
-      <div className="px-[var(--page-gap)] text-xs">
-        {realtimeStatus !== 'connected' && (
-          <span role="status">
-            {realtimeStatus === 'disconnected'
-              ? '接続が切れています。更新でログを取得できます。'
-              : '接続中…'}
-          </span>
-        )}
-        <SoundControls />
-      </div>
+      {realtimeStatus !== 'connected' && (
+        <div className="px-[var(--page-gap)] text-xs" role="status">
+          {realtimeStatus === 'disconnected'
+            ? '接続が切れています。更新でログを取得できます。'
+            : '接続中…'}
+        </div>
+      )}
       <RetroSplitter
         minTop={100}
         minBottom={100}

@@ -29,8 +29,6 @@ type Props = {
    * 押せば言葉、それ以外は伏せ字の IP のフィルタになる。ChatLogList がフィルタの起点にできる行（Mutable_Row）にだけ
    * 渡す。全行で同じ関数なので memo は崩れない
    */
-  actionPopoverId?: string;
-  onActions?: (chat: Chat, row: HTMLElement, button: HTMLButtonElement) => void;
   onFilterRequest?: (request: FilterRequest) => void;
 };
 
@@ -219,10 +217,8 @@ function AdminMessage({
   onRoomClick,
   rowProps,
   filterable,
-  actions,
 }: Pick<Props, 'chat' | 'showRoomName' | 'onRoomClick'> & {
   rowProps: RowProps;
-  actions?: React.ReactNode;
   /** 入室者の名前をダブルタップで名前のフィルタにするか */
   filterable?: boolean;
 }) {
@@ -277,20 +273,11 @@ function AdminMessage({
         </>
       )}
       <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
-      {actions}
     </div>
   );
 }
 
-function ChatMessage({
-  chat,
-  showRoomName,
-  onRoomClick,
-  deferOffscreen,
-  onFilterRequest,
-  actionPopoverId,
-  onActions,
-}: Props) {
+function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilterRequest }: Props) {
   const filterable = onFilterRequest !== undefined;
   const doubleTap = useDoubleTap({
     enabled: filterable,
@@ -313,23 +300,6 @@ function ChatMessage({
       }
     : { className: rowClassName(deferOffscreen), [ROW_UUID_ATTR]: chat.uuid };
 
-  const actions =
-    onActions && !chat.optimistic ? (
-      <button
-        type="button"
-        data-message-actions=""
-        className="message-actions ml-2 text-xs underline"
-        aria-label={`${chat.name}の発言への操作`}
-        popoverTarget={actionPopoverId}
-        popoverTargetAction="show"
-        onClick={(event) => {
-          const row = event.currentTarget.closest<HTMLElement>(`[${ROW_UUID_ATTR}]`);
-          if (row) onActions(chat, row, event.currentTarget);
-        }}
-      >
-        操作
-      </button>
-    ) : null;
   if (chat.metadata?.kind === 'admin') {
     return (
       <AdminMessage
@@ -338,7 +308,6 @@ function ChatMessage({
         onRoomClick={onRoomClick}
         rowProps={rowProps}
         filterable={filterable}
-        actions={actions}
       />
     );
   }
@@ -397,7 +366,6 @@ function ChatMessage({
         />
       )}
       <TimeStamp chat={chat} showRoomName={showRoomName} onRoomClick={onRoomClick} />
-      {actions}
     </div>
   );
 }

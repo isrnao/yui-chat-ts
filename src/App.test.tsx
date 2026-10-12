@@ -32,9 +32,6 @@ vi.mock('@features/chat/api/realtime', () => ({
 vi.mock('@features/chat/utils/webAudioPlayer', () => ({
   playNotificationSound: vi.fn(),
   stopNotificationSound: vi.fn(),
-  subscribeAudio: () => () => {},
-  isAudioMuted: () => false,
-  setAudioMuted: vi.fn(),
   isAudioUnlocked: vi.fn().mockReturnValue(false),
   unlockAudio: vi.fn(),
 }));

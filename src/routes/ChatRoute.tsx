@@ -12,7 +12,6 @@ import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLog
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
 import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
-import SoundControls from '@features/chat/components/SoundControls';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -124,16 +123,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
-      <div className="px-[var(--page-gap)] text-xs">
-        {realtimeStatus !== 'connected' && (
-          <span role="status">
-            {realtimeStatus === 'disconnected'
-              ? '接続が切れています。更新でログを取得できます。'
-              : '接続中…'}
-          </span>
-        )}
-        <SoundControls />
-      </div>
+      {realtimeStatus !== 'connected' && (
+        <div className="px-[var(--page-gap)] text-xs" role="status">
+          {realtimeStatus === 'disconnected'
+            ? '接続が切れています。更新でログを取得できます。'
+            : '接続中…'}
+        </div>
+      )}
       <RetroSplitter
         bottomScrollable={false}
         minTop={100}

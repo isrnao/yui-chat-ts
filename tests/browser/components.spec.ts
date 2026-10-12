@@ -73,65 +73,24 @@ test('production fallback traps focus and cancels without invoking confirmation'
   await expect(page.getByLabel('確定回数')).toHaveText('0');
 });
 
-test('1000 production rows share one action panel and reach filter/report by keyboard', async ({
-  page,
-}) => {
+test('1000 production rows reach filter and report by double-tap', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/tests/browser/fixtures/components.html');
-  await expect(page.locator('[data-message-actions]')).toHaveCount(1000);
-  await expect(page.locator('.message-action-panel')).toHaveCount(1);
-  const opener = page.getByRole('button', { name: '利用者0の発言への操作', exact: true });
-  await opener.focus();
-  await page.keyboard.press('Enter');
-  const panel = page.getByRole('group', { name: '発言への操作' });
-  await expect(panel).toBeVisible();
-  const box = await panel.boundingBox();
-  expect(box!.x).toBeGreaterThanOrEqual(0);
-  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
-  await panel.getByRole('button', { name: '名前をフィルタ', exact: true }).click();
-  await expect(page.getByRole('alertdialog')).toBeVisible();
+  await expect(page.locator('[data-chat-uuid]')).toHaveCount(1000);
+  const name = page.locator('[data-chat-uuid="fixture-0"] [data-filter-target="name"]');
+  await name.dblclick();
+  const confirm = page.getByRole('alertdialog');
+  await expect(confirm).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(opener).toBeFocused();
-  await opener.click();
-  await panel.getByRole('button', { name: '通報する', exact: true }).click();
+  await expect(confirm).not.toBeVisible();
+  await expect(page.getByTestId('chat-log-list')).toBeFocused();
+  await name.dblclick();
+  await confirm.getByRole('button', { name: '通報する', exact: true }).click();
   await expect(
     page.getByRole('dialog', { name: 'この発言を運営に通報しますか？', exact: true })
   ).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(opener).toBeFocused();
-});
-test('popover unavailable keeps panel hidden and offers ordinary buttons', async ({ page }) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(HTMLElement.prototype, 'showPopover', {
-      value: undefined,
-      configurable: true,
-    });
-  });
-  await page.goto('/tests/browser/fixtures/components.html');
-  const panel = page.locator('.message-action-panel');
-  await expect(panel).not.toBeVisible();
-  await page.getByRole('button', { name: '利用者0の発言への操作', exact: true }).click();
-  await expect(panel).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(panel).not.toBeVisible();
-});
-
-test('audio activation is explicit and separate from mute', async ({ page }) => {
-  await page.goto('/tests/browser/fixtures/components.html');
-  await page.getByRole('button', { name: '通知音を有効にする', exact: true }).click();
-  const enabled = page.getByRole('button', { name: '通知音の再生が可能です', exact: true });
-  const failed = page.getByText('音声を有効にできませんでした。もう一度お試しください。', {
-    exact: true,
-  });
-  // 音声デバイスを持たないrunnerではAPIが失敗する。成功と失敗回復の双方を契約として検査する。
-  await expect(enabled.or(failed)).toBeVisible();
-  if (await enabled.isVisible()) await expect(enabled).toBeDisabled();
-  else
-    await expect(
-      page.getByRole('button', { name: '通知音を有効にする', exact: true })
-    ).toBeEnabled();
-  await page.getByLabel('通知音をミュート').check();
-  await expect(page.getByLabel('通知音をミュート')).toBeChecked();
+  await expect(page.getByTestId('chat-log-list')).toBeFocused();
 });
 test('reduced motion hides animated decoration and very short viewport preserves controls', async ({
   page,
@@ -225,26 +184,6 @@ test('disabled-route two-shot components preserve confirmation and radio keyboar
   );
 });
 
-test('unresolved audio activation returns to a retryable failure', async ({ page }) => {
-  await page.addInitScript(() => {
-    class PendingAudioContext extends EventTarget {
-      state = 'suspended';
-      resume() {
-        return new Promise<void>(() => {});
-      }
-    }
-    Object.defineProperty(window, 'AudioContext', { value: PendingAudioContext });
-  });
-  await page.goto('/tests/browser/fixtures/components.html');
-  await page.getByRole('button', { name: '通知音を有効にする', exact: true }).click();
-  await expect(
-    page.getByText('音声を有効にできませんでした。もう一度お試しください。', { exact: true })
-  ).toBeVisible();
-  await expect(page.getByRole('button', { name: '通知音を有効にする', exact: true })).toBeEnabled();
-  await page.getByLabel('通知音をミュート').check();
-  await expect(page.getByLabel('通知音をミュート')).toBeChecked();
-});
-
 test('fallback returns focus to the log when filtering removes its invoker', async ({ page }) => {
   await page.addInitScript(() =>
     Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
@@ -253,14 +192,8 @@ test('fallback returns focus to the log when filtering removes its invoker', asy
     })
   );
   await page.goto('/tests/browser/fixtures/components.html');
-  await page.getByRole('button', { name: '利用者0の発言への操作', exact: true }).click();
-  await page
-    .getByRole('group', { name: '発言への操作' })
-    .getByRole('button', { name: '名前をフィルタ', exact: true })
-    .click();
+  await page.locator('[data-chat-uuid="fixture-0"] [data-filter-target="name"]').dblclick();
   await page.getByRole('alertdialog').getByTestId('filter-confirm-haptic-switch').click();
-  await expect(
-    page.getByRole('button', { name: '利用者0の発言への操作', exact: true })
-  ).toHaveCount(0);
+  await expect(page.locator('[data-chat-uuid="fixture-0"]')).toHaveCount(0);
   await expect(page.getByTestId('chat-log-list')).toBeFocused();
 });
