@@ -20,6 +20,7 @@ import { DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 import './styles/chanari.css';
+import { CHANARI_TEXTS } from './chanariTexts';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -29,7 +30,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   // 向けて評価を集約する (sitemap 除外と同じ canonical 化方針。
   // .kiro/specs/seo-improvement design §3)。従来は index.html の canonical "/" を
   // 引き継ぎ「トップの複製」を自己申告する状態だった (SEO-02)
-  const pageTitle = buildPageTitle(`${room.title}（なりきり）`);
+  const pageTitle = buildPageTitle(`${room.title}${CHANARI_TEXTS.titleSuffix}`);
   useSEO({
     title: pageTitle,
     description: room.description,
@@ -93,7 +94,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               backHref={import.meta.env.BASE_URL}
               title={room.title}
               description={room.description}
-              sloganLabel="ヽ(。д。)ﾉ常連さん募集中～！"
+              sloganLabel={CHANARI_TEXTS.slogan}
             />
             {entered ? (
               <ChanariChatRoom

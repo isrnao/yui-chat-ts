@@ -2,6 +2,7 @@
   "contractsVersion": 1,
   "fixtureTimeZone": "Asia/Tokyo",
   "files": [
+    "chanari.json",
     "chat-options.json",
     "chat-texts.json",
     "directory.json",

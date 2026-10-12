@@ -1,0 +1,243 @@
+{
+  "texts": {
+    "backToTop": "お気楽チャットトップへ",
+    "backToNarikiri": "なりきりチャットにもどる",
+    "help": "ヘルプ",
+    "slogan": "ヽ(。д。)ﾉ常連さん募集中～！",
+    "titleSuffix": "（なりきり）",
+    "name": "おなまえ",
+    "nameColor": "名前色",
+    "speechColor": "発言色",
+    "nameColorPicker": "名前色ピッカー",
+    "speechColorPicker": "発言色ピッカー",
+    "enter": "チャットに参加する",
+    "reloadSeconds": "リロード秒",
+    "effect": "エフェクト",
+    "fontSize": "文字サイズ",
+    "disableEffect": "エフェクト無効",
+    "message": "発言",
+    "charCount": "文字",
+    "overLimit": "文字数オーバー",
+    "send": "チャットで発言する",
+    "reload": "更新",
+    "restore": "発言復元",
+    "clearLogs": "ログ消去",
+    "clearFailed": "ログを消去できませんでした。時間をおいてもう一度お試しください。",
+    "atField": "AT フィールド",
+    "exit": "チャットから退室する"
+  },
+  "effects": [
+    {
+      "id": "none",
+      "label": "エフェクトの選択"
+    },
+    {
+      "id": "bg-black",
+      "label": "黒背景"
+    },
+    {
+      "id": "bg-white",
+      "label": "白背景"
+    },
+    {
+      "id": "bg-orange",
+      "label": "橙背景"
+    },
+    {
+      "id": "bg-yellow",
+      "label": "黄背景"
+    },
+    {
+      "id": "bg-green",
+      "label": "緑背景"
+    },
+    {
+      "id": "bg-aqua",
+      "label": "水背景"
+    },
+    {
+      "id": "bg-blue",
+      "label": "青背景"
+    },
+    {
+      "id": "bg-purple",
+      "label": "紫背景"
+    },
+    {
+      "id": "bg-pink",
+      "label": "桃背景"
+    },
+    {
+      "id": "grad-white-pink",
+      "label": "グラデ白〜桃"
+    },
+    {
+      "id": "shadow-gray-1",
+      "label": "影1(灰)"
+    },
+    {
+      "id": "shadow-gray-2",
+      "label": "影2(灰)"
+    },
+    {
+      "id": "flip-h",
+      "label": "左右反転"
+    },
+    {
+      "id": "flip-v",
+      "label": "上下反転"
+    },
+    {
+      "id": "wave-slow",
+      "label": "WAVE(緩)"
+    },
+    {
+      "id": "wave-mid",
+      "label": "WAVE(中)"
+    },
+    {
+      "id": "wave-fast",
+      "label": "WAVE(激)"
+    },
+    {
+      "id": "wave-dirty",
+      "label": "WAVE(汚)"
+    },
+    {
+      "id": "blur-soft",
+      "label": "BLUR(陰影)"
+    },
+    {
+      "id": "blur-haze",
+      "label": "BLUR(霞)"
+    },
+    {
+      "id": "x-ray",
+      "label": "X-線(謎)"
+    },
+    {
+      "id": "mask",
+      "label": "マスク"
+    },
+    {
+      "id": "invert",
+      "label": "色反転"
+    },
+    {
+      "id": "mosaic",
+      "label": "モザイク"
+    },
+    {
+      "id": "emboss",
+      "label": "凸"
+    },
+    {
+      "id": "intaglio",
+      "label": "凹"
+    }
+  ],
+  "fontSizes": [
+    {
+      "id": "default",
+      "label": "文字サイズ"
+    },
+    {
+      "id": "px-6",
+      "label": "6px"
+    },
+    {
+      "id": "px-7",
+      "label": "7px"
+    },
+    {
+      "id": "px-8",
+      "label": "8px"
+    },
+    {
+      "id": "px-9",
+      "label": "9px"
+    },
+    {
+      "id": "px-10",
+      "label": "10px"
+    },
+    {
+      "id": "px-11",
+      "label": "11px"
+    },
+    {
+      "id": "px-12",
+      "label": "12px"
+    },
+    {
+      "id": "px-13",
+      "label": "13px"
+    },
+    {
+      "id": "px-14",
+      "label": "14px"
+    },
+    {
+      "id": "px-15",
+      "label": "15px"
+    },
+    {
+      "id": "x0_6",
+      "label": "x0.6"
+    },
+    {
+      "id": "x0_7",
+      "label": "x0.7"
+    },
+    {
+      "id": "x0_8",
+      "label": "x0.8"
+    },
+    {
+      "id": "x0_9",
+      "label": "x0.9"
+    },
+    {
+      "id": "x1_0",
+      "label": "x1.0"
+    },
+    {
+      "id": "x1_1",
+      "label": "x1.1"
+    },
+    {
+      "id": "x1_2",
+      "label": "x1.2"
+    },
+    {
+      "id": "x1_3",
+      "label": "x1.3"
+    },
+    {
+      "id": "x1_4",
+      "label": "x1.4"
+    },
+    {
+      "id": "x1_5",
+      "label": "x1.5"
+    }
+  ],
+  "reloadSeconds": [
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    20,
+    30,
+    45,
+    60,
+    95,
+    120
+  ],
+  "defaultReloadSeconds": 7
+}
