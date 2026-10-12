@@ -28,6 +28,7 @@ import {
   type InputErrorCode,
 } from './schema.ts';
 import { shouldTriage, triageAdminChat, type TriageTrace } from './triage.ts';
+import { readClient, resolveObservedIp } from '../_shared/request.ts';
 import {
   parseTraceparent,
   SpanKind,
@@ -76,16 +77,6 @@ type ErrorCode = InputErrorCode | 'method_not_allowed' | 'invalid_json' | 'inval
 
 function reject(code: ErrorCode, status: number, cors: Record<string, string>): Response {
   return json({ error: { code } }, status, cors);
-}
-
-// x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
-function resolveClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get('x-real-ip')?.trim() || '';
 }
 
 // クライアントが詐称・上書きできないよう、読むフィールドを限定する。
@@ -312,17 +303,6 @@ export interface Operation {
  * 送信操作 1 件の ID と試行番号（spec R3.12）。リトライの全試行で同じ ID が来る。
  * 形式が不正・欠落ならサーバー側で発行し、source=server として区別する。
  */
-/**
- * 送ってきたクライアント（x-client。Android 版は `android/<版>`）。古い版のアプリを見分けるため、スパンの
- * client.app に記録する（.kiro/specs/android-native-app Task 0.8、R21.7）。無ければ Web とみなす。
- * 値は短い英数字と記号だけを受け取り、ほかは unknown にする（任意の文字列を記録しない）
- */
-export function readClient(headers: Headers): string {
-  const value = headers.get('x-client')?.trim();
-  if (!value) return 'web';
-  return /^[a-z]+\/[0-9A-Za-z.+-]{1,32}$/.test(value) ? value : 'unknown';
-}
-
 export function readOperation(headers: Headers): Operation {
   const id = headers.get('x-chat-operation-id')?.trim() ?? '';
   const attempt = headers.get('x-chat-attempt')?.trim() ?? '';
@@ -423,7 +403,7 @@ async function persist(
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
   // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
-  const observed = { ip: resolveClientIp(req), ua: req.headers.get('user-agent') ?? '' };
+  const observed = { ip: resolveObservedIp(req), ua: req.headers.get('user-agent') ?? '' };
   const rows: ChatRow[] = planned.map((row) => ({ ...row, ...observed }));
 
   const db = tracer.startSpan('db insert chats', server.context, SpanKind.CLIENT, {

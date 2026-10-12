@@ -153,14 +153,16 @@ export const CONDITIONS: ConditionDef[] = [
   },
   {
     id: 'C8',
-    title: 'child-safety reports (report_chat.received, child_safety)',
+    title: 'child-safety reports (report_chat.child_safety)',
     policy: 'paging',
-    // 児童の安全に関わる通報（.kiro/specs/android-native-app design.md §7.6、Task 0.6）。1 件でも PagerDuty で運営に
-    // すぐ知らせる。ログには理由と id だけが入り、通報の本文は入らない（運営は chat_reports で確かめる）。
+    // 児童の安全に関わる通報（.kiro/specs/android-native-app design.md §7.6、Task 0.6）。PagerDuty で運営にすぐ知らせる。
+    // report-chat は、その発言への最初の child_safety の通報だけ report_chat.child_safety を出す（同じ発言で何度も
+    // 呼び出さない）。条件は文字列の属性だけで書く（真偽値の属性が Logs でどう残るかに頼らない）。
+    // ログには理由と id だけが入り、通報の本文は入らない（運営は chat_reports で確かめる）。
     description:
       'A child-safety report was received. Check chat_reports right away (the log has no report text).',
     nrql: (env) =>
-      `SELECT filter(count(*), WHERE event = 'report_chat.received' AND report.child_safety IS TRUE) ` +
+      `SELECT filter(count(*), WHERE event = 'report_chat.child_safety') ` +
       `FROM Log WHERE service.name = 'report-chat' AND ${where(env)}`,
     windowSec: 60,
     threshold: 1,

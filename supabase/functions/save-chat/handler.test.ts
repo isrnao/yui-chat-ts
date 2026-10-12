@@ -756,14 +756,3 @@ Deno.test('おみくじ: 保存に失敗すれば利用者の発言ごと失敗�
   assertEquals(res.status, 500);
   await t.settle();
 });
-
-Deno.test(
-  'x-client をスパンの client.app に記録し、無ければ web、形の違う値は unknown にする',
-  async () => {
-    const { readClient } = await import('./handler.ts');
-    assertEquals(readClient(new Headers()), 'web');
-    assertEquals(readClient(new Headers({ 'x-client': 'android/0.1.0' })), 'android/0.1.0');
-    assertEquals(readClient(new Headers({ 'x-client': '<script>' })), 'unknown');
-    assertEquals(readClient(new Headers({ 'x-client': 'android/' + 'x'.repeat(40) })), 'unknown');
-  }
-);
