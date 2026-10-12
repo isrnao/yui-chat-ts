@@ -1,5 +1,7 @@
 # Test Strategy
 
+WP4（#243）: `scripts/measure-web-platform.js`は比較用のローカルSSGを固定CPU/回線・外部タグ条件でcold/warm各3回測定する。通常のPlaywright品質ゲートとは別に実行し、cacheの利用、入力可能/submit有効化、LCP・少数操作のEvent Timing・転送JSを区別する。実ユーザーINP・実Realtime・実機性能はこのfixtureでは保証しない。手順とraw結果はWEB_PLATFORM_PERFORMANCE.mdを参照。
+
 WP2c（#241）: `mpa-seo.spec.ts`はSSG表示後からJavaScriptを解禁して、静的headのSEOノードにMutationが発生しないことを検査する。トップ・通常・全部屋・Chanari・公開通常2shotを対象とし、実リンクが別文書を生成し、戻る/進むでheadとURLが復元されることも確認する。Speculation Rulesによるprefetchでも文書遷移であることを検査できるよう、新規リクエストだけを成功条件にしない。useSEOの単体試験は旧/誤マーカーの補正と動的SEO継続を区別する。
 
 WP2b（#240）: `pages-hosting.spec.ts`は4181のPages相当fixtureで正規/別名/未知URLのHTTP200/301/404、head/canonical、query/hash/history.state、JS無効時の部屋本文と404リンクを確認する。既存のVite previewと共に検証用の公開ビルドを配信する。実ホストの公開前基準は新実装の検証と混同せず、公開後確認を別に記録する。

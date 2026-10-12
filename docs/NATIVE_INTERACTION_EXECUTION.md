@@ -1,5 +1,7 @@
 # ネイティブインタラクションの実装・検証記録
 
+WP4（#243）: 最新mainとWP2c headを固定lab条件で48サンプル比較し、入力可能/submit有効化/Realtimeを区別した。追加Hydration分割は根拠を記して見送り。実ユーザーINPと実機/実接続条件は未測定として残す。再現方法とrawデータはWEB_PLATFORM_PERFORMANCE.mdを参照。
+
 WP2c（#241）: 内部pushStateの利用がなく、実リンクの文書遷移を確認したためAppのルーティングstate/popstate監視を撤去。正しい静的SSGのuseSEO重複更新を省き、非SSG/誤配信の補正と専用2shotの動的SEOは維持する。文書履歴・head・誤Hydrationの回帰はWEB_PLATFORM_EXECUTIONに記録する。
 
 WP2b（#240）: 旧SPA404復元を静的404・既知別名SSGへ置換し、Pages相当HTTP fixtureを追加。専用2shot停止中の通常部屋を維持。公開後の実ホストと実機の確認は未完了で追跡する。

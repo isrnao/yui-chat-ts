@@ -216,6 +216,8 @@ type ChanariRouteMatch =
 
 静的ページのuseSEOには描画する画面のssgPathnameを渡します。data-ssg/data-ssg-pathが一致する文書では、ビルド済みheadを使用してDOMの重複更新を省きます。Chanariの識別子はChanariのパスであり、通常チャットへ向けるcanonicalとは別です。開発時・誤HTML配信・旧マーカー欠落では従来のruntime補正を行います。専用2shotのsessionに応じた動的SEOとNotFoundの更新は継続します。
 
+WP4では最新mainとWP2cまでを固定lab条件で48サンプル比較し、追加のHydration範囲分割は見送りました。入力可能時刻・submit有効化・Realtime完了を区別し、実ユーザーINPや実機の結果に読み替えません。採否と再現条件は[WEB_PLATFORM_PERFORMANCE.md](WEB_PLATFORM_PERFORMANCE.md)に記録します。
+
 ### 4.3 レイヤー構成
 
 | レイヤー          | 責務                       | 主要ファイル                                                                                                    |

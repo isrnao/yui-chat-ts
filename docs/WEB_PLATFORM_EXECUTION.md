@@ -16,8 +16,8 @@
 | 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / 全CI成功・実機確認待ち |
 | 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | [PR #249](https://github.com/isrnao/yui-chat-ts/pull/249) / 全CI成功・実機確認待ち |
 | 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | [PR #250](https://github.com/isrnao/yui-chat-ts/pull/250) / 全CI成功・公開後HTTP/実機確認待ち |
-| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 実装・自動確認済み / PR・実機確認待ち                                               |
-| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                             |
+| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | [PR #251](https://github.com/isrnao/yui-chat-ts/pull/251) / 全CI成功・実機確認待ち |
+| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | lab比較・採否記録済み / 実環境計測待ち                                               |
 | 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                             |
 | 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                             |
 | 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手                                                                             |
@@ -91,3 +91,13 @@ WP2bの対象head `7caafb1`のCIでtypecheck/lint・96ファイル752件、167 S
 回帰：useSEOの同一SSG head保持・旧/誤マーカー補正・動的更新を単体試験へ追加。mpa-seo.specはJavaScript解禁前からheadを観測し、トップ・通常・全部屋・Chanari・公開通常2shotのSEO書き込みが0であることと、実リンクの新規文書生成・戻る/進むでURL/headが復元されることを確認する。Chromiumのprefetch利用時には新規リクエストが観測されないため、文書生成を成功条件にした。実機/VoiceOverは未確認として残す。
 
 ローカル（2026-10-13）：typecheck/lint、Compilerを含む関連5ファイル91単体テスト、167 SSG、Chromium/Desktop WebKit/Mobile WebKitで関連84ブラウザケースが成功。静的SEO DOM書き込み0、誤配信時のcanonical補正、native文書履歴、別名のstate/query/hash、初期入室安全性を確認済み。
+
+WP2cの対象head `d195a14`のCIでtypecheck/lint・96ファイル757件、167 SSG・108ブラウザケースが成功。
+
+## WP4：性能の再計測・採否
+
+#251のhead `d195a14650278f7d059814637acb14ccb338b277`からfeatureを作成。最新main `4618761`とこの積み上げを、同一端末・CPU/回線・監視無効・空バックエンドの条件でcold/warm各3回測定した。計48サンプルのraw JSONと再現スクリプト・採否は[WEB_PLATFORM_PERFORMANCE.md](WEB_PLATFORM_PERFORMANCE.md)に記録する。
+
+cold LCP中央値は約0.8〜2.1秒、操作後JS増加は0.17〜0.90KiB、warm JS転送は全件0。入力可能と安全な入室ボタンの有効化を分け、lab操作遅延とinput delayを記録した。実ユーザーINP p75・実Chrome/Safari/Android/iOS・実ログ・監視有効条件・Realtime接続時間は未測定。Realtimeを入力可能時刻から推定しない。
+
+追加Hydration分割は今回見送り。この小さいlabサンプルには境界追加を正当化する操作上のボトルネックがなく、先行入力・session・Realtime・下書き同期の保守負担を増やす根拠がない。実環境で問題が再現した際に独立PRで該当部分を試作する。今回のlab結果を実機/実ユーザーの確認完了とは扱わない。
