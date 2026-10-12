@@ -1,0 +1,1 @@
+import{a as e,n as t}from"./vendor-react-CLdGdEQI.js";import{i as n}from"./roomSeo-BJDeMWOL.js";var r=t(),i=e();function a(e){let t=(0,r.c)(1),[a,o]=(0,i.useState)(e),s;return t[0]===Symbol.for(`react.memo_cache_sentinel`)?(s=e=>{e!==null&&o(e)},t[0]=s):s=t[0],n(e,s),e??a}export{a as t};
