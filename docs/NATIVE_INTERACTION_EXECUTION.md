@@ -28,3 +28,7 @@ Chromium 156 / Firefox 157 / WebKit 27.2とモバイルWebKitで12テスト合�
 ## R1
 
 操作button化、picker/更新のTab順、focus/invalid/forced-colors/coarse pointer、IMEのEnter、avatar fieldset、壊れたhowtoリンク、連絡先名、skip linkを実装。選択範囲は両端/全Rangeを同じ本文に限定。splitterはCSS gridでバー厚を確保し、右/非primary pointer、取消・入退室の予約rAF、Home/End/範囲/ARIAを修正。contractsは生成で更新。型検査・lint・対象76 tests・4構成16 browser tests合格。
+
+## R4a
+
+入退室フェーズと世代を実装し、旧応答/計測による巻戻し・未確定中の投稿・連打を防止。入室時の本人情報を背景storeから分離し、明示的な色変更だけ反映。手動retryは本文/部屋/metadata/nonce/operation IDを保持し期限後は新規投稿に変換しない。失敗本文とavatarを復元し、全部屋の失敗を成功へ変換しない。通常routeのkeyとboundaryをscopeへ統一。120書記素/コードポイント上限を制約検証へ同期し、clearは独立。型・lint・Compiler・対象53 tests合格。

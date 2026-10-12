@@ -78,8 +78,12 @@ export function useChatSender({
    * 入退室の管理人メッセージは利用者の操作ではないので send を使い、
    * send-chat として記録しない。記録は同期的に行い、送信のイベントの中でインタラクションに結びつける。
    */
-  const sendUserMessage = (roomId: RoomId, chat: Chat): Promise<Chat> => {
-    const operationId = generateOperationId();
+  const sendUserMessage = (
+    roomId: RoomId,
+    chat: Chat,
+    previousOperationId?: string
+  ): Promise<Chat> => {
+    const operationId = previousOperationId ?? generateOperationId();
     recordSendChat(operationId);
     return send(roomId, chat, { operationId });
   };

@@ -4,7 +4,7 @@ import { getRoomMeta } from '@features/chat/rooms';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { useChatSession } from '@features/chat/hooks/useChatSession';
+import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
@@ -105,12 +105,16 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                 onExit={handleExit}
                 onClearMyLogs={() => handleSend('clear')}
                 nameColor={nameColor}
-                setNameColor={setNameColor}
+                setNameColor={(value) => {
+                  setNameColor(value);
+                  session.updateIdentity({ color: value });
+                }}
                 speechColor={speechColor}
                 setSpeechColor={setSpeechColor}
                 reloadSeconds={reloadSeconds}
                 setReloadSeconds={setReloadSeconds}
                 onRestoreDraft={() => setMessage(settings.lastMessage ?? '')}
+                isPending={session.phase === 'entering' || session.isSending}
                 sid=""
               />
             ) : (
@@ -131,7 +135,8 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                   try {
                     await session.enter({ name: n, color: nc, silent: false });
                   } catch (err) {
-                    setEntryError(toEntryErrorMessage(err));
+                    if (!(err instanceof SupersededSessionError))
+                      setEntryError(toEntryErrorMessage(err));
                     throw err;
                   }
                 }}

@@ -26,6 +26,7 @@ type EntryFormProps = {
   }) => void | Promise<void>;
   error?: string;
   isPending?: boolean;
+  retryAvatar?: AvatarId;
 };
 
 export default function EntryForm({
@@ -39,8 +40,10 @@ export default function EntryForm({
   onEnter,
   error,
   isPending,
+  retryAvatar,
 }: EntryFormProps) {
   const nameId = useId();
+  const errorId = useId();
   const colorId = useId();
   const colorPickerId = useId();
   const emailId = useId();
@@ -53,7 +56,7 @@ export default function EntryForm({
   // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する。
   // useState でコピーすると SSG 時の 'none' を握ったままになり、
   // 保存済みアバターが復元されない。
-  const [avatar, setAvatar] = useStoreBackedState<AvatarId>(settings.avatar);
+  const [avatar, setAvatar] = useStoreBackedState<AvatarId>(retryAvatar ?? settings.avatar);
 
   return (
     <div className="flex flex-col">
@@ -99,6 +102,8 @@ export default function EntryForm({
               setName(e.target.value);
             }}
             required
+            pattern=".*\S.*"
+            aria-describedby={error ? errorId : undefined}
             autoFocus
             aria-label={CHAT_TEXTS.entry.nameLabel}
             autoComplete="nickname"
@@ -224,7 +229,7 @@ export default function EntryForm({
         </fieldset>
         {/* エラー表示 */}
         {error && (
-          <div role="alert" className="text-xs text-red-500 text-left mb-1">
+          <div id={errorId} role="alert" className="text-xs text-red-500 text-left mb-1">
             {error}
           </div>
         )}

@@ -6,6 +6,30 @@ import type { ChatRoomProps } from './index';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
 
 describe('ChatRoom', () => {
+  it('120書記素の絵文字は送信でき、超過した本文があってもclearは独立して送れる', async () => {
+    const props = {
+      windowRows: 30,
+      setWindowRows: vi.fn(),
+      onExit: vi.fn(),
+      onSend: vi.fn().mockResolvedValue(undefined),
+      onReload: vi.fn(),
+    };
+    render(<ChatRoom {...props} />);
+    const input = screen.getByRole('textbox', { name: '発言' });
+    fireEvent.change(input, { target: { value: '😀'.repeat(120) } });
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+    await waitFor(() =>
+      expect(props.onSend).toHaveBeenCalledWith('😀'.repeat(120), expect.any(Object))
+    );
+    await waitFor(() => expect(input).not.toBeDisabled());
+    props.onSend.mockClear();
+    fireEvent.change(input, { target: { value: '😀'.repeat(121) } });
+    fireEvent.click(screen.getByRole('button', { name: '発言' }));
+    expect(props.onSend).not.toHaveBeenCalled();
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '消す' }));
+    await waitFor(() => expect(props.onSend).toHaveBeenCalledWith('clear', expect.any(Object)));
+  });
   let props: ChatRoomProps;
 
   beforeEach(() => {

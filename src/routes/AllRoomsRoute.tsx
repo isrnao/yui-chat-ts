@@ -3,7 +3,7 @@ import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { useChatSession } from '@features/chat/hooks/useChatSession';
+import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -21,7 +21,6 @@ import { ErrorBoundary } from '@shared/components/ErrorBoundary';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
-import { toUserMessage } from '@features/chat/utils/userFacingError';
 
 const ChatLogList = lazy(() => import('@features/chat/components/ChatLogList'));
 
@@ -55,7 +54,6 @@ export default function AllRoomsRoute() {
   // 入室の失敗は EntryForm ではなくここで持つ。入室中は EntryForm がアンマウントされ、
   // 失敗して戻ってきたときには別のインスタンスになるため。
   const [entryError, setEntryError] = useState('');
-  const [sendError, setSendError] = useState('');
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
   const [showFilter, setShowFilter] = useState(false);
@@ -75,16 +73,7 @@ export default function AllRoomsRoute() {
     setReplyTarget(roomId);
   };
 
-  const wrappedHandleSend = async (msg: string, metadata?: ChatMetadata) => {
-    setSendError('');
-    try {
-      await session.send(msg, metadata);
-    } catch (err) {
-      setSendError(
-        toUserMessage(err, '発言を送信できませんでした。時間をおいてもう一度お試しください。')
-      );
-    }
-  };
+  const wrappedHandleSend = (msg: string, metadata?: ChatMetadata) => session.send(msg, metadata);
 
   return (
     <ErrorBoundary
@@ -107,9 +96,6 @@ export default function AllRoomsRoute() {
             {subscribeError && 'リアルタイム購読の確立に失敗しました。'}
           </div>
         )}
-        {sendError && (
-          <div className="text-red-500 text-xs px-[var(--page-gap)] py-1">{sendError}</div>
-        )}
         <RetroSplitter
           minTop={100}
           minBottom={100}
@@ -124,12 +110,15 @@ export default function AllRoomsRoute() {
                   expand(rows);
                 }}
                 windowRowOptions={getWindowRowOptions('all')}
+                sessionPending={session.phase === 'entering'}
+                failedMessage={session.failedSend?.chat.message}
+                onRetrySend={session.retry}
                 onExit={handleExit}
                 onSend={wrappedHandleSend}
                 onReload={reload}
-                avatar={avatar}
-                userName={name}
-                userColor={color}
+                avatar={session.sessionIdentity?.avatar ?? avatar}
+                userName={session.sessionIdentity?.name ?? name}
+                userColor={session.sessionIdentity?.color ?? color}
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
                 filterCount={ipFilter.entries?.length ?? 0}
@@ -146,13 +135,16 @@ export default function AllRoomsRoute() {
                   email={email}
                   setEmail={setEmail}
                   error={entryError}
-                  onEnter={async ({ name: n, color: c, silent, avatar: a }) => {
+                  retryAvatar={entryError ? avatar : undefined}
+                  isPending={session.phase === 'exiting'}
+                  onEnter={async ({ name: n, color: c, silent, avatar: a, email: e }) => {
                     setAvatar(a);
                     setEntryError('');
                     try {
-                      await session.enter({ name: n, color: c, silent });
+                      await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                     } catch (err) {
-                      setEntryError(toEntryErrorMessage(err));
+                      if (!(err instanceof SupersededSessionError))
+                        setEntryError(toEntryErrorMessage(err));
                       throw err;
                     }
                   }}
