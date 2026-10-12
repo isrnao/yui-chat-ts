@@ -1,5 +1,7 @@
 # ネイティブインタラクションの実装・検証記録
 
+2026-10-13以後のWeb Platform First作業は[WEB_PLATFORM_EXECUTION.md](WEB_PLATFORM_EXECUTION.md)で追跡する。#236の通常・Chanari入室フォームの送信安全性はR8/R9のdialog・UI整理を維持して追加する。ユーザー指定により#237の計測URL保護と#242の通報導線は対象外。
+
 開始日: 2026-10-12
 
 起点: `develop_contracts`。統合先: `develop_native-interactions`。

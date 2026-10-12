@@ -8,6 +8,8 @@ import { AVATAR_IDS } from '@features/chat/types';
 import { EMAIL_MAX, NAME_MAX } from '@features/chat/inputRules';
 import type { AvatarId } from '@features/chat/types';
 import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
+import { useEntrySubmission } from '@shared/hooks/useEntrySubmission';
+import EntryFormHelp from '@shared/components/EntryFormHelp';
 
 type EntryFormProps = {
   roomTitle?: string;
@@ -50,6 +52,7 @@ export default function EntryForm({
   const emailId = useId();
   const silentId = useId();
   const avatarGroupName = useId();
+  const { ready, submit } = useEntrySubmission(Boolean(isPending));
 
   // name/color/email の localStorage 由来の初期値は親 (ChatRoute) で useState の lazy init として読み込み済み。
   // 本コンポーネントでは avatar 初期値 (内部 state のため) と updateSettings のみ参照する。
@@ -85,22 +88,22 @@ export default function EntryForm({
         ref={formRef}
         onSubmit={(e) => {
           e.preventDefault();
-          // 入室の失敗は呼び出し元が error prop で表示する。入室中はこのフォーム自体が
-          // アンマウントされる（チャット画面へ即座に切り替える）ため、ここでは状態を持てない。
-          // Promise を捨てると未処理の rejection になるので、失敗も必ず受け取る。
-          Promise.resolve(
-            onEnter({
+          const silent = new FormData(e.currentTarget).has('silent');
+          void submit(async () => {
+            await onEnter({
               name,
               color,
               email,
-              silent: new FormData(e.currentTarget).has('silent'),
+              silent,
               avatar,
-            })
-          ).then(
+            });
             // 入室成功後に localStorage を更新（失敗時は保存しない）
-            () => updateSettings({ name, color, email, avatar }),
-            () => {}
-          );
+            updateSettings({ name, color, email, avatar });
+          });
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229))
+            event.preventDefault();
         }}
         autoComplete="off"
       >
@@ -135,7 +138,7 @@ export default function EntryForm({
         </div>
         {/* ボタン群（名前の直下） */}
         <div className="mb-1 flex gap-1">
-          <Button type="submit" disabled={isPending}>
+          <Button type="submit" disabled={!ready || isPending}>
             {isPending ? CHAT_TEXTS.entry.submitting : CHAT_TEXTS.entry.submit}
           </Button>
           <Button
@@ -257,6 +260,7 @@ export default function EntryForm({
             {error}
           </div>
         )}
+        <EntryFormHelp />
         <div className="text-xs text-gray-500 text-right mt-1">
           <a href={CHAT_TEXTS.entry.creditUrl} target="_blank" rel="noreferrer">
             {CHAT_TEXTS.entry.credit}

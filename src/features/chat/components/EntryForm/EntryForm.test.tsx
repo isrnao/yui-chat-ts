@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import EntryForm from './index';
 
 function renderEntryForm() {
@@ -17,6 +17,12 @@ function renderEntryForm() {
 }
 
 describe('EntryForm のレイアウト', () => {
+  it.each([{ isComposing: true }, { keyCode: 229 }])('IMEのEnterで暗黙送信しない', (ime) => {
+    renderEntryForm();
+    expect(
+      fireEvent.keyDown(screen.getByRole('textbox', { name: 'おなまえ' }), { key: 'Enter', ...ime })
+    ).toBe(false);
+  });
   // おなまえ欄と E-Mail 欄は size 属性由来の固有幅を持つ flex アイテムなので、
   // min-width:auto のままだと SP 幅で縮めず行ごと画面外にはみ出す。
   // 親の main は overflow-hidden なので横スクロールで救うこともできない。

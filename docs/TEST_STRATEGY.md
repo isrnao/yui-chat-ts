@@ -111,3 +111,5 @@ src/features/chat/api/
 2026-10-12: pnpm test:browserでsynthetic data/APIを使ったUIを検証する。native-fixture.invalidは試験設定であり本番接続ではない。UI fixtureは投稿・入退室・通報の実APIを呼ばず、Top Layer/focus/IME/Tab/配置/1,000行/短い画面を確認する。SSGとhydrate前編集はVitest統合でも検証する。自動webkit/mobile emulationをiPhone実機・VoiceOver・OSハプティック合格として扱わない。
 
 SSG browser testの前提: 検証用VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEYでビルドしたdistを配信する。ローカルのpnpm test:browserはpreviewの起動前にこの設定でpnpm build:prodを実行する（distは上書きされる）。CIのbrowser.ymlは先に同じ設定でpnpm build:prodを実行し、previewはビルドし直さない。
+
+WP1a（#236）: `entry-safety.spec.ts`で通常・ChanariのJS無効／chunk失敗／CSP拒否時に、先行入力後のEnter・送信ボタンのポインタ操作がGET遷移を発生させないことを確認する。module遅延時は準備前disabledと、保存済み設定に上書きされない先行入力を確認する。SSG統合試験は入力可能・submit disabled・静的復旧リンクを検査し、送信hookはpendingと同一tick二重送信・失敗後の再送を検証する。SSGブラウザ試験ではGA/New Relicへの通信をブロックする。
