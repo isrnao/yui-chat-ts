@@ -312,6 +312,17 @@ export interface Operation {
  * 送信操作 1 件の ID と試行番号（spec R3.12）。リトライの全試行で同じ ID が来る。
  * 形式が不正・欠落ならサーバー側で発行し、source=server として区別する。
  */
+/**
+ * 送ってきたクライアント（x-client。Android 版は `android/<版>`）。古い版のアプリを見分けるため、スパンの
+ * client.app に記録する（.kiro/specs/android-native-app Task 0.8、R21.7）。無ければ Web とみなす。
+ * 値は短い英数字と記号だけを受け取り、ほかは unknown にする（任意の文字列を記録しない）
+ */
+export function readClient(headers: Headers): string {
+  const value = headers.get('x-client')?.trim();
+  if (!value) return 'web';
+  return /^[a-z]+\/[0-9A-Za-z.+-]{1,32}$/.test(value) ? value : 'unknown';
+}
+
 export function readOperation(headers: Headers): Operation {
   const id = headers.get('x-chat-operation-id')?.trim() ?? '';
   const attempt = headers.get('x-chat-attempt')?.trim() ?? '';
@@ -350,7 +361,12 @@ export function createHandler(deps: HandlerDeps) {
       'POST save-chat',
       parseTraceparent(req.headers.get('traceparent')),
       SpanKind.SERVER,
-      { 'http.request.method': req.method, 'http.route': '/save-chat', ...operationAttributes(op) }
+      {
+        'http.request.method': req.method,
+        'http.route': '/save-chat',
+        'client.app': readClient(req.headers),
+        ...operationAttributes(op),
+      }
     );
 
     let outcome: Outcome;

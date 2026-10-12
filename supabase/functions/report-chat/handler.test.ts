@@ -8,7 +8,9 @@ import { Tracer } from '../save-chat/telemetry.ts';
 const CHAT = '0192f6a0-0000-7000-8000-000000000001';
 type Row = Record<string, unknown>;
 
-function setup(result: { status: string; report_id: string | null } | null = { status: 'ok', report_id: 'r-1' }) {
+function setup(
+  result: { status: string; report_id: string | null } | null = { status: 'ok', report_id: 'r-1' }
+) {
   const calls: Row[] = [];
   const logs: { level: string; event: string; attributes: Row }[] = [];
   const tracer = new Tracer({ serviceName: 'report-chat', environment: 'test' });
@@ -20,7 +22,9 @@ function setup(result: { status: string; report_id: string | null } | null = { s
   const client = {
     rpc(name: string, args: Row) {
       calls.push({ name, ...args });
-      return Promise.resolve(result ? { data: [result], error: null } : { data: null, error: { message: 'boom' } });
+      return Promise.resolve(
+        result ? { data: [result], error: null } : { data: null, error: { message: 'boom' } }
+      );
     },
   } as unknown as SupabaseClient;
   const handler = createHandler({
@@ -44,7 +48,11 @@ Deno.test('通報を保存し、IP・UA・端末の鍵を添えて insert_chat_r
   const res = await handler(
     post(
       { chat_uuid: CHAT.toUpperCase(), reason: 'harassment', detail: '  ひどい  ' },
-      { 'x-forwarded-for': '198.51.100.1, 10.0.0.1', 'user-agent': 'UA', 'x-chat-author-key': 'A'.repeat(43) }
+      {
+        'x-forwarded-for': '198.51.100.1, 10.0.0.1',
+        'user-agent': 'UA',
+        'x-chat-author-key': 'A'.repeat(43),
+      }
     )
   );
   assertEquals(res.status, 200);
@@ -70,7 +78,10 @@ Deno.test('入力の誤りは 400 のコードで返し、保存しない', asyn
     [{ chat_uuid: 'x', reason: 'spam' }, 'invalid_chat_uuid'],
     [{ chat_uuid: CHAT, reason: 'nope' }, 'invalid_reason'],
     [{ chat_uuid: CHAT, reason: 'spam', detail: 1 }, 'invalid_detail'],
-    [{ chat_uuid: CHAT, reason: 'spam', detail: 'あ'.repeat(REPORT_DETAIL_MAX + 1) }, 'invalid_detail'],
+    [
+      { chat_uuid: CHAT, reason: 'spam', detail: 'あ'.repeat(REPORT_DETAIL_MAX + 1) },
+      'invalid_detail',
+    ],
   ];
   for (const [body, code] of cases) {
     const { handler, calls } = setup();
@@ -116,8 +127,13 @@ Deno.test('プリフライトは要求されたヘッダを許す', async () => 
 });
 
 Deno.test('理由の一覧は migration の CHECK と同じ', async () => {
-  const sql = await Deno.readTextFile(new URL('../../migrations/20261012000000_chat_reports.sql', import.meta.url));
-  const listed = sql.match(/reason IN \(([^)]+)\)/)?.[1]?.match(/'([a-z_]+)'/g)?.map((s) => s.slice(1, -1));
+  const sql = await Deno.readTextFile(
+    new URL('../../migrations/20261012000000_chat_reports.sql', import.meta.url)
+  );
+  const listed = sql
+    .match(/reason IN \(([^)]+)\)/)?.[1]
+    ?.match(/'([a-z_]+)'/g)
+    ?.map((s) => s.slice(1, -1));
   assertEquals(listed, [...REPORT_REASONS]);
 });
 
@@ -127,5 +143,9 @@ Deno.test('checkReport は説明の前後の空白を除く', () => {
     reason: 'other',
     detail: 'x',
   });
-  assertEquals(checkReport({ chat_uuid: CHAT, reason: 'other' }), { chatUuid: CHAT, reason: 'other', detail: '' });
+  assertEquals(checkReport({ chat_uuid: CHAT, reason: 'other' }), {
+    chatUuid: CHAT,
+    reason: 'other',
+    detail: '',
+  });
 });
