@@ -2,7 +2,8 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoomLogStore } from '../api/roomLogStore';
 import type { Chat } from '../types';
-import { SupersededSessionError, useChatSession, type SessionTarget } from './useChatSession';
+import { useChatSession, type SessionTarget } from './useChatSession';
+import { SupersededSessionError } from '../utils/entryError';
 
 const network = vi.hoisted(() => ({ admin: vi.fn(), send: vi.fn() }));
 vi.mock('./useChatSender', () => ({

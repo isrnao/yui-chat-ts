@@ -5,6 +5,7 @@ import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
+import { SupersededSessionError } from '@features/chat/utils/entryError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/serverMessages';
@@ -35,12 +36,6 @@ type Identity = {
   avatar?: AvatarId;
   fontStyle?: ChatMetadata['fontStyle'];
 };
-export class SupersededSessionError extends Error {
-  constructor() {
-    super('Session request superseded');
-    this.name = 'SupersededSessionError';
-  }
-}
 
 type SessionState = { phase: Phase; identity: Identity | null; sending: boolean };
 const IDLE: SessionState = { phase: 'idle', identity: null, sending: false };

@@ -3,7 +3,8 @@ import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -38,7 +39,6 @@ export default function AllRoomsRoute() {
   const store = getAllRoomsLogStore();
   const { chatLog, isLoading, loadError, isEmpty, realtimeStatus, addOptimistic, reload, expand } =
     useRoomLog(store, measurement.onRealtimeChat);
-  const subscribeError = realtimeStatus === 'disconnected';
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
   const identity = useChatIdentity(settings);
@@ -90,11 +90,7 @@ export default function AllRoomsRoute() {
           <h1>{ROOM_META.title}</h1>
           <p>{ROOM_META.description}</p>
         </header>
-        {subscribeError && (
-          <div role="status" className="text-xs px-[var(--page-gap)]">
-            再接続中...
-          </div>
-        )}
+        <RealtimeStatusNotice status={realtimeStatus} />
         <RetroSplitter
           minTop={100}
           minBottom={100}
@@ -140,8 +136,7 @@ export default function AllRoomsRoute() {
                     try {
                       await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                     } catch (err) {
-                      if (!(err instanceof SupersededSessionError))
-                        setEntryError(toEntryErrorMessage(err));
+                      setEntryError(toEntryErrorMessage(err));
                       throw err;
                     }
                   }}

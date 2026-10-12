@@ -10,7 +10,8 @@ import {
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -119,13 +120,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
-      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
-          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
-      {realtimeStatus === 'disconnected' && (
-        <div className="px-[var(--page-gap)] text-xs" role="status">
-          接続が切れています。更新でログを取得できます。
-        </div>
-      )}
+      <RealtimeStatusNotice status={realtimeStatus} />
       <RetroSplitter
         bottomScrollable={false}
         minTop={100}
@@ -174,8 +169,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                   try {
                     await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                   } catch (err) {
-                    if (!(err instanceof SupersededSessionError))
-                      setEntryError(toEntryErrorMessage(err));
+                    setEntryError(toEntryErrorMessage(err));
                     throw err;
                   }
                 }}
