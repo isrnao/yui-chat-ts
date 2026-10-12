@@ -10,7 +10,7 @@ import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import { buildPageTitle } from '@shared/utils/seo';
-import { buildRoomSeo } from '@shared/utils/roomSeo';
+import { buildChanariPath, buildRoomSeo } from '@shared/utils/roomSeo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
 import { normalizeColorCode } from './utils/colorCode';
 import ChanariTopHeader from './components/ChanariTopHeader';
@@ -34,6 +34,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   // 引き継ぎ「トップの複製」を自己申告する状態だった (SEO-02)
   const pageTitle = buildPageTitle(`${room.title}${CHANARI_TEXTS.titleSuffix}`);
   useSEO({
+    ssgPathname: buildChanariPath(roomId),
     title: pageTitle,
     description: room.description,
     canonical: buildRoomSeo(roomId).canonical,

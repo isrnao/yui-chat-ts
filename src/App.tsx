@@ -1,4 +1,4 @@
-import { lazy, useEffect, useState } from 'react';
+import { lazy, useEffect } from 'react';
 import { RouteHost } from './routes/RouteHost';
 import { routeLoaders } from './routes/routeLoaders';
 // トップは入口であり、ここだけは lazy にしない。
@@ -6,11 +6,7 @@ import { routeLoaders } from './routes/routeLoaders';
 // 体感の初期描画が分割前より悪くなる (サイズは 30KB 程度で分割の旨味が薄い)。
 // 重い依存 (supabase / チャット一式) はチャット系ルートの側に残っている。
 import TopRoute from './routes/TopRoute';
-import {
-  resolveRouteFollowingRedirects,
-  type ResolvedRoute,
-  type RouteResolution,
-} from './routes/resolveRoute';
+import { resolveRouteFollowingRedirects, type ResolvedRoute } from './routes/resolveRoute';
 
 // チャット系ルートの code splitting。トップページ訪問者にチャット一式と
 // supabase-js を配らないための分割
@@ -79,9 +75,8 @@ function resolveShellChrome(route: ResolvedRoute): ShellChrome {
  *   両者は一致するので hydration mismatch は起きない。
  */
 export default function App({ initialPathname }: { initialPathname?: string } = {}) {
-  const [resolution, setResolution] = useState<RouteResolution>(() =>
-    resolveRouteFollowingRedirects(initialPathname ?? window.location.pathname)
-  );
+  // 部屋間の移動は実リンクによる文書遷移。現在文書のルートだけを解決する。
+  const resolution = resolveRouteFollowingRedirects(initialPathname ?? window.location.pathname);
   const { route, finalPathname } = resolution;
 
   // commit 後に URL を redirect 後の最終形に合わせる (resolveRouteFollowingRedirects は pure)。
@@ -95,17 +90,6 @@ export default function App({ initialPathname }: { initialPathname?: string } = 
       );
     }
   }, [finalPathname]);
-
-  useEffect(() => {
-    const handlePopState = () => {
-      setResolution(resolveRouteFollowingRedirects(window.location.pathname));
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-    };
-  }, []);
 
   useEffect(() => {
     const shellChrome = resolveShellChrome(route);

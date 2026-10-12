@@ -1,5 +1,7 @@
 # ネイティブインタラクションの実装・検証記録
 
+WP2c（#241）: 内部pushStateの利用がなく、実リンクの文書遷移を確認したためAppのルーティングstate/popstate監視を撤去。正しい静的SSGのuseSEO重複更新を省き、非SSG/誤配信の補正と専用2shotの動的SEOは維持する。文書履歴・head・誤Hydrationの回帰はWEB_PLATFORM_EXECUTIONに記録する。
+
 WP2b（#240）: 旧SPA404復元を静的404・既知別名SSGへ置換し、Pages相当HTTP fixtureを追加。専用2shot停止中の通常部屋を維持。公開後の実ホストと実機の確認は未完了で追跡する。
 
 WP2a（#239）ではdata-ssg-pathによる画面照合とURL正規化時のquery/hash・history.state保持を追加。旧404配信の恒久修正はWP2b（#240）で追跡する。

@@ -15,8 +15,8 @@
 | 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち    |
 | 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / 全CI成功・実機確認待ち |
 | 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | [PR #249](https://github.com/isrnao/yui-chat-ts/pull/249) / 全CI成功・実機確認待ち |
-| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 実装・自動確認済み / 公開後HTTP確認待ち                                            |
-| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手                                                                             |
+| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | [PR #250](https://github.com/isrnao/yui-chat-ts/pull/250) / 全CI成功・公開後HTTP/実機確認待ち |
+| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 実装・自動確認済み / PR・実機確認待ち                                               |
 | 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                             |
 | 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                             |
 | 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                             |
@@ -77,3 +77,17 @@ JS使用時は同じSSGをhydrateしてquery/hash/history.stateを保持しな�
 ローカル：Compilerを含む関連74件、typecheck/lint、公開ビルド、関連66ブラウザケース成功。JS無効、HTTP status、head/canonical、別名、query/hash/state、再読込・戻る/進む、旧誤SSG、入室安全性を検証。
 
 実ホストの公開前基準（2026-10-13、HEADのみ・JS実行なし）：トップ200、/chatは301→/chat/、正規通常部屋200、未知URL404。これは未公開の変更を確認した結果ではない。マージ・公開後の本文/別名/HTTP確認担当は未割当、実機確認も未完了として残す。[GitHub Pagesのcustom 404仕様](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site)に合わせて配信ルートの404.htmlを用意する。
+
+WP2bの対象head `7caafb1`のCIでtypecheck/lint・96ファイル752件、167 SSG・90ブラウザケースが成功。WP2aのhead `504efce`でも96ファイル749件・164 SSG・69ブラウザケースの成功を確認済み。
+
+## WP2c：MPAルーティング・静的SEOの簡素化
+
+#250のhead `7caafb1f37c53e421e7dbfe6819befb0964ee63f`からfeatureを作成。src全体のpushState/popstateと入口リンクを調査した。アプリのpushState呼び出しはなく、唯一のpopstate購読はAppのルートstate更新だった。RoomAnchorはpreventDefaultせず実リンクを使用し、index.htmlのSpeculation Rulesも文書のprefetchだけを行う。文書間の履歴はブラウザが担当し、同文書のhash移動はルートを変更しない。別途のpageshowによる通信復帰等は維持する。
+
+採用：Appのresolution useStateとpopstate effectを撤去し、現在文書のルート解決・URL正規化・shell色だけを残した。静的ページは描画元のssgPathnameをuseSEOへ渡し、同じSSGマーカーを持つ文書のhead更新を省く。SSRと同じメタ生成元・build markerが契約であり、headの不正配信まで一般的に検出する仕組みは増やさない。旧/欠落/誤ルートマーカーでは従来のuseSEOが補正する。
+
+継続：専用2shotのsessionに応じた動的SEO、NotFoundのcanonical/noindex更新。ChanariのSSG識別子はChanariのパスを使い、通常チャットcanonicalと混同しない。公開通常2shotは通常部屋の静的SEOとして検証する。入室・Realtime・下書き・履歴復帰の責務は変更しない。
+
+回帰：useSEOの同一SSG head保持・旧/誤マーカー補正・動的更新を単体試験へ追加。mpa-seo.specはJavaScript解禁前からheadを観測し、トップ・通常・全部屋・Chanari・公開通常2shotのSEO書き込みが0であることと、実リンクの新規文書生成・戻る/進むでURL/headが復元されることを確認する。Chromiumのprefetch利用時には新規リクエストが観測されないため、文書生成を成功条件にした。実機/VoiceOverは未確認として残す。
+
+ローカル（2026-10-13）：typecheck/lint、Compilerを含む関連5ファイル91単体テスト、167 SSG、Chromium/Desktop WebKit/Mobile WebKitで関連84ブラウザケースが成功。静的SEO DOM書き込み0、誤配信時のcanonical補正、native文書履歴、別名のstate/query/hash、初期入室安全性を確認済み。

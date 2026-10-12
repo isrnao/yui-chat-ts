@@ -94,9 +94,8 @@ function buildHeadBlock(seo: RoomSeo): string {
   ];
 
   // ページ固有の構造化データ (WebPage + BreadcrumbList)。
-  // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする。
-  // jsonLd を持たないページ (なりきり) では useSEO がこのノードを削除するため、
-  // ここでも出さない。出すと hydrate 直後に消える不一致になる。
+  // 正しい静的SSGではこのノードをそのまま使い、非SSGではuseSEOが同じ値を設定する。
+  // jsonLd を持たないページ (なりきり) ではここでも出さず、runtimeの契約と揃える。
   // "<" は Unicode エスケープ (バックスラッシュ + u003c) に置換し、値に "</script>" が
   // 紛れても HTML が壊れないようにする
   // (JSON としては等価なので JSON.parse の結果は変わらない)

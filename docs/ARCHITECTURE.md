@@ -212,7 +212,9 @@ type ChanariRouteMatch =
 | `/chanari/:roomId` (有効) | `ChanariRoute`                                       |
 | 上記以外                  | `NotFoundRoute`                                      |
 
-`App.tsx`は`popstate`監視と`redirect`種別の自動再評価を担当します。正規化時はhistory.state・query/hashを保持します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてから、共有ルート規則で`data-ssg-path`と現在URLを照合します。同じ既知画面だけをhydrateし、別画面・未知ルート・マーカー欠落はcreateRootで描きます。
+`App.tsx`は現在文書のルート解決とURL正規化を担当します。内部移動は実リンクによるMPAの文書遷移であり、ルーティングstateとpopstate監視は持ちません。正規化時はhistory.state・query/hashを保持します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてから、共有ルート規則で`data-ssg-path`と現在URLを照合します。同じ既知画面だけをhydrateし、別画面・未知ルート・マーカー欠落はcreateRootで描きます。
+
+静的ページのuseSEOには描画する画面のssgPathnameを渡します。data-ssg/data-ssg-pathが一致する文書では、ビルド済みheadを使用してDOMの重複更新を省きます。Chanariの識別子はChanariのパスであり、通常チャットへ向けるcanonicalとは別です。開発時・誤HTML配信・旧マーカー欠落では従来のruntime補正を行います。専用2shotのsessionに応じた動的SEOとNotFoundの更新は継続します。
 
 ### 4.3 レイヤー構成
 

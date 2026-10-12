@@ -42,6 +42,11 @@ for (const marker of ['missing', 'wrong-route']) {
       page.getByRole('button', { name: 'チャットに参加する', exact: true })
     ).toBeEnabled();
     await expect(page.getByRole('textbox', { name: 'おなまえ', exact: true })).toBeVisible();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://www.okiraku.chat/chat/anime/'
+    );
+    await expect(page).not.toHaveTitle('お気楽チャットTS - 無料で気軽に参加できる目的別チャット');
     expect(errors).toEqual([]);
   });
 }
