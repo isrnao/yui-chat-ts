@@ -72,7 +72,7 @@ Q1〜Q13 は推奨どおりに決めた前提で書く。
 | 通信           | `supabase-kt`（postgrest / realtime / functions）+ Ktor（OkHttp エンジン）                        | `@supabase/*-js` + `fetch`                     |
 | JSON           | kotlinx.serialization                                                                             | —                                              |
 | 保存           | DataStore                                                                                         | `localStorage` / `sessionStorage`              |
-| 画像           | Coil 3（GIF は `AnimatedImageDecoder`）                                                           | `<img>`                                        |
+| 画像           | 端末の `ImageDecoder`（GIF のアバター。画像のライブラリは足さない）                               | `<img>`                                        |
 | 音             | SoundPool                                                                                         | Web Audio                                      |
 | 外部リンク     | Custom Tabs                                                                                       | `target="_blank"`                              |
 | 計測           | Firebase Analytics（GA4 の同じプロパティに Android のストリーム）                                 | gtag.js                                        |
@@ -410,10 +410,14 @@ Web の `src/styles/theme.css` を唯一の定義にし、`contracts/theme.json`
 | `RetroLink`                    | `[退室]` などの緑の下線リンク      | `text-green-700` の色と下線。押せる範囲は 48dp                                          |
 | `RetroDivider`                 | `Divider`（上 2px 灰・下 1px 白）  | 2 本の線                                                                                |
 | `RetroSplitter`                | `RetroSplitter`                    | §4.3.2                                                                                  |
-| `LegacyAvatar`                 | `<img src=avatars/*.gif>`          | Coil の GIF。アニメーションを減らす設定では最初のコマ                                   |
+| `LegacyAvatar`                 | `<img src=avatars/*.gif>`          | 端末の `ImageDecoder` の GIF（minSdk 28）。アニメーションを切った設定では最初のコマ     |
 
 - 各部品は `@Preview` と Roborazzi のテストを持つ（Web の各部品が Storybook のストーリーを持つのと同じ）
-- 押せる範囲は `Modifier.minimumInteractiveComponentSize()` で広げ、見た目の大きさは Web のまま保つ（R14.5）
+- 押せる範囲は `Modifier.minimumInteractiveComponentSize()` で広げ、見た目の大きさは Web のまま保つ（R14.5）。Web が
+  `<label>` で部品と文字（アバター）を囲んでいるところは、ラベルつきの部品（`RetroLabeledCheckbox` / `RetroLabeledRadio`）で
+  まとめて 1 つの押せる範囲にする
+- 色は `theme.css` のトークンを Contracts から、部品の class にだけある値と Chrome の標準のフォーム部品の色は部品の
+  そばに置く（`RetroPalette`）。`border-style: inset / outset` の明暗は Chromium と同じ計算で作る
 
 ### 5.4 edge-to-edge と insets
 

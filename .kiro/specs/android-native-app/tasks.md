@@ -22,6 +22,7 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
 - **Gate 1 は通過（2026-10-11、運営の判断）。** Phase 1 を始める。Phase 0 の残り（規約・通報・`x-client`・
   `assetlinks.json`）は Phase 1〜3 と並べて進め、Phase 4（公開）の前提にする。Contracts（Task 0.7）だけは
   Task 1.2 の前提なので先に済ませる
+- **進み（2026-10-11）:** Task 0.7・1.1・1.2・1.3 は済。次は Task 1.4（`core:network`）
 - 本番への配信（閉塞中の一括配信、`docs/save-chat-edge-function.md` §9）と性能の確かめは、アプリと独立に進める
 
 ## PR の順序
@@ -129,7 +130,31 @@ Web とサーバーの前提（Phase 0）→ アプリの基盤（Phase 1）→ 
     - 日時の表記、URL の分割、管理人の分割表示、参加者（`event` / `subject`）、フィルタの一致を写し、fixtures で
       テストする。入力の検証・運勢・入退室の文言の組み立ては写さない（サーバーが正。画面の上限は Contracts の値）
     - _Requirements: 2.5, 6.2, 6.3, 20.2_
-  - [ ] 1.3 Retro_Design_System を作る（A3）
+  - [x] 1.3 Retro_Design_System を作る（A3、2026-10-11。`okiraku-android` の `81e6112`）
+    - 計画との違い:
+      - `LegacyAvatar` は Coil ではなく端末の `ImageDecoder`（minSdk 28 で GIF を動かせるので、画像のライブラリを足さない）。
+        GIF は `sync-contracts.sh` が `public/avatars` から assets に写す
+      - 色のうち `theme.css` のトークンは Contracts から読む。Web が部品の class にだけ書いている値（`#e4e4e4`・
+        `#f8fafd`・`#feb6c1`・Tailwind の `green-700` など）と Chrome の標準のフォーム部品の色は、Web と同じく部品の
+        そばに出どころつきで置いた（`theme.json` には足さない）。立体の罫線の明暗は Chromium の `Color::Light()` /
+        `Color::Dark()` と同じ計算で作る
+      - Web の `<label>` で囲んだチェックボックス・ラジオに当たる `RetroLabeledCheckbox` / `RetroLabeledRadio` を足した
+        （文字やアバターを押しても切り替わり、合わせた範囲で 48dp）
+      - DotGothic16 は 2.07MB（APK の中で約 0.8MB）。同梱のままで R19.4 の目安に収まる（リリースの APK 全体で 2.15MB）。
+        OFL の文は `res/raw` に置き、画面に出すのは Task 2.7 のライセンスの画面
+      - Robolectric は API 36 で動かす（JDK 21 では `--add-opens=java.base/jdk.internal.access` が要る）。スクリーンショットは
+        macOS で記録した。CI（Linux）での比較は GitHub に置いてから確かめる（0.5% までの違いは同じとみなす）
+    - Web_Oracle との見比べ（2026-10-11。Storybook を Chrome で幅 412px・倍率 2.625 で撮り、Roborazzi の 420dpi と並べた。
+      道具は `okiraku-android` の `scripts/web-oracle/`）:
+      - Button（Primary・Disabled・LongText・押した状態）・Input（Text・Disabled・フォーカス）: 罫線の色（明 `#ffffff`・暗
+        `#5d5d5d`、無効の暗 `#8e8e8e`）、グラデーション、押すと凹む、フォーカスの青、大きさが一致
+      - 発言フォームの select: 幅（`30 ⌄` で 49px）と並びが一致。「⌄」は Chrome より細い
+      - チェックボックス・ラジオ: 大きさ（14px・13px）と色（`#767676`・`#0075ff`）が一致
+      - ちゃなりのボタン: 一致
+      - Divider: 線は一致。上下の空きの差はストーリーの `space-y-2` によるもの
+      - 意図した違い: 押せる範囲を 48dp にするため、部品の並ぶ行の高さが Web より大きい（R14.5）。入室フォームの
+        アバターは 1 行に 8 個（Web は幅 412px で 9 個）。カーソルは Android の太さ
+      - 文字 200%: 部品は切れない。並べる側は Web と同じく折り返す（`FlowRow`）
     - トークン（`theme.json` から生成）、DotGothic16 の同梱と大きさの計測、`RetroButton` / `RetroTextField` /
       `RetroSelect` / `RetroCheckbox` / `RetroRadio` / `RetroLink` / `RetroDivider` / `RetroSplitter` /
       `LegacyAvatar`、ちゃなりのテーマ
