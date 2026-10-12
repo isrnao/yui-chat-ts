@@ -1,11 +1,11 @@
 import { readLookCommand } from '@features/chat/utils/lookCommand';
-import { useEffect, useRef, useState } from 'react';
-import { generateOperationId } from '@shared/utils/uuid';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { clearMyChats } from '@features/chat/api/chatQueries';
-import { createOptimisticChat, SaveChatRejectedError } from '@features/chat/api/saveChat';
+import { createOptimisticChat } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
+import { SupersededSessionError } from '@features/chat/utils/entryError';
 import { trackEvent } from '@shared/utils/analytics';
 import { playNotificationSound, stopNotificationSound } from '@features/chat/utils/webAudioPlayer';
 import { isFortuneCommand } from '@features/chat/serverMessages';
@@ -36,12 +36,42 @@ type Identity = {
   avatar?: AvatarId;
   fontStyle?: ChatMetadata['fontStyle'];
 };
-type FailedSend = { roomId: RoomId; chat: Chat; operationId: string; createdAt: number };
-export class SupersededSessionError extends Error {
-  constructor() {
-    super('Session request superseded');
-    this.name = 'SupersededSessionError';
-  }
+
+type SessionState = { phase: Phase; identity: Identity | null; sending: boolean };
+const IDLE: SessionState = { phase: 'idle', identity: null, sending: false };
+
+/**
+ * 入室の状態の持ち主。描画（useSyncExternalStore）と、await をまたぐ判定（今の段階・送信中か）の
+ * 両方がここを読む。以前は ref と useState に同じ値を二重に持ち、変えるたびに両方へ書いていた。
+ * epoch は入退室ごとに進め、古い入室・送信の完了が新しい状態を書き換えないようにする。
+ */
+function createSessionStore() {
+  let state = IDLE;
+  let epoch = 0;
+  let active = true;
+  const listeners = new Set<() => void>();
+  return {
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => state,
+    set(patch: Partial<SessionState>) {
+      state = { ...state, ...patch };
+      for (const listener of listeners) listener();
+    },
+    /** 新しい入退室を始める。それより前の操作の完了は isCurrent が false になる */
+    begin: () => ++epoch,
+    epoch: () => epoch,
+    isCurrent: (value: number) => active && epoch === value,
+    /** アンマウントで、進行中の操作の完了を捨てる */
+    setActive(value: boolean) {
+      active = value;
+      if (!value) epoch++;
+    },
+  };
 }
 
 function getTrackedCommand(message: string): TrackedCommand | undefined {
@@ -60,7 +90,7 @@ function getTrackedCommand(message: string): TrackedCommand | undefined {
  *
  * 部屋単位と全部屋まとめで意図して違う点（design.md §7 の表）:
  * - clear の対象がない場合: 部屋単位は何もしない、全部屋まとめは「削除対象の発言がありません」を投げる
- * - look / unlook: 部屋単位だけ通知音と Broadcast を行う
+ * - look / unlook: 部屋単位だけ自分の通知音を鳴らす（ほかの参加者は Realtime の INSERT で鳴る）
  * - metadata: 全部屋まとめはアバターと書式を足して合成する
  * - analytics の room_id: 部屋単位は部屋、全部屋まとめは返信先
  */
@@ -83,26 +113,17 @@ export function useChatSession({
   addOptimistic: (chat: Chat) => void;
   measurement: ConversationMeasurement;
 }) {
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [sessionIdentity, setSessionIdentity] = useState<Identity | null>(null);
-  const [isSending, setIsSending] = useState(false);
-  const [failedSend, setFailedSend] = useState<FailedSend | null>(null);
-  const lifetime = useRef<{
-    epoch: number;
-    active: boolean;
-    phase: Phase;
-    identity: Identity | null;
-    busy: boolean;
-  }>({ epoch: 0, active: true, phase: 'idle', identity: null, busy: false });
+  const [session] = useState(createSessionStore);
+  const {
+    phase,
+    identity: sessionIdentity,
+    sending: isSending,
+  } = useSyncExternalStore(session.subscribe, session.getSnapshot, session.getSnapshot);
   useEffect(() => {
-    const current = lifetime.current;
-    current.active = true;
-    return () => {
-      current.active = false;
-      current.epoch++;
-    };
-  }, []);
-  const isCurrent = (epoch: number) => lifetime.current.active && lifetime.current.epoch === epoch;
+    session.setActive(true);
+    return () => session.setActive(false);
+  }, [session]);
+  const isCurrent = session.isCurrent;
   const { sendUserMessage, sendAdminEvent } = useChatSender({
     addOptimistic,
     mergeChat: store.applySaved,
@@ -128,7 +149,7 @@ export function useChatSession({
     email?: string;
     avatar?: AvatarId;
   }) => {
-    if (lifetime.current.phase !== 'idle') throw new SupersededSessionError();
+    if (session.getSnapshot().phase !== 'idle') throw new SupersededSessionError();
     measurement.onJoinStarted(sessionRoomId);
     const err = validateName(name);
     if (err) {
@@ -136,7 +157,7 @@ export function useChatSession({
       throw new UserFacingError(err);
     }
     // 保存を待たずにチャット画面へ切り替える
-    const epoch = ++lifetime.current.epoch;
+    const epoch = session.begin();
     const enteredIdentity = {
       ...identity,
       name: name.trim(),
@@ -144,15 +165,11 @@ export function useChatSession({
       email: email ?? identity.email,
       avatar: avatar ?? identity.avatar,
     };
-    lifetime.current.identity = enteredIdentity;
-    lifetime.current.phase = 'entering';
-    setSessionIdentity(enteredIdentity);
-    setPhase('entering');
+    session.set({ phase: 'entering', identity: enteredIdentity });
 
     const complete = () => {
       if (!isCurrent(epoch)) throw new SupersededSessionError();
-      lifetime.current.phase = 'entered';
-      setPhase('entered');
+      session.set({ phase: 'entered' });
       const entryContext = measurement.onEntered();
       trackEvent('chat_enter', {
         room_id: sessionRoomId,
@@ -173,10 +190,7 @@ export function useChatSession({
       lastLogin: previousLogin,
     }).then(complete, (error: unknown) => {
       if (!isCurrent(epoch)) throw new SupersededSessionError();
-      lifetime.current.phase = 'idle';
-      lifetime.current.identity = null;
-      setPhase('idle');
-      setSessionIdentity(null);
+      session.set(IDLE);
       measurement.onJoinFailed(sessionRoomId, 'save_error');
       throw error;
     });
@@ -187,30 +201,22 @@ export function useChatSession({
    * 入力欄やランキングの表示は、呼び出し元が exit を呼ぶ前に戻す。
    */
   const exit = async (): Promise<void> => {
-    if (lifetime.current.phase === 'idle' || lifetime.current.phase === 'exiting') return;
-    const epoch = ++lifetime.current.epoch;
-    const me = lifetime.current.identity ?? identity;
+    const current = session.getSnapshot();
+    if (current.phase === 'idle' || current.phase === 'exiting') return;
+    const epoch = session.begin();
+    const me = current.identity ?? identity;
     trackEvent('chat_exit', { room_id: sessionRoomId, room_title: sessionTitle });
     measurement.onExited();
 
     // 退室の名前と色は、呼び出し元が入力欄を戻す前の値を使う
     const farewell = { event: 'exit', name: me.name, color: me.color } as const;
-    lifetime.current.phase = 'exiting';
-    setPhase('exiting');
-    setFailedSend(null);
+    session.set({ phase: 'exiting' });
     await sendAdminEvent(sessionRoomId, farewell)
       .catch((error: unknown) => {
         if (isCurrent(epoch)) throw error;
       })
       .finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.phase = 'idle';
-          lifetime.current.identity = null;
-          lifetime.current.busy = false;
-          setPhase('idle');
-          setSessionIdentity(null);
-          setIsSending(false);
-        }
+        if (isCurrent(epoch)) session.set(IDLE);
       });
   };
 
@@ -223,10 +229,7 @@ export function useChatSession({
     return metadata ? { ...base, ...metadata } : base;
   };
 
-  /**
-   * 発言とコマンド。空の発言は何もしない。入力欄を空にする・ランキングを閉じるといった
-   * UI の更新は、呼び出し元が送信の操作に合わせて行う。
-   */
+  /** 保存が確定した発言の後処理（計測と、look / unlook の自分の音） */
   const afterSaved = (roomId: RoomId, original: string, saved: Chat) => {
     const trackedCommand = getTrackedCommand(original.trim());
     if (trackedCommand) {
@@ -248,32 +251,30 @@ export function useChatSession({
     }
   };
 
+  /**
+   * 発言とコマンド。空の発言は何もしない。入力欄を空にする・ランキングを閉じるといった
+   * UI の更新は、呼び出し元が送信の操作に合わせて行う。
+   */
   const sendMessage = async (message: string, metadata?: ChatMetadata): Promise<void> => {
     if (isBlankMessage(message)) return;
-    if (lifetime.current.phase !== 'entered')
-      throw new UserFacingError('入室の完了をお待ちください。');
-    if (lifetime.current.busy) throw new UserFacingError('送信の完了をお待ちください。');
-    const me = lifetime.current.identity ?? identity;
-    const epoch = lifetime.current.epoch;
+    const current = session.getSnapshot();
+    if (current.phase !== 'entered') throw new UserFacingError('入室の完了をお待ちください。');
+    if (current.sending) throw new UserFacingError('送信の完了をお待ちください。');
+    const me = current.identity ?? identity;
+    const epoch = session.epoch();
     const trimmed = message.trim();
 
     if (trimmed === 'cut') {
-      setFailedSend(null);
       trackEvent('command_used', { room_id: sendTo, command: 'cut' });
       return;
     }
 
     if (trimmed === 'clear') {
-      setFailedSend(null);
       // この端末で書いた、送り先の部屋の自分の発言だけをサーバーが消す（clear_my_chats）。
       // 消す対象は手元のログで決めない（手元に無い古い発言もあり、同じ名前の他人の発言は消せないため）
-      lifetime.current.busy = true;
-      setIsSending(true);
+      session.set({ sending: true });
       const cleared = await clearMyChats(sendTo, me.name).finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.busy = false;
-          setIsSending(false);
-        }
+        if (isCurrent(epoch)) session.set({ sending: false });
       });
       // 何も消えなかった clear は使用として数えない
       if (cleared.length === 0) throw new UserFacingError('削除対象の発言がありません');
@@ -300,67 +301,23 @@ export function useChatSession({
     // Realtime の echo（保存の応答より先に届くことがある）を自分の発言と見分けるため、送る前に覚える
     rememberOwnChat(optimistic);
 
-    const operationId = generateOperationId();
-    const createdAt = Date.now();
-    lifetime.current.busy = true;
-    setIsSending(true);
-    setFailedSend(null);
-    const savedChat = await sendUserMessage(sendTo, optimistic, operationId)
-      .catch((error: unknown) => {
-        // 再試行できるのは結果が分からない失敗だけ。入力検証の拒否（400）は同じ要求を送り直しても変わらない
-        if (isCurrent(epoch) && !(error instanceof SaveChatRejectedError))
-          setFailedSend({ roomId: sendTo, chat: optimistic, operationId, createdAt });
-        throw error;
-      })
-      .finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.busy = false;
-          setIsSending(false);
-        }
-      });
+    session.set({ sending: true });
+    const savedChat = await sendUserMessage(sendTo, optimistic).finally(() => {
+      if (isCurrent(epoch)) session.set({ sending: false });
+    });
     if (!isCurrent(epoch)) return;
     afterSaved(sendTo, message, savedChat);
   };
 
-  const retry = async () => {
-    if (!failedSend || lifetime.current.busy || lifetime.current.phase !== 'entered') return;
-    if (Date.now() - failedSend.createdAt >= 24 * 60 * 60 * 1000)
-      throw new UserFacingError('再試行の期限が終了しました。送信結果をご確認ください。');
-    const epoch = lifetime.current.epoch;
-    lifetime.current.busy = true;
-    setIsSending(true);
-    await sendUserMessage(failedSend.roomId, failedSend.chat, failedSend.operationId)
-      .then((saved) => {
-        if (isCurrent(epoch)) {
-          setFailedSend(null);
-          afterSaved(failedSend.roomId, failedSend.chat.message, saved);
-        }
-      })
-      .catch((error: unknown) => {
-        if (isCurrent(epoch) && error instanceof SaveChatRejectedError) setFailedSend(null);
-        throw error;
-      })
-      .finally(() => {
-        if (isCurrent(epoch)) {
-          lifetime.current.busy = false;
-          setIsSending(false);
-        }
-      });
-  };
   const updateIdentity = (patch: Pick<Identity, 'color'>) => {
-    const current = lifetime.current.identity;
-    if (!current) return;
-    const next = { ...current, ...patch };
-    lifetime.current.identity = next;
-    setSessionIdentity(next);
+    const current = session.getSnapshot().identity;
+    if (current) session.set({ identity: { ...current, ...patch } });
   };
   return {
     entered: phase === 'entering' || phase === 'entered',
     phase,
     sessionIdentity,
     isSending,
-    failedSend,
-    retry,
     updateIdentity,
     enter,
     exit,

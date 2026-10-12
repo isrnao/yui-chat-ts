@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { toEntryErrorMessage } from './entryError';
+import { SupersededSessionError, toEntryErrorMessage } from './entryError';
 import { UserFacingError } from './userFacingError';
 
 describe('toEntryErrorMessage', () => {
@@ -16,5 +16,9 @@ describe('toEntryErrorMessage', () => {
     expect(toEntryErrorMessage('boom')).toBe(
       '入室に失敗しました。時間をおいてもう一度お試しください。'
     );
+  });
+
+  it('あとの入室・退室に追い越された入室は失敗として見せない', () => {
+    expect(toEntryErrorMessage(new SupersededSessionError())).toBe('');
   });
 });

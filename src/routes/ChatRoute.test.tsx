@@ -139,7 +139,8 @@ describe('ChatRoute のフォーカス', () => {
       ua: 'test-ua',
     });
 
-    await waitFor(() => expect(screen.getByText('こんばんは')).toBeInTheDocument());
+    // ログ一覧は lazy。並列で走る pre-commit では初回の読み込みが既定の 1 秒を超えることがある
+    expect(await screen.findByText('こんばんは', {}, { timeout: 5_000 })).toBeInTheDocument();
     expect(document.activeElement).toBe(select);
   });
 });

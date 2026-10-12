@@ -4,7 +4,6 @@ import { TWO_SHOT_CONFIG, type AutoSeconds } from '../../config';
 import ModalShell from '@features/chat/components/shared/ModalShell';
 import Button from '@shared/components/Button';
 import { useRetainedValue } from '@shared/hooks/useRetainedValue';
-import { rememberDialogInvoker } from '@shared/utils/dialogControl';
 import SexLabel from '../SexLabel';
 import { CONFIRM_MESSAGES } from '../../utils/confirmMessages';
 
@@ -61,7 +60,6 @@ export default function ChatForm({
   const [confirmation, setConfirmation] = useState<'close' | 'kick' | 'leave' | null>(null);
   const displayConfirmation = useRetainedValue(confirmation);
   const armed = useRef(false);
-  const dialogId = useId();
   const titleId = useId();
   const formId = useId();
   const radioName = useId();
@@ -113,7 +111,8 @@ export default function ChatForm({
                     onClick={(event) => {
                       if (isPending) return;
                       armed.current = true;
-                      rememberDialogInvoker(dialogId, event.currentTarget);
+                      // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                      event.currentTarget.focus();
                       setConfirmation('close');
                     }}
                   />
@@ -126,7 +125,8 @@ export default function ChatForm({
                     onClick={(event) => {
                       if (isPending) return;
                       armed.current = true;
-                      rememberDialogInvoker(dialogId, event.currentTarget);
+                      // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                      event.currentTarget.focus();
                       setConfirmation('kick');
                     }}
                   />
@@ -141,7 +141,8 @@ export default function ChatForm({
                   onClick={(event) => {
                     if (isPending) return;
                     armed.current = true;
-                    rememberDialogInvoker(dialogId, event.currentTarget);
+                    // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+                    event.currentTarget.focus();
                     setConfirmation('leave');
                   }}
                 />
@@ -207,7 +208,6 @@ export default function ChatForm({
       </table>
       {displayConfirmation && (
         <ModalShell
-          dialogId={dialogId}
           open={confirmation !== null && !terminal}
           role="alertdialog"
           labelledBy={titleId}

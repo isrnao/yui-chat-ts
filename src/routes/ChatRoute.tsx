@@ -4,14 +4,14 @@ import {
   addTransitionType,
   startTransition,
   useState,
-  useId,
   lazy,
   Suspense,
 } from 'react';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -92,11 +92,9 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   const roomRanking = useRoomRanking(roomId, showRanking);
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const [filterActive, setFilterActive] = useState(false);
-  const [filterRequest, setFilterRequest] = useState(0);
-  const filterDialogId = useId();
+  const [showFilter, setShowFilter] = useState(false);
   // 一覧の件数と名前は、ログ一覧と同じ純粋関数で数える（ChatLogList は lazy なのでここでも呼ぶ）。開いている間だけ
-  const filterSummary = filterActive ? filterByIp(chatLog, ipFilter) : null;
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
 
   useLookSound(store, ipFilter);
 
@@ -104,8 +102,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setShowRanking(false);
-    setFilterRequest(0);
-    setFilterActive(false);
+    setShowFilter(false);
     setName('');
     return session.exit();
   };
@@ -123,13 +120,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
         <h1>{room.title}</h1>
         <p>{room.description}</p>
       </header>
-      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
-          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
-      {realtimeStatus === 'disconnected' && (
-        <div className="px-[var(--page-gap)] text-xs" role="status">
-          接続が切れています。更新でログを取得できます。
-        </div>
-      )}
+      <RealtimeStatusNotice status={realtimeStatus} />
       <RetroSplitter
         bottomScrollable={false}
         minTop={100}
@@ -146,16 +137,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
               }}
               windowRowOptions={getWindowRowOptions(roomId)}
               sessionPending={session.phase === 'entering'}
-              failedMessage={session.failedSend?.chat.message}
-              onRetrySend={session.retry}
               onExit={handleExit}
               onSend={handleSend}
               onReload={reload}
               onShowRanking={openRanking}
               onBackToChat={closeRanking}
               filterCount={ipFilter.entries?.length ?? 0}
-              filterDialogId={filterDialogId}
-              onToggleFilter={() => setFilterRequest((request) => request + 1)}
+              onToggleFilter={() => setShowFilter(true)}
               avatar={session.sessionIdentity?.avatar ?? avatar}
               userName={session.sessionIdentity?.name ?? name}
               userColor={session.sessionIdentity?.color ?? color}
@@ -181,8 +169,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
                   try {
                     await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                   } catch (err) {
-                    if (!(err instanceof SupersededSessionError))
-                      setEntryError(toEntryErrorMessage(err));
+                    setEntryError(toEntryErrorMessage(err));
                     throw err;
                   }
                 }}
@@ -244,17 +231,13 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
           </>
         }
       />
-      {
-        <FilterListDialog
-          entries={ipFilter.entries ?? []}
-          dialogId={filterDialogId}
-          request={filterRequest}
-          onOpen={() => setFilterActive(true)}
-          hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
-          hiddenNames={filterSummary?.hiddenNames}
-          onClose={() => setFilterActive(false)}
-        />
-      }
+      <FilterListDialog
+        entries={ipFilter.entries ?? []}
+        open={showFilter}
+        hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+        hiddenNames={filterSummary?.hiddenNames}
+        onClose={() => setShowFilter(false)}
+      />
     </main>
   );
 }

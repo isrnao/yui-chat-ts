@@ -155,9 +155,6 @@
   opacity: 0.5;
   cursor: default !important;
 }
-.chanari-display-only {
-  display: block;
-}
 @container chanari (max-width: 480px) {
   .chanari-scope input[size='60'] {
     inline-size: calc(100cqi - 80px);

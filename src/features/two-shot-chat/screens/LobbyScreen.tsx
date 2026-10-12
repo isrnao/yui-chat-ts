@@ -13,7 +13,7 @@ import NoticePage from '../components/NoticePage';
 import RoomList from '../components/RoomList';
 import TwoShotScope from '../components/Scope';
 import { TWO_SHOT_CONFIG } from '../config';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import type { EnterRequest } from '../protocol';
 
 type LobbyUi = { kind: 'lobby' } | { kind: 'notice'; code: ErrorCode };
@@ -139,7 +139,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
     { kind: 'lobby' }
   );
 
-  useAutoRefresh(TWO_SHOT_CONFIG.lobbyReloadSeconds, lobbyStore.reload, lobbyAuto);
+  useVisibleInterval(TWO_SHOT_CONFIG.lobbyReloadSeconds, lobbyStore.reload, lobbyAuto);
 
   if (ui.kind === 'notice') {
     const dismiss = () => {

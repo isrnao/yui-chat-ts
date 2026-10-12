@@ -1,5 +1,6 @@
 import { useEffect, useEffectEvent, useOptimistic, useSyncExternalStore } from 'react';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
+import { usePageReturn } from '@shared/hooks/usePageReturn';
 import { reduceOptimisticChat } from '@features/chat/utils/optimisticLog';
 import type { Chat } from '@features/chat/types';
 
@@ -10,6 +11,8 @@ import type { Chat } from '@features/chat/types';
  *
  * @param onRealtimeChat Realtime の INSERT を受け取る（計測向け）。同一性が変わっても登録し直さない
  */
+const STALE_AFTER_HIDDEN_MS = 60_000;
+
 export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) => void) {
   const state = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getServerSnapshot);
   const [chatLog, addOptimistic] = useOptimistic(state.chats, (current, incoming: Chat) =>
@@ -19,29 +22,10 @@ export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) =>
   const handleRealtimeChat = useEffectEvent((chat: Chat) => onRealtimeChat?.(chat));
   useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);
 
-  useEffect(() => {
-    // 表示していた時間ではなく、隠れていた時間で古さを判断する。短いタブ切替のたびに全件を取り直さない
-    let hiddenAt: number | null = null;
-    const restore = (event?: Event) => {
-      if (document.visibilityState === 'hidden') {
-        if (hiddenAt === null) hiddenAt = Date.now();
-        return;
-      }
-      const persisted =
-        typeof PageTransitionEvent !== 'undefined' &&
-        event instanceof PageTransitionEvent &&
-        event.persisted;
-      const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
-      hiddenAt = null;
-      if (persisted || away >= 60_000) store.reload('reconnect');
-    };
-    document.addEventListener('visibilitychange', restore);
-    window.addEventListener('pageshow', restore);
-    return () => {
-      document.removeEventListener('visibilitychange', restore);
-      window.removeEventListener('pageshow', restore);
-    };
-  }, [store]);
+  // 1 分以上隠れていた（Realtime の取りこぼしがあり得る）か BFCache から戻ったら取り直す
+  usePageReturn(({ hiddenMs, persisted }) => {
+    if (persisted || hiddenMs >= STALE_AFTER_HIDDEN_MS) store.reload('reconnect');
+  });
   const isLoading = state.status === 'loading';
   const loadError = state.status === 'error';
 

@@ -1,7 +1,8 @@
 import { splitterBounds } from '@shared/utils/splitterBounds';
-import { useId, useRef, useState, useEffect, useLayoutEffect } from 'react';
-import type { ReactNode, KeyboardEvent, PointerEvent, CSSProperties } from 'react';
+import { useId, useRef, useState, useLayoutEffect } from 'react';
+import type { ReactNode, KeyboardEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
+import { useSplitterDrag } from '@shared/hooks/useSplitterDrag';
 
 /**
  * 上側に表示している画面の種類。初期高さの出し分けに使う。
@@ -38,51 +39,29 @@ export default function RetroSplitter({
   const containerRef = useRef<HTMLDivElement>(null);
   const preset = topKind ? PRESETS[topKind] : { base: 30, desktop: 30 };
   const [adjusted, setAdjusted] = useState<number | null>(null);
-  const [dragging, setDragging] = useState(false);
   const [metrics, setMetrics] = useState({ height: 0, cssTop: preset.base, bar: 5 });
-  const geometry = useRef({ height: 0, top: 0, bar: 5 });
-  const activePointer = useRef<number | null>(null);
-  const lastPoint = useRef<number | null>(null);
-  const frame = useRef<number | null>(null);
+  // ドラッグを始めたときの上側の高さ(%)と全体の高さ(px)。以後は移動量を足して割合にする
+  const dragStart = useRef({ value: 0, height: 0 });
 
-  const cancelFrame = () => {
-    if (frame.current !== null) cancelAnimationFrame(frame.current);
-    frame.current = null;
-  };
   useLayoutEffect(() => {
     const node = containerRef.current;
     if (!node) return;
     const measure = () => {
-      const rect = node.getBoundingClientRect();
       const styles = getComputedStyle(node);
       const cssTop = Number.parseFloat(styles.getPropertyValue('--splitter-top-h'));
-      const bar = Number.parseFloat(styles.getPropertyValue('--splitter-bar-height')) || 5;
-      geometry.current = { height: rect.height, top: rect.top, bar };
       setMetrics({
-        height: rect.height,
+        height: node.getBoundingClientRect().height,
         cssTop: Number.isFinite(cssTop) ? cssTop : preset.base,
-        bar,
+        bar: Number.parseFloat(styles.getPropertyValue('--splitter-bar-height')) || 5,
       });
     };
     measure();
+    // 高さ（ウィンドウの大きさ・ソフトキーボード）とバーの太さ（coarse pointer の切替）の変化で測り直す
     const observer = new ResizeObserver(measure);
     observer.observe(node);
     if (node.children[1]) observer.observe(node.children[1]);
-    window.addEventListener('resize', measure);
-    window.addEventListener('scroll', measure, { passive: true });
-    return () => {
-      observer.disconnect();
-      window.removeEventListener('resize', measure);
-      window.removeEventListener('scroll', measure);
-      cancelFrame();
-      activePointer.current = null;
-      lastPoint.current = null;
-    };
+    return () => observer.disconnect();
   }, [preset.base, preset.desktop]);
-  useResetOnChange(topKind, () => {
-    setAdjusted(null);
-    setDragging(false);
-  });
   const bounds = (height: number, bar: number) => {
     if (height <= 0) return { min: 0, max: 100 };
     const { min, max } = splitterBounds(height, bar, minTop, minBottom);
@@ -91,54 +70,20 @@ export default function RetroSplitter({
   const range = bounds(metrics.height, metrics.bar);
   const clamp = (value: number) => Math.max(range.min, Math.min(range.max, value));
   const value = clamp(adjusted ?? metrics.cssTop);
-  const fromPoint = (clientY: number) => {
-    const { height, top: offset, bar } = geometry.current;
-    if (!height) return value;
-    const limits = bounds(height, bar);
-    return Math.max(limits.min, Math.min(limits.max, ((clientY - offset) / height) * 100));
-  };
-  const start = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0 || event.isPrimary === false || activePointer.current !== null) return;
-    event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
-    activePointer.current = event.pointerId;
-    lastPoint.current = null;
-    setDragging(true);
-  };
-  const move = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerId !== activePointer.current) return;
-    lastPoint.current = event.clientY;
-    const y = event.clientY;
-    cancelFrame();
-    frame.current = requestAnimationFrame(() => {
-      frame.current = null;
-      setAdjusted(fromPoint(y));
-    });
-  };
-  const stop = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.pointerId !== activePointer.current) return;
-    cancelFrame();
-    if (event.type === 'pointerup' && lastPoint.current !== null)
-      setAdjusted(fromPoint(lastPoint.current));
-    activePointer.current = null;
-    lastPoint.current = null;
-    setDragging(false);
-    if (event.currentTarget.hasPointerCapture(event.pointerId))
-      event.currentTarget.releasePointerCapture(event.pointerId);
-  };
-  useEffect(() => {
-    if (!dragging) return;
-    const previous = {
-      cursor: document.body.style.cursor,
-      userSelect: document.body.style.userSelect,
-    };
-    document.body.style.cursor = 'row-resize';
-    document.body.style.userSelect = 'none';
-    return () => {
-      document.body.style.cursor = previous.cursor;
-      document.body.style.userSelect = previous.userSelect;
-    };
-  }, [dragging]);
+  const { dragging, handlers } = useSplitterDrag({
+    onStart: () => {
+      dragStart.current = {
+        value,
+        height: containerRef.current?.getBoundingClientRect().height ?? metrics.height,
+      };
+    },
+    onDrag: (deltaY) => {
+      const { value: from, height } = dragStart.current;
+      if (height > 0) setAdjusted(clamp(from + (deltaY / height) * 100));
+    },
+    resetKey: topKind,
+  });
+  useResetOnChange(topKind, () => setAdjusted(null));
   const onKeyDown = (event: KeyboardEvent) => {
     let next: number;
     if (event.key === 'ArrowUp') next = value - 2;
@@ -182,11 +127,7 @@ export default function RetroSplitter({
         aria-valuemin={Math.round(range.min)}
         aria-valuemax={Math.round(range.max)}
         tabIndex={0}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={stop}
-        onPointerCancel={stop}
-        onLostPointerCapture={stop}
+        {...handlers}
         onKeyDown={onKeyDown}
         style={{ touchAction: 'none' }}
         className="bleed-x cursor-row-resize flex items-center"

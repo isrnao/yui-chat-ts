@@ -7,7 +7,7 @@ import ChatLog from '../components/ChatLog';
 import FrameLayout from '../components/FrameLayout';
 import NoticePage from '../components/NoticePage';
 import { getTwoShotRoomName, TWO_SHOT_CONFIG } from '../config';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import { reduceRoom, type RoomAction, type RoomUiState } from './roomReducer';
 
 const HOME_HREF = import.meta.env.BASE_URL;
@@ -52,7 +52,7 @@ function RoomScreen({ session, initial }: { session: ActiveSession; initial: Roo
   };
 
   // 自動更新はログを表示している間だけ
-  useAutoRefresh(
+  useVisibleInterval(
     ui.auto,
     () => dispatch({ type: 'read' }),
     ui.bottom.kind === 'log' && !ui.terminal && ui.auto > 0

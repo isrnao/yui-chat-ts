@@ -8,7 +8,7 @@ describe('ReportDialog', () => {
   it('理由を選ぶまで送れず、送ると受け付けたことを示す', async () => {
     const user = userEvent.setup();
     const send = vi.fn().mockResolvedValue('ok');
-    render(<ReportDialog chatUuid="c-1" onClose={() => {}} send={send} />);
+    render(<ReportDialog open chatUuid="c-1" onClose={() => {}} send={send} />);
     const submit = screen.getByRole('button', { name: CHAT_TEXTS.report.send });
     expect(submit).toBeDisabled();
     await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.harassment));
@@ -20,7 +20,7 @@ describe('ReportDialog', () => {
 
   it('児童の安全に関わる理由では相談先を出す', async () => {
     const user = userEvent.setup();
-    render(<ReportDialog chatUuid="c-1" onClose={() => {}} send={vi.fn()} />);
+    render(<ReportDialog open chatUuid="c-1" onClose={() => {}} send={vi.fn()} />);
     await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.child_safety));
     expect(
       screen.getByRole('link', { name: CHAT_TEXTS.report.childSafetyLinkLabel })
@@ -30,7 +30,7 @@ describe('ReportDialog', () => {
   it('多すぎる通報と失敗は文言で知らせる', async () => {
     const user = userEvent.setup();
     const send = vi.fn().mockResolvedValueOnce('rate_limited').mockResolvedValueOnce('failed');
-    render(<ReportDialog chatUuid="c-1" onClose={() => {}} send={send} />);
+    render(<ReportDialog open chatUuid="c-1" onClose={() => {}} send={send} />);
     await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam));
     await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
     expect(await screen.findByRole('alert')).toHaveTextContent(CHAT_TEXTS.report.rateLimited);
@@ -40,7 +40,7 @@ describe('ReportDialog', () => {
   it('例外でも内容を保持して手動で再送できる', async () => {
     const user = userEvent.setup();
     const send = vi.fn().mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce('ok');
-    render(<ReportDialog chatUuid="c-1" send={send} onClose={() => {}} />);
+    render(<ReportDialog open chatUuid="c-1" send={send} onClose={() => {}} />);
     await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam));
     await user.type(screen.getByLabelText(CHAT_TEXTS.report.detailLabel), '保存する説明');
     await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));

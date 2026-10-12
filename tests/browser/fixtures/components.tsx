@@ -14,7 +14,6 @@ import EntryForm from '../../../src/features/chat/components/EntryForm';
 import ChatRoom from '../../../src/features/chat/components/ChatRoom';
 import FilterConfirmDialog from '../../../src/features/chat/components/FilterConfirmDialog';
 import FilterListDialog from '../../../src/features/chat/components/FilterListDialog';
-import { hasInvokerCommands, rememberDialogInvoker } from '../../../src/shared/utils/dialogControl';
 import RetroSplitter from '../../../src/features/chat/components/RetroSplitter';
 
 const fixtureChats: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
@@ -70,7 +69,7 @@ export function Components() {
   const chanari = new URLSearchParams(location.search).has('chanari');
   const [draft, setDraft] = useState('');
   const [confirm, setConfirm] = useState(false);
-  const [request, setRequest] = useState(0);
+  const [list, setList] = useState(false);
   const [applied, setApplied] = useState(0);
   const [name, setName] = useState('');
   const [color, setColor] = useState('#ff69b4');
@@ -84,8 +83,8 @@ export function Components() {
     <main className="h-dvh flex flex-col">
       <button
         type="button"
-        onClick={(e) => {
-          rememberDialogInvoker('fixture-confirm', e.currentTarget);
+        onClick={(event) => {
+          event.currentTarget.focus();
           setConfirm(true);
         }}
       >
@@ -93,7 +92,6 @@ export function Components() {
       </button>
       <output aria-label="確定回数">{applied}</output>
       <FilterConfirmDialog
-        dialogId="fixture-confirm"
         open={confirm}
         title="確認"
         description="対象"
@@ -105,20 +103,18 @@ export function Components() {
       />
       <button
         type="button"
-        {...{ commandfor: 'fixture-list', command: 'show-modal' }}
-        onClick={(e) => {
-          rememberDialogInvoker('fixture-list', e.currentTarget);
-          if (!hasInvokerCommands()) setRequest(request + 1);
+        onClick={(event) => {
+          event.currentTarget.focus();
+          setList(true);
         }}
       >
         一覧を開く
       </button>
       <FilterListDialog
-        dialogId="fixture-list"
-        request={request}
+        open={list}
         entries={[]}
         hiddenCounts={new Map()}
-        onClose={() => {}}
+        onClose={() => setList(false)}
       />
       <RetroSplitter
         topKind={entered ? 'chat' : 'entry'}

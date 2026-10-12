@@ -4,7 +4,7 @@
 
 起点: `develop_contracts`。統合先: `develop_native-interactions`。
 
-[計画](INTERACTION_REFACTORING_PLAN.md)の58項目を、R0 → R1 → R4a → R4c → R2 → R3 → R4b → R5a → R5b → R6の順にstacked PRへ分割する。各PRのbaseは直前のfeatureブランチとし、最初だけdevelopをbaseとする。専用ツーショットの改修も停止flagを維持したまま検証する。
+計画（`INTERACTION_REFACTORING_PLAN.md`。手元で管理し、リポジトリには含めない）の58項目を、R0 → R1 → R4a → R4c → R2 → R3 → R4b → R5a → R5b → R6の順にstacked PRへ分割する。各PRのbaseは直前のfeatureブランチとし、最初だけdevelopをbaseとする。専用ツーショットの改修も停止flagを維持したまま検証する。
 
 | 単位 | 実装状態                               | PR / 範囲                                                                       |
 | ---- | -------------------------------------- | ------------------------------------------------------------------------------- |
@@ -20,6 +20,7 @@
 | R6   | 実装済み・自動検証（手動ゲートは末尾） | [#230](https://github.com/isrnao/yui-chat-ts/pull/230) / 停止中専用2shot        |
 | R7   | 実装済み・自動検証（手動ゲートは末尾） | [#231](https://github.com/isrnao/yui-chat-ts/pull/231) / 最終補完/採用記録      |
 | R8   | 実装済み・自動検証（手動ゲートは末尾） | 追加UIの撤去（下記「R8」）                                                      |
+| R9   | 実装済み・自動検証（手動ゲートは末尾） | 統合後の全体最適化（下記「R9」）                                                |
 
 実ブラウザの結果と、実機でしか確認できない項目を区別して追記する。新機能計画F01〜F11の未実装機能は今回の58項目の実装と分離する。
 
@@ -52,6 +53,19 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 R3の発言ごとの「操作」button/popover（C09/C10）と、R4bの「通知音を有効にする」「通知音をミュート」（A13の表示部分）を撤去した。どちらもCSS/HTMLへの移行ではなく画面への機能追加だったため。フィルタ・通報は従来どおり行のダブルタップ → 確認dialog（「通報する」）で到達する。通知音は従来どおりユーザー操作内の再生時にAudioContextをresumeする。look/unlookの共通parser、unlook後に遅れたdecodeを鳴らさない処理、resumeの時間上限、接続状態の表示は維持。browser testsはダブルタップ経由のフィルタ・通報・focus復帰へ置き換えた。
 
 さらに、SSGのHTMLに入って初期表示を押し下げていた「接続中…」（R4b）と「人数を取得中…」（R5b）を出さないようにし（状態表示は失敗時だけ）、トップの「人数は直近6時間の公開ログの発言者数です。」とXの埋め込みの下の「Xで…を見る」（R5b）を撤去した。
+
+## R9
+
+#220 の統合後に全体を見直し、次を整理した。
+
+- 追加表示の撤去: Chanari の「表示のみです」「（表示のみ）」、「入室処理中...」、送信の再試行ボタン（「前の送信を再試行」「同じ送信を再試行」「送信できなかった本文を戻す」）と useChatSession の failedSend / retry
+- Chanari の発言色・エフェクト・文字サイズ・エフェクト無効・AT フィールド: R5a で非活性にしたが、仕様（chanari-retro-chat-ui Requirement 10・16・17）どおり操作できる飾りに戻した。状態は ChanariChatRoom の中だけで持ち、送信とログの描画には使わない
+- ダイアログ: 開閉を `open` の 1 通りにし、request の数・Invoker Commands・共有の invoker Map・独自イベントをやめた。ビルドの対象（es2022）を動かせるブラウザはすべて `<dialog>` を持つので、LegacyModalShell と dialogControl を削除した。上の記録の「fallback」は R9 で撤去済み
+- ページ復帰: `subscribePageReturn` / `usePageReturn` に一本化し、隠れていた時間で古さを判断する。トップの人数が表示から 60 秒後に短いタブ切替のたびに取り直されていた不具合を直した。表示中だけの定期実行は `useVisibleInterval` に一本化した
+- useChatSession: ref と useState の二重管理をやめ、小さな store 1 つにした
+- splitter: RetroSplitter と FrameLayout のドラッグを `useSplitterDrag` に共通化し、スクロールごとの測り直しをやめた
+- 3 画面の接続状態の知らせを `RealtimeStatusNotice` に共通化し、文言をそろえた
+- CI: ci.yml の Vitest を必須にし（continue-on-error を外し、typecheck を追加）、browser.yml はブラウザのテストだけにした。R0 の試作ページ（native.html / native.spec.ts）は本番部品のテストで置き換えたので削除した
 
 ## R4b
 

@@ -1,4 +1,3 @@
-import { requestDialogClose } from '@shared/utils/dialogControl';
 import { useId } from 'react';
 import type { ReactNode } from 'react';
 import Button from '@shared/components/Button';
@@ -6,8 +5,9 @@ import ModalShell from '../shared/ModalShell';
 import { CHAT_TEXTS } from '@features/chat/chatTexts';
 
 type Props = {
-  open?: boolean;
-  dialogId?: string;
+  open: boolean;
+  /** 閉じた後にフォーカスを戻す先（ModalShell） */
+  returnFocus?: () => HTMLElement | null;
   /** 見出し（例:「219.*.*.253 の発言をフィルタ（非表示に）しますか？」） */
   title: string;
   /** 見出しの下の説明 */
@@ -41,7 +41,7 @@ const SWITCH_ATTRIBUTE = { switch: '' };
  */
 export default function FilterConfirmDialog({
   open,
-  dialogId,
+  returnFocus,
   title,
   description,
   children,
@@ -50,15 +50,13 @@ export default function FilterConfirmDialog({
   onCancel,
   onReport,
 }: Props) {
-  const fallbackDialogId = useId();
-  const id = dialogId ?? fallbackDialogId;
   const titleId = useId();
   const descriptionId = useId();
 
   return (
     <ModalShell
       open={open}
-      dialogId={id}
+      returnFocus={returnFocus}
       role="alertdialog"
       labelledBy={titleId}
       describedBy={descriptionId}
@@ -93,12 +91,7 @@ export default function FilterConfirmDialog({
             className="absolute inset-0 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
           />
         </span>
-        <Button
-          type="button"
-          onClick={() => requestDialogClose(id)}
-          autoFocus
-          data-dialog-initial-focus
-        >
+        <Button type="button" onClick={onCancel} autoFocus data-dialog-initial-focus>
           {CHAT_TEXTS.filter.cancel}
         </Button>
       </div>

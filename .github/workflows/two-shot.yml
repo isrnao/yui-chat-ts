@@ -1,6 +1,6 @@
 # .github/workflows/two-shot.yml
 # ツーショットチャット（/chat/2shot/）の検証。どれか 1 つでも失敗したら落とす。
-# 既存の ci.yml は Deno と DB のテストを走らせず、Vitest も continue-on-error なので、本機能の保証には使わない
+# ci.yml は Deno と DB のテストを走らせないので、本機能のサーバー側はここで保証する
 # （.kiro/specs/two-shot-chat/requirements.md Requirement 18.6）。
 name: two-shot
 

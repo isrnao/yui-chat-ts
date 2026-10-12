@@ -29,9 +29,7 @@ test('production forms and splitter work within a narrow viewport', async ({ pag
   );
 });
 
-test('production dialog supports cancel, safe confirmation and declarative reopening', async ({
-  page,
-}) => {
+test('production dialog supports cancel, safe confirmation and reopening', async ({ page }) => {
   await page.goto('/tests/browser/fixtures/components.html');
   const opener = page.getByRole('button', { name: '確認を開く' });
   await opener.click();
@@ -53,26 +51,6 @@ test('production dialog supports cancel, safe confirmation and declarative reope
     await expect(listOpener).toBeFocused();
   }
 });
-test('production fallback traps focus and cancels without invoking confirmation', async ({
-  page,
-}) => {
-  await page.addInitScript(() => {
-    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
-      value: undefined,
-      configurable: true,
-    });
-  });
-  await page.goto('/tests/browser/fixtures/components.html');
-  await page.getByRole('button', { name: '確認を開く' }).click();
-  const dialog = page.getByRole('alertdialog', { name: '確認', exact: true });
-  await expect(dialog).toHaveAttribute('aria-modal', 'true');
-  await page.keyboard.press('Tab');
-  await expect(dialog.getByRole('button', { name: 'フィルタする' })).toBeFocused();
-  await page.keyboard.press('Escape');
-  await expect(dialog).not.toBeVisible();
-  await expect(page.getByLabel('確定回数')).toHaveText('0');
-});
-
 test('1000 production rows reach filter and report by double-tap', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/tests/browser/fixtures/components.html');
@@ -108,10 +86,16 @@ test('reduced motion hides animated decoration and very short viewport preserves
   await expect(page.getByLabel('送信結果')).toHaveText('短い画面でも送信');
 });
 
-test('chanari local draft and display-only fields work at 320px', async ({ page }) => {
+test('chanari local draft and decorative controls work at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/tests/browser/fixtures/components.html?chanari=1');
-  await expect(page.getByLabel('エフェクト', { exact: true })).toBeDisabled();
+  // エフェクト・AT フィールドは操作できる飾り（送信には使わない）
+  const effect = page.getByLabel('エフェクト', { exact: true });
+  await expect(effect).toBeEnabled();
+  await effect.selectOption({ index: 1 });
+  const atField = page.getByRole('button', { name: 'AT フィールド', exact: true });
+  await atField.click();
+  await expect(atField).toHaveAttribute('aria-pressed', 'true');
   const input = page.getByRole('textbox', { name: '発言', exact: true });
   await input.fill('部屋別の下書き');
   await page.getByRole('button', { name: 'チャットで発言する', exact: true }).click();
@@ -184,13 +168,9 @@ test('disabled-route two-shot components preserve confirmation and radio keyboar
   );
 });
 
-test('fallback returns focus to the log when filtering removes its invoker', async ({ page }) => {
-  await page.addInitScript(() =>
-    Object.defineProperty(HTMLDialogElement.prototype, 'showModal', {
-      value: undefined,
-      configurable: true,
-    })
-  );
+test('returns focus to the log when filtering removes the row that opened the dialog', async ({
+  page,
+}) => {
   await page.goto('/tests/browser/fixtures/components.html');
   await page.locator('[data-chat-uuid="fixture-0"] [data-filter-target="name"]').dblclick();
   await page.getByRole('alertdialog').getByTestId('filter-confirm-haptic-switch').click();

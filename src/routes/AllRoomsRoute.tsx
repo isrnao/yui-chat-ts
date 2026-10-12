@@ -1,9 +1,10 @@
-import { useId, useState, lazy, Suspense } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { getAllRoomsLogStore } from '@features/chat/api/roomLogStore';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useReplyTarget } from '@features/chat/hooks/useReplyTarget';
 import { useSettings } from '@features/chat/hooks/useSettings';
 import { useSEO, usePageView } from '@shared/hooks/useSEO';
@@ -38,7 +39,6 @@ export default function AllRoomsRoute() {
   const store = getAllRoomsLogStore();
   const { chatLog, isLoading, loadError, isEmpty, realtimeStatus, addOptimistic, reload, expand } =
     useRoomLog(store, measurement.onRealtimeChat);
-  const subscribeError = realtimeStatus === 'disconnected';
   const { replyTarget, setReplyTarget } = useReplyTarget();
   const { settings } = useSettings();
   const identity = useChatIdentity(settings);
@@ -56,16 +56,13 @@ export default function AllRoomsRoute() {
   const [entryError, setEntryError] = useState('');
   // フィルタした伏せ字の IP（.kiro/specs/chat-ip-mute）。「フィルタ」でモーダルの一覧を開く
   const ipFilter = useIpFilter();
-  const [filterActive, setFilterActive] = useState(false);
-  const [filterRequest, setFilterRequest] = useState(0);
-  const filterDialogId = useId();
-  const filterSummary = filterActive ? filterByIp(chatLog, ipFilter) : null;
+  const [showFilter, setShowFilter] = useState(false);
+  const filterSummary = showFilter ? filterByIp(chatLog, ipFilter) : null;
 
   const handleExit = () => {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
-    setFilterRequest(0);
-    setFilterActive(false);
+    setShowFilter(false);
     setName('');
     return session.exit();
   };
@@ -93,11 +90,7 @@ export default function AllRoomsRoute() {
           <h1>{ROOM_META.title}</h1>
           <p>{ROOM_META.description}</p>
         </header>
-        {subscribeError && (
-          <div role="status" className="text-xs px-[var(--page-gap)]">
-            再接続中...
-          </div>
-        )}
+        <RealtimeStatusNotice status={realtimeStatus} />
         <RetroSplitter
           minTop={100}
           minBottom={100}
@@ -113,8 +106,6 @@ export default function AllRoomsRoute() {
                 }}
                 windowRowOptions={getWindowRowOptions('all')}
                 sessionPending={session.phase === 'entering'}
-                failedMessage={session.failedSend?.chat.message}
-                onRetrySend={session.retry}
                 onExit={handleExit}
                 onSend={wrappedHandleSend}
                 onReload={reload}
@@ -124,8 +115,7 @@ export default function AllRoomsRoute() {
                 replyTargetTitle={replyTargetTitle}
                 onResetReplyTarget={() => setReplyTarget('all')}
                 filterCount={ipFilter.entries?.length ?? 0}
-                filterDialogId={filterDialogId}
-                onToggleFilter={() => setFilterRequest((request) => request + 1)}
+                onToggleFilter={() => setShowFilter(true)}
               />
             ) : (
               <>
@@ -146,8 +136,7 @@ export default function AllRoomsRoute() {
                     try {
                       await session.enter({ name: n, color: c, silent, email: e, avatar: a });
                     } catch (err) {
-                      if (!(err instanceof SupersededSessionError))
-                        setEntryError(toEntryErrorMessage(err));
+                      setEntryError(toEntryErrorMessage(err));
                       throw err;
                     }
                   }}
@@ -185,17 +174,13 @@ export default function AllRoomsRoute() {
             </Suspense>
           }
         />
-        {
-          <FilterListDialog
-            entries={ipFilter.entries ?? []}
-            dialogId={filterDialogId}
-            request={filterRequest}
-            onOpen={() => setFilterActive(true)}
-            hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
-            hiddenNames={filterSummary?.hiddenNames}
-            onClose={() => setFilterActive(false)}
-          />
-        }
+        <FilterListDialog
+          entries={ipFilter.entries ?? []}
+          open={showFilter}
+          hiddenCounts={filterSummary?.hiddenCounts ?? new Map()}
+          hiddenNames={filterSummary?.hiddenNames}
+          onClose={() => setShowFilter(false)}
+        />
       </main>
     </ErrorBoundary>
   );

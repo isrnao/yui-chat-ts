@@ -1,8 +1,3 @@
-import {
-  hasNativeDialog,
-  hasInvokerCommands,
-  rememberDialogInvoker,
-} from '@shared/utils/dialogControl';
 import { asyncResult } from '@shared/utils/asyncResult';
 import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
@@ -48,10 +43,8 @@ export type ChatRoomProps = {
   filterCount?: number;
   /** 「フィルタ」リンクで編集画面を開閉する。渡したときだけ「細字」の右にリンクを出す */
   onToggleFilter?: () => void;
-  filterDialogId?: string;
+  /** 入室の保存を待っている間。発言の操作を止める */
   sessionPending?: boolean;
-  failedMessage?: string;
-  onRetrySend?: () => Promise<void>;
 };
 
 export default function ChatRoom({
@@ -70,10 +63,7 @@ export default function ChatRoom({
   onResetReplyTarget,
   filterCount = 0,
   onToggleFilter,
-  filterDialogId,
   sessionPending = false,
-  failedMessage,
-  onRetrySend,
 }: ChatRoomProps) {
   const messageId = useId();
   // 発言欄の値はこの部品の中だけで持つ。ルートで持つと 1 文字ごとにルート全体
@@ -121,11 +111,9 @@ export default function ChatRoom({
       const msg =
         formData.get('command') === 'clear' ? 'clear' : (formData.get('message')?.toString() ?? '');
       const command = formData.get('command');
-      if (command !== 'retry' && !msg.trim()) return;
+      if (!msg.trim()) return;
       const metadata = buildMetadata();
-      const outcome = await asyncResult(() =>
-        command === 'retry' ? (onRetrySend?.() ?? Promise.resolve()) : onSend(msg, metadata)
-      );
+      const outcome = await asyncResult(() => onSend(msg, metadata));
       if (!outcome.ok) {
         const original = formData.get('message')?.toString() ?? '';
         if (command !== 'clear' && msg.trim() !== 'cut')
@@ -165,11 +153,6 @@ export default function ChatRoom({
 
   return (
     <div className="flex flex-col font-yui">
-      {sessionPending && (
-        <p role="status" className="text-xs text-gray-600">
-          入室処理中...
-        </p>
-      )}
       {/* 1行目: [退室] [ランキング] のリンク群 */}
       <div className="mb-1 flex gap-2 text-green-700 text-sm">
         <button
@@ -208,17 +191,11 @@ export default function ChatRoom({
         // onSubmit は action より先に同じイベントの中で呼ばれる。ここで入力欄を空にすると、
         // 保存を待たずに空になる（action の中で空にすると Action の終わりまで反映されない）。
         // action に渡る FormData は、この更新が画面に反映される前の値で作られる。
-        onSubmit={(event) => {
+        onSubmit={() => {
           submitFocusRef.current = document.activeElement;
           // 送信可否に関わらずチャット表示へ戻す（空入力でも「戻る」操作として機能させる）
           onBackToChat?.();
-          const submitter = event.nativeEvent.submitter;
-          if (
-            !(submitter instanceof HTMLButtonElement) ||
-            submitter.value !== 'retry' ||
-            message === failedMessage
-          )
-            setMessage('');
+          setMessage('');
         }}
         className="mb-1 font-yui"
         autoComplete="off"
@@ -298,11 +275,6 @@ export default function ChatRoom({
             className="max-w-full"
           />
         </div>
-        {failedMessage && onRetrySend && (
-          <Button type="submit" name="command" value="retry" formNoValidate disabled={sending}>
-            前の送信を再試行
-          </Button>
-        )}
         {error && (
           <div role="alert" className="w-full text-xs text-red-500 mt-1">
             {error}
@@ -378,10 +350,10 @@ export default function ChatRoom({
           <button
             type="button"
             className="ml-2 underline cursor-pointer"
-            {...(filterDialogId ? { commandfor: filterDialogId, command: 'show-modal' } : {})}
             onClick={(event) => {
-              if (filterDialogId) rememberDialogInvoker(filterDialogId, event.currentTarget);
-              if (!filterDialogId || !hasNativeDialog() || !hasInvokerCommands()) onToggleFilter();
+              // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+              event.currentTarget.focus();
+              onToggleFilter();
             }}
           >
             {filterCount > 0

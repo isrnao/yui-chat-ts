@@ -1,9 +1,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoomLogStore } from '../api/roomLogStore';
-import { SaveChatRejectedError } from '../api/saveChat';
 import type { Chat } from '../types';
-import { SupersededSessionError, useChatSession, type SessionTarget } from './useChatSession';
+import { useChatSession, type SessionTarget } from './useChatSession';
+import { SupersededSessionError } from '../utils/entryError';
 
 const network = vi.hoisted(() => ({ admin: vi.fn(), send: vi.fn() }));
 vi.mock('./useChatSender', () => ({
@@ -101,39 +101,5 @@ describe('sessionの非同期境界', () => {
       'all',
       expect.objectContaining({ name: '本人' })
     );
-  });
-
-  it('結果不明の再試行は部屋・payload・nonce・操作IDを保持する', async () => {
-    const { result, rerender } = setup();
-    await act(async () => {
-      await result.current.enter({ name: '本人', color: '#000', silent: true });
-    });
-    network.send.mockRejectedValueOnce(new Error('response lost'));
-    const metadata = { version: 1 as const, fontStyle: { bold: true } };
-    await act(async () => {
-      await expect(result.current.send('本文', metadata)).rejects.toThrow('response lost');
-    });
-    metadata.fontStyle.bold = false;
-    rerender({ name: '他', target: { kind: 'all', replyTo: 'superbeginner' } });
-    await act(async () => {
-      await result.current.retry();
-    });
-    const [first, retry] = network.send.mock.calls;
-    expect(retry).toEqual(first);
-    expect(retry![0]).toBe('com_sb');
-    expect(retry![1].metadata.fontStyle.bold).toBe(true);
-    expect(result.current.failedSend).toBeNull();
-  });
-
-  it('入力検証で拒否された送信は再試行の対象にしない', async () => {
-    const { result } = setup();
-    await act(async () => {
-      await result.current.enter({ name: '本人', color: '#000', silent: true });
-    });
-    network.send.mockRejectedValueOnce(new SaveChatRejectedError('invalid_message'));
-    await act(async () => {
-      await expect(result.current.send('本文')).rejects.toBeInstanceOf(SaveChatRejectedError);
-    });
-    expect(result.current.failedSend).toBeNull();
   });
 });

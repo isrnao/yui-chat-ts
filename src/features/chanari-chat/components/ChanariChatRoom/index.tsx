@@ -3,16 +3,14 @@ import { asyncResult } from '@shared/utils/asyncResult';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import ChanariColorPicker from '../ChanariColorPicker';
 import ChanariCharCounter from '../ChanariCharCounter';
-import { EFFECT_OPTIONS } from '../../utils/effectOptions';
-import { FONT_SIZE_OPTIONS } from '../../utils/fontSizeOptions';
+import { EFFECT_OPTIONS, type EffectId } from '../../utils/effectOptions';
+import { FONT_SIZE_OPTIONS, type LegacyFontSize } from '../../utils/fontSizeOptions';
 import { RELOAD_SECONDS_OPTIONS } from '../../utils/draftStore';
 import { countGraphemes, MESSAGE_MAX, MESSAGE_MAX_CODE_POINTS } from '@features/chat/inputRules';
 import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariChatRoomProps = {
   initialMessage?: string;
-  failedMessage?: string;
-  onRetrySend?: () => Promise<void>;
   onSaveDraft?: (message: string) => void;
   onSend: (msg: string) => void | Promise<void>;
   onReload: () => void;
@@ -31,8 +29,6 @@ export type ChanariChatRoomProps = {
 };
 
 export default function ChanariChatRoom({
-  failedMessage,
-  onRetrySend,
   initialMessage = '',
   onSaveDraft,
   onSend,
@@ -51,9 +47,14 @@ export default function ChanariChatRoom({
   sid,
 }: ChanariChatRoomProps) {
   const [message, setMessage] = useState(initialMessage);
+  // 2012 年版の雰囲気を残す飾りの操作。状態はこの部品の中だけで持ち、送信にもログの描画にも渡さない
+  // （.kiro/specs/chanari-retro-chat-ui Requirement 10・16・17）
+  const [effect, setEffect] = useState<EffectId>('none');
+  const [fontSize, setFontSize] = useState<LegacyFontSize>('default');
+  const [disableEffect, setDisableEffect] = useState(false);
+  const [atField, setAtField] = useState(false);
   const [actionError, setActionError] = useState('');
   const [pending, setPending] = useState(false);
-  const [failedBody, setFailedBody] = useState('');
   const busy = useRef(false);
   const latest = useRef({ message: initialMessage, lastNonempty: initialMessage });
   const alive = useRef(true);
@@ -102,9 +103,10 @@ export default function ChanariChatRoom({
     setPending(false);
     if (!result.ok) {
       setActionError(toUserMessage(result.error, fallback));
+      // 失敗した本文は送信前に下書きへ保存してある。入力欄が空なら戻し、新しい編集があれば
+      // そちらを残す（失敗した本文は「発言復元」で戻せる）
       if (body && latest.current.message === '') edit(body);
-      else if (body) setFailedBody(body);
-    } else setFailedBody('');
+    }
   };
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -165,7 +167,6 @@ export default function ChanariChatRoom({
         {CHANARI_TEXTS.speechColor}{' '}
         <input
           type="text"
-          disabled
           value={speechColor}
           onChange={(e) => setSpeechColor(e.target.value)}
           size={7}
@@ -175,17 +176,17 @@ export default function ChanariChatRoom({
       <ChanariColorPicker
         value={speechColor}
         onChange={setSpeechColor}
-        disabled
         ariaLabel={CHANARI_TEXTS.speechColorPicker}
       />
       <br />
-      <span className="chanari-display-only">
-        発言色・文字サイズ・エフェクト・ATフィールドは表示のみです。
-      </span>
       {/* エフェクト */}
       <label>
         {CHANARI_TEXTS.effect}{' '}
-        <select defaultValue="none" disabled aria-label={CHANARI_TEXTS.effect}>
+        <select
+          value={effect}
+          onChange={(e) => setEffect(e.target.value as EffectId)}
+          aria-label={CHANARI_TEXTS.effect}
+        >
           {EFFECT_OPTIONS.map((opt) => (
             <option key={opt.id} value={opt.id}>
               {opt.label}
@@ -196,7 +197,11 @@ export default function ChanariChatRoom({
       {/* 文字サイズ */}
       <label>
         {CHANARI_TEXTS.fontSize}{' '}
-        <select defaultValue="default" disabled aria-label={CHANARI_TEXTS.fontSize}>
+        <select
+          value={fontSize}
+          onChange={(e) => setFontSize(e.target.value as LegacyFontSize)}
+          aria-label={CHANARI_TEXTS.fontSize}
+        >
           {FONT_SIZE_OPTIONS.map((opt) => (
             <option key={opt.id} value={opt.id}>
               {opt.label}
@@ -208,8 +213,8 @@ export default function ChanariChatRoom({
       <label>
         <input
           type="checkbox"
-          defaultChecked={false}
-          disabled
+          checked={disableEffect}
+          onChange={(e) => setDisableEffect(e.target.checked)}
           aria-label={CHANARI_TEXTS.disableEffect}
         />
         {CHANARI_TEXTS.disableEffect}
@@ -266,7 +271,12 @@ export default function ChanariChatRoom({
       >
         {CHANARI_TEXTS.clearLogs}
       </button>
-      <button type="button" disabled aria-pressed={false}>
+      <button
+        type="button"
+        onClick={() => setAtField((value) => !value)}
+        disabled={pending || isPending}
+        aria-pressed={atField}
+      >
         {CHANARI_TEXTS.atField}
       </button>
       <button
@@ -277,30 +287,6 @@ export default function ChanariChatRoom({
       >
         {CHANARI_TEXTS.exit}
       </button>
-      {failedMessage && onRetrySend && (
-        <button
-          type="button"
-          disabled={pending || isPending}
-          onClick={() => {
-            if (busy.current || isPending) return;
-            if (message === failedMessage) edit('');
-            void run(onRetrySend, '同じ送信を再試行できませんでした。');
-          }}
-        >
-          同じ送信を再試行
-        </button>
-      )}
-      {failedBody && (
-        <button
-          type="button"
-          onClick={() => {
-            edit(failedBody);
-            setFailedBody('');
-          }}
-        >
-          送信できなかった本文を戻す
-        </button>
-      )}
       {error && (
         <div role="alert" style={{ color: 'red' }}>
           {error}

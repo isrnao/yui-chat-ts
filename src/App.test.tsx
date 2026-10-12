@@ -75,7 +75,9 @@ async function renderApp() {
   render(<App />);
 }
 
-describe('<App />', () => {
+// ルートごとの lazy なチャンクを初めて変換する検査がある。並列の pre-commit（typecheck・eslint と同時）では
+// 既定の 5 秒を超え、時間切れの後に描画が残って次の検査も落ちるので、この describe だけ猶予を持たせる
+describe('<App />', { timeout: 30_000 }, () => {
   // トップは入口なので lazy にしない。同期レンダーで本文が出ること自体が要件
   // (lazy に戻すと findBy が必要になり、実画面では読み込み待ちが挟まる)
   it('shows the top page immediately without route loading fallback', async () => {

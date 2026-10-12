@@ -4,7 +4,8 @@ import { getRoomMeta } from '@features/chat/rooms';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
+import { useChatSession } from '@features/chat/hooks/useChatSession';
+import RealtimeStatusNotice from '@features/chat/components/RealtimeStatusNotice';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
@@ -15,7 +16,7 @@ import { normalizeColorCode } from './utils/colorCode';
 import ChanariTopHeader from './components/ChanariTopHeader';
 import ChanariEntryForm from './components/ChanariEntryForm';
 import ChanariChatRoom from './components/ChanariChatRoom';
-import { useReloadInterval } from './hooks/useReloadInterval';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import { useChanariSettings } from './hooks/useChanariSettings';
 import { loadDraft, DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
@@ -81,17 +82,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   // レガシー互換の定期更新は Realtime が切れている間のフォールバックとしてのみ動かす。
   // 接続中は push で新着が届くため、ポーリングしても取得済みの内容を取り直すだけになる
   // (既定 7 秒間隔なので 1 人あたり毎時 500 回を超える無駄な問い合わせになっていた)。
-  useReloadInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
+  useVisibleInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
-      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
-          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
-      {realtimeStatus === 'disconnected' && (
-        <div className="px-[var(--page-gap)] text-xs" role="status">
-          接続が切れています。更新でログを取得できます。
-        </div>
-      )}
+      <RealtimeStatusNotice status={realtimeStatus} />
       <RetroSplitter
         minTop={100}
         minBottom={100}
@@ -107,8 +102,6 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
               {entered ? (
                 <ChanariChatRoom
                   initialMessage={initialMessage}
-                  failedMessage={session.failedSend?.chat.message}
-                  onRetrySend={session.retry}
                   onSaveDraft={(lastMessage) => updateSettings({ lastMessage })}
                   onSend={(msg) => handleSend(msg)}
                   onReload={reload}
@@ -150,8 +143,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
                       await session.enter({ name: n, color: nc, silent: false });
                       setEntryCount((count) => count + 1);
                     } catch (err) {
-                      if (!(err instanceof SupersededSessionError))
-                        setEntryError(toEntryErrorMessage(err));
+                      setEntryError(toEntryErrorMessage(err));
                       throw err;
                     }
                   }}

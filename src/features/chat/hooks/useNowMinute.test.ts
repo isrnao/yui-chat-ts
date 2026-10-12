@@ -44,8 +44,12 @@ it('BFCache/visibility復帰でタイマーを待たず現在時刻を反映す�
   vi.useFakeTimers();
   const { result } = renderHook(() => useNowMinute());
   const future = Date.now() + 300_000;
-  vi.setSystemTime(future);
-  act(() => window.dispatchEvent(new Event('pageshow')));
-  expect(result.current).toBe(future);
+  const persisted = Object.assign(new Event('pageshow'), { persisted: true });
+  act(() => {
+    vi.setSystemTime(future);
+    window.dispatchEvent(persisted);
+    vi.advanceTimersByTime(50);
+  });
+  expect(result.current).toBe(future + 50);
   vi.useRealTimers();
 });
