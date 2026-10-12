@@ -14,10 +14,11 @@ NAME="two-shot-smoke-$$"
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
 # two-shot は save-chat の telemetry.ts を相対パスで読むので、同じ配置でコピーする
-mkdir -p "$WORK/main" "$WORK/functions/two-shot" "$WORK/functions/save-chat"
+mkdir -p "$WORK/main" "$WORK/functions/two-shot" "$WORK/functions/save-chat" "$WORK/functions/_shared"
 cp "$ROOT"/supabase/functions/two-shot/*.ts "$ROOT"/supabase/functions/two-shot/deno.json \
   "$WORK/functions/two-shot/"
 cp "$ROOT"/supabase/functions/save-chat/telemetry.ts "$WORK/functions/save-chat/"
+cp "$ROOT"/supabase/functions/_shared/request.ts "$WORK/functions/_shared/"
 rm -f "$WORK"/functions/two-shot/*.test.ts
 cat > "$WORK/main/index.ts" <<'TS'
 Deno.serve(async (req: Request) => {

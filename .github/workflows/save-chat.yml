@@ -10,6 +10,7 @@ on:
     paths:
       - 'supabase/functions/save-chat/**'
       - 'supabase/functions/report-chat/**'
+      - 'supabase/functions/_shared/**'
       - 'src/features/chat/rooms.ts'
       - 'src/features/chat/roomsTable.test.ts'
       - 'supabase/migrations/**'
@@ -53,6 +54,10 @@ jobs:
         run: deno check --no-lock index.ts
       - name: Test
         working-directory: supabase/functions/save-chat
+        run: deno test --no-lock --allow-env --allow-read .
+      # save-chat・report-chat・two-shot が使うヘッダの読み方
+      - name: Test（_shared）
+        working-directory: supabase/functions/_shared
         run: deno test --no-lock --allow-env --allow-read .
       # 通報（Task 0.6）。save-chat の telemetry.ts を使うので同じジョブで確かめる
       - name: Check（report-chat）

@@ -16,8 +16,11 @@ export type ReportReason = (typeof REPORT_REASONS)[number];
 /** 説明の上限（文字。コードポイントで数える） */
 export const REPORT_DETAIL_MAX = 500;
 
-/** 同じ IP・同じ端末の鍵から 1 時間に受ける通報の数 */
+/** 同じ IP（信頼できる位置のもの）・同じ端末の鍵から 1 時間に受ける通報の数 */
 export const REPORT_LIMIT_PER_HOUR = 10;
+
+/** 全体で 1 時間に受ける通報の数（IP と端末の鍵を変えながら送られても止める） */
+export const REPORT_GLOBAL_LIMIT_PER_HOUR = 300;
 
 export type ReportErrorCode =
   | 'invalid_json'

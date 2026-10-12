@@ -11,6 +11,7 @@ on:
       - 'src/features/two-shot-chat/**'
       - 'supabase/functions/two-shot/**'
       - 'supabase/functions/save-chat/telemetry.ts'
+      - 'supabase/functions/_shared/**'
       - 'supabase/migrations/**'
       - 'supabase/tests/**'
       - 'supabase/config.toml'
