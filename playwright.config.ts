@@ -31,6 +31,12 @@ export default defineConfig({
       url: 'http://127.0.0.1:4180',
       reuseExistingServer: !process.env.CI,
     },
+    {
+      // URL書換えやSPA fallbackを行わないPages相当の静的配信。全サーバーの起動後に試験する。
+      command: 'node tests/browser/fixtures/pages-server.js',
+      url: 'http://127.0.0.1:4181/__fixture__/health',
+      reuseExistingServer: !process.env.CI,
+    },
   ],
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },

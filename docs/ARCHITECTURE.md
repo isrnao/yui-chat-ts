@@ -683,9 +683,11 @@ jobs:
     - chromaui/action@latest (onlyChanged: true, exitOnceUploaded: true)
 ```
 
-### 14.2 GitHub Pages SPA fallback
+### 14.2 GitHub Pagesの静的MPA配信
 
-`public/404.html` は不明パスを `/?/<元 path>&<query>` 形式に書き換えて再ロード、`index.html` の冒頭スクリプトが `?/` で始まる search を検知して `history.replaceState` で元の path に戻します（`~and~` で `&` をエンコード）。これにより `/chat/:roomId` / `/chanari/:roomId` への直アクセス（ブックマーク・SNS 共有）が SPA として復元可能です。
+正規URLの164 SSGに加え、共有ルート規則で求めた既知別名（現在3件）へ移動先と同じSSG/headを生成します。別名はhydrate後にquery/hash/history.stateを保持して正規化し、JSなしでも部屋本文と正規入口リンクを配信します。未知URLは本文・実リンク・noindexのあるstatic 404.htmlをHTTP404で返し、トップへのSPA復元は行いません。専用2shot停止中は通常の部屋を維持します。
+
+配信の自動検証はtests/browser/fixtures/pages-server.jsでdirectory index、slash 301、static 404を再現します。Vite previewのfallback成功をPages確認に代用しません。公開後の実ホスト確認は別に記録します。
 
 ### 14.3 デプロイ
 

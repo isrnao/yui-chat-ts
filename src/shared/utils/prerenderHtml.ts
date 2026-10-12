@@ -126,6 +126,15 @@ export function injectSsgMarkup(html: string, markup: string, pathname: string):
   );
 }
 
+/** JSなしの別名ページでも、正規の入口が実リンクで分かるようにする。 */
+export function injectAliasEntryLink(html: string, target: string): string {
+  if (!html.includes('<body>')) throw new Error('prerender: <body> が見つかりません');
+  return html.replace(
+    '<body>',
+    `<body><noscript><nav aria-label="部屋の入口"><a href="${escapeHtml(target)}">部屋の入口へ</a></nav></noscript>`
+  );
+}
+
 /**
  * テンプレート (dist/index.html) の page-seo マーカー範囲を、渡された SEO で差し替える。
  * マーカーや #root が見つからない場合は throw してビルドを失敗させる

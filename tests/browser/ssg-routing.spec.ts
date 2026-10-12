@@ -46,39 +46,10 @@ for (const marker of ['missing', 'wrong-route']) {
   });
 }
 
-for (const [alias, target] of [
-  ['chat/', '/chat/superbeginner/'],
-  ['chanari/', '/chanari/superbeginner/'],
-  ['chanari/all/', '/chat/all/'],
-  ['does-not-exist/', '/does-not-exist/'],
-]) {
-  test(`legacy restoration ${alias} preserves URL and state without mismatched hydration`, async ({
-    page,
-  }) => {
-    const errors = hydrationErrors(page);
-    const suffix = '?utm_source=campaign&invite_id=a%26b#latest';
-    const expected = `http://127.0.0.1:4180${target}${suffix}`;
-    await page.goto(
-      `http://127.0.0.1:4180/?/${alias}&utm_source=campaign~and~invite_id=a%26b#latest`
-    );
-    await expect(page).toHaveURL(expected);
-    if (alias === 'does-not-exist/')
-      await expect(
-        page.getByRole('heading', { name: '４０４ＥＲＲＯＲ', exact: true })
-      ).toBeVisible();
-    else
-      await expect(
-        page.getByRole('button', { name: 'チャットに参加する', exact: true })
-      ).toBeEnabled();
-    expect(await page.evaluate(() => history.state)).toEqual({ source: 'fixture', scroll: 120 });
-    // 再読込と文書間の戻る/進むでも正規URLを保持する。
-    await page.reload();
-    await expect(page).toHaveURL(expected);
-    await page.goto('http://127.0.0.1:4180/');
-    await page.goBack();
-    await expect(page).toHaveURL(expected);
-    await page.goForward();
-    await expect(page).toHaveURL('http://127.0.0.1:4180/');
-    expect(errors).toEqual([]);
-  });
-}
+test('legacy SPA query no longer rewrites the document route', async ({ page }) => {
+  const url = 'http://127.0.0.1:4180/?/does-not-exist/&utm_source=campaign#latest';
+  await page.goto(url);
+  await expect(page).toHaveURL(url);
+  await expect(page.locator('#root main')).toBeVisible();
+  expect(await page.locator('#root').getAttribute('data-ssg-path')).toBe('/');
+});

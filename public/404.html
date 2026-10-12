@@ -2,31 +2,55 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <title>お気楽チャットTS</title>
-    <script>
-      var pathSegmentsToKeep = 0;
-
-      var l = window.location;
-      l.replace(
-        l.protocol +
-          '//' +
-          l.hostname +
-          (l.port ? ':' + l.port : '') +
-          l.pathname
-            .split('/')
-            .slice(0, 1 + pathSegmentsToKeep)
-            .join('/') +
-          '/?/' +
-          l.pathname
-            .slice(1)
-            .split('/')
-            .slice(pathSegmentsToKeep)
-            .join('/')
-            .replace(/&/g, '~and~') +
-          (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
-          l.hash
-      );
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,follow" />
+    <meta name="description" content="指定されたページは見つかりませんでした。" />
+    <title>４０４ＥＲＲＯＲ | お気楽チャットTS</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 4px 8px;
+        background: white;
+        color: #222;
+        font-family: Arial, sans-serif;
+      }
+      h1 {
+        margin: 0;
+        font-size: 26px;
+        line-height: 1.25;
+        letter-spacing: 0.18em;
+      }
+      h2 {
+        margin: 16px 0 8px;
+        font-size: 16px;
+      }
+      nav {
+        margin-bottom: 48px;
+        font-size: 11px;
+        font-weight: bold;
+      }
+      a {
+        color: #4c63c7;
+      }
+      p {
+        max-width: 980px;
+        font-size: 12px;
+        font-weight: bold;
+        line-height: 1.35;
+      }
+    </style>
   </head>
-  <body></body>
+  <body>
+    <main>
+      <h1>４０４ＥＲＲＯＲ</h1>
+      <h2>⌒⊂´∀｀)つ</h2>
+      <nav><a href="/">お気楽チャットにもどる</a></nav>
+      <p>
+        The file you just requested wasn’t found in the location (or with the name) specified. You
+        may have an incorrect URL, or the file may have been moved or renamed. Try navigating to the
+        content you’re seeking by using the links on this page, or by searching the site with the
+        form on this page. Most recent entries are listed below.
+      </p>
+    </main>
+  </body>
 </html>

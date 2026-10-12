@@ -4,7 +4,7 @@ import { text } from 'node:stream/consumers';
 import App from './App';
 
 // ビルド後のNodeスクリプトにも、描画と同じルート規則をコンパイル済みで渡す。
-export { getSsgPathname } from './routes/resolveRoute';
+export { getSsgPathname, getStaticAliases } from './routes/resolveRoute';
 
 /**
  * SSG 用のレンダラ。ビルド後に scripts/prerender-rooms.ts から呼ばれ、

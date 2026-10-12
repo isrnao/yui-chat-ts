@@ -58,3 +58,13 @@ export function getSsgPathname(pathname: string): string | null {
       return null;
   }
 }
+
+/** 静的入口が必要な既知のredirectだけを列挙。専用2shotの停止中は別名にしない。 */
+export function getStaticAliases(): { pathname: string; target: string }[] {
+  const base = import.meta.env.BASE_URL;
+  return ['chat/', 'chanari/', 'chanari/all/', 'chanari/2shot/'].flatMap((suffix) => {
+    const pathname = `${base}${suffix}`;
+    const { finalPathname } = resolveRouteFollowingRedirects(pathname);
+    return pathname !== finalPathname ? [{ pathname, target: finalPathname }] : [];
+  });
+}

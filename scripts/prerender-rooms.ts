@@ -23,6 +23,7 @@ import {
   buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
+  injectAliasEntryLink,
 } from '../src/shared/utils/prerenderHtml.ts';
 import {
   CHAT_ROOMS,
@@ -57,11 +58,12 @@ if (!ssrEntry) {
   );
   exit(1);
 }
-const { render, getSsgPathname } = (await import(
+const { render, getSsgPathname, getStaticAliases } = (await import(
   pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href
 )) as {
   render: (pathname: string) => Promise<string>;
   getSsgPathname: (pathname: string) => string | null;
+  getStaticAliases: () => { pathname: string; target: string }[];
 };
 
 async function renderSsg(html: string, pathname: string): Promise<string> {
@@ -177,6 +179,15 @@ if (TWO_SHOT_CHAT_ENABLED) {
 // 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい。
 writeFileSync(templatePath, await renderSsg(template, '/'), 'utf-8');
 
+// 既知の別名には移動先と同じSSG/headを配信する。hydrate後はAppがURLを正規化し、
+// JSなしでは同じ本文と正規入口リンクを残す。未知URLをトップへ転送しない。
+const aliases = getStaticAliases();
+for (const { pathname, target } of aliases) {
+  const targetPath = resolve(distDir, `${target.replace(/^\//, '')}index.html`);
+  const html = injectAliasEntryLink(readFileSync(targetPath, 'utf-8'), target);
+  writePage(`${pathname.replace(/^\//, '')}index.html`, html);
+}
+
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
 console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);
 console.log(
@@ -185,3 +196,6 @@ console.log(
     : '✔ two-shot は停止中のため、/chat/2shot/ は通常の部屋として描画'
 );
 console.log('✔ SSG: dist/index.html + 各部屋ページ');
+console.log(
+  `✔ static aliases: ${aliases.map(({ pathname, target }) => `${pathname} → ${target}`).join(', ')}`
+);

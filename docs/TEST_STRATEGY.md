@@ -1,5 +1,7 @@
 # Test Strategy
 
+WP2b（#240）: `pages-hosting.spec.ts`は4181のPages相当fixtureで正規/別名/未知URLのHTTP200/301/404、head/canonical、query/hash/history.state、JS無効時の部屋本文と404リンクを確認する。既存のVite previewと共に検証用の公開ビルドを配信する。実ホストの公開前基準は新実装の検証と混同せず、公開後確認を別に記録する。
+
 WP2a（#239）: SSG生成と起動で同じルート識別子を使用する。`ssgHydration.test.ts`は既知別名・UI/部屋の相違・未知URL・旧成果物を区別し、`App.test.tsx`はquery/hash・history.state保持を確認する。`ssg-routing.spec.ts`はトップHTMLの誤配信・旧404復元・再読込・文書間の戻る/進むを公開SSGで再現し、React hydration errorがないことを検査する。
 
 ## 1. テストの目的

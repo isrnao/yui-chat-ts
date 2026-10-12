@@ -8,6 +8,7 @@ import {
   buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
+  injectAliasEntryLink,
   PAGE_SEO_START,
   PAGE_SEO_END,
 } from './prerenderHtml';
@@ -209,6 +210,17 @@ describe('injectSsgMarkup', () => {
 
   it('#root が無いテンプレートでは throw する', () => {
     expect(() => injectSsgMarkup('<html><body></body></html>', '<main></main>', '/')).toThrow();
+  });
+});
+
+describe('別名入口の静的リンク', () => {
+  it('JSなしでも正規入口が分かり、既存SSGを保持する', () => {
+    const html = injectSsgMarkup(TEMPLATE, '<main>部屋本文</main>', '/chat/anime/');
+    const alias = injectAliasEntryLink(html, '/chat/anime/');
+    expect(alias).toContain('<noscript>');
+    expect(alias).toContain('href="/chat/anime/"');
+    expect(alias).toContain('data-ssg-path="/chat/anime/"');
+    expect(alias).toContain('<main>部屋本文</main>');
   });
 });
 

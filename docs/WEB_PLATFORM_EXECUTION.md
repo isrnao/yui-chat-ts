@@ -14,8 +14,8 @@
 | ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
 | 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち    |
 | 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / 全CI成功・実機確認待ち |
-| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | 実装・自動確認済み / PR作成中                                                      |
-| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 未着手                                                                             |
+| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | [PR #249](https://github.com/isrnao/yui-chat-ts/pull/249) / 全CI成功・実機確認待ち |
+| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 実装・自動確認済み / 公開後HTTP確認待ち                                            |
 | 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手                                                                             |
 | 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                             |
 | 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                             |
@@ -63,3 +63,17 @@ WP3のclean checkoutでも、変更後の3 projectで**51ブラウザケース�
 ローカル確認：typecheck/lint、Compilerを含む関連5ファイル71件、Chromium/Desktop WebKit/Mobile WebKitの関連45ブラウザケース成功。公開ビルドの164 SSGページの全マーカーが出力先と一致。トップHTMLの誤配信、マーカー欠落、旧別名復元、再読込・戻る/進む、先行入力・送信安全性を検証した。
 
 旧404経路のトップ初期表示とJSなしの空404は、WP2bで置き換える。実Chrome/Safari・実Android/iOSの確認は未完了。
+
+## WP2b：静的404・別名入口・配信試験
+
+#249のhead `504efcec94d2de8318db6f52258b1ae66836ec6c`からfeatureを作成。public/404.htmlをJS不要のmain・見出し・本文・トップリンク・noindexを持つページに置換し、index.htmlの旧`/?/`復元scriptを撤去した。
+
+別名は共有ルート規則から`/chat/`→`/chat/superbeginner/`、`/chanari/`→`/chanari/superbeginner/`、`/chanari/all/`→`/chat/all/`を生成。移動先と同じSSG/headを配信するのでトップへ迂回しない。専用2shotが有効な場合だけ`/chanari/2shot/`の別名を追加し、停止中の通常Chanari 2shotはそのまま配信する。
+
+JS使用時は同じSSGをhydrateしてquery/hash/history.stateを保持しながら正規化する。JS無効時は別名URLのquery/hashと同じ部屋本文を残し、noscript内の実リンクで正規入口へ移動できる。そのリンクは通常のページリンクであり、任意のquery/hashを別文書へ引き継がない。旧`/?/`URLは通常のトップのqueryとして扱い、復元しない。
+
+静的成果物は164正規SSG＋3別名SSG＝167ページ、別途404と既存のドメイン所有確認HTML。Pages相当fixture（4181）はdirectory index、slash 301、未知URLのHTTP404を再現し、Vite fallbackに依存しない。最初の4190ではWebKitが最小HTTP応答へも到達しないことを確認し、4181で全対象試験を再実行した。
+
+ローカル：Compilerを含む関連74件、typecheck/lint、公開ビルド、関連66ブラウザケース成功。JS無効、HTTP status、head/canonical、別名、query/hash/state、再読込・戻る/進む、旧誤SSG、入室安全性を検証。
+
+実ホストの公開前基準（2026-10-13、HEADのみ・JS実行なし）：トップ200、/chatは301→/chat/、正規通常部屋200、未知URL404。これは未公開の変更を確認した結果ではない。マージ・公開後の本文/別名/HTTP確認担当は未割当、実機確認も未完了として残す。[GitHub Pagesのcustom 404仕様](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-custom-404-page-for-your-github-pages-site)に合わせて配信ルートの404.htmlを用意する。
