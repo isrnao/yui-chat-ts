@@ -1,0 +1,209 @@
+{
+  "_Input-DhEEB3vB.js": {
+    "file": "assets/Input-DhEEB3vB.js",
+    "name": "Input",
+    "imports": [
+      "index.html",
+      "_vendor-react-CLdGdEQI.js"
+    ]
+  },
+  "_entryError-Tzo06bK4.js": {
+    "file": "assets/entryError-Tzo06bK4.js",
+    "name": "entryError",
+    "imports": [
+      "index.html",
+      "_vendor-supabase-6uYrFXIy.js",
+      "_vendor-react-CLdGdEQI.js",
+      "_newRelic-jXCaBmlv.js"
+    ]
+  },
+  "_format-Dfy4eggX.js": {
+    "file": "assets/format-Dfy4eggX.js",
+    "name": "format"
+  },
+  "_newRelic-jXCaBmlv.js": {
+    "file": "assets/newRelic-jXCaBmlv.js",
+    "name": "newRelic",
+    "imports": [
+      "_rolldown-runtime-9SAPJn0b.js",
+      "_preload-helper-W-LeW0C5.js"
+    ],
+    "dynamicImports": [
+      "_vendor-newrelic-browser-agent-k-wKiGEe.js"
+    ]
+  },
+  "_preload-helper-W-LeW0C5.js": {
+    "file": "assets/preload-helper-W-LeW0C5.js",
+    "name": "preload-helper"
+  },
+  "_rolldown-runtime-9SAPJn0b.js": {
+    "file": "assets/rolldown-runtime-9SAPJn0b.js",
+    "name": "rolldown-runtime"
+  },
+  "_roomSeo-DodPoqf0.js": {
+    "file": "assets/roomSeo-DodPoqf0.js",
+    "name": "roomSeo",
+    "imports": [
+      "index.html"
+    ]
+  },
+  "_useIpFilter-DoMfiO_Z.js": {
+    "file": "assets/useIpFilter-DoMfiO_Z.js",
+    "name": "useIpFilter",
+    "imports": [
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js",
+      "_Input-DhEEB3vB.js"
+    ]
+  },
+  "_useLookSound-D-c19dMq.js": {
+    "file": "assets/useLookSound-D-c19dMq.js",
+    "name": "useLookSound",
+    "imports": [
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js"
+    ]
+  },
+  "_vendor-newrelic-browser-agent-k-wKiGEe.js": {
+    "file": "assets/vendor-newrelic-browser-agent-k-wKiGEe.js",
+    "name": "vendor-newrelic-browser-agent",
+    "imports": [
+      "_rolldown-runtime-9SAPJn0b.js",
+      "_preload-helper-W-LeW0C5.js"
+    ],
+    "dynamicImports": [
+      "_vendor-newrelic-browser-agent-k-wKiGEe.js"
+    ]
+  },
+  "_vendor-react-CLdGdEQI.js": {
+    "file": "assets/vendor-react-CLdGdEQI.js",
+    "name": "vendor-react",
+    "imports": [
+      "_rolldown-runtime-9SAPJn0b.js"
+    ]
+  },
+  "_vendor-supabase-6uYrFXIy.js": {
+    "file": "assets/vendor-supabase-6uYrFXIy.js",
+    "name": "vendor-supabase"
+  },
+  "index.html": {
+    "file": "assets/index-kg5hI-uX.js",
+    "name": "index",
+    "src": "index.html",
+    "isEntry": true,
+    "imports": [
+      "_preload-helper-W-LeW0C5.js",
+      "_vendor-react-CLdGdEQI.js"
+    ],
+    "dynamicImports": [
+      "src/routes/ChatRoute.tsx",
+      "src/routes/AllRoomsRoute.tsx",
+      "src/routes/ChanariRoute.tsx",
+      "src/routes/TwoShotRoute.tsx",
+      "src/routes/NotFoundRoute.tsx",
+      "_newRelic-jXCaBmlv.js"
+    ],
+    "css": [
+      "assets/index-Bc3zuz0g.css"
+    ]
+  },
+  "src/features/chat/components/ChatLogList/index.tsx": {
+    "file": "assets/ChatLogList-B64-pCto.js",
+    "name": "ChatLogList",
+    "src": "src/features/chat/components/ChatLogList/index.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js",
+      "_Input-DhEEB3vB.js",
+      "_format-Dfy4eggX.js"
+    ]
+  },
+  "src/routes/AllRoomsRoute.tsx": {
+    "file": "assets/AllRoomsRoute-CFEu-Ig9.js",
+    "name": "AllRoomsRoute",
+    "src": "src/routes/AllRoomsRoute.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_preload-helper-W-LeW0C5.js",
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js",
+      "_useIpFilter-DoMfiO_Z.js",
+      "_roomSeo-DodPoqf0.js"
+    ],
+    "dynamicImports": [
+      "src/features/chat/components/ChatLogList/index.tsx"
+    ]
+  },
+  "src/routes/ChanariRoute.tsx": {
+    "file": "assets/ChanariRoute-BB_vidMB.js",
+    "name": "ChanariRoute",
+    "src": "src/routes/ChanariRoute.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_preload-helper-W-LeW0C5.js",
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js",
+      "_useLookSound-D-c19dMq.js",
+      "_roomSeo-DodPoqf0.js"
+    ],
+    "dynamicImports": [
+      "src/features/chat/components/ChatLogList/index.tsx"
+    ],
+    "css": [
+      "assets/ChanariRoute-DuVaZswF.css"
+    ]
+  },
+  "src/routes/ChatRoute.tsx": {
+    "file": "assets/ChatRoute-BN3ta17E.js",
+    "name": "ChatRoute",
+    "src": "src/routes/ChatRoute.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_preload-helper-W-LeW0C5.js",
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_entryError-Tzo06bK4.js",
+      "_Input-DhEEB3vB.js",
+      "_useIpFilter-DoMfiO_Z.js",
+      "_useLookSound-D-c19dMq.js",
+      "_format-Dfy4eggX.js",
+      "_roomSeo-DodPoqf0.js"
+    ],
+    "dynamicImports": [
+      "src/features/chat/components/ChatLogList/index.tsx"
+    ]
+  },
+  "src/routes/NotFoundRoute.tsx": {
+    "file": "assets/NotFoundRoute-BvswMCJp.js",
+    "name": "NotFoundRoute",
+    "src": "src/routes/NotFoundRoute.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html",
+      "_vendor-react-CLdGdEQI.js"
+    ]
+  },
+  "src/routes/TwoShotRoute.tsx": {
+    "file": "assets/TwoShotRoute-CwkwaUir.js",
+    "name": "TwoShotRoute",
+    "src": "src/routes/TwoShotRoute.tsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "index.html",
+      "_vendor-react-CLdGdEQI.js",
+      "_roomSeo-DodPoqf0.js"
+    ],
+    "css": [
+      "assets/TwoShotRoute-CmPM5J3w.css"
+    ]
+  },
+  "src/styles/fonts-fallback.css": {
+    "file": "assets/fonts-fallback-lPA0uBPt.css",
+    "src": "src/styles/fonts-fallback.css"
+  }
+}
