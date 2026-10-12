@@ -32,7 +32,9 @@ describe('ChatRoom', () => {
 
   it('renders [ランキング] to the right of [退室]', () => {
     const { container } = render(<ChatRoom {...props} />);
-    const links = Array.from(container.querySelectorAll('a')).map((a) => a.textContent);
+    const links = Array.from(container.querySelectorAll('button'))
+      .slice(0, 2)
+      .map((a) => a.textContent);
     expect(links).toEqual(['[退室]', '[ランキング]']);
   });
 

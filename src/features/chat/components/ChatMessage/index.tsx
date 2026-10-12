@@ -342,6 +342,7 @@ function ChatMessage({ chat, showRoomName, onRoomClick, deferOffscreen, onFilter
               : `mailto:${chat.email}`
           }
           title={chat.email}
+          aria-label={`${chat.name}の連絡先を開く`}
           target="_blank"
           rel="noopener noreferrer"
         >

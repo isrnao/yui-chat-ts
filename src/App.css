@@ -2,6 +2,7 @@
 @import './styles/fonts.css';
 @import './styles/theme.css';
 @import './styles/utilities.css';
+@import './styles/interactions.css';
 
 :root {
   --yui-green: #c1fc92;

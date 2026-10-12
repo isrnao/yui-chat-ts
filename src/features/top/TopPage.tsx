@@ -25,8 +25,15 @@ export default function TopPage() {
 
   return (
     <div className="min-h-dvh bg-white font-yui text-[12px] text-gray-700">
+      <a className="skip-link" href="#main-content">
+        本文へ移動
+      </a>
       <Header />
-      <main className="mx-auto max-w-[990px] border-x border-gray-300 bg-white">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className="mx-auto max-w-[990px] border-x border-gray-300 bg-white"
+      >
         <section className="px-2 py-3">
           <h2 className="text-[13px] font-bold text-blue-700">{intro.title}</h2>
           <p className="mt-1 leading-relaxed">{intro.body.join('')}</p>

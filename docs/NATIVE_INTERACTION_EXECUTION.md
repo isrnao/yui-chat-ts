@@ -24,3 +24,7 @@
 ## R0の採用判断
 
 Chromium 156 / Firefox 157 / WebKit 27.2とモバイルWebKitで12テスト合格。pointer起点のfocus復帰はWebKitで補助処理が必要だったため、native dialogのfocus trapを再実装せず、論理的な復帰先だけアプリ側で保持する。popover light dismiss・320px配置・textarea・reduced motionの機能継続を確認。iPhone実機のハプティックと支援技術は自動ブラウザ試験と区別する。下限はUAの版ではなく各API/property検出で扱い、dialog非対応時の既存経路を維持する。
+
+## R1
+
+操作button化、picker/更新のTab順、focus/invalid/forced-colors/coarse pointer、IMEのEnter、avatar fieldset、壊れたhowtoリンク、連絡先名、skip linkを実装。選択範囲は両端/全Rangeを同じ本文に限定。splitterはCSS gridでバー厚を確保し、右/非primary pointer、取消・入退室の予約rAF、Home/End/範囲/ARIAを修正。contractsは生成で更新。型検査・lint・対象76 tests・4構成16 browser tests合格。

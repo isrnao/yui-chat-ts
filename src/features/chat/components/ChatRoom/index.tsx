@@ -131,8 +131,8 @@ export default function ChatRoom({
     <div className="flex flex-col font-yui">
       {/* 1行目: [退室] [ランキング] のリンク群 */}
       <div className="mb-1 flex gap-2 text-green-700 text-sm">
-        <a
-          href="#"
+        <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             // 退室するとこの部品はアンマウントされる。退室メッセージの保存の失敗は受け取るだけにする
@@ -141,10 +141,10 @@ export default function ChatRoom({
           className="underline"
         >
           {CHAT_TEXTS.room.exit}
-        </a>
+        </button>
         {onShowRanking && (
-          <a
-            href="#"
+          <button
+            type="button"
             onClick={(e) => {
               e.preventDefault();
               onShowRanking();
@@ -152,13 +152,17 @@ export default function ChatRoom({
             className="underline"
           >
             {CHAT_TEXTS.room.ranking}
-          </a>
+          </button>
         )}
       </div>
 
       {/* 2行目: [更新] [発言] ボタン + [消す] + おなまえ表示 */}
       <form
         action={formAction}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && (event.nativeEvent.isComposing || event.keyCode === 229))
+            event.preventDefault();
+        }}
         // onSubmit は action より先に同じイベントの中で呼ばれる。ここで入力欄を空にすると、
         // 保存を待たずに空になる（action の中で空にすると Action の終わりまで反映されない）。
         // action に渡る FormData は、この更新が画面に反映される前の値で作られる。
@@ -177,7 +181,6 @@ export default function ChatRoom({
               onBackToChat?.();
               onReload();
             }}
-            tabIndex={-1}
             disabled={isPending}
           >
             {CHAT_TEXTS.room.reload}
@@ -241,7 +244,11 @@ export default function ChatRoom({
             className="max-w-full"
           />
         </div>
-        {error && <div className="w-full text-xs text-red-500 mt-1">{error}</div>}
+        {error && (
+          <div role="alert" className="w-full text-xs text-red-500 mt-1">
+            {error}
+          </div>
+        )}
       </form>
 
       {/* 4行目: ログ行数 + Size + 色 + 細字 */}

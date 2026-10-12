@@ -1,3 +1,4 @@
+import { readSelectionWithin } from '@shared/utils/readSelectionWithin';
 import { useEffect, useEffectEvent, useId, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import Input from '@shared/components/Input';
@@ -31,9 +32,8 @@ export default function WordPicker({ message, value, onChange, matchCount, onSub
   const onSelectionChange = useEffectEvent(() => {
     const selection = document.getSelection();
     const source = sourceRef.current;
-    if (!selection || selection.isCollapsed || !source || !selection.anchorNode) return;
-    if (!source.contains(selection.anchorNode)) return;
-    const text = selection.toString().trim();
+    if (!source) return;
+    const text = readSelectionWithin(source, selection);
     if (text) onChange(text.slice(0, FILTER_WORD_MAX_LENGTH));
   });
 
@@ -62,7 +62,7 @@ export default function WordPicker({ message, value, onChange, matchCount, onSub
         maxLength={FILTER_WORD_MAX_LENGTH}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
         onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
-          if (event.key === 'Enter') {
+          if (event.key === 'Enter' && !event.nativeEvent.isComposing && event.keyCode !== 229) {
             event.preventDefault();
             onSubmit();
           }

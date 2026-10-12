@@ -1,0 +1,60 @@
+/* Native state selectors own visual feedback; application data stays in the application. */
+:where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible,
+.two-shot-scope :where(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--ie-blue, #1769aa);
+  outline-offset: 2px;
+}
+:where(.form-field):focus-within {
+  border-color: var(--ie-blue);
+}
+@supports selector(:user-invalid) {
+  :where(input, textarea, select):user-invalid {
+    outline: 2px solid #b42318;
+  }
+}
+@supports selector(:has(*)) {
+  :where(label):has(input:checked) {
+    --control-selected: 1;
+  }
+}
+@media (hover: hover) and (pointer: fine) {
+  :where(button, summary):not(:disabled):hover {
+    filter: brightness(0.97);
+  }
+}
+@media (pointer: coarse) {
+  :where(button, input[type='submit'], input[type='button'], select, summary) {
+    min-block-size: 44px;
+  }
+  .splitter-panes {
+    --splitter-bar-height: 24px;
+  }
+}
+@media (forced-colors: active) {
+  :where(button, input, select, textarea) {
+    border: 1px solid ButtonText;
+  }
+  :where(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(.animate-pulse, .animate-spin) {
+    animation: none;
+  }
+  :where(button, input, select, textarea) {
+    transition: none;
+  }
+}
+.skip-link {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 8px;
+  transform: translateY(-150%);
+  z-index: 100;
+  background: white;
+  padding: 8px;
+}
+.skip-link:focus {
+  transform: none;
+}

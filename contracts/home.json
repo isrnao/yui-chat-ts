@@ -12,14 +12,6 @@
   },
   "guideMenu": [
     {
-      "label": "チャットの使い方",
-      "href": "#chat-howto",
-      "roomId": null,
-      "roomType": null,
-      "external": false,
-      "iconKind": "tutorial"
-    },
-    {
       "label": "チャットのルール・マナー",
       "href": "#chat-rules",
       "roomId": null,

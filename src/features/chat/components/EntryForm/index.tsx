@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId } from 'react';
 import type { ChangeEvent, Dispatch, SetStateAction } from 'react';
 import Button from '@shared/components/Button';
 import Input from '@shared/components/Input';
@@ -50,7 +50,6 @@ export default function EntryForm({
   // name/color/email の localStorage 由来の初期値は親 (ChatRoute) で useState の lazy init として読み込み済み。
   // 本コンポーネントでは avatar 初期値 (内部 state のため) と updateSettings のみ参照する。
   const { settings, updateSettings } = useSettings();
-  const [silent, setSilent] = useState(false);
   // SSG/hydration 中は既定値、hydration 後は localStorage 由来の値に追随する。
   // useState でコピーすると SSG 時の 'none' を握ったままになり、
   // 保存済みアバターが復元されない。
@@ -65,7 +64,15 @@ export default function EntryForm({
           // 入室の失敗は呼び出し元が error prop で表示する。入室中はこのフォーム自体が
           // アンマウントされる（チャット画面へ即座に切り替える）ため、ここでは状態を持てない。
           // Promise を捨てると未処理の rejection になるので、失敗も必ず受け取る。
-          Promise.resolve(onEnter({ name, color, email, silent, avatar })).then(
+          Promise.resolve(
+            onEnter({
+              name,
+              color,
+              email,
+              silent: new FormData(e.currentTarget).has('silent'),
+              avatar,
+            })
+          ).then(
             // 入室成功後に localStorage を更新（失敗時は保存しない）
             () => updateSettings({ name, color, email, avatar }),
             () => {}
@@ -107,11 +114,11 @@ export default function EntryForm({
           </Button>
           <Button
             type="button"
-            onClick={() => {
+            onClick={(event) => {
               setName('');
               setColor('#ff69b4');
               setEmail('');
-              setSilent(false);
+              event.currentTarget.form?.reset();
               setAvatar('none');
               updateSettings({ name: '', color: '#ff69b4', email: '', avatar: 'none' });
             }}
@@ -147,16 +154,17 @@ export default function EntryForm({
             id={colorPickerId}
             value={color.startsWith('#') ? color : '#ff69b4'}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setColor(e.target.value)}
-            className="w-0 h-0 opacity-0 absolute"
-            tabIndex={-1}
+            aria-label={CHAT_TEXTS.entry.colorNavi}
+            disabled={isPending}
+            className="h-7 w-7 p-0"
           />
           {/* こっそり */}
           <label className="flex items-center gap-1 cursor-pointer select-none">
             <input
               type="checkbox"
               id={silentId}
-              checked={silent}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setSilent(e.target.checked)}
+              name="silent"
+              defaultChecked={false}
               aria-label={CHAT_TEXTS.entry.silent}
               disabled={isPending}
               className="w-3.5 h-3.5"
@@ -184,7 +192,8 @@ export default function EntryForm({
           />
         </div>
         {/* アバター選択（ラジオボタン丸見え + 横一列） */}
-        <div className="mb-1 flex items-center flex-wrap gap-0">
+        <fieldset className="mb-1 flex items-center flex-wrap gap-0">
+          <legend className="sr-only">アバター</legend>
           {AVATAR_IDS.map((id) => (
             <label key={id} className="inline-flex items-center cursor-pointer mr-0.5">
               <input
@@ -212,7 +221,7 @@ export default function EntryForm({
               )}
             </label>
           ))}
-        </div>
+        </fieldset>
         {/* エラー表示 */}
         {error && (
           <div role="alert" className="text-xs text-red-500 text-left mb-1">

@@ -21,7 +21,7 @@ export function RouteHost({ children }: { children: ReactNode }) {
           </p>
           <button
             type="button"
-            className="border-2 border-ie-gray bg-ie-face px-3 py-1 text-sm [border-style:outset]"
+            className="border-2 border-ie-gray bg-ie-bg px-3 py-1 text-sm [border-style:outset]"
             onClick={() => window.location.reload()}
           >
             再読み込み
