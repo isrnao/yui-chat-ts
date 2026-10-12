@@ -1,5 +1,6 @@
 import { getRoomMeta, getRelatedRooms, ROOM_CATEGORY_LABELS, type RoomId } from '../rooms';
 import { buildChatRoomPath } from '../routing';
+import { CHAT_TEXTS } from '@features/chat/chatTexts';
 
 /**
  * 入室前画面に表示する部屋の紹介セクション。
@@ -20,10 +21,11 @@ export default function RoomInfo({ roomId }: { roomId: RoomId }) {
       <p>{room.description}</p>
       {/* カテゴリ名は関連部屋の有無に関わらず常に表示する (関連リンクだけ条件付き) */}
       <p className="mt-2">
-        カテゴリ: <span className="font-bold">{ROOM_CATEGORY_LABELS[room.category]}</span>
+        {CHAT_TEXTS.roomInfo.category}
+        <span className="font-bold">{ROOM_CATEGORY_LABELS[room.category]}</span>
         {related.length > 0 && (
           <>
-            {' ／ 他の部屋: '}
+            {CHAT_TEXTS.roomInfo.related}
             {related.map((r, i) => (
               <span key={r.id}>
                 {i > 0 && '／'}
@@ -37,7 +39,7 @@ export default function RoomInfo({ roomId }: { roomId: RoomId }) {
       </p>
       <p className="mt-2">
         <a href="/" className="text-blue-700 underline">
-          部屋一覧（トップページ）へ
+          {CHAT_TEXTS.roomInfo.top}
         </a>
       </p>
     </section>

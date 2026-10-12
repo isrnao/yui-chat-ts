@@ -2,6 +2,8 @@ import { formatTime } from '@shared/utils/format';
 import { useNowMinute } from '@features/chat/hooks/useNowMinute';
 import { useParticipants } from '@features/chat/hooks/useParticipants';
 import type { Chat } from '@features/chat/types';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
+import { Fragment } from 'react';
 
 type Props = {
   /** 参加者を導出する元のログ。直近 5 分の発言と入退室メッセージから数える */
@@ -22,9 +24,11 @@ export default function ParticipantsList({ chatLog }: Props) {
       <span data-chromatic="ignore" className="text-xs text-gray-500 mr-2">
         [{formattedTime}]
       </span>
-      <span className="text-xs">参加者({participants.length}):</span>
+      <span className="text-xs">
+        {fillText(CHAT_TEXTS.participants.label, { count: participants.length })}
+      </span>
       {participants.length === 0 ? (
-        <b className="text-xs">（なし）</b>
+        <b className="text-xs">{CHAT_TEXTS.participants.none}</b>
       ) : (
         participants.map((p) => (
           <span
@@ -43,10 +47,11 @@ export default function ParticipantsList({ chatLog }: Props) {
       )}
       {/* レガシー風固定リンク群（テキストのみ再現） */}
       <span className="text-xs text-gray-600 ml-2">
-        ｜<span className="underline">ランキング</span>｜<span className="underline">詩</span>｜
-        <span className="underline">待</span>｜<span className="underline">フィルタ方法</span>｜
-        <span className="underline">ルール</span>｜<span className="underline">勧誘は禁止です</span>
-        ｜<span className="underline">みんなっ【いいね】してね！</span>
+        {CHAT_TEXTS.participants.legacyLinks.map((label) => (
+          <Fragment key={label}>
+            ｜<span className="underline">{label}</span>
+          </Fragment>
+        ))}
       </span>
     </div>
   );

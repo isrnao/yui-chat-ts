@@ -15,6 +15,7 @@ import {
   resolveFilterRequest,
   type FilterRequest,
 } from '@features/chat/utils/filterRequest';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 type Props = {
   chat: Chat;
@@ -43,14 +44,14 @@ function rowClassName(deferOffscreen?: boolean): string {
 
 /** レガシー互換の時刻表示: "01/02(Wed) 20:10 219.107.106.*"（IP はサーバー側でマスク済み） */
 function getTimeDisplay(chat: Chat): string {
-  if (chat.optimistic) return '送信中...';
+  if (chat.optimistic) return CHAT_TEXTS.log.sending;
   const stamp = formatLegacyDateTime(chat.time);
   return chat.ip_masked ? `${stamp} ${chat.ip_masked}` : stamp;
 }
 
 function resolveRoomTitle(chat: Chat): string {
   const roomId = chat.room_id;
-  if (!roomId) return '不明な部屋';
+  if (!roomId) return CHAT_TEXTS.log.unknownRoom;
   try {
     if (!isRoomId(roomId)) return roomId;
     return getRoomMeta(roomId).title;
@@ -78,7 +79,7 @@ function RoomNameLabel({
       type="button"
       className="ml-1 text-xs text-blue-600 underline cursor-pointer"
       onClick={() => onRoomClick(roomId)}
-      aria-label={`${title}に返信`}
+      aria-label={fillText(CHAT_TEXTS.log.replyTo, { title })}
     >
       {title}
     </button>
@@ -159,7 +160,7 @@ function MessageBody({
 
 /** レガシーの look コマンド。発言の右にきらめきを出す */
 const LOOK_PATTERN = /^look$/i;
-const PROFILE_SUFFIX = ' プロフィールも作ってみてね';
+const PROFILE_SUFFIX = CHAT_TEXTS.log.profileSuffix;
 /** save-chat の機能要求受付返信「…（Issue #112）」の Issue 番号部分 */
 const ISSUE_REF_PATTERN = /(Issue #(\d+))/;
 const ISSUE_BASE_URL = 'https://github.com/isrnao/yui-chat-ts/issues/';
@@ -199,8 +200,10 @@ function buildBrowserLine(chat: Chat): string {
   const lastLogin = chat.metadata?.lastLogin;
 
   let line = ua;
-  if (visitCount) line += `${visitCount}回目`;
-  if (lastLogin) line += `${visitCount ? ':' : ''}LAST LOGIN:${formatLegacyDateTime(lastLogin)}`;
+  if (visitCount) line += fillText(CHAT_TEXTS.log.visitCount, { count: visitCount });
+  if (lastLogin) {
+    line += `${visitCount ? ':' : ''}${CHAT_TEXTS.log.lastLogin}${formatLegacyDateTime(lastLogin)}`;
+  }
   return line;
 }
 

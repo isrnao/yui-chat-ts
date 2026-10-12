@@ -3,6 +3,7 @@
   "fixtureTimeZone": "Asia/Tokyo",
   "files": [
     "chat-options.json",
+    "chat-texts.json",
     "directory.json",
     "fixtures/admin-events.json",
     "fixtures/author-key.json",
@@ -17,6 +18,7 @@
     "fixtures/room-log-merge.json",
     "fixtures/save-chat/input-checks.json",
     "fixtures/save-chat/server-messages.json",
+    "fixtures/url-segments.json",
     "home.json",
     "legal.json",
     "rooms.json",
