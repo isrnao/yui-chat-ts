@@ -69,9 +69,12 @@ function pointer(el: Element, type: string, init: { clientY?: number; pointerTyp
   });
 }
 
-/** 押す → 動かす → 離す。pointerType で mouse / touch / pen を切り替える */
+/**
+ * 押す → 動かす → 離す。pointerType で mouse / touch / pen を切り替える。
+ * 境界は押し始めからの移動量で動くので、既定の 30%（500px の 150px）にあるバーを押し始める
+ */
 function drag(el: HTMLElement, ys: number[], pointerType = 'mouse') {
-  pointer(el, 'pointerdown', { pointerType });
+  pointer(el, 'pointerdown', { pointerType, clientY: 150 });
   for (const clientY of ys) pointer(el, 'pointermove', { clientY, pointerType });
   act(() => el.releasePointerCapture(1));
   pointer(el, 'pointerup', { pointerType });
