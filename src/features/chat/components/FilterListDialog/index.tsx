@@ -3,6 +3,7 @@ import { clearFilters, filterKey, removeFilter } from '@features/chat/utils/ipFi
 import type { FilterEntry } from '@features/chat/utils/ipFilterStore';
 import { mergeNames } from '@features/chat/utils/ipFilter';
 import ModalShell from '../shared/ModalShell';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 type Names = ReadonlyMap<string, readonly string[]>;
 
@@ -30,16 +31,20 @@ function describe(
       return {
         title: names.length > 0 ? names.join('、') : '—',
         kind: entry.ip,
-        label: `${entry.ip} のフィルタを解除`,
+        label: fillText(CHAT_TEXTS.filterList.removeIp, { ip: entry.ip }),
       };
     }
     case 'name':
-      return { title: entry.name, kind: '名前', label: `名前「${entry.name}」のフィルタを解除` };
+      return {
+        title: entry.name,
+        kind: CHAT_TEXTS.filterList.kindName,
+        label: fillText(CHAT_TEXTS.filterList.removeName, { name: entry.name }),
+      };
     case 'word':
       return {
         title: `「${entry.word}」`,
-        kind: '言葉',
-        label: `言葉「${entry.word}」のフィルタを解除`,
+        kind: CHAT_TEXTS.filterList.kindWord,
+        label: fillText(CHAT_TEXTS.filterList.removeWord, { word: entry.word }),
       };
   }
 }
@@ -62,13 +67,15 @@ export default function FilterListDialog({
     <ModalShell labelledBy={titleId} onCancel={onClose} className="w-full max-w-xs">
       <div className="flex items-center justify-between">
         <h2 id={titleId} className="font-bold">
-          フィルタ{entries.length > 0 && `（${entries.length}）`}
+          {entries.length > 0
+            ? fillText(CHAT_TEXTS.filterList.titleCount, { count: entries.length })
+            : CHAT_TEXTS.filterList.title}
         </h2>
         <button
           type="button"
           className="px-1 text-base leading-none"
           onClick={onClose}
-          aria-label="閉じる"
+          aria-label={CHAT_TEXTS.filterList.close}
           autoFocus
         >
           ×
@@ -76,7 +83,7 @@ export default function FilterListDialog({
       </div>
 
       {entries.length === 0 ? (
-        <p className="mt-2 text-xs">フィルタしているものはありません。</p>
+        <p className="mt-2 text-xs">{CHAT_TEXTS.filterList.none}</p>
       ) : (
         <ul className="mt-2 max-h-[50dvh] overflow-y-auto border-y border-ie-gray">
           {entries.map((entry) => {
@@ -90,7 +97,10 @@ export default function FilterListDialog({
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-bold">{title}</div>
                   <div className="text-xs text-gray-600">
-                    {kind}・{hiddenCounts.get(key) ?? 0} 件
+                    {fillText(CHAT_TEXTS.filterList.count, {
+                      kind,
+                      count: hiddenCounts.get(key) ?? 0,
+                    })}
                   </div>
                 </div>
                 <button
@@ -99,7 +109,7 @@ export default function FilterListDialog({
                   onClick={() => removeFilter(key)}
                   aria-label={label}
                 >
-                  解除
+                  {CHAT_TEXTS.filterList.remove}
                 </button>
               </li>
             );
@@ -114,14 +124,11 @@ export default function FilterListDialog({
             className="text-xs text-[#060] underline"
             onClick={() => clearFilters()}
           >
-            すべて解除
+            {CHAT_TEXTS.filterList.removeAll}
           </button>
         </div>
       )}
-      <p className="mt-2 text-[0.7rem] leading-snug text-gray-600">
-        IP
-        は一部を伏せた値で比べるため、別の人の発言も一緒に隠れることがあります。このブラウザの中だけの設定です。
-      </p>
+      <p className="mt-2 text-[0.7rem] leading-snug text-gray-600">{CHAT_TEXTS.filterList.note}</p>
     </ModalShell>
   );
 }

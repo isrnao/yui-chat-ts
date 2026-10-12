@@ -245,10 +245,14 @@ describe('ChatLogList', () => {
       render(<WithStore log={[ipRow('a1', 'A_FIRST', '219.*.*.253')]} />);
 
       doubleTap(stampOf('A_FIRST'));
-      fireEvent.click(within(screen.getByRole('alertdialog')).getByRole('button', { name: '通報する' }));
+      fireEvent.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', { name: '通報する' })
+      );
 
       expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-      expect(screen.getByRole('dialog', { name: 'この発言を運営に通報しますか？' })).toBeInTheDocument();
+      expect(
+        screen.getByRole('dialog', { name: 'この発言を運営に通報しますか？' })
+      ).toBeInTheDocument();
     });
 
     it('IP のフィルタ: 同じ伏せ字の IP の発言（入退室を含む）がすべて隠れ、名前も保存し、確定で振動する', () => {

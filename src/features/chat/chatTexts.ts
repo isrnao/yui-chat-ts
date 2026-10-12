@@ -106,6 +106,39 @@ export const CHAT_TEXTS = {
     childSafetyLinkLabel: 'インターネット・ホットラインセンター',
     childSafetyLinkUrl: 'https://www.internethotline.jp/',
   },
+  /** 発言ランキング（ChatRanking） */
+  ranking: {
+    titleSuffix: 'の発言ランキング',
+    name: 'おなまえ',
+    count: '発言回数',
+    lastTime: '最終発言時刻',
+    host: 'ホスト情報',
+    empty: 'データなし',
+    failed: 'ランキングを読み込めませんでした',
+    loading: '読み込み中...',
+  },
+  /** 言葉のフィルタで言葉を選ぶ欄（WordPicker） */
+  wordPicker: {
+    label: '非表示にする言葉（上の発言から選ぶか、入力してください）',
+    matches: 'この言葉を含む発言: {count} 件',
+    empty: '言葉が空です',
+  },
+  /** フィルタの一覧（FilterListDialog） */
+  filterList: {
+    title: 'フィルタ',
+    titleCount: 'フィルタ（{count}）',
+    close: '閉じる',
+    none: 'フィルタしているものはありません。',
+    kindName: '名前',
+    kindWord: '言葉',
+    count: '{kind}・{count} 件',
+    remove: '解除',
+    removeIp: '{ip} のフィルタを解除',
+    removeName: '名前「{name}」のフィルタを解除',
+    removeWord: '言葉「{word}」のフィルタを解除',
+    removeAll: 'すべて解除',
+    note: 'IPは一部を伏せた値で比べるため、別の人の発言も一緒に隠れることがあります。このブラウザの中だけの設定です。',
+  },
   /** 通報の理由（キーは report-chat の REPORT_REASONS） */
   reportReasons: {
     spam: '宣伝・スパム',

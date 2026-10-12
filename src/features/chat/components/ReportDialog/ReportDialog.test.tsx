@@ -22,10 +22,9 @@ describe('ReportDialog', () => {
     const user = userEvent.setup();
     render(<ReportDialog chatUuid="c-1" onClose={() => {}} send={vi.fn()} />);
     await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.child_safety));
-    expect(screen.getByRole('link', { name: CHAT_TEXTS.report.childSafetyLinkLabel })).toHaveAttribute(
-      'href',
-      CHAT_TEXTS.report.childSafetyLinkUrl
-    );
+    expect(
+      screen.getByRole('link', { name: CHAT_TEXTS.report.childSafetyLinkLabel })
+    ).toHaveAttribute('href', CHAT_TEXTS.report.childSafetyLinkUrl);
   });
 
   it('多すぎる通報と失敗は文言で知らせる', async () => {
