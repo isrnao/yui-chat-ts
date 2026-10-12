@@ -1,5 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
+/** 外部へ保存しない検証用の接続先。本番の Supabase へは向けない */
+const fixtureEnv = {
+  VITE_SUPABASE_URL: 'https://native-fixture.invalid',
+  VITE_SUPABASE_ANON_KEY: 'fixture-only',
+};
+
 export default defineConfig({
   testDir: './tests/browser',
   fullyParallel: true,
@@ -9,16 +15,19 @@ export default defineConfig({
   use: { baseURL: 'http://127.0.0.1:4179', trace: 'retain-on-failure' },
   webServer: [
     {
-      env: {
-        VITE_SUPABASE_URL: 'https://native-fixture.invalid',
-        VITE_SUPABASE_ANON_KEY: 'fixture-only',
-      },
+      env: fixtureEnv,
       command: 'pnpm dev --host 127.0.0.1 --port 4179 --strictPort',
       url: 'http://127.0.0.1:4179',
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'pnpm preview --host 127.0.0.1 --port 4180 --strictPort',
+      // CI は直前のステップで検証用の設定で build:prod 済み。ローカルでは dist が無かったり .env の値で
+      // ビルドされていたりするので、検証用の設定でビルドし直してから配信する（dist は上書きされる）
+      env: fixtureEnv,
+      command: process.env.CI
+        ? 'pnpm preview --host 127.0.0.1 --port 4180 --strictPort'
+        : 'pnpm build:prod && pnpm preview --host 127.0.0.1 --port 4180 --strictPort',
+      timeout: 300_000,
       url: 'http://127.0.0.1:4180',
       reuseExistingServer: !process.env.CI,
     },

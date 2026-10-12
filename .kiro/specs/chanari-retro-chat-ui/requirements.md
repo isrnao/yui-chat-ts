@@ -382,8 +382,26 @@
 
 ## 2026-10-12 インタラクション改訂（R5a）
 
-共有部品は本計画の改善を含めて再利用する。上段containerだけにChanariの折返しを適用し、共通ログへ色/サイズを波及させない。名前20文字の従来上限は維持する。
+設計は [design.md](./design.md) の同日節を参照する。
 
-本文stateはChanariChatRoom内に置き、初回seed・明示復元・保存callbackでページと連携する。再入室は空本文、最後の非空draftは部屋別に300ms debounce/送信前/visibility hidden/unmountで保存し、clear/退室で空にしない。型/色/部屋一致/有限時刻/1年期限を保存と復元で検査する。別タブの変更で編集中本文を上書きせず、発言復元buttonから最新候補を取得する。pendingとbusy guardで二重要求を防ぎ、失敗時に新しい編集を壊さず本文を回復する。入力は120書記素と共通コードポイント上限を適用し、IME確定を送信にしない。
+### Requirement 24: 上段フォームの本文・下書き・非活性項目（R5a）
 
-発言色・エフェクト27種・文字サイズ21種・エフェクト無効・ATフィールドは表示のみの非活性操作とする。不要なlocal stateは除去し、metadataには接続しない。名前色は明示更新時のみsession identityへ反映する。接続中はpollingを行わず、切断中の非表示タブでtimerを停止し、表示復帰で一回取得する。
+**User Story:** 利用者として、Chanari の上段フォームで書きかけの本文を失わず、使えない項目は使えないと分かる状態で操作したい。入力を安心して続けるため。
+
+#### Acceptance Criteria
+
+1. THE Chanari_App SHALL Chanari の折返しを上段 container だけに適用し、Shared_Chat_Log_List の色・文字サイズに波及させない
+2. THE Chanari_Entry_Form SHALL 名前の上限を従来どおり 20 文字に保つ
+3. THE Chanari_Chat_Room SHALL 本文の state を自身で持ち、ページとは初回の seed・明示的な復元・保存 callback でだけ連携する
+4. WHEN 利用者が再入室する, THE Chanari_Chat_Room SHALL 本文を空で始める
+5. WHEN 本文が空でない状態で 300ms 入力が止まる、送信の直前、タブが hidden になる、または部品が unmount される, THE Draft_Store SHALL 部屋ごとに最後の空でない draft を保存する
+6. WHEN `clear` を送る、または退室する, THE Draft_Store SHALL 保存済みの draft を空にしない
+7. WHEN draft を保存または復元する, THE Draft_Store SHALL 型・色・部屋の一致・有限の時刻・1 年の期限を検査し、満たさない値を使わない
+8. WHEN 別のタブで draft が変わる, THE Chanari_Chat_Room SHALL 編集中の本文を上書きせず、発言復元 button を押したときに最新の候補を取得する
+9. WHILE 送信が pending である, THE Chanari_Chat_Room SHALL 二重の要求を出さない
+10. IF 送信に失敗する, THEN THE Chanari_Chat_Room SHALL 失敗後に入力された新しい本文を壊さずに本文を回復する
+11. THE Chanari_Chat_Room SHALL 本文に 120 書記素と共通のコードポイント上限を適用し、IME の確定を送信として扱わない
+12. THE Chanari_Chat_Room SHALL 発言色・エフェクト 27 種・文字サイズ 21 種・エフェクト無効・AT フィールドを表示のみの非活性の操作とし、metadata に接続しない
+13. WHEN 利用者が名前色を明示的に変更する, THE Chanari_Page SHALL その値を session identity に反映する
+14. WHILE Realtime が接続中である, THE Reload_Interval_Hook SHALL polling を行わない
+15. WHILE Realtime が切断中でタブが hidden である, THE Reload_Interval_Hook SHALL timer を止め、WHEN タブが再び表示される, THE Reload_Interval_Hook SHALL 一回だけ取得する

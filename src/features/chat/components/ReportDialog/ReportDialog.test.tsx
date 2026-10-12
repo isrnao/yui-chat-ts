@@ -70,4 +70,19 @@ describe('ReportDialog', () => {
     expect(screen.queryByText(CHAT_TEXTS.report.accepted)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: CHAT_TEXTS.report.send })).toBeDisabled();
   });
+
+  it('同じ発言の通報を開き直すと、前回の結果ではなく入力から始める', async () => {
+    const user = userEvent.setup();
+    const send = vi.fn().mockResolvedValue('ok');
+    const { rerender } = render(
+      <ReportDialog open chatUuid="c-1" send={send} onClose={() => {}} />
+    );
+    await user.click(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam));
+    await user.click(screen.getByRole('button', { name: CHAT_TEXTS.report.send }));
+    expect(await screen.findByText(CHAT_TEXTS.report.accepted)).toBeInTheDocument();
+    rerender(<ReportDialog open={false} chatUuid="c-1" send={send} onClose={() => {}} />);
+    rerender(<ReportDialog open chatUuid="c-1" send={send} onClose={() => {}} />);
+    expect(screen.queryByText(CHAT_TEXTS.report.accepted)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(CHAT_TEXTS.reportReasons.spam)).not.toBeChecked();
+  });
 });

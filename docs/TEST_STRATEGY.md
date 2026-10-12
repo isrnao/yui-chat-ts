@@ -110,4 +110,4 @@ src/features/chat/api/
 
 2026-10-12: pnpm test:browserでsynthetic data/APIを使ったUIを検証する。native-fixture.invalidは試験設定であり本番接続ではない。UI fixtureは投稿・入退室・通報の実APIを呼ばず、Top Layer/focus/IME/Tab/配置/1,000行/短い画面を確認する。SSGとhydrate前編集はVitest統合でも検証する。自動webkit/mobile emulationをiPhone実機・VoiceOver・OSハプティック合格として扱わない。
 
-SSG browser testの前提: 検証用VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEYを指定してpnpm build:prodを実行し、その後pnpm test:browserを実行する。CIのbrowser.ymlはこの順序を実行する。
+SSG browser testの前提: 検証用VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEYでビルドしたdistを配信する。ローカルのpnpm test:browserはpreviewの起動前にこの設定でpnpm build:prodを実行する（distは上書きされる）。CIのbrowser.ymlは先に同じ設定でpnpm build:prodを実行し、previewはビルドし直さない。

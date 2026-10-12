@@ -20,17 +20,20 @@ export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) =>
   useEffect(() => store.onInsert((chat) => handleRealtimeChat(chat)), [store]);
 
   useEffect(() => {
-    let freshAt = Date.now();
+    // 表示していた時間ではなく、隠れていた時間で古さを判断する。短いタブ切替のたびに全件を取り直さない
+    let hiddenAt: number | null = null;
     const restore = (event?: Event) => {
-      if (document.visibilityState === 'hidden') return;
+      if (document.visibilityState === 'hidden') {
+        if (hiddenAt === null) hiddenAt = Date.now();
+        return;
+      }
       const persisted =
         typeof PageTransitionEvent !== 'undefined' &&
         event instanceof PageTransitionEvent &&
         event.persisted;
-      if (persisted || Date.now() - freshAt >= 60_000) {
-        freshAt = Date.now();
-        store.reload('reconnect');
-      }
+      const away = hiddenAt === null ? 0 : Date.now() - hiddenAt;
+      hiddenAt = null;
+      if (persisted || away >= 60_000) store.reload('reconnect');
     };
     document.addEventListener('visibilitychange', restore);
     window.addEventListener('pageshow', restore);
@@ -54,8 +57,9 @@ export function useRoomLog(store: RoomLogStore, onRealtimeChat?: (chat: Chat) =>
     /**
      * 明示的な再読み込み。キャッシュを迂回してサーバーから取り直す。
      * 他ユーザーの発言は Realtime でしか届かないため、キャッシュ付きで取り直すと直近の発言が消える。
+     * onClick にそのまま渡されても、イベントを reason として受け取らないように包む。
      */
-    reload: store.reload,
+    reload: () => store.reload(),
     /** 取得件数を広げる（減らす方向には動かさない） */
     expand: store.expand,
   };

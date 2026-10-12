@@ -299,7 +299,7 @@ export default function ChatRoom({
           />
         </div>
         {failedMessage && onRetrySend && (
-          <Button type="submit" name="command" value="retry" disabled={sending}>
+          <Button type="submit" name="command" value="retry" formNoValidate disabled={sending}>
             前の送信を再試行
           </Button>
         )}

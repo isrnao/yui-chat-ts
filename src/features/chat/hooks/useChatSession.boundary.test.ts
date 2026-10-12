@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createRoomLogStore } from '../api/roomLogStore';
+import { SaveChatRejectedError } from '../api/saveChat';
 import type { Chat } from '../types';
 import { SupersededSessionError, useChatSession, type SessionTarget } from './useChatSession';
 
@@ -121,6 +122,18 @@ describe('sessionの非同期境界', () => {
     expect(retry).toEqual(first);
     expect(retry![0]).toBe('com_sb');
     expect(retry![1].metadata.fontStyle.bold).toBe(true);
+    expect(result.current.failedSend).toBeNull();
+  });
+
+  it('入力検証で拒否された送信は再試行の対象にしない', async () => {
+    const { result } = setup();
+    await act(async () => {
+      await result.current.enter({ name: '本人', color: '#000', silent: true });
+    });
+    network.send.mockRejectedValueOnce(new SaveChatRejectedError('invalid_message'));
+    await act(async () => {
+      await expect(result.current.send('本文')).rejects.toBeInstanceOf(SaveChatRejectedError);
+    });
     expect(result.current.failedSend).toBeNull();
   });
 });

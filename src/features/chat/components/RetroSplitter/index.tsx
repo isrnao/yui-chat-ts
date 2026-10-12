@@ -3,7 +3,19 @@ import { useId, useRef, useState, useEffect, useLayoutEffect } from 'react';
 import type { ReactNode, KeyboardEvent, PointerEvent, CSSProperties } from 'react';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
+/**
+ * 上側に表示している画面の種類。初期高さの出し分けに使う。
+ * top 要素からコンポーネント名を推測すると Fragment やラッパー div で判定不能になり、
+ * 本番ビルドの minify でも壊れるため、呼び出し側から明示的に渡す。
+ */
 export type SplitterTopKind = 'chat' | 'entry';
+
+/*
+ * 初期高さのブレークポイント (Tailwind の lg = 64rem) は src/styles/utilities.css の
+ * .splitter-panes が持つ。JS で matchMedia を見ると SSG と hydration で値が
+ * 食い違い、デスクトップで必ずレイアウトシフトが出るため CSS に寄せている。
+ */
+/** 初期高さ(%)。topKind 未指定なら 30%。ビューポートの出し分けは CSS が行う */
 const PRESETS = { chat: { base: 18, desktop: 18 }, entry: { base: 26, desktop: 24 } };
 
 export default function RetroSplitter({
@@ -16,6 +28,7 @@ export default function RetroSplitter({
 }: {
   top: ReactNode;
   bottom: ReactNode;
+  /** 上側の画面の種類。初期高さの出し分けに使う（未指定なら 30%） */
   topKind?: SplitterTopKind;
   minTop?: number;
   minBottom?: number;

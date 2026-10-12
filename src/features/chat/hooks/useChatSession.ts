@@ -2,7 +2,7 @@ import { readLookCommand } from '@features/chat/utils/lookCommand';
 import { useEffect, useRef, useState } from 'react';
 import { generateOperationId } from '@shared/utils/uuid';
 import { clearMyChats } from '@features/chat/api/chatQueries';
-import { createOptimisticChat } from '@features/chat/api/saveChat';
+import { createOptimisticChat, SaveChatRejectedError } from '@features/chat/api/saveChat';
 import type { RoomLogStore } from '@features/chat/api/roomLogStore';
 import { validateName } from '@features/chat/utils/validation';
 import { UserFacingError } from '@features/chat/utils/userFacingError';
@@ -307,7 +307,8 @@ export function useChatSession({
     setFailedSend(null);
     const savedChat = await sendUserMessage(sendTo, optimistic, operationId)
       .catch((error: unknown) => {
-        if (isCurrent(epoch))
+        // 再試行できるのは結果が分からない失敗だけ。入力検証の拒否（400）は同じ要求を送り直しても変わらない
+        if (isCurrent(epoch) && !(error instanceof SaveChatRejectedError))
           setFailedSend({ roomId: sendTo, chat: optimistic, operationId, createdAt });
         throw error;
       })
@@ -334,6 +335,10 @@ export function useChatSession({
           setFailedSend(null);
           afterSaved(failedSend.roomId, failedSend.chat.message, saved);
         }
+      })
+      .catch((error: unknown) => {
+        if (isCurrent(epoch) && error instanceof SaveChatRejectedError) setFailedSend(null);
+        throw error;
       })
       .finally(() => {
         if (isCurrent(epoch)) {

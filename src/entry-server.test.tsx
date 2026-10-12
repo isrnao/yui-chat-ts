@@ -48,7 +48,9 @@ function collectHydrationErrors() {
   };
 }
 
-describe('SSG + hydrateRoot', () => {
+// 最初の検査がルート全体の変換を待つ。並列の pre-commit（typecheck・eslint と同時）では既定の 5 秒を超え、
+// 時間切れの後始末が次の検査に漏れて連鎖で落ちるので、この describe だけ猶予を持たせる
+describe('SSG + hydrateRoot', { timeout: 30_000 }, () => {
   beforeEach(() => {
     localStorage.clear();
   });

@@ -506,8 +506,27 @@ Oracle はリポジトリの外に置く。
 
 ## 2026-10-12 ネイティブインタラクション改訂（R6）
 
-公開停止flagはfalseのまま維持する。close/kick/leaveは共通dialogで具体的な文言を確認し、取消を初期focus、確定した操作だけ一回Reducerへ渡す。seat/token/terminal・入室pending token・原作のE1等の通知フローは維持する。
+設計は [design.md](./design.md) の同日節を参照する。
 
-自動更新radioはfieldset/legendを持ち、変更をchange、選択済みの再押下をclickで一回扱う。RoomScreenのbusy guardを維持してpendingをdisabled/aria-busyへ公開する。入力focusは初回だけとし、受信更新で編集位置を奪わない。IME確定を送信しない。名前30/プロフィール50コードポイントの従来UI上限を維持し、HTML maxlengthのUTF-16単位差は2倍の安全上限とcustom validityで補う。requiredは追加せず通知経路を維持する。
+### Requirement 19: 停止中の専用画面のネイティブ操作（R6）
 
-FrameLayoutは245px固定待合室と20%可変部屋を維持する。バー厚を除いたclamp計算を通常画面と共有し、primary pointer/右button除外/rAF取消/Home/End/実寸ARIAを整備する。coarse pointerでバー24px、縦240px以下はscroll stackへ切り替える。専用all:revertは共通native dialogを除外し、focus/forced colorsを専用スコープで明示する。NoticePageは見出しへfocusし、RoomListは短いstatusだけを通知する。
+**User Story:** 利用者として、ツーショットチャットの専用画面を原作どおりの流れのまま、キーボードやタッチでも迷わず操作したい。誤操作で部屋を閉じたり相手を退室させたりしないため。
+
+#### Acceptance Criteria
+
+1. THE Two_Shot_Page SHALL 公開停止 flag（`TWO_SHOT_CHAT_ENABLED`）を false のまま維持する
+2. WHEN 利用者が閉鎖・相手を退室・退室を押す, THE Chat_Form SHALL 共通 dialog で具体的な文言を確認し、取消 button に初期 focus を置く
+3. WHEN 利用者が確認 dialog で実行を確定する, THE Chat_Form SHALL 確定した操作だけを一回 Reducer に渡す
+4. THE Two_Shot_Page SHALL seat・token・terminal・入室 pending token と、原作の E1 などの通知の流れを維持する
+5. THE Chat_Form SHALL 自動更新の radio を fieldset / legend でまとめ、選択の変更を change で、選択済みの radio の再押下を click で、それぞれ一回だけ扱う
+6. WHILE Room_Screen の要求が pending である, THE Chat_Form SHALL busy guard を維持し、その状態を disabled / aria-busy で示す
+7. THE Chat_Form SHALL 入力欄への focus を初回だけ行い、受信による更新で編集位置を奪わない
+8. THE Chat_Form SHALL IME の確定を送信として扱わない
+9. THE Entry_Form SHALL 名前 30・プロフィール 50 コードポイントの従来の上限を維持し、HTML maxlength の UTF-16 単位との差を 2 倍の安全上限と custom validity で補う
+10. THE Entry_Form SHALL required を追加せず、原作の通知の経路を維持する
+11. THE Frame_Layout SHALL Lobby_Screen の 245px 固定と Room_Screen の 20% 可変を維持し、境界線の厚さを除いた範囲の計算を通常画面と共有する
+12. WHEN Frame_Border をポインターまたはキーボードで操作する, THE Frame_Layout SHALL primary pointer 以外と右 button を無視し、rAF を取り消せるようにし、Home / End と実寸の ARIA 値に対応する
+13. WHERE ポインターが coarse である, THE Frame_Layout SHALL 境界線を 24px にし、WHERE 画面の高さが 240px 以下である, THE Frame_Layout SHALL ペインを縦に積んでスクロールさせる
+14. THE Two_Shot_Page SHALL 専用の all: revert から共通の native dialog を除外し、focus と forced colors の見た目を専用スコープで明示する
+15. WHEN Notice_Page を表示する, THE Notice_Page SHALL 見出しに focus を移す
+16. WHEN Room_List を更新する, THE Room_List SHALL 短い status だけを通知する

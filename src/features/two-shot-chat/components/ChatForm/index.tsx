@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { Sex } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG, type AutoSeconds } from '../../config';
 import ModalShell from '@features/chat/components/shared/ModalShell';
+import Button from '@shared/components/Button';
 import { useRetainedValue } from '@shared/hooks/useRetainedValue';
 import { rememberDialogInvoker } from '@shared/utils/dialogControl';
 import SexLabel from '../SexLabel';
@@ -216,31 +217,34 @@ export default function ChatForm({
           }}
         >
           <p id={titleId}>{CONFIRM_MESSAGES[displayConfirmation]}</p>
-          <button
-            type="button"
-            data-dialog-initial-focus
-            autoFocus
-            onClick={() => {
-              armed.current = false;
-              setConfirmation(null);
-            }}
-          >
-            やめる
-          </button>
-          <button
-            type="button"
-            disabled={isPending || terminal}
-            onClick={() => {
-              if (!armed.current || !confirmation || isPending || terminal) return;
-              armed.current = false;
-              setConfirmation(null);
-              if (confirmation === 'close') onClose();
-              else if (confirmation === 'kick') onKick();
-              else onLeave();
-            }}
-          >
-            実行する
-          </button>
+          {/* ダイアログは all: revert の対象外なので、chat 側の確認と同じ Button で押せる見た目にする */}
+          <div className="mt-3 flex justify-end gap-2">
+            <Button
+              type="button"
+              data-dialog-initial-focus
+              autoFocus
+              onClick={() => {
+                armed.current = false;
+                setConfirmation(null);
+              }}
+            >
+              やめる
+            </Button>
+            <Button
+              type="button"
+              disabled={isPending || terminal}
+              onClick={() => {
+                if (!armed.current || !confirmation || isPending || terminal) return;
+                armed.current = false;
+                setConfirmation(null);
+                if (confirmation === 'close') onClose();
+                else if (confirmation === 'kick') onKick();
+                else onLeave();
+              }}
+            >
+              実行する
+            </Button>
+          </div>
         </ModalShell>
       )}
       {/* 原作は <p><small>…</small>。Quirks モードの行の高さに合わせて、小さい文字のブロックにする */}

@@ -57,13 +57,16 @@ export default function ReportDialog({
       current.busy = false;
     };
   }, [chatUuid, open]);
-  useResetOnChange(chatUuid, () => {
+  const reset = () => {
     setReason(null);
     setDetail('');
     setState('editing');
-  });
+  };
+  useResetOnChange(chatUuid, reset);
+  // 閉じても部品は残る（閉じる演出のため）。開き直したら、前回の結果ではなく入力から始める
   useResetOnChange(open, (next) => {
-    if (next === false && state === 'sending') setState('editing');
+    if (next) reset();
+    else if (state === 'sending') setState('editing');
   });
 
   const submit = async () => {
