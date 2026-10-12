@@ -50,3 +50,7 @@ chromatic-diagnostics.json
 
 # pnpm lighthouse の出力 (約 1MB の計測レポート)
 lighthouse-report.html
+
+# Browser verification artifacts
+playwright-report/
+test-results/

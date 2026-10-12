@@ -93,5 +93,6 @@ export default [
       'prettier/prettier': 'warn',
     },
   },
+  { files: ['playwright.config.ts'], languageOptions: { globals: globals.node } },
   ...storybook.configs['flat/recommended'],
 ];
