@@ -1,6 +1,7 @@
-import { matchRoute } from '@features/chat/routing';
+import { matchRoute, buildChatRoomPath } from '@features/chat/routing';
 import type { RouteMatch } from '@features/chat/routing';
-import { matchChanariRoute } from '@features/chanari-chat/routing';
+import { matchChanariRoute, buildChanariRoomPath } from '@features/chanari-chat/routing';
+import { TWO_SHOT_ROOM_ID } from '@features/chat/rooms';
 import type { ChanariRouteMatch } from '@features/chanari-chat/routing';
 import { matchTwoShotRoute } from '@features/two-shot-chat/routing';
 import type { TwoShotRouteMatch } from '@features/two-shot-chat/routing';
@@ -39,4 +40,21 @@ export function resolveRouteFollowingRedirects(pathname: string): RouteResolutio
     current = resolveRoute(current.to);
   }
   return { route: current, finalPathname };
+}
+
+/** SSGとクライアントが共有する画面識別子。未知URLは既知ページと照合しない。 */
+export function getSsgPathname(pathname: string): string | null {
+  const { route } = resolveRouteFollowingRedirects(pathname);
+  switch (route.type) {
+    case 'top':
+      return import.meta.env.BASE_URL;
+    case 'chat-room':
+      return buildChatRoomPath(route.roomId);
+    case 'chanari-room':
+      return buildChanariRoomPath(route.roomId);
+    case 'two-shot':
+      return buildChatRoomPath(TWO_SHOT_ROOM_ID);
+    case 'not-found':
+      return null;
+  }
 }

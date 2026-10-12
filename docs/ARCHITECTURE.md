@@ -212,7 +212,7 @@ type ChanariRouteMatch =
 | `/chanari/:roomId` (有効) | `ChanariRoute`                                       |
 | 上記以外                  | `NotFoundRoute`                                      |
 
-`App.tsx`は`popstate`監視と`redirect`種別の自動再評価を担当します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてからhydrateし、完成済みHTMLを保持します。
+`App.tsx`は`popstate`監視と`redirect`種別の自動再評価を担当します。正規化時はhistory.state・query/hashを保持します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてから、共有ルート規則で`data-ssg-path`と現在URLを照合します。同じ既知画面だけをhydrateし、別画面・未知ルート・マーカー欠落はcreateRootで描きます。
 
 ### 4.3 レイヤー構成
 

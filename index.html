@@ -154,7 +154,11 @@
             })
             .join('?');
 
-          window.history.replaceState(null, '', l.pathname.slice(0, -1) + decoded + l.hash);
+          window.history.replaceState(
+            window.history.state,
+            '',
+            l.pathname.slice(0, -1) + decoded + l.hash
+          );
         }
       })(window.location);
 

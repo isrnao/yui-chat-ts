@@ -1,5 +1,7 @@
 # Test Strategy
 
+WP2a（#239）: SSG生成と起動で同じルート識別子を使用する。`ssgHydration.test.ts`は既知別名・UI/部屋の相違・未知URL・旧成果物を区別し、`App.test.tsx`はquery/hash・history.state保持を確認する。`ssg-routing.spec.ts`はトップHTMLの誤配信・旧404復元・再読込・文書間の戻る/進むを公開SSGで再現し、React hydration errorがないことを検査する。
+
 ## 1. テストの目的
 
 - 本プロジェクトの主要機能の品質を自動テストで継続的に保証する

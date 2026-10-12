@@ -88,7 +88,11 @@ export default function App({ initialPathname }: { initialPathname?: string } = 
   // 初回 mount 時に URL が /chat や /chanari (= redirect 元) のままなら、ここで replaceState する。
   useEffect(() => {
     if (window.location.pathname !== finalPathname) {
-      window.history.replaceState(null, '', finalPathname);
+      window.history.replaceState(
+        window.history.state,
+        '',
+        `${finalPathname}${window.location.search}${window.location.hash}`
+      );
     }
   }, [finalPathname]);
 

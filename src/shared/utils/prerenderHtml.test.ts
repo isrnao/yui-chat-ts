@@ -187,9 +187,18 @@ describe('injectSsgMarkup', () => {
   const html = '<html><head></head><body><div id="root"></div></body></html>';
 
   it('#root に SSG 済みマークアップを入れ、hydrate 対象の印を付ける', () => {
-    const out = injectSsgMarkup(html, '<main><h1>やあ</h1></main>');
+    const out = injectSsgMarkup(html, '<main><h1>やあ</h1></main>', '/chat/anime/');
 
-    expect(out).toContain('<div id="root" data-ssg="1"><main><h1>やあ</h1></main></div>');
+    expect(out).toContain(
+      '<div id="root" data-ssg="1" data-ssg-path="/chat/anime/"><main><h1>やあ</h1></main></div>'
+    );
+  });
+
+  it('描画ルートの属性値でHTMLを壊さない', () => {
+    const out = injectSsgMarkup(html, '<main></main>', '/"<&>');
+    const document = new DOMParser().parseFromString(out, 'text/html');
+    expect(document.getElementById('root')?.dataset.ssgPath).toBe('/"<&>');
+    expect(document.querySelectorAll('main')).toHaveLength(1);
   });
 
   // 印が無いページへ hydrate するとマークアップ不一致になるため、
@@ -199,7 +208,7 @@ describe('injectSsgMarkup', () => {
   });
 
   it('#root が無いテンプレートでは throw する', () => {
-    expect(() => injectSsgMarkup('<html><body></body></html>', '<main></main>')).toThrow();
+    expect(() => injectSsgMarkup('<html><body></body></html>', '<main></main>', '/')).toThrow();
   });
 });
 

@@ -1,5 +1,7 @@
 # ネイティブインタラクションの実装・検証記録
 
+WP2a（#239）ではdata-ssg-pathによる画面照合とURL正規化時のquery/hash・history.state保持を追加。旧404配信の恒久修正はWP2b（#240）で追跡する。
+
 2026-10-13以後のWeb Platform First作業は[WEB_PLATFORM_EXECUTION.md](WEB_PLATFORM_EXECUTION.md)で追跡する。#236の通常・Chanari入室フォームの送信安全性はR8/R9のdialog・UI整理を維持して追加する。ユーザー指定により#237の計測URL保護と#242の通報導線は対象外。
 
 開始日: 2026-10-12

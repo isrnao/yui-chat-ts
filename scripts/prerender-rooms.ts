@@ -57,9 +57,18 @@ if (!ssrEntry) {
   );
   exit(1);
 }
-const { render } = (await import(pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href)) as {
+const { render, getSsgPathname } = (await import(
+  pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href
+)) as {
   render: (pathname: string) => Promise<string>;
+  getSsgPathname: (pathname: string) => string | null;
 };
+
+async function renderSsg(html: string, pathname: string): Promise<string> {
+  const renderedPath = getSsgPathname(pathname);
+  if (renderedPath === null) throw new Error(`prerender: 未知の描画ルート ${pathname}`);
+  return injectSsgMarkup(html, await render(pathname), renderedPath);
+}
 
 /**
  * ルートチャンクとその静的依存を manifest から解決する。
@@ -110,7 +119,7 @@ for (const roomId of targets) {
   );
   // 入室フォームまで含めた実マークアップを埋める。JS の到着を待たずに描画でき、
   // クライアント側と同一の出力なのでレイアウトシフトも起きない。
-  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(roomId)));
+  const html = await renderSsg(withMeta, buildRoomPath(roomId));
   writePage(buildOutputRelativePath(roomId), html);
   count += 1;
 }
@@ -136,7 +145,7 @@ for (const roomId of chanariTargets) {
     renderChanariRoomHtml(template, roomId),
     resolveChunkPaths('src/routes/ChanariRoute.tsx')
   );
-  const html = injectSsgMarkup(withMeta, await render(buildChanariPath(roomId)));
+  const html = await renderSsg(withMeta, buildChanariPath(roomId));
   writePage(buildChanariOutputRelativePath(roomId), html);
   chanariCount += 1;
 }
@@ -160,13 +169,13 @@ if (TWO_SHOT_CHAT_ENABLED) {
     exit(1);
   }
   const withMeta = injectRoutePreload(renderTwoShotHtml(template), assets);
-  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(TWO_SHOT_ROOM_ID)));
+  const html = await renderSsg(withMeta, buildRoomPath(TWO_SHOT_ROOM_ID));
   writePage(buildOutputRelativePath(TWO_SHOT_ROOM_ID), html);
 }
 
 // トップページも SSG する。#root が空だと LCP 要素 (紹介文) が JS 待ちになる。
 // 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい。
-writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8');
+writeFileSync(templatePath, await renderSsg(template, '/'), 'utf-8');
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
 console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);

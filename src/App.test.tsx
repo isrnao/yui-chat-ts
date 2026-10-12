@@ -179,6 +179,21 @@ describe('<App />', { timeout: 30_000 }, () => {
     });
   });
 
+  it.each([
+    ['/chat', '/chat/superbeginner/'],
+    ['/chanari', '/chanari/superbeginner/'],
+    ['/chanari/all', '/chat/all/'],
+    ['/chanari/2shot', '/chat/2shot/'],
+  ])('別名 %s を正規化してもquery/hashとhistory.stateを保持する', async (alias, target) => {
+    const suffix = '?utm_source=campaign&invite_id=a%26b#latest';
+    const state = { restored: true, scroll: 120 };
+    window.history.replaceState(state, '', `${alias}${suffix}`);
+    await renderApp();
+    await waitFor(() => expect(window.location.pathname).toBe(target));
+    expect(window.location.search + window.location.hash).toBe(suffix);
+    expect(window.history.state).toEqual(state);
+  });
+
   // /chat/2shot/ は通常のチャット画面ではなく、ツーショットチャット（.kiro/specs/two-shot-chat Requirement 1）
   it('shows the two-shot lobby on /chat/2shot/ instead of the chat room', async () => {
     window.history.replaceState(null, '', '/chat/2shot/');

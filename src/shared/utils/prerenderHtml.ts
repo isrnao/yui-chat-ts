@@ -112,16 +112,18 @@ function buildHeadBlock(seo: RoomSeo): string {
 /**
  * SSG 済みの HTML を #root に流し込み、hydrate 対象であることを示す印を付ける。
  *
- * `data-ssg="1"` はクライアント (main.tsx) が hydrateRoot / createRoot を
- * 出し分けるための目印。SSG していないページへ誤って hydrate すると
- * マークアップ不一致になるため、印のあるページだけ hydrate する。
+ * `data-ssg-path`は同じSSRのルート解決規則から得る描画元の正規pathname。
+ * 起動時には現在の画面と照合し、異なるHTMLへhydrateしない。
  */
-export function injectSsgMarkup(html: string, markup: string): string {
+export function injectSsgMarkup(html: string, markup: string, pathname: string): string {
   const rootIndex = html.indexOf(ROOT_OPEN);
   if (rootIndex === -1) {
     throw new Error('prerender: #root が見つかりません');
   }
-  return html.replace(ROOT_OPEN, `<div id="root" data-ssg="1">${markup}`);
+  return html.replace(
+    ROOT_OPEN,
+    `<div id="root" data-ssg="1" data-ssg-path="${escapeHtml(pathname)}">${markup}`
+  );
 }
 
 /**

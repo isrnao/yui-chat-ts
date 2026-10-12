@@ -10,19 +10,19 @@
 
 ## タスク
 
-| 順序 | 優先度・タスク                                                            | 予定ブランチ                                   | 状態                                                                            |
-| ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------- |
-| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち |
-| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | 未着手                                                                          |
-| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | 未着手                                                                          |
-| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 未着手                                                                          |
-| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手                                                                          |
-| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                          |
-| 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                          |
-| 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                          |
-| 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手                                                                          |
+| 順序 | 優先度・タスク                                                            | 予定ブランチ                                   | 状態                                                                               |
+| ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち    |
+| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / 全CI成功・実機確認待ち |
+| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | 実装・自動確認済み / PR作成中                                                      |
+| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | 未着手                                                                             |
+| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | 未着手                                                                             |
+| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | 未着手                                                                             |
+| 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                             |
+| 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                             |
+| 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手                                                                             |
 
-ユーザー指定により#237（計測URL保護）と#242（通報導線）は対象外とし、not plannedでクローズ。次のfeatureはWP3 #238とする。P2の既存ReportDialogフォーム簡素化は残す。P2候補は比較と採否記録を含む。対応方針は最新版Chrome（Desktop/Android）とSafari（macOS/iOS）。自動試験と実機確認を区別する。
+ユーザー指定により#237（計測URL保護）と#242（通報導線）は対象外とし、not plannedでクローズ。作業順・現在のfeatureは上表と各Issueで追跡する。P2の既存ReportDialogフォーム簡素化は残す。P2候補は比較と採否記録を含む。対応方針は最新版Chrome（Desktop/Android）とSafari（macOS/iOS）。自動試験と実機確認を区別する。
 
 ## WP1a：入室フォームの送信安全性
 
@@ -53,3 +53,13 @@ WP1a最終自動確認: pnpm 10.34.6を別のclean checkoutでfrozen installし�
 別checkoutに元のnode_modulesをコピーせず、pnpm 10.34.6で649パッケージをfrozen installした。全Vitest、typecheck、lint、公開ビルド（164ページSSG）が成功。ローカルNodeは22.22.3であり、Node 24の最終保証は対象PRのCIで確認する。
 
 WP3のclean checkoutでも、変更後の3 projectで**51ブラウザケース成功**。Node/pnpm/frozenのYAML整合とPlaywrightのproject一覧を確認。実機・VoiceOver、ブラウザ最低版/OS下限の確定は未完了として残す。
+
+## WP2a：SSGルート照合・URL保持
+
+#248のhead `4514236a7c777851dcbd3080b08866976edb5b16`からfeatureを作成。SSRビルドから共有の`getSsgPathname`を公開し、描画と同じ経路解決規則で`data-ssg-path`を生成する。HTML属性値はエスケープする。
+
+起動時はSSGマーカーと現在URLが同じ既知画面の場合だけhydrate。別画面・未知ルート・旧成果物のマーカー欠落はcreateRootで現在の画面を描く。preload後のURLを照合する。Appと旧404復元scriptのreplaceStateはhistory.state・query/hashを保持する。
+
+ローカル確認：typecheck/lint、Compilerを含む関連5ファイル71件、Chromium/Desktop WebKit/Mobile WebKitの関連45ブラウザケース成功。公開ビルドの164 SSGページの全マーカーが出力先と一致。トップHTMLの誤配信、マーカー欠落、旧別名復元、再読込・戻る/進む、先行入力・送信安全性を検証した。
+
+旧404経路のトップ初期表示とJSなしの空404は、WP2bで置き換える。実Chrome/Safari・実Android/iOSの確認は未完了。
