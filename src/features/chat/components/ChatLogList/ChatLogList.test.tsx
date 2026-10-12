@@ -367,8 +367,11 @@ describe('ChatLogList', () => {
       confirm();
 
       expect(getSnapshot()).toEqual([{ kind: 'word', word: 'hello' }]);
-      expect(screen.queryByText('ＨＥＬＬＯ world')).not.toBeInTheDocument();
-      expect(screen.queryByText('say hello')).not.toBeInTheDocument();
+      // 閉じた確認の窓は閉じる演出のあいだ中身を残すので、ログの行だけを見る
+      expect(
+        screen.queryByText('ＨＥＬＬＯ world', { ignore: 'dialog *' })
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('say hello', { ignore: 'dialog *' })).not.toBeInTheDocument();
       expect(screen.getByText('bye')).toBeInTheDocument();
       expect(screen.getByRole('status')).toHaveTextContent(
         '「hello」を含む発言を非表示にしました。'

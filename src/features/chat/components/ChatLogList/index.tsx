@@ -1,6 +1,5 @@
 import { useRetainedValue } from '@shared/hooks/useRetainedValue';
-import { rememberDialogInvoker } from '@shared/utils/dialogControl';
-import { Fragment, memo, useId, useRef, useState } from 'react';
+import { Fragment, memo, useRef, useState } from 'react';
 import type { Chat } from '@features/chat/types';
 import type { RoomId } from '@features/chat/rooms';
 import type { IpFilter } from '@features/chat/hooks/useIpFilter';
@@ -122,8 +121,6 @@ function ChatLogList({
   const [reporting, setReporting] = useState<string | null>(null);
   // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
   const listRef = useRef<HTMLDivElement>(null);
-  const filterDialogId = useId();
-  const reportDialogId = useId();
   const displayPending = useRetainedValue(pending);
   const displayReporting = useRetainedValue(reporting);
   const matchCount =
@@ -131,7 +128,6 @@ function ChatLogList({
     0;
   const requestFilter = (request: FilterRequest) => {
     const { chatUuid } = request;
-    rememberDialogInvoker(filterDialogId, listRef.current ?? request.row);
     if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip, chatUuid });
     else if (request.kind === 'name') setPending({ kind: 'name', name: request.name, chatUuid });
     else setPending({ kind: 'word', message: request.message, word: request.selected, chatUuid });
@@ -211,7 +207,7 @@ function ChatLogList({
       {displayPending !== null && (
         <FilterConfirmDialog
           open={pending !== null}
-          dialogId={filterDialogId}
+          returnFocus={() => listRef.current}
           {...confirmText(displayPending)}
           confirmDisabled={
             displayPending.kind === 'word' && !normalizeFilterWord(displayPending.word)
@@ -219,10 +215,7 @@ function ChatLogList({
           onConfirm={confirmFilter}
           onCancel={() => setPending(null)}
           onReport={() => {
-            if (pending) {
-              rememberDialogInvoker(reportDialogId, listRef.current!);
-              setReporting(pending.chatUuid);
-            }
+            if (pending) setReporting(pending.chatUuid);
             setPending(null);
           }}
         >
@@ -241,7 +234,7 @@ function ChatLogList({
       {displayReporting !== null && (
         <ReportDialog
           open={reporting !== null}
-          dialogId={reportDialogId}
+          returnFocus={() => listRef.current}
           chatUuid={displayReporting}
           onClose={() => setReporting(null)}
         />

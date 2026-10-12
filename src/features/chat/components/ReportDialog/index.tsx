@@ -1,4 +1,3 @@
-import { requestDialogClose } from '@shared/utils/dialogControl';
 import { asyncResult } from '@shared/utils/asyncResult';
 import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 import { useId, useLayoutEffect, useRef, useState } from 'react';
@@ -14,8 +13,9 @@ import {
 } from '@features/chat/api/reportChat';
 
 type Props = {
-  open?: boolean;
-  dialogId?: string;
+  open: boolean;
+  /** 閉じた後にフォーカスを戻す先（ModalShell） */
+  returnFocus?: () => HTMLElement | null;
   chatUuid: string;
   onClose: () => void;
   /** テストで差し替える */
@@ -37,10 +37,8 @@ export default function ReportDialog({
   onClose,
   send = reportChat,
   open,
-  dialogId,
+  returnFocus,
 }: Props) {
-  const fallbackDialogId = useId();
-  const id = dialogId ?? fallbackDialogId;
   const titleId = useId();
   const descriptionId = useId();
   const detailId = useId();
@@ -70,7 +68,7 @@ export default function ReportDialog({
   });
 
   const submit = async () => {
-    if (!reason || open === false || operation.current.busy) return;
+    if (!reason || !open || operation.current.busy) return;
     const current = operation.current;
     const epoch = current.epoch;
     current.busy = true;
@@ -84,7 +82,7 @@ export default function ReportDialog({
   return (
     <ModalShell
       open={open}
-      dialogId={id}
+      returnFocus={returnFocus}
       role="dialog"
       labelledBy={titleId}
       describedBy={descriptionId}
@@ -156,12 +154,7 @@ export default function ReportDialog({
         )}
         <div className="mt-3 flex justify-end gap-2">
           {state === 'ok' ? (
-            <Button
-              type="button"
-              onClick={() => requestDialogClose(id)}
-              autoFocus
-              data-dialog-initial-focus
-            >
+            <Button type="button" onClick={onClose} autoFocus data-dialog-initial-focus>
               {CHAT_TEXTS.report.close}
             </Button>
           ) : (
@@ -169,12 +162,7 @@ export default function ReportDialog({
               <Button type="submit" disabled={!reason || state === 'sending'}>
                 {state === 'sending' ? CHAT_TEXTS.report.sending : CHAT_TEXTS.report.send}
               </Button>
-              <Button
-                type="button"
-                onClick={() => requestDialogClose(id)}
-                autoFocus
-                data-dialog-initial-focus
-              >
+              <Button type="button" onClick={onClose} autoFocus data-dialog-initial-focus>
                 {CHAT_TEXTS.report.cancel}
               </Button>
             </>

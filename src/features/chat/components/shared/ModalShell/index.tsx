@@ -1,189 +1,100 @@
-import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import LegacyModalShell from './LegacyModalShell';
-import {
-  hasNativeDialog,
-  restoreDialogFocus,
-  takeDialogInvoker,
-  takeDialogOrigin,
-} from '@shared/utils/dialogControl';
-import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 type Props = {
+  /** 開いているか。開閉はこの値だけで決まる */
+  open: boolean;
   role?: 'dialog' | 'alertdialog';
+  /** 見出しの id（aria-labelledby） */
   labelledBy: string;
+  /** 説明の id（aria-describedby） */
   describedBy?: string;
+  /** Esc・背景のクリックで呼ぶ。呼び出し側が open を false にする */
   onCancel: () => void;
+  /**
+   * 閉じた後にフォーカスを戻す先。渡さなければ、開いたときにフォーカスしていた要素へ戻す。
+   * ダブルタップで開く窓は、開いた操作がフォーカスを動かさないので、ログ領域などを渡す
+   */
+  returnFocus?: () => HTMLElement | null;
+  /** 窓の幅などを足す */
   className?: string;
   children: ReactNode;
-  open?: boolean;
-  request?: number;
-  dialogId?: string;
-  onOpen?: () => void;
-  onClosed?: () => void;
 };
-const subscribe = () => () => {};
-const serverSnapshot = () => true;
 
-/** The native path owns no body inert, document key listener, or custom focus trap. */
+/** フォーカスを戻す先が見つからないときの行き先（ChatLogList の外枠） */
+const LOG_ROOT = '[data-chat-log-root]';
+
+/**
+ * 旧来風の小さなモーダルの外枠（確認・通報・フィルタの一覧で共有する）。ネイティブの `<dialog>` を
+ * showModal() で開くので、背後の inert・Tab の閉じ込め・Esc はブラウザが受け持つ。
+ *
+ * - 開閉は `open` だけで決める。Esc と背景のクリックは onCancel で呼び出し側へ知らせる
+ * - 最初のフォーカスは `data-dialog-initial-focus` の要素（安全な取消ボタン）
+ * - 閉じたら returnFocus の先、なければ開いたときにフォーカスしていた要素へ戻す。どちらも消えていればログ領域
+ * - 背景のクリックで閉じるのは、背景の上で押し始めたときだけ。窓を開いた操作の続き（タッチの互換用の
+ *   click など）が背景に届いても閉じない
+ */
 export default function ModalShell({
+  open,
   role = 'dialog',
   labelledBy,
   describedBy,
   onCancel,
+  returnFocus,
   className = '',
   children,
-  open,
-  request = 1,
-  dialogId,
-  onOpen,
-  onClosed,
 }: Props) {
-  const fallbackId = useId();
-  const id = dialogId ?? fallbackId;
-  const native = useSyncExternalStore(subscribe, hasNativeDialog, serverSnapshot);
   const nodeRef = useRef<HTMLDialogElement>(null);
-  const previousFocus = useRef<Element | null>(null);
-  const returnTo = useRef<Element | null>(null);
+  const opener = useRef<Element | null>(null);
   const pressedOutside = useRef(false);
-  const closeRequests = useRef(0);
-  const initialized = useRef(false);
-  const notified = useRef(false);
-  const [legacyOpen, setLegacyOpen] = useState(open ?? request > 0);
-  useResetOnChange(`${native}:${String(open)}:${request}`, () => {
-    if (!native) setLegacyOpen(open ?? request > 0);
-  });
-  const notifyOpen = () => {
-    if (notified.current) return;
-    notified.current = true;
-    onOpen?.();
-  };
-  const notifyClosed = () => {
-    notified.current = false;
-    onClosed?.();
-  };
-  const effectOpened = useEffectEvent(() => notifyOpen());
-  const effectClosed = useEffectEvent(() => notifyClosed());
-  const effectCancelled = useEffectEvent(() => onCancel());
-  const cancel = () => {
-    if (!native) {
-      setLegacyOpen(false);
-      onCancel();
-      return;
-    }
-    const node = nodeRef.current;
-    if (!node?.open) return;
-    closeRequests.current++;
-    onCancel();
-    node.close();
-  };
+
   useEffect(() => {
-    if (!native) return;
     const node = nodeRef.current;
-    if (!node) return;
-    if (!initialized.current) {
-      initialized.current = true;
-      if (open === undefined && node.open) {
-        returnTo.current =
-          takeDialogInvoker(id) ??
-          [...document.querySelectorAll<HTMLButtonElement>('button[commandfor]')].find(
-            (button) => button.getAttribute('commandfor') === id
-          ) ??
-          null;
-        effectOpened();
-        return;
-      }
-    }
-    const shouldOpen = open ?? request > 0;
-    if (shouldOpen && !node.open) {
-      const origin = takeDialogOrigin(id);
-      previousFocus.current = origin?.previous ?? document.activeElement;
-      returnTo.current = origin?.element ?? document.activeElement;
+    if (!node || !open) return;
+    if (!node.open) {
+      opener.current = document.activeElement;
       node.showModal();
       node
         .querySelector<HTMLElement>('[data-dialog-initial-focus]')
         ?.focus({ preventScroll: true });
-      effectOpened();
-    } else if (!shouldOpen && node.open) {
-      closeRequests.current++;
-      node.close();
     }
-  }, [native, open, request, id]);
-  useEffect(() => {
-    if (native || !legacyOpen) return;
-    returnTo.current = takeDialogInvoker(id) ?? document.activeElement;
-    effectOpened();
-    const listener = (event: Event) => {
-      if ((event as CustomEvent<string>).detail === id) {
-        setLegacyOpen(false);
-        effectCancelled();
-      }
-    };
-    document.addEventListener('yui-dialog-close', listener);
+    // open が false になった・Activity で隠れた・外れたときに top layer から出す
     return () => {
-      document.removeEventListener('yui-dialog-close', listener);
-      effectClosed();
+      if (node.open) node.close();
     };
-  }, [native, legacyOpen, id]);
-  useEffect(
-    () => () => {
-      takeDialogInvoker(id);
-      const node = nodeRef.current;
-      queueMicrotask(() => {
-        if (node?.open && (!node.isConnected || node.checkVisibility?.() === false)) node.close();
-      });
-    },
-    [id]
-  );
-  if (!native)
-    return legacyOpen ? (
-      <LegacyModalShell
-        role={role}
-        labelledBy={labelledBy}
-        describedBy={describedBy}
-        onCancel={cancel}
-        className={className}
-        id={id}
-      >
-        {children}
-      </LegacyModalShell>
-    ) : null;
-  const content = (
+  }, [open]);
+
+  const restoreFocus = () => {
+    // 通報の窓へ続けて開いたときは、そちらのフォーカスを奪わない
+    if (document.querySelector('dialog[open]')) return;
+    const active = document.activeElement;
+    const preferred = returnFocus?.() ?? null;
+    // ブラウザが開く前の要素へ戻していれば、それに任せる
+    if (!preferred && active && active !== document.body && !nodeRef.current?.contains(active))
+      return;
+    const target = [preferred, opener.current, document.querySelector(LOG_ROOT)].find(
+      (element): element is HTMLElement =>
+        element instanceof HTMLElement && element.isConnected && element !== document.body
+    );
+    target?.focus({ preventScroll: true });
+  };
+
+  return (
     <dialog
       ref={nodeRef}
-      id={id}
       role={role}
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
       className={`native-modal border-2 border-ie-gray [border-style:outset] bg-ie-bg p-3 font-yui text-sm text-[#222] ${className}`}
       onCancel={(event) => {
+        // 閉じるかどうかは open で決める
         event.preventDefault();
-        cancel();
+        onCancel();
       }}
       onClose={() => {
-        const requested = closeRequests.current > 0;
-        if (requested) closeRequests.current--;
-        if (nodeRef.current?.open) return;
-        if (!requested && open === true) onCancel();
-        notifyClosed();
-        const active = document.activeElement;
-        if (
-          active === document.body ||
-          active === returnTo.current ||
-          active === previousFocus.current ||
-          nodeRef.current?.contains(active)
-        )
-          restoreDialogFocus(returnTo.current);
-      }}
-      onToggle={() => {
-        if (nodeRef.current?.open) {
-          const origin = takeDialogOrigin(id);
-          if (origin) {
-            returnTo.current = origin.element;
-            previousFocus.current = origin.previous;
-          }
-          notifyOpen();
-        }
+        // ブラウザが自分で閉じた（繰り返しの Esc など）なら、呼び出し側の open も戻す
+        if (open) onCancel();
+        restoreFocus();
       }}
       onPointerDown={(event) => {
         const rect = event.currentTarget.getBoundingClientRect();
@@ -197,11 +108,10 @@ export default function ModalShell({
       onClick={(event) => {
         const outside = pressedOutside.current;
         pressedOutside.current = false;
-        if (outside && event.target === event.currentTarget) cancel();
+        if (outside && event.target === event.currentTarget) onCancel();
       }}
     >
       {children}
     </dialog>
   );
-  return content;
 }

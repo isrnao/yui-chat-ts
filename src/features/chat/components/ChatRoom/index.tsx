@@ -1,8 +1,3 @@
-import {
-  hasNativeDialog,
-  hasInvokerCommands,
-  rememberDialogInvoker,
-} from '@shared/utils/dialogControl';
 import { asyncResult } from '@shared/utils/asyncResult';
 import { useId, useRef, useEffect, useState, useActionState, type ChangeEvent } from 'react';
 import type { ChatMetadata, FontSize, FontColorName, AvatarId } from '@features/chat/types';
@@ -48,7 +43,6 @@ export type ChatRoomProps = {
   filterCount?: number;
   /** 「フィルタ」リンクで編集画面を開閉する。渡したときだけ「細字」の右にリンクを出す */
   onToggleFilter?: () => void;
-  filterDialogId?: string;
   /** 入室の保存を待っている間。発言の操作を止める */
   sessionPending?: boolean;
 };
@@ -69,7 +63,6 @@ export default function ChatRoom({
   onResetReplyTarget,
   filterCount = 0,
   onToggleFilter,
-  filterDialogId,
   sessionPending = false,
 }: ChatRoomProps) {
   const messageId = useId();
@@ -357,10 +350,10 @@ export default function ChatRoom({
           <button
             type="button"
             className="ml-2 underline cursor-pointer"
-            {...(filterDialogId ? { commandfor: filterDialogId, command: 'show-modal' } : {})}
             onClick={(event) => {
-              if (filterDialogId) rememberDialogInvoker(filterDialogId, event.currentTarget);
-              if (!filterDialogId || !hasNativeDialog() || !hasInvokerCommands()) onToggleFilter();
+              // Safari はクリックでボタンへフォーカスしない。閉じた後にここへ戻れるようにする
+              event.currentTarget.focus();
+              onToggleFilter();
             }}
           >
             {filterCount > 0
