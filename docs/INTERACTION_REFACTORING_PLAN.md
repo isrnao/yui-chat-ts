@@ -289,9 +289,3 @@ R番号は初回計画との対応を保つための識別子で、着手順そ�
 2026-10-12時点では、初回41項目と追加17項目の計58項目で、確認した操作経路と横断責務を整理できた。見落としゼロや全ブラウザ動作を保証した扱いにはせず、R0の実機結果と実装PRで新しい事実が出たら同じID表・受け入れ条件・PR依存を更新する。計画の完了基準は項目数や新CSSの採用数ではなく、操作の完了、状態/データの整合、回復可能性、実測性能である。
 
 再レビューの追加根拠: [MDN Selection](https://developer.mozilla.org/en-US/docs/Web/API/Selection)（選択の両端）、[MDN pageshow](https://developer.mozilla.org/en-US/docs/Web/API/Window/pageshow_event)（履歴/凍結からの復帰）、[MDN Web Audio best practices](https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices)（ユーザー操作と音声起動）、[React useSyncExternalStore](https://react.dev/reference/react/useSyncExternalStore)（snapshotの安定性・hydration）。
-
-## 16. 実装への引継ぎ（2026-10-12）
-
-develop_contractsからdevelop_native-interactionsを作成し、14章の順でfeature branches/stacked PRへ実装した。最終網羅確認の補完はR7へ分離した。[実装・検証記録](NATIVE_INTERACTION_EXECUTION.md)で58項目の対応表、実ブラウザ/SSG/Compiler/契約の結果、PR順序、未完了の実機採用ゲートを管理する。1〜15章の「今回実施するのは計画レビュー」「未実装」は計画作成時点の履歴であり、現在の進捗は同記録を優先する。機能計画F01〜F11の新機能を今回のrefactor完了へ含めない。
-
-最終見直しで、source projection/要求snapshot/一つのscroll枠/native開閉の所有者を統一した。追加した音声失敗/期限固定clock/古いcloseイベントのfocus競合/Chanari同一要求retryは元の受け入れ条件の補完であり、新しい状態管理方式や機能を別途増やすものではない。
