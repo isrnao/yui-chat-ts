@@ -151,6 +151,24 @@ export const CONDITIONS: ConditionDef[] = [
     durationSec: 3600,
     priority: 'CRITICAL',
   },
+  {
+    id: 'C8',
+    title: 'child-safety reports (report_chat.received, child_safety)',
+    policy: 'paging',
+    // 児童の安全に関わる通報（.kiro/specs/android-native-app design.md §7.6、Task 0.6）。1 件でも PagerDuty で運営に
+    // すぐ知らせる。ログには理由と id だけが入り、通報の本文は入らない（運営は chat_reports で確かめる）。
+    description:
+      'A child-safety report was received. Check chat_reports right away (the log has no report text).',
+    nrql: (env) =>
+      `SELECT filter(count(*), WHERE event = 'report_chat.received' AND report.child_safety IS TRUE) ` +
+      `FROM Log WHERE service.name = 'report-chat' AND ${where(env)}`,
+    windowSec: 60,
+    threshold: 1,
+    operator: 'ABOVE_OR_EQUALS',
+    occurrences: 'AT_LEAST_ONCE',
+    durationSec: 60,
+    priority: 'CRITICAL',
+  },
 ];
 
 function arg(name: string): string | undefined {

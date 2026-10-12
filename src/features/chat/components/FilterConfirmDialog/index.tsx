@@ -2,6 +2,7 @@ import { useId } from 'react';
 import type { ReactNode } from 'react';
 import Button from '@shared/components/Button';
 import ModalShell from '../shared/ModalShell';
+import { CHAT_TEXTS } from '@features/chat/chatTexts';
 
 type Props = {
   /** 見出し（例:「219.*.*.253 の発言をフィルタ（非表示に）しますか？」） */
@@ -14,6 +15,8 @@ type Props = {
   confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  /** 渡したときだけ「通報する」を出す（ダブルタップ → 通報する の 2 操作で通報に届く。Task 0.6） */
+  onReport?: () => void;
 };
 
 /**
@@ -40,6 +43,7 @@ export default function FilterConfirmDialog({
   confirmDisabled = false,
   onConfirm,
   onCancel,
+  onReport,
 }: Props) {
   const titleId = useId();
   const descriptionId = useId();
@@ -60,9 +64,14 @@ export default function FilterConfirmDialog({
       </p>
       {children}
       <div className="mt-3 flex justify-end gap-2">
+        {onReport && (
+          <Button type="button" onClick={onReport} className="mr-auto">
+            {CHAT_TEXTS.report.action}
+          </Button>
+        )}
         <span className="relative inline-block">
           <Button type="button" onClick={onConfirm} disabled={confirmDisabled}>
-            フィルタする
+            {CHAT_TEXTS.filter.confirm}
           </Button>
           <input
             type="checkbox"
@@ -76,7 +85,7 @@ export default function FilterConfirmDialog({
           />
         </span>
         <Button type="button" onClick={onCancel} autoFocus>
-          やめる
+          {CHAT_TEXTS.filter.cancel}
         </Button>
       </div>
     </ModalShell>
