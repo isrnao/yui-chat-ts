@@ -13,10 +13,14 @@ export const FILTER_NAME_ATTR = 'data-filter-name';
  * - word: 本文を押したとき。selected はダブルクリックでブラウザが選んだ文字（なければ空）
  * row は消えるアニメーションのための行の要素
  */
-export type FilterRequest =
+export type FilterRequest = (
   | { kind: 'ip'; ip: string; row: HTMLElement }
   | { kind: 'name'; name: string; row: HTMLElement }
-  | { kind: 'word'; message: string; selected: string; row: HTMLElement };
+  | { kind: 'word'; message: string; selected: string; row: HTMLElement }
+) & {
+  /** 押した発言（確認の窓の「通報する」で使う。Task 0.6） */
+  chatUuid: string;
+};
 
 /** element の中で選ばれている文字（選択がなければ、または外にあれば空） */
 function selectedTextIn(element: Element): string {
@@ -38,10 +42,18 @@ export function resolveFilterRequest(
   const kind = marked?.getAttribute(FILTER_TARGET_ATTR);
   if (marked && kind === 'name') {
     const name = marked.getAttribute(FILTER_NAME_ATTR) ?? chat.name;
-    if (name.trim() !== '') return { kind: 'name', name, row };
+    if (name.trim() !== '') return { kind: 'name', name, row, chatUuid: chat.uuid };
   }
   if (marked && kind === 'message') {
-    return { kind: 'word', message: chat.message, selected: selectedTextIn(marked), row };
+    return {
+      kind: 'word',
+      message: chat.message,
+      selected: selectedTextIn(marked),
+      row,
+      chatUuid: chat.uuid,
+    };
   }
-  return isFilterableIp(chat.ip_masked) ? { kind: 'ip', ip: chat.ip_masked, row } : null;
+  return isFilterableIp(chat.ip_masked)
+    ? { kind: 'ip', ip: chat.ip_masked, row, chatUuid: chat.uuid }
+    : null;
 }

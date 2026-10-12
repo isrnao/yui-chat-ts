@@ -141,6 +141,15 @@ messages. Because the log is Realtime-synced, this reflects cross-user presence.
 `index.html`, and pages are joined by cross-document View Transitions (`@view-transition` in
 `App.css`, off under `prefers-reduced-motion`). Browsers without support just navigate normally.
 
+### Contracts (Android app)
+
+`contracts/` holds JSON shared with the Android app (`okiraku-android`, spec `.kiro/specs/android-native-app/`).
+It is **generated** by `src/contracts/buildContracts.ts` — never edit the JSON by hand. After changing rooms,
+`top/data.ts`, `theme.css`, `types.ts`, `windowRows.ts`, the filter rules, or `save-chat/schema.ts` / `messages.ts`, run
+`pnpm contracts:export`; `src/test/contracts.test.ts` fails while `contracts/` is stale. Fixture expectations come from
+running the Web functions, in `Asia/Tokyo`. `rooms.ts`'s `getAppScope` marks rooms the app does not show. Then sync the
+copy in `okiraku-android` (`scripts/sync-contracts.sh ../yui-chat-ts`).
+
 ### Import Aliases
 
 - `@features` → `/src/features`

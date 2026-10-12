@@ -15,8 +15,11 @@ import { nameRowsInView, runFilterTransition } from '@features/chat/utils/filter
 import ParticipantsList from '../ParticipantsList';
 import ChatMessage from '../ChatMessage';
 import FilterConfirmDialog from '../FilterConfirmDialog';
+import ReportDialog from '../ReportDialog';
 import WordPicker from '../FilterConfirmDialog/WordPicker';
 import Divider from '../shared/Divider';
+import { UI_MESSAGES } from '@features/chat/uiMessages';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 /** これより多い行を出すときは、画面外の行の描画を省く */
 const DEFER_OFFSCREEN_ROWS = 200;
@@ -30,28 +33,29 @@ function isMutableRow(chat: Chat): boolean {
 }
 
 /** 確認の窓を出しているフィルタ。言葉は窓の中で選び直す */
-type PendingFilter =
+type PendingFilter = (
   | { kind: 'ip'; ip: string }
   | { kind: 'name'; name: string }
-  | { kind: 'word'; message: string; word: string };
+  | { kind: 'word'; message: string; word: string }
+) & { chatUuid: string };
 
 /** 確認の窓の見出しと説明（Requirement 2.1・9） */
 function confirmText(pending: PendingFilter): { title: string; description: string } {
   switch (pending.kind) {
     case 'ip':
       return {
-        title: `${pending.ip} の発言をフィルタ（非表示に）しますか？`,
-        description: '同じ IP の発言がすべて隠れます。「フィルタ」から解除できます。',
+        title: fillText(CHAT_TEXTS.filter.ipTitle, { ip: pending.ip }),
+        description: CHAT_TEXTS.filter.ipDescription,
       };
     case 'name':
       return {
-        title: `「${pending.name}」の発言をフィルタ（非表示に）しますか？`,
-        description: '同じ名前の発言と入退室がすべて隠れます。「フィルタ」から解除できます。',
+        title: fillText(CHAT_TEXTS.filter.nameTitle, { name: pending.name }),
+        description: CHAT_TEXTS.filter.nameDescription,
       };
     case 'word':
       return {
-        title: 'この言葉を含む発言をフィルタ（非表示に）しますか？',
-        description: '同じ言葉を含む発言がすべて隠れます。「フィルタ」から解除できます。',
+        title: CHAT_TEXTS.filter.wordTitle,
+        description: CHAT_TEXTS.filter.wordDescription,
       };
   }
 }
@@ -60,11 +64,11 @@ function confirmText(pending: PendingFilter): { title: string; description: stri
 function announceText(pending: PendingFilter): string {
   switch (pending.kind) {
     case 'ip':
-      return `${pending.ip} の発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.ipAnnounce, { ip: pending.ip });
     case 'name':
-      return `「${pending.name}」の発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.nameAnnounce, { name: pending.name });
     case 'word':
-      return `「${normalizeFilterWord(pending.word)}」を含む発言を非表示にしました。「フィルタ」から解除できます。`;
+      return fillText(CHAT_TEXTS.filter.wordAnnounce, { word: normalizeFilterWord(pending.word) });
   }
 }
 
@@ -110,12 +114,15 @@ function ChatLogList({
   const [announcement, setAnnouncement] = useState('');
   // 確認の窓を出しているフィルタ（Requirement 2）
   const [pending, setPending] = useState<PendingFilter | null>(null);
+  // 通報の窓を出している発言（確認の窓の「通報する」から開く。Task 0.6）
+  const [reporting, setReporting] = useState<string | null>(null);
   // 一覧の外枠。フィルタするときに、見えている行へ View Transition の名前を付けるために使う
   const listRef = useRef<HTMLDivElement>(null);
   const requestFilter = (request: FilterRequest) => {
-    if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip });
-    else if (request.kind === 'name') setPending({ kind: 'name', name: request.name });
-    else setPending({ kind: 'word', message: request.message, word: request.selected });
+    const { chatUuid } = request;
+    if (request.kind === 'ip') setPending({ kind: 'ip', ip: request.ip, chatUuid });
+    else if (request.kind === 'name') setPending({ kind: 'name', name: request.name, chatUuid });
+    else setPending({ kind: 'word', message: request.message, word: request.selected, chatUuid });
   };
   const changeWord = (word: string) =>
     setPending((current) => (current?.kind === 'word' ? { ...current, word } : current));
@@ -141,7 +148,7 @@ function ChatLogList({
   };
 
   if (isLoading) {
-    return <div className="text-gray-400 mt-8 animate-pulse">チャットログを読み込み中...</div>;
+    return <div className="text-gray-400 mt-8 animate-pulse">{CHAT_TEXTS.log.loading}</div>;
   }
 
   return (
@@ -160,10 +167,10 @@ function ChatLogList({
       {loadError && (
         // 非同期に現れるため role="alert" でスクリーンリーダーへ通知する
         <div role="alert" className="text-red-600 text-sm py-3">
-          チャットログの読み込みに失敗しました。
+          {UI_MESSAGES.loadFailed}
           {onRetry && (
             <button type="button" className="ml-2 underline text-blue-700" onClick={onRetry}>
-              再読み込み
+              {UI_MESSAGES.retry}
             </button>
           )}
         </div>
@@ -171,8 +178,8 @@ function ChatLogList({
       {chats.length === 0 && !loadError && (
         <div className="text-gray-400 py-3">
           {hiddenTotal > 0
-            ? `表示できる発言はありません（${hiddenTotal} 件をフィルタ中）。`
-            : 'まだ発言はありません。'}
+            ? fillText(CHAT_TEXTS.log.emptyFiltered, { count: hiddenTotal })
+            : CHAT_TEXTS.log.empty}
         </div>
       )}
       {chats.map((c) => (
@@ -193,6 +200,10 @@ function ChatLogList({
           confirmDisabled={pending.kind === 'word' && !normalizeFilterWord(pending.word)}
           onConfirm={confirmFilter}
           onCancel={() => setPending(null)}
+          onReport={() => {
+            setReporting(pending.chatUuid);
+            setPending(null);
+          }}
         >
           {pending.kind === 'word' && (
             <WordPicker
@@ -204,6 +215,9 @@ function ChatLogList({
             />
           )}
         </FilterConfirmDialog>
+      )}
+      {reporting !== null && (
+        <ReportDialog chatUuid={reporting} onClose={() => setReporting(null)} />
       )}
     </div>
   );

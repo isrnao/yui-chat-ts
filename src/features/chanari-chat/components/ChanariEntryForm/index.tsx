@@ -1,5 +1,6 @@
 import type { FormEvent } from 'react';
 import ChanariColorPicker from '../ChanariColorPicker';
+import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariEntryFormProps = {
   name: string;
@@ -37,7 +38,7 @@ export default function ChanariEntryForm({
     <form name="f4" id="main2" onSubmit={handleSubmit}>
       <input type="hidden" name="sid" value={sid} />
       <div className="chanari-form-row">
-        おなまえ
+        {CHANARI_TEXTS.name}
         <input
           type="text"
           size={10}
@@ -45,7 +46,7 @@ export default function ChanariEntryForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
         />{' '}
-        名前色{' '}
+        {CHANARI_TEXTS.nameColor}{' '}
         <input
           type="text"
           size={7}
@@ -57,7 +58,7 @@ export default function ChanariEntryForm({
           onChange={setNameColor}
           ariaLabel="名前色カラーピッカー"
         />{' '}
-        発言色{' '}
+        {CHANARI_TEXTS.speechColor}{' '}
         <input
           type="text"
           size={7}
@@ -71,7 +72,7 @@ export default function ChanariEntryForm({
         />
       </div>
       <div>
-        <input type="submit" value="チャットに参加する" disabled={isPending} />
+        <input type="submit" value={CHANARI_TEXTS.enter} disabled={isPending} />
       </div>
       {error && (
         <div role="alert" className="chanari-error">

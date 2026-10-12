@@ -1,0 +1,1347 @@
+{
+  "initialLimit": 10,
+  "cases": [
+    {
+      "name": "最初の購読で Realtime を張ってから取得を始め、結果を ready で公開する",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "取得中に届いた発言は取得結果に無くても残す",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "c",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+            "time": 1791717003000
+          }
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "順番どおりでなく届いた発言も、新しい順の位置に入る",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "d",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-d2e0-7000-8000-000000000004",
+              "time": 1791717004000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "b",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+            "time": 1791717002000
+          }
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "c",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+            "time": 1791717003000
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "connected に遷移したときだけ取り直す",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "status",
+          "status": "connected"
+        },
+        {
+          "type": "status",
+          "status": "connected"
+        },
+        {
+          "type": "resolve",
+          "fetch": 2,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "status",
+          "status": "disconnected"
+        },
+        {
+          "type": "status",
+          "status": "connected"
+        },
+        {
+          "type": "resolve",
+          "fetch": 3,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "c",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+              "time": 1791717003000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "a"
+          ],
+          "realtime": "connected",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "a"
+          ],
+          "realtime": "connected",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connected",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "disconnected",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connected",
+          "fetches": [
+            10,
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connected",
+          "fetches": [
+            10,
+            10,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "拡張では表示中の発言を残し、通常の取り直しでは取得結果を正とする",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "d",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-d2e0-7000-8000-000000000004",
+              "time": 1791717004000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "c",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+              "time": 1791717003000
+            }
+          ]
+        },
+        {
+          "type": "expand",
+          "limit": 100
+        },
+        {
+          "type": "resolve",
+          "fetch": 2,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "c",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+              "time": 1791717003000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "reload"
+        },
+        {
+          "type": "resolve",
+          "fetch": 3,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "c",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+              "time": 1791717003000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "d",
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100,
+            100
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "c",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "name": "件数は減らす方向に戻さない",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "expand",
+          "limit": 100
+        },
+        {
+          "type": "expand",
+          "limit": 30
+        },
+        {
+          "type": "expand",
+          "limit": 100
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            100
+          ]
+        }
+      ]
+    },
+    {
+      "name": "新しい取得が始まったら古い取得の結果は捨てる",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "reload"
+        },
+        {
+          "type": "resolve",
+          "fetch": 2,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            }
+          ]
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "取得に失敗すると error にし、表示中の行は残す",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "reload"
+        },
+        {
+          "type": "reject",
+          "fetch": 2
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "error",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "取得中に合流した保存の確定値は、古い取得結果で消さない",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "saved",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "c",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+            "time": 1791717003000
+          }
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "c",
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "取得中に行った書き換え（clear の反映）は、古い取得結果で巻き戻さない",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "reload"
+        },
+        {
+          "type": "remove",
+          "uuids": [
+            "01a12aa7-c728-7000-8000-000000000001"
+          ]
+        },
+        {
+          "type": "resolve",
+          "fetch": 2,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "同じ取得中に削除と新着が繰り返されても、最後の削除後の発言だけ残す",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "a",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-c728-7000-8000-000000000001",
+            "time": 1791717001000
+          }
+        },
+        {
+          "type": "remove",
+          "uuids": [
+            "01a12aa7-c728-7000-8000-000000000001"
+          ]
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "b",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+            "time": 1791717002000
+          }
+        },
+        {
+          "type": "remove",
+          "uuids": [
+            "01a12aa7-cb10-7000-8000-000000000002"
+          ]
+        },
+        {
+          "type": "insert",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "c",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cef8-7000-8000-000000000003",
+            "time": 1791717003000
+          }
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "loading",
+          "messages": [
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "c"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "取得が終わった後の書き換えは、次の取得結果には適用しない",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "remove",
+          "uuids": [
+            "01a12aa7-c728-7000-8000-000000000001"
+          ]
+        },
+        {
+          "type": "reload"
+        },
+        {
+          "type": "resolve",
+          "fetch": 2,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10,
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "name": "同じ uuid の保存の確定値は置き換える",
+      "steps": [
+        {
+          "type": "start"
+        },
+        {
+          "type": "resolve",
+          "fetch": 1,
+          "rows": [
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "b",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+              "time": 1791717002000
+            },
+            {
+              "name": "ゆい",
+              "color": "#ff69b4",
+              "message": "a",
+              "ip_masked": "",
+              "ua": "",
+              "uuid": "01a12aa7-c728-7000-8000-000000000001",
+              "time": 1791717001000
+            }
+          ]
+        },
+        {
+          "type": "saved",
+          "chat": {
+            "name": "ゆい",
+            "color": "#ff69b4",
+            "message": "b2",
+            "ip_masked": "",
+            "ua": "",
+            "uuid": "01a12aa7-cb10-7000-8000-000000000002",
+            "time": 1791717002000
+          }
+        }
+      ],
+      "expected": [
+        {
+          "status": "loading",
+          "messages": [],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        },
+        {
+          "status": "ready",
+          "messages": [
+            "b2",
+            "a"
+          ],
+          "realtime": "connecting",
+          "fetches": [
+            10
+          ]
+        }
+      ]
+    }
+  ]
+}

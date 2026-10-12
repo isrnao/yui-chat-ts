@@ -18,6 +18,10 @@ major_version = 17
 # ip / ua はリクエストヘッダから取得し service_role で INSERT する。
 verify_jwt = false
 
+[functions.report-chat]
+# 発言の通報（Task 0.6）。匿名のため JWT 検証は無効。保存は service_role で insert_chat_report を呼ぶ
+verify_jwt = false
+
 [functions.two-shot]
 # ツーショットチャット。認可は anon key ではなく、本機能のトークン（x-two-shot-token）と席で行う
 # （supabase/functions/two-shot/handler.ts）。保存は service_role で two_shot_commit を呼ぶ。

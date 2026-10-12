@@ -17,7 +17,9 @@ WORK="$(mktemp -d)"
 NAME="save-chat-smoke-$$"
 trap 'docker rm -f "$NAME" >/dev/null 2>&1 || true; rm -rf "$WORK"' EXIT
 
-mkdir -p "$WORK/main" "$WORK/functions/save-chat"
+mkdir -p "$WORK/main" "$WORK/functions/save-chat" "$WORK/functions/_shared"
+# save-chat は _shared/request.ts を相対パスで読むので、同じ配置で写す
+cp "$ROOT"/supabase/functions/_shared/request.ts "$WORK/functions/_shared/"
 cp "$ROOT"/supabase/functions/save-chat/*.ts "$ROOT"/supabase/functions/save-chat/deno.json \
   "$WORK/functions/save-chat/"
 rm -f "$WORK"/functions/save-chat/*.test.ts

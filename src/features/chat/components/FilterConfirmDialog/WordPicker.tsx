@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent, useId, useRef } from 'react';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 import Input from '@shared/components/Input';
 import { FILTER_WORD_MAX_LENGTH } from '@features/chat/utils/ipFilterStore';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
 type Props = {
   /** ダブルタップした発言の本文 */
@@ -52,7 +53,7 @@ export default function WordPicker({ message, value, onChange, matchCount, onSub
         {message}
       </p>
       <label htmlFor={inputId} className="mt-2 block text-xs">
-        非表示にする言葉（上の発言から選ぶか、入力してください）
+        {CHAT_TEXTS.wordPicker.label}
       </label>
       <Input
         id={inputId}
@@ -69,7 +70,9 @@ export default function WordPicker({ message, value, onChange, matchCount, onSub
         className="mt-1 w-full"
       />
       <p className="mt-1 text-xs text-gray-600" aria-live="polite">
-        {value.trim() ? `この言葉を含む発言: ${matchCount} 件` : '言葉が空です'}
+        {value.trim()
+          ? fillText(CHAT_TEXTS.wordPicker.matches, { count: matchCount })
+          : CHAT_TEXTS.wordPicker.empty}
       </p>
     </div>
   );

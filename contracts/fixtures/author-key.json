@@ -1,0 +1,27 @@
+{
+  "pattern": "^[A-Za-z0-9_-]{43}$",
+  "byteLength": 32,
+  "encoding": "base64url（パディングなし）",
+  "cases": [
+    {
+      "key": "AAAAAAAAAAAAAAAAAAAAA-_z9z9z9z9z9z9z9z9z9z9",
+      "valid": true
+    },
+    {
+      "key": "AAAAAAAAAAAAAAAAAAAA-_z9z9z9z9z9z9z9z9z9z9",
+      "valid": false
+    },
+    {
+      "key": "AAAAAAAAAAAAAAAAAAAAA-_z9z9z9z9z9z9z9z9z9z9=",
+      "valid": false
+    },
+    {
+      "key": "AAAAAAAAAAAAAAAAAAAAA+_z9z9z9z9z9z9z9z9z9z9",
+      "valid": false
+    },
+    {
+      "key": "",
+      "valid": false
+    }
+  ]
+}

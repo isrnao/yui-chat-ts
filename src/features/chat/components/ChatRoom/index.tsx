@@ -6,12 +6,12 @@ import Input from '@shared/components/Input';
 import { DEFAULT_WINDOW_ROW_OPTIONS } from '@features/chat/utils/windowRows';
 import { toUserMessage } from '@features/chat/utils/userFacingError';
 import { MESSAGE_MAX } from '@features/chat/inputRules';
+import { UI_MESSAGES } from '@features/chat/uiMessages';
+import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 
-/** [消す] の説明。消せるのはこのブラウザで書いた発言だけ（書いた端末の鍵で照合する。Issue #179） */
-const CLEAR_BUTTON_TITLE =
-  'このブラウザで書いた自分の発言を消します。ブラウザのデータを消した後や、別のブラウザ・端末で書いた発言は消せません。';
-
-const SEND_FAILED_MESSAGE = '発言を送信できませんでした。時間をおいてもう一度お試しください。';
+/** [消す] の説明と送信の失敗の文言（Android 版と共有する。uiMessages.ts） */
+const CLEAR_BUTTON_TITLE = UI_MESSAGES.clearButtonTitle;
+const SEND_FAILED_MESSAGE = UI_MESSAGES.sendFailed;
 
 export type ChatRoomProps = {
   windowRows: number;
@@ -140,7 +140,7 @@ export default function ChatRoom({
           }}
           className="underline"
         >
-          [退室]
+          {CHAT_TEXTS.room.exit}
         </a>
         {onShowRanking && (
           <a
@@ -151,7 +151,7 @@ export default function ChatRoom({
             }}
             className="underline"
           >
-            [ランキング]
+            {CHAT_TEXTS.room.ranking}
           </a>
         )}
       </div>
@@ -180,10 +180,10 @@ export default function ChatRoom({
             tabIndex={-1}
             disabled={isPending}
           >
-            更新
+            {CHAT_TEXTS.room.reload}
           </Button>
           <Button type="submit" disabled={isPending}>
-            発言
+            {CHAT_TEXTS.room.send}
           </Button>
           {/* レガシーの「消す」は自分の発言を消すコマンド → clear を送信（入力中の文字も消す） */}
           <Button
@@ -194,11 +194,11 @@ export default function ChatRoom({
             disabled={isPending}
             title={CLEAR_BUTTON_TITLE}
           >
-            消す
+            {CHAT_TEXTS.room.clear}
           </Button>
           {userName && (
             <span className="text-sm ml-2">
-              おなまえ:
+              {CHAT_TEXTS.room.namePrefix}
               <span
                 className={`font-bold ml-1 ${userColor ? '' : 'text-green-700'}`}
                 style={userColor ? { color: userColor } : undefined}
@@ -212,9 +212,10 @@ export default function ChatRoom({
               type="button"
               className="text-sm ml-2 text-blue-700 underline cursor-pointer"
               onClick={onResetReplyTarget}
-              title="クリックで全部屋まとめに戻す"
+              title={CHAT_TEXTS.room.replyingReset}
             >
-              →<span className="font-bold ml-1">{replyTargetTitle}</span>に返信中
+              →<span className="font-bold ml-1">{replyTargetTitle}</span>
+              {fillText(CHAT_TEXTS.room.replying, { title: '' })}
             </button>
           )}
         </div>
@@ -226,7 +227,7 @@ export default function ChatRoom({
         <div className="mb-1">
           <Input
             type="text"
-            placeholder="発言"
+            placeholder={CHAT_TEXTS.room.messagePlaceholder}
             id={messageId}
             name="message"
             value={message}
@@ -236,7 +237,7 @@ export default function ChatRoom({
             disabled={isPending}
             ref={inputRef}
             autoFocus
-            aria-label="発言"
+            aria-label={CHAT_TEXTS.room.messagePlaceholder}
             className="max-w-full"
           />
         </div>
@@ -245,13 +246,13 @@ export default function ChatRoom({
 
       {/* 4行目: ログ行数 + Size + 色 + 細字 */}
       <div className="mb-1 flex items-center flex-wrap gap-x-2 gap-y-1 text-sm">
-        <label htmlFor={rowsId}>ログ行数:</label>
+        <label htmlFor={rowsId}>{CHAT_TEXTS.room.rowsLabel}</label>
         <select
           className="border-2 border-ie-gray [border-style:inset] bg-white px-1 py-0.5 text-sm rounded-none"
           id={rowsId}
           value={windowRows}
           onChange={(e) => setWindowRows(Number(e.target.value))}
-          aria-label="ログ行数"
+          aria-label={CHAT_TEXTS.room.rowsAria}
           disabled={isPending}
         >
           {windowRowOptions.map((v) => (
@@ -262,13 +263,13 @@ export default function ChatRoom({
         </select>
 
         <label htmlFor={fontSizeId} className="ml-2">
-          Size:
+          {CHAT_TEXTS.room.sizeLabel}
         </label>
         <select
           id={fontSizeId}
           value={fontSize}
           onChange={(e) => setFontSize(Number(e.target.value) as FontSize)}
-          aria-label="フォントサイズ"
+          aria-label={CHAT_TEXTS.room.sizeAria}
           className="border-2 border-ie-gray [border-style:inset] bg-white px-1 py-0.5 text-sm rounded-none"
         >
           {([1, 2, 3, 4, 5] as const).map((v) => (
@@ -279,13 +280,13 @@ export default function ChatRoom({
         </select>
 
         <label htmlFor={fontColorId} className="ml-2">
-          色:
+          {CHAT_TEXTS.room.colorLabel}
         </label>
         <select
           id={fontColorId}
           value={fontColor}
           onChange={(e) => setFontColor(e.target.value as FontColorName)}
-          aria-label="フォントカラー"
+          aria-label={CHAT_TEXTS.room.colorAria}
           className="border-2 border-ie-gray [border-style:inset] bg-white px-1 py-0.5 text-sm rounded-none"
         >
           {FONT_COLOR_NAMES.map((c) => (
@@ -301,15 +302,17 @@ export default function ChatRoom({
             id={boldId}
             checked={!bold}
             onChange={(e: ChangeEvent<HTMLInputElement>) => setBold(!e.target.checked)}
-            aria-label="細字"
+            aria-label={CHAT_TEXTS.room.thin}
             className="w-3.5 h-3.5"
           />
-          <span>細字</span>
+          <span>{CHAT_TEXTS.room.thin}</span>
         </label>
 
         {onToggleFilter && (
           <button type="button" className="ml-2 underline cursor-pointer" onClick={onToggleFilter}>
-            {filterCount > 0 ? `フィルタ(${filterCount})` : 'フィルタ'}
+            {filterCount > 0
+              ? fillText(CHAT_TEXTS.room.filterCount, { count: filterCount })
+              : CHAT_TEXTS.room.filter}
           </button>
         )}
       </div>

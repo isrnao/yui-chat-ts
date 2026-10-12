@@ -6,6 +6,7 @@ import { EFFECT_OPTIONS, type EffectId } from '../../utils/effectOptions';
 import { FONT_SIZE_OPTIONS, type LegacyFontSize } from '../../utils/fontSizeOptions';
 import { RELOAD_SECONDS_OPTIONS } from '../../utils/draftStore';
 import { countGraphemes, MESSAGE_MAX } from '@features/chat/inputRules';
+import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariChatRoomProps = {
   message: string;
@@ -77,11 +78,11 @@ export default function ChanariChatRoom({
       <input type="hidden" name="sid" value={sid} />
       {/* Reload seconds */}
       <label>
-        リロード秒{' '}
+        {CHANARI_TEXTS.reloadSeconds}{' '}
         <select
           value={reloadSeconds}
           onChange={(e) => setReloadSeconds(Number(e.target.value))}
-          aria-label="リロード秒"
+          aria-label={CHANARI_TEXTS.reloadSeconds}
         >
           {RELOAD_SECONDS_OPTIONS.map((s) => (
             <option key={s} value={s}>
@@ -93,40 +94,44 @@ export default function ChanariChatRoom({
       <br />
       {/* 名前色 */}
       <label>
-        名前色{' '}
+        {CHANARI_TEXTS.nameColor}{' '}
         <input
           type="text"
           value={nameColor}
           onChange={(e) => setNameColor(e.target.value)}
           size={7}
-          aria-label="名前色"
+          aria-label={CHANARI_TEXTS.nameColor}
         />
       </label>
-      <ChanariColorPicker value={nameColor} onChange={setNameColor} ariaLabel="名前色ピッカー" />{' '}
+      <ChanariColorPicker
+        value={nameColor}
+        onChange={setNameColor}
+        ariaLabel={CHANARI_TEXTS.nameColorPicker}
+      />{' '}
       {/* 発言色 */}
       <label>
-        発言色{' '}
+        {CHANARI_TEXTS.speechColor}{' '}
         <input
           type="text"
           value={speechColor}
           onChange={(e) => setSpeechColor(e.target.value)}
           size={7}
-          aria-label="発言色"
+          aria-label={CHANARI_TEXTS.speechColor}
         />
       </label>
       <ChanariColorPicker
         value={speechColor}
         onChange={setSpeechColor}
-        ariaLabel="発言色ピッカー"
+        ariaLabel={CHANARI_TEXTS.speechColorPicker}
       />
       <br />
       {/* エフェクト */}
       <label>
-        エフェクト{' '}
+        {CHANARI_TEXTS.effect}{' '}
         <select
           value={effect}
           onChange={(e) => setEffect(e.target.value as EffectId)}
-          aria-label="エフェクト"
+          aria-label={CHANARI_TEXTS.effect}
         >
           {EFFECT_OPTIONS.map((opt) => (
             <option key={opt.id} value={opt.id}>
@@ -137,11 +142,11 @@ export default function ChanariChatRoom({
       </label>{' '}
       {/* 文字サイズ */}
       <label>
-        文字サイズ{' '}
+        {CHANARI_TEXTS.fontSize}{' '}
         <select
           value={fontSize}
           onChange={(e) => setFontSize(e.target.value as LegacyFontSize)}
-          aria-label="文字サイズ"
+          aria-label={CHANARI_TEXTS.fontSize}
         >
           {FONT_SIZE_OPTIONS.map((opt) => (
             <option key={opt.id} value={opt.id}>
@@ -156,45 +161,40 @@ export default function ChanariChatRoom({
           type="checkbox"
           checked={disableEffect}
           onChange={(e) => setDisableEffect(e.target.checked)}
-          aria-label="エフェクト無効"
+          aria-label={CHANARI_TEXTS.disableEffect}
         />
-        エフェクト無効
+        {CHANARI_TEXTS.disableEffect}
       </label>
       <br />
       {/* 発言 input + char counter */}
       <label>
-        発言{' '}
+        {CHANARI_TEXTS.message}{' '}
         <input
           type="text"
           size={60}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
-          aria-label="発言"
+          aria-label={CHANARI_TEXTS.message}
         />
       </label>{' '}
       <ChanariCharCounter value={message} />
       <br />
       {/* Buttons */}
       <button type="submit" disabled={!!isSendDisabled}>
-        チャットで発言する
+        {CHANARI_TEXTS.send}
       </button>
       <button type="button" onClick={onReload} disabled={isPending}>
-        更新
+        {CHANARI_TEXTS.reload}
       </button>
       <button type="button" onClick={onRestoreDraft} disabled={isPending}>
-        発言復元
+        {CHANARI_TEXTS.restore}
       </button>
       <button
         type="button"
-        onClick={() =>
-          report(
-            onClearMyLogs(),
-            'ログを消去できませんでした。時間をおいてもう一度お試しください。'
-          )
-        }
+        onClick={() => report(onClearMyLogs(), CHANARI_TEXTS.clearFailed)}
         disabled={isPending}
       >
-        ログ消去
+        {CHANARI_TEXTS.clearLogs}
       </button>
       <button
         type="button"
@@ -202,7 +202,7 @@ export default function ChanariChatRoom({
         disabled={isPending}
         aria-pressed={atField}
       >
-        AT フィールド
+        {CHANARI_TEXTS.atField}
       </button>
       <button
         type="button"
@@ -210,7 +210,7 @@ export default function ChanariChatRoom({
         onClick={() => void Promise.resolve(onExit()).catch(() => {})}
         disabled={isPending}
       >
-        チャットから退室する
+        {CHANARI_TEXTS.exit}
       </button>
       {error && (
         <div role="alert" style={{ color: 'red' }}>

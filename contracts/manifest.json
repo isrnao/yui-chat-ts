@@ -1,0 +1,31 @@
+{
+  "contractsVersion": 1,
+  "fixtureTimeZone": "Asia/Tokyo",
+  "files": [
+    "chanari.json",
+    "chat-options.json",
+    "chat-texts.json",
+    "directory.json",
+    "fixtures/admin-events.json",
+    "fixtures/author-key.json",
+    "fixtures/count-time.json",
+    "fixtures/filter-list.json",
+    "fixtures/filters.json",
+    "fixtures/legacy-date-time.json",
+    "fixtures/name-checks.json",
+    "fixtures/normalize-chat.json",
+    "fixtures/optimistic.json",
+    "fixtures/participants.json",
+    "fixtures/room-log-events.json",
+    "fixtures/room-log-merge.json",
+    "fixtures/save-chat/input-checks.json",
+    "fixtures/save-chat/server-messages.json",
+    "fixtures/url-segments.json",
+    "home.json",
+    "legal.json",
+    "rooms.json",
+    "server-messages.json",
+    "theme.json",
+    "ui-messages.json"
+  ]
+}

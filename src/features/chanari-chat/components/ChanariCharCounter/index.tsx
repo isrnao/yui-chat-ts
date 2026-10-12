@@ -1,4 +1,5 @@
 import { countGraphemes, MESSAGE_MAX } from '@features/chat/inputRules';
+import { CHANARI_TEXTS } from '../../chanariTexts';
 
 export type ChanariCharCounterProps = {
   value: string;
@@ -14,7 +15,8 @@ export default function ChanariCharCounter({
 
   return (
     <>
-      <span id="wdcnt">{count}</span>文字 <span id="wderr">{isOver ? '文字数オーバー' : ''}</span>
+      <span id="wdcnt">{count}</span>
+      {CHANARI_TEXTS.charCount} <span id="wderr">{isOver ? CHANARI_TEXTS.overLimit : ''}</span>
     </>
   );
 }

@@ -585,6 +585,26 @@ export function isEnabledRoomId(value: string): value is RoomId {
   return isRoomId(value) && CHAT_ROOMS[value].enabled;
 }
 
+/**
+ * Android 版（okiraku-android）に出さない部屋。アプリは 18 歳以上に限るので、未成年を想定した部屋と
+ * ツーショットチャットは出さない（.kiro/specs/android-native-app の Q2 / Q3）。Web の動きには使わない。
+ */
+const APP_EXCLUDED_ROOM_IDS: ReadonlySet<RoomId> = new Set<RoomId>([
+  'elementary',
+  'juniorhighschool',
+  'juniorhighschool3',
+  'highschool',
+  '10generations',
+  TWO_SHOT_ROOM_ID,
+]);
+
+export type AppScope = 'all' | 'web-only';
+
+/** その部屋を Android 版にも出すか（contracts/rooms.json の appScope） */
+export function getAppScope(roomId: RoomId): AppScope {
+  return APP_EXCLUDED_ROOM_IDS.has(roomId) ? 'web-only' : 'all';
+}
+
 export function getListableRoomIds(): ReadonlyArray<RoomId> {
   return CHAT_ROOM_IDS.filter((id) => id !== 'all') as ReadonlyArray<RoomId>;
 }

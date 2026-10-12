@@ -28,6 +28,7 @@ import {
   type InputErrorCode,
 } from './schema.ts';
 import { shouldTriage, triageAdminChat, type TriageTrace } from './triage.ts';
+import { readClient, resolveObservedIp } from '../_shared/request.ts';
 import {
   parseTraceparent,
   SpanKind,
@@ -76,16 +77,6 @@ type ErrorCode = InputErrorCode | 'method_not_allowed' | 'invalid_json' | 'inval
 
 function reject(code: ErrorCode, status: number, cors: Record<string, string>): Response {
   return json({ error: { code } }, status, cors);
-}
-
-// x-forwarded-for は "client, proxy1, proxy2" 形式。先頭が実クライアント。
-function resolveClientIp(req: Request): string {
-  const forwarded = req.headers.get('x-forwarded-for');
-  if (forwarded) {
-    const first = forwarded.split(',')[0]?.trim();
-    if (first) return first;
-  }
-  return req.headers.get('x-real-ip')?.trim() || '';
 }
 
 // クライアントが詐称・上書きできないよう、読むフィールドを限定する。
@@ -350,7 +341,12 @@ export function createHandler(deps: HandlerDeps) {
       'POST save-chat',
       parseTraceparent(req.headers.get('traceparent')),
       SpanKind.SERVER,
-      { 'http.request.method': req.method, 'http.route': '/save-chat', ...operationAttributes(op) }
+      {
+        'http.request.method': req.method,
+        'http.route': '/save-chat',
+        'client.app': readClient(req.headers),
+        ...operationAttributes(op),
+      }
     );
 
     let outcome: Outcome;
@@ -407,7 +403,7 @@ async function persist(
 
   // ip / ua はサーバー観測値で確定（クライアント値は一切信用しない）。
   // ip_masked は ip から自動計算される生成列なので、ここでは渡さない。
-  const observed = { ip: resolveClientIp(req), ua: req.headers.get('user-agent') ?? '' };
+  const observed = { ip: resolveObservedIp(req), ua: req.headers.get('user-agent') ?? '' };
   const rows: ChatRow[] = planned.map((row) => ({ ...row, ...observed }));
 
   const db = tracer.startSpan('db insert chats', server.context, SpanKind.CLIENT, {

@@ -1,5 +1,6 @@
 import { AdringWidget } from '../AdringWidget';
 import { SectionTitle } from '../SectionTitle';
+import { sectionTitles } from '../../data';
 
 /** お気楽チャットTS の Adring サイト ID */
 const ADRING_SITE_ID = '8405936a-90fd-449d-a64e-54c0e15a4073';
@@ -12,7 +13,7 @@ const ADRING_SITE_ID = '8405936a-90fd-449d-a64e-54c0e15a4073';
 export function CommunitySection() {
   return (
     <section id="community" className="bg-white">
-      <SectionTitle>コミュニティー</SectionTitle>
+      <SectionTitle>{sectionTitles.community}</SectionTitle>
       <div className="flex flex-wrap gap-3 px-2 py-2">
         {/*
           広告が取得できない場合、widget は自身が生成した host のみを display:none にする。
