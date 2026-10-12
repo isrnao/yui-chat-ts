@@ -55,7 +55,8 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build --stats-json",
     "chromatic": "chromatic --project-token=$CHROMATIC_PROJECT_TOKEN",
-    "chromatic:dryrun": "dotenv -e .env -- chromatic --dry-run --debug"
+    "chromatic:dryrun": "dotenv -e .env -- chromatic --dry-run --debug",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "@newrelic/browser-agent": "1.322.0",
@@ -69,6 +70,7 @@
     "@babel/core": "~7.29.7",
     "@chromatic-com/storybook": "^5.2.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
     "@rolldown/plugin-babel": "^0.2.3",
     "@storybook/addon-docs": "^10.4.0",
     "@storybook/react": "^10.4.0",

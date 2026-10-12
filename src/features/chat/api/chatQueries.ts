@@ -42,39 +42,47 @@ function assertOnline(): void {
  */
 export async function loadRecentChatLogs(
   roomId: RoomId = DEFAULT_ROOM_ID,
-  limit = 10
+  limit = 10,
+  signal?: AbortSignal
 ): Promise<Chat[]> {
   const startTime = performance.now();
-  return retryWithBackoff(async () => {
-    assertOnline();
+  return retryWithBackoff(
+    async () => {
+      assertOnline();
 
-    const { data, error } = await supabase
-      .from(TABLE)
-      .select(SELECT_COLUMNS)
-      .eq('room_id', roomId)
-      .eq('deleted', false)
-      .order('uuid', { ascending: false })
-      .limit(limit);
+      let query = supabase
+        .from(TABLE)
+        .select(SELECT_COLUMNS)
+        .eq('room_id', roomId)
+        .eq('deleted', false)
+        .order('uuid', { ascending: false })
+        .limit(limit);
+      if (signal && typeof query.abortSignal === 'function') query = query.abortSignal(signal);
+      const { data, error } = await query;
 
-    if (error) {
-      if (error.code === '401' || error.message.includes('JWT')) {
-        throw new NonRetryableError(`Supabase auth error: ${error.message} (${error.code})`);
+      if (error) {
+        if (error.code === '401' || error.message.includes('JWT')) {
+          throw new NonRetryableError(`Supabase auth error: ${error.message} (${error.code})`);
+        }
+        throw new Error(`Supabase error: ${error.message} (${error.code})`);
       }
-      throw new Error(`Supabase error: ${error.message} (${error.code})`);
-    }
 
-    warnIfSlow('loadRecentChatLogs', startTime);
-    return (data ?? []).map(normalizeChat);
-  });
+      warnIfSlow('loadRecentChatLogs', startTime);
+      return (data ?? []).map(normalizeChat);
+    },
+    { signal }
+  );
 }
 
 /** 全部屋の直近 `limit` 件（room の条件なし・論理削除も含む・uuid の降順） */
-export async function loadAllRoomsChatLogs(limit = 200): Promise<Chat[]> {
-  const { data, error } = await supabase
+export async function loadAllRoomsChatLogs(limit = 200, signal?: AbortSignal): Promise<Chat[]> {
+  let query = supabase
     .from(TABLE)
     .select(ALL_ROOMS_SELECT_COLUMNS)
     .order('uuid', { ascending: false })
     .limit(limit);
+  if (signal && typeof query.abortSignal === 'function') query = query.abortSignal(signal);
+  const { data, error } = await query;
 
   if (error) {
     throw new Error(`Failed to load all rooms chat logs: ${error.message}`);

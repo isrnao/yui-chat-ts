@@ -1,6 +1,7 @@
 // Web Audio API を利用した音声再生モジュール
 // lookコマンドの通知音（rin.mp3 / rin.webm）を再生する
 
+let playbackEpoch = 0;
 let audioContext: AudioContext | null = null;
 let audioBuffer: AudioBuffer | null = null;
 let currentSource: AudioBufferSourceNode | null = null;
@@ -66,6 +67,8 @@ async function loadAudioBuffer(): Promise<AudioBuffer> {
  * エラーはキャッチしてログ出力のみ行い、チャット機能を妨げない。
  */
 export async function playNotificationSound(): Promise<void> {
+  stopNotificationSound();
+  const epoch = playbackEpoch;
   try {
     const ctx = getAudioContext();
     // ユーザーインタラクション内で呼ばれた場合、suspended な AudioContext を自動的に resume する
@@ -74,8 +77,7 @@ export async function playNotificationSound(): Promise<void> {
     }
     const buffer = await loadAudioBuffer();
 
-    // 前回の再生を停止してから新しい再生を開始
-    stopNotificationSound();
+    if (epoch !== playbackEpoch) return;
 
     const source = ctx.createBufferSource();
     source.buffer = buffer;
@@ -97,6 +99,7 @@ export async function playNotificationSound(): Promise<void> {
  * 再生中でない場合は何もしない。
  */
 export function stopNotificationSound(): void {
+  playbackEpoch++;
   if (currentSource != null) {
     try {
       currentSource.stop();
@@ -120,11 +123,24 @@ export function isAudioUnlocked(): boolean {
  * ブラウザの自動再生ポリシーにより、ユーザーインタラクション内で呼ぶ必要がある。
  * エラーはキャッチしてログ出力のみ行う。
  */
+export const AUDIO_UNLOCK_TIMEOUT_MS = 2000;
 export async function unlockAudio(): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const ctx = getAudioContext();
-    await ctx.resume();
+    // 音声デバイスのない環境等ではresumeが解決しない。利用者が再試行できる状態へ戻す。
+    await Promise.race([
+      ctx.resume(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Audio activation timed out')),
+          AUDIO_UNLOCK_TIMEOUT_MS
+        );
+      }),
+    ]);
   } catch (err) {
     console.warn('[webAudioPlayer] AudioContext の有効化に失敗しました:', err);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }

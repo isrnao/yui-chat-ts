@@ -80,7 +80,7 @@ describe('ちゃなりの定期更新フォールバック', () => {
     // 接続確立時の取り直しが 1 回入る (初回ロード + resync)
     await flush();
     expect(loadChatLogsMock).toHaveBeenCalledTimes(2);
-    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', 10);
+    expect(loadChatLogsMock).toHaveBeenNthCalledWith(1, 'durarara', 10, expect.any(AbortSignal));
 
     await advance(63);
 

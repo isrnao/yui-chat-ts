@@ -113,10 +113,14 @@ export default function App({ initialPathname }: { initialPathname?: string } = 
   }, [route]);
 
   return (
-    <RouteHost>
+    <RouteHost key={`${route.type}:${'roomId' in route ? route.roomId : ''}`}>
       {route.type === 'top' && <TopRoute />}
       {route.type === 'chat-room' &&
-        (route.roomId === 'all' ? <AllRoomsRoute /> : <ChatRoute roomId={route.roomId} />)}
+        (route.roomId === 'all' ? (
+          <AllRoomsRoute />
+        ) : (
+          <ChatRoute key={route.roomId} roomId={route.roomId} />
+        ))}
       {/*
         key={roomId}: ChanariChatPage の入力 state（名前・色・入力中の発言）は部屋ごとの下書きを
         既定値にしているので、roomId が変わったら remount して別 room の入力を持ち越さない。

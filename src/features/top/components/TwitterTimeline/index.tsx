@@ -1,75 +1,69 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useInViewport } from '@shared/hooks/useInViewport';
-
-const TWITTER_WIDGETS_SRC = 'https://platform.twitter.com/widgets.js';
-
-/** 埋め込み iframe の高さ */
-const TIMELINE_HEIGHT = 500;
-
+import { loadTwitterWidgets } from '../../utils/twitterLoader';
 declare global {
   interface Window {
-    twttr?: {
-      widgets: { load: (element?: HTMLElement | null) => void };
-    };
+    twttr?: { widgets: { load: (element?: HTMLElement | null) => void } };
   }
 }
-
-/**
- * 公式 widgets.js による Twitter / X タイムライン埋め込み。
- *
- * widgets.js は `.twitter-timeline` 要素を iframe に置換する。
- * SPA 内で複数回マウントされても script を重複ロードしないよう、
- * `id="twitter-wjs"` (X 公式 snippet 互換) で既存タグを検出し、
- * 既にあれば `twttr.widgets.load()` で再スキャンする。
- *
- * 親要素の高さ不足で iframe が 0px のまま見えなくなる事故を防ぐため、
- * `data-height` を指定する。
- */
+function initialize(container: HTMLElement): boolean {
+  try {
+    window.twttr?.widgets.load(container);
+    return true;
+  } catch {
+    return false;
+  }
+}
 export function TwitterTimeline({ screenName }: { screenName: string }) {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // 埋め込みは画面下部にあるので、見えるまで widgets.js を読まない。
-  // 実測で widgets.js + iframe が約 131KB あり、初期描画の帯域を奪っていた。
-  const isVisible = useInViewport(containerRef);
-
+  const rootRef = useRef<HTMLDivElement>(null);
+  const vendorRef = useRef<HTMLDivElement>(null);
+  const visible = useInViewport(rootRef);
+  const [attempt, setAttempt] = useState(0);
+  const [state, setState] = useState<'idle' | 'pending' | 'ready' | 'failed'>('idle');
+  const safeName = screenName.replace(/[^a-zA-Z0-9_]/g, '');
   useEffect(() => {
-    if (!isVisible) return;
-
-    const loadWidgets = () => {
-      window.twttr?.widgets.load(containerRef.current);
+    if (!visible) return;
+    const container = vendorRef.current;
+    if (!container) return;
+    let cancelled = false;
+    const anchor = document.createElement('a');
+    anchor.className = 'twitter-timeline';
+    anchor.dataset.height = '500';
+    anchor.dataset.lang = 'ja';
+    anchor.href = `https://twitter.com/${safeName}?ref_src=twsrc%5Etfw`;
+    anchor.textContent = `Tweets by ${safeName}`;
+    container.replaceChildren(anchor);
+    loadTwitterWidgets(attempt > 0).then(
+      () => {
+        if (cancelled || !container.isConnected) return;
+        setState(initialize(container) ? 'ready' : 'failed');
+      },
+      () => {
+        if (!cancelled) setState('failed');
+      }
+    );
+    return () => {
+      cancelled = true;
+      container.replaceChildren();
     };
-
-    const existingScript = document.getElementById('twitter-wjs');
-    if (existingScript) {
-      loadWidgets();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.id = 'twitter-wjs';
-    script.src = TWITTER_WIDGETS_SRC;
-    script.async = true;
-    script.charset = 'utf-8';
-    script.onload = loadWidgets;
-    document.body.appendChild(script);
-  }, [isVisible, screenName]);
-
-  // screenName は呼び出し元でハードコードする想定 (XSS 経路を断つため英数字 + _ のみ許可)
-  const safeScreenName = screenName.replace(/[^a-zA-Z0-9_]/g, '');
-
-  // 高さの先行確保はしない。X 側の埋め込み制限やトラッキング防止で
-  // widgets.js がタイムラインを描画できないことがあり、そのとき min-height が
-  // 下の fallback リンクだけを残した空白になる (AdringWidget と同じ理由)。
+  }, [visible, safeName, attempt]);
   return (
-    <div ref={containerRef} className="p-2">
-      <a
-        className="twitter-timeline"
-        data-height={TIMELINE_HEIGHT}
-        data-lang="ja"
-        href={`https://twitter.com/${safeScreenName}?ref_src=twsrc%5Etfw`}
-      >
-        Tweets by {safeScreenName}
-      </a>
+    <div ref={rootRef} className="p-2">
+      <div ref={vendorRef} />
+      {state === 'failed' && (
+        <p role="status">
+          埋め込みを読み込めませんでした。
+          <button
+            type="button"
+            onClick={() => {
+              setState('pending');
+              setAttempt((value) => value + 1);
+            }}
+          >
+            再試行
+          </button>
+        </p>
+      )}
     </div>
   );
 }

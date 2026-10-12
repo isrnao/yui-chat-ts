@@ -19,12 +19,26 @@ export function useReloadInterval(seconds: number, onTick: () => void, enabled: 
   useEffect(() => {
     if (!enabled) return;
 
-    const id = setInterval(() => {
-      onInterval();
-    }, seconds * 1000);
+    let id: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (id !== null || document.visibilityState === 'hidden') return;
+      id = setInterval(() => onInterval(), seconds * 1000);
+    };
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (id !== null) clearInterval(id);
+        id = null;
+      } else {
+        onInterval();
+        start();
+      }
+    };
+    start();
+    document.addEventListener('visibilitychange', visibility);
 
     return () => {
-      clearInterval(id);
+      if (id !== null) clearInterval(id);
+      document.removeEventListener('visibilitychange', visibility);
     };
   }, [seconds, enabled]);
 }

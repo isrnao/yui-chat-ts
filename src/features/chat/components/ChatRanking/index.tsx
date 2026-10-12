@@ -17,6 +17,8 @@ type Props = {
   isLoading?: boolean;
   /** 取得失敗。表示できる結果が無いときだけ出す */
   hasError?: boolean;
+  onRetry?: () => void;
+  asOf?: number;
   /** 見出しに出す部屋名。レガシーは「〇〇チャットの発言ランキング」だった */
   roomTitle?: string;
   /** 部屋名リンクの遷移先。レガシーではここがチャット本体へ戻る導線だった */
@@ -38,6 +40,8 @@ export default function ChatRanking({
   ranking,
   isLoading = false,
   hasError = false,
+  onRetry,
+  asOf,
   roomTitle,
   onBackToChat,
 }: Props) {
@@ -72,6 +76,17 @@ export default function ChatRanking({
 
       <hr className="my-[0.5em] [border-style:inset] [border-width:1px]" />
 
+      {hasError && ranking !== null && (
+        <p role="status">
+          更新できませんでした。前回取得した結果です
+          {asOf ? `（${new Date(asOf).toLocaleTimeString('ja-JP')}取得）` : ''}。
+        </p>
+      )}
+      {hasError && onRetry && (
+        <button type="button" onClick={onRetry}>
+          再試行
+        </button>
+      )}
       <div className="overflow-x-auto">
         <table className="border-separate border-spacing-[2px]">
           <thead>

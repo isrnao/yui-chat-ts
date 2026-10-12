@@ -13,6 +13,8 @@ export default [
   {
     ignores: [
       'dist',
+      'playwright-report/**',
+      'test-results/**',
       'dist-ssr',
       'coverage',
       'docs',
@@ -93,5 +95,6 @@ export default [
       'prettier/prettier': 'warn',
     },
   },
+  { files: ['playwright.config.ts'], languageOptions: { globals: globals.node } },
   ...storybook.configs['flat/recommended'],
 ];

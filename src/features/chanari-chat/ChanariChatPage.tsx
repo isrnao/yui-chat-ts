@@ -4,19 +4,20 @@ import { getRoomMeta } from '@features/chat/rooms';
 import { getRoomLogStore, FULL_CHAT_LOG_LIMIT } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
 import { useChatIdentity } from '@features/chat/hooks/useChatIdentity';
-import { useChatSession } from '@features/chat/hooks/useChatSession';
+import { SupersededSessionError, useChatSession } from '@features/chat/hooks/useChatSession';
 import { useLookSound } from '@features/chat/hooks/useLookSound';
 import { useStoreBackedState } from '@shared/hooks/useStoreBackedState';
 import { usePageView, useSEO } from '@shared/hooks/useSEO';
 import { buildPageTitle } from '@shared/utils/seo';
 import { buildRoomSeo } from '@shared/utils/roomSeo';
 import RetroSplitter from '@features/chat/components/RetroSplitter';
+import { normalizeColorCode } from './utils/colorCode';
 import ChanariTopHeader from './components/ChanariTopHeader';
 import ChanariEntryForm from './components/ChanariEntryForm';
 import ChanariChatRoom from './components/ChanariChatRoom';
 import { useReloadInterval } from './hooks/useReloadInterval';
 import { useChanariSettings } from './hooks/useChanariSettings';
-import { DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
+import { loadDraft, DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 import './styles/chanari.css';
@@ -51,8 +52,9 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   const identity = useChatIdentity({ name: settings.name, color: settings.nameColor });
   const { name, setName, color: nameColor, setColor: setNameColor } = identity;
   const [speechColor, setSpeechColor] = useStoreBackedState(settings.speechColor ?? '#000000');
-  const [message, setMessage] = useStoreBackedState(settings.lastMessage ?? '');
-  const [windowRows] = useState(30);
+  const [initialMessage, setInitialMessage] = useState('');
+  const [entryCount, setEntryCount] = useState(0);
+  const windowRows = 30;
   const [reloadSeconds, setReloadSeconds] = useState<number>(DEFAULT_RELOAD_SECONDS);
 
   const session = useChatSession({
@@ -68,13 +70,11 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
     // 保存を待つ前に入力欄と表示状態を同期で戻してから退室する（退室操作は即座に反映させる）。
     // 退室メッセージの名前はこのレンダーの identity の値なので、戻した後でも変わらない
     setName('');
-    setMessage('');
     return session.exit();
   };
 
   // 発言もログ消去（clear）も、送信した時点で入力欄を空にする
   const handleSend = (msg: string) => {
-    if (msg.trim()) setMessage('');
     return session.send(msg);
   };
 
@@ -85,58 +85,79 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">
+      {/* 出すのは切れたときだけ。最初の接続待ち（connecting）は SSG の HTML にも入り、
+          つながった瞬間に消えて入室フォームを押し上げるので表示しない */}
+      {realtimeStatus === 'disconnected' && (
+        <div className="px-[var(--page-gap)] text-xs" role="status">
+          接続が切れています。更新でログを取得できます。
+        </div>
+      )}
       <RetroSplitter
         minTop={100}
         minBottom={100}
         top={
-          <div className="chanari-scope">
-            <ChanariTopHeader
-              backHref={import.meta.env.BASE_URL}
-              title={room.title}
-              description={room.description}
-              sloganLabel={CHANARI_TEXTS.slogan}
-            />
-            {entered ? (
-              <ChanariChatRoom
-                message={message}
-                setMessage={setMessage}
-                onSend={(msg) => handleSend(msg)}
-                onReload={reload}
-                onExit={handleExit}
-                onClearMyLogs={() => handleSend('clear')}
-                nameColor={nameColor}
-                setNameColor={setNameColor}
-                speechColor={speechColor}
-                setSpeechColor={setSpeechColor}
-                reloadSeconds={reloadSeconds}
-                setReloadSeconds={setReloadSeconds}
-                onRestoreDraft={() => setMessage(settings.lastMessage ?? '')}
-                sid=""
+          <div className="chanari-container">
+            <div className="chanari-scope">
+              <ChanariTopHeader
+                backHref={import.meta.env.BASE_URL}
+                title={room.title}
+                description={room.description}
+                sloganLabel={CHANARI_TEXTS.slogan}
               />
-            ) : (
-              <ChanariEntryForm
-                name={name}
-                setName={setName}
-                nameColor={nameColor}
-                setNameColor={setNameColor}
-                speechColor={speechColor}
-                setSpeechColor={setSpeechColor}
-                sid=""
-                error={entryError}
-                onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
-                  updateSettings({ name: n, nameColor: nc, speechColor: sc });
-                  setEntryError('');
-                  // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
-                  expand(FULL_CHAT_LOG_LIMIT);
-                  try {
-                    await session.enter({ name: n, color: nc, silent: false });
-                  } catch (err) {
-                    setEntryError(toEntryErrorMessage(err));
-                    throw err;
-                  }
-                }}
-              />
-            )}
+              {entered ? (
+                <ChanariChatRoom
+                  initialMessage={initialMessage}
+                  failedMessage={session.failedSend?.chat.message}
+                  onRetrySend={session.retry}
+                  onSaveDraft={(lastMessage) => updateSettings({ lastMessage })}
+                  onSend={(msg) => handleSend(msg)}
+                  onReload={reload}
+                  onExit={handleExit}
+                  onClearMyLogs={() => handleSend('clear')}
+                  nameColor={nameColor}
+                  setNameColor={(value) => {
+                    setNameColor(value);
+                    session.updateIdentity({ color: normalizeColorCode(value, '#ff69b4') });
+                  }}
+                  speechColor={speechColor}
+                  setSpeechColor={setSpeechColor}
+                  reloadSeconds={reloadSeconds}
+                  setReloadSeconds={setReloadSeconds}
+                  onRestoreDraft={() => loadDraft(roomId)?.lastMessage ?? ''}
+                  isPending={session.phase === 'entering' || session.isSending}
+                  sid=""
+                />
+              ) : (
+                <ChanariEntryForm
+                  name={name}
+                  setName={setName}
+                  nameColor={nameColor}
+                  setNameColor={setNameColor}
+                  speechColor={speechColor}
+                  setSpeechColor={setSpeechColor}
+                  sid=""
+                  isPending={session.phase === 'exiting'}
+                  error={entryError}
+                  onEnter={async ({ name: n, nameColor: nc, speechColor: sc }) => {
+                    setInitialMessage(
+                      entryCount === 0 ? (loadDraft(roomId)?.lastMessage ?? '') : ''
+                    );
+                    updateSettings({ name: n, nameColor: nc, speechColor: sc });
+                    setEntryError('');
+                    // 初期表示は 10 件に絞っている。入室したらログを全件へ広げる
+                    expand(FULL_CHAT_LOG_LIMIT);
+                    try {
+                      await session.enter({ name: n, color: nc, silent: false });
+                      setEntryCount((count) => count + 1);
+                    } catch (err) {
+                      if (!(err instanceof SupersededSessionError))
+                        setEntryError(toEntryErrorMessage(err));
+                      throw err;
+                    }
+                  }}
+                />
+              )}
+            </div>
           </div>
         }
         bottom={
@@ -146,6 +167,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
             }
           >
             <ChatLogList
+              contained
               chatLog={chatLog}
               isLoading={isLoading}
               windowRows={windowRows}

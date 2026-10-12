@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { ErrorCode } from '../../../../../supabase/functions/two-shot/rules.ts';
 import { TWO_SHOT_CONFIG } from '../../config';
 import { errorPage } from '../../utils/noticeText';
@@ -19,10 +20,16 @@ export default function NoticePage({
   onBack: () => void;
   homeHref: string;
 }) {
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    heading.current?.focus({ preventScroll: true });
+  }, [code]);
   const { title, lines } = errorPage(code);
   return (
     <div className="ts-doc">
-      <h1>{title}</h1>
+      <h1 ref={heading} tabIndex={-1}>
+        {title}
+      </h1>
       <ul>
         {lines.map((line, index) => (
           <li key={line}>

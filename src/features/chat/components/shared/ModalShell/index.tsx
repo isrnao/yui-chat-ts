@@ -1,36 +1,31 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState, useSyncExternalStore } from 'react';
 import type { ReactNode } from 'react';
-import { createPortal } from 'react-dom';
+import LegacyModalShell from './LegacyModalShell';
+import {
+  hasNativeDialog,
+  restoreDialogFocus,
+  takeDialogInvoker,
+  takeDialogOrigin,
+} from '@shared/utils/dialogControl';
+import { useResetOnChange } from '@shared/hooks/useResetOnChange';
 
 type Props = {
   role?: 'dialog' | 'alertdialog';
-  /** 見出しの id（aria-labelledby） */
   labelledBy: string;
-  /** 説明の id（aria-describedby） */
   describedBy?: string;
-  /** Esc と背景のクリックで呼ぶ */
   onCancel: () => void;
-  /** 窓の幅などを足す */
   className?: string;
   children: ReactNode;
+  open?: boolean;
+  request?: number;
+  dialogId?: string;
+  onOpen?: () => void;
+  onClosed?: () => void;
 };
+const subscribe = () => () => {};
+const serverSnapshot = () => true;
 
-/** 窓の中でフォーカスできる要素（Tab で回す対象） */
-const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([tabindex="-1"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-/**
- * 旧来風の小さなモーダルの外枠（.kiro/specs/chat-ip-mute の確認の窓とフィルタの一覧で共有する）。
- * 画面全体を覆う半透明の背景の中央に、Button と同じ outset の枠の窓を出す（R2.2・R2.4）。
- *
- * - document.body の直下に出し（ポータル）、開いている間はそれ以外の body の子に inert を付ける。背後の
- *   リンクやボタンは操作もフォーカスもできなくなる（aria-modal を付けるだけでは Tab で背後へ出られた）
- * - Tab / Shift+Tab は窓の中で回す。Esc は document で受ける（フォーカスが窓の外にあっても閉じる）
- * - 閉じたら、開く前にフォーカスしていた要素へ戻す。その要素が消えていたら（フィルタで行が消えたときなど）戻さない
- * - 最初のフォーカスは中身の autoFocus に任せる
- * - 背景のクリックで閉じるのは、背景の上で押し始めたときだけ。窓を開いた操作の続き（タッチの互換用の click など）が
- *   背景に届いても閉じない
- */
+/** The native path owns no body inert, document key listener, or custom focus trap. */
 export default function ModalShell({
   role = 'dialog',
   labelledBy,
@@ -38,84 +33,175 @@ export default function ModalShell({
   onCancel,
   className = '',
   children,
+  open,
+  request = 1,
+  dialogId,
+  onOpen,
+  onClosed,
 }: Props) {
-  const backdropRef = useRef<HTMLDivElement>(null);
-  const windowRef = useRef<HTMLDivElement>(null);
-  // 背景の上で押し始めたか。窓を開いた操作のクリックは、押し始めが窓の外（発言の行）なので閉じない
-  const pressedOnBackdropRef = useRef(false);
-  // 開く前にフォーカスしていた要素。中身の autoFocus は Effect より先に効くので、最初の描画で覚えておく
-  const [returnFocusTo] = useState(() =>
-    typeof document === 'undefined' ? null : document.activeElement
-  );
-
-  const onDocumentKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      event.preventDefault();
+  const fallbackId = useId();
+  const id = dialogId ?? fallbackId;
+  const native = useSyncExternalStore(subscribe, hasNativeDialog, serverSnapshot);
+  const nodeRef = useRef<HTMLDialogElement>(null);
+  const previousFocus = useRef<Element | null>(null);
+  const returnTo = useRef<Element | null>(null);
+  const pressedOutside = useRef(false);
+  const closeRequests = useRef(0);
+  const initialized = useRef(false);
+  const notified = useRef(false);
+  const [legacyOpen, setLegacyOpen] = useState(open ?? request > 0);
+  useResetOnChange(`${native}:${String(open)}:${request}`, () => {
+    if (!native) setLegacyOpen(open ?? request > 0);
+  });
+  const notifyOpen = () => {
+    if (notified.current) return;
+    notified.current = true;
+    onOpen?.();
+  };
+  const notifyClosed = () => {
+    notified.current = false;
+    onClosed?.();
+  };
+  const effectOpened = useEffectEvent(() => notifyOpen());
+  const effectClosed = useEffectEvent(() => notifyClosed());
+  const effectCancelled = useEffectEvent(() => onCancel());
+  const cancel = () => {
+    if (!native) {
+      setLegacyOpen(false);
       onCancel();
       return;
     }
-    if (event.key !== 'Tab') return;
-    const focusables = [...(windowRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])];
-    if (focusables.length === 0) return;
-    const first = focusables[0]!;
-    const last = focusables[focusables.length - 1]!;
-    const active = document.activeElement;
-    const inside = windowRef.current?.contains(active) ?? false;
-    if (event.shiftKey && (active === first || !inside)) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && (active === last || !inside)) {
-      event.preventDefault();
-      first.focus();
-    }
-  });
-
+    const node = nodeRef.current;
+    if (!node?.open) return;
+    closeRequests.current++;
+    onCancel();
+    node.close();
+  };
   useEffect(() => {
-    const backdrop = backdropRef.current;
-    // 窓の外（アプリ本体など）を操作できなくする。もともと inert だったものはそのままにする
-    const madeInert = [...document.body.children].filter(
-      (element): element is HTMLElement =>
-        element !== backdrop && element instanceof HTMLElement && !element.inert
-    );
-    for (const element of madeInert) element.inert = true;
-    const listener = (event: KeyboardEvent) => onDocumentKeyDown(event);
-    document.addEventListener('keydown', listener);
-    return () => {
-      document.removeEventListener('keydown', listener);
-      for (const element of madeInert) element.inert = false;
-      // StrictMode の開発時の仮のアンマウントでは、窓はまだ DOM にある。そのときは戻さない
-      // （戻すと autoFocus で窓に当てたフォーカスが外へ出る）
-      if (backdrop?.isConnected) return;
-      if (returnFocusTo instanceof HTMLElement && returnFocusTo.isConnected) {
-        returnFocusTo.focus();
+    if (!native) return;
+    const node = nodeRef.current;
+    if (!node) return;
+    if (!initialized.current) {
+      initialized.current = true;
+      if (open === undefined && node.open) {
+        returnTo.current =
+          takeDialogInvoker(id) ??
+          [...document.querySelectorAll<HTMLButtonElement>('button[commandfor]')].find(
+            (button) => button.getAttribute('commandfor') === id
+          ) ??
+          null;
+        effectOpened();
+        return;
+      }
+    }
+    const shouldOpen = open ?? request > 0;
+    if (shouldOpen && !node.open) {
+      const origin = takeDialogOrigin(id);
+      previousFocus.current = origin?.previous ?? document.activeElement;
+      returnTo.current = origin?.element ?? document.activeElement;
+      node.showModal();
+      node
+        .querySelector<HTMLElement>('[data-dialog-initial-focus]')
+        ?.focus({ preventScroll: true });
+      effectOpened();
+    } else if (!shouldOpen && node.open) {
+      closeRequests.current++;
+      node.close();
+    }
+  }, [native, open, request, id]);
+  useEffect(() => {
+    if (native || !legacyOpen) return;
+    returnTo.current = takeDialogInvoker(id) ?? document.activeElement;
+    effectOpened();
+    const listener = (event: Event) => {
+      if ((event as CustomEvent<string>).detail === id) {
+        setLegacyOpen(false);
+        effectCancelled();
       }
     };
-  }, [returnFocusTo]);
-
-  return createPortal(
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 px-[var(--page-gap)]"
-      onPointerDown={(event) => {
-        pressedOnBackdropRef.current = event.target === event.currentTarget;
-      }}
-      onClick={(event) => {
-        const pressedOnBackdrop = pressedOnBackdropRef.current;
-        pressedOnBackdropRef.current = false;
-        if (pressedOnBackdrop && event.target === event.currentTarget) onCancel();
-      }}
-    >
-      <div
-        ref={windowRef}
+    document.addEventListener('yui-dialog-close', listener);
+    return () => {
+      document.removeEventListener('yui-dialog-close', listener);
+      effectClosed();
+    };
+  }, [native, legacyOpen, id]);
+  useEffect(
+    () => () => {
+      takeDialogInvoker(id);
+      const node = nodeRef.current;
+      queueMicrotask(() => {
+        if (node?.open && (!node.isConnected || node.checkVisibility?.() === false)) node.close();
+      });
+    },
+    [id]
+  );
+  if (!native)
+    return legacyOpen ? (
+      <LegacyModalShell
         role={role}
-        aria-modal="true"
-        aria-labelledby={labelledBy}
-        aria-describedby={describedBy}
-        className={`border-2 border-ie-gray [border-style:outset] bg-ie-bg p-3 font-yui text-sm text-[#222] ${className}`.trim()}
+        labelledBy={labelledBy}
+        describedBy={describedBy}
+        onCancel={cancel}
+        className={className}
+        id={id}
       >
         {children}
-      </div>
-    </div>,
-    document.body
+      </LegacyModalShell>
+    ) : null;
+  const content = (
+    <dialog
+      ref={nodeRef}
+      id={id}
+      role={role}
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      className={`native-modal border-2 border-ie-gray [border-style:outset] bg-ie-bg p-3 font-yui text-sm text-[#222] ${className}`}
+      onCancel={(event) => {
+        event.preventDefault();
+        cancel();
+      }}
+      onClose={() => {
+        const requested = closeRequests.current > 0;
+        if (requested) closeRequests.current--;
+        if (nodeRef.current?.open) return;
+        if (!requested && open === true) onCancel();
+        notifyClosed();
+        const active = document.activeElement;
+        if (
+          active === document.body ||
+          active === returnTo.current ||
+          active === previousFocus.current ||
+          nodeRef.current?.contains(active)
+        )
+          restoreDialogFocus(returnTo.current);
+      }}
+      onToggle={() => {
+        if (nodeRef.current?.open) {
+          const origin = takeDialogOrigin(id);
+          if (origin) {
+            returnTo.current = origin.element;
+            previousFocus.current = origin.previous;
+          }
+          notifyOpen();
+        }
+      }}
+      onPointerDown={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        pressedOutside.current =
+          event.target === event.currentTarget &&
+          (event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom);
+      }}
+      onClick={(event) => {
+        const outside = pressedOutside.current;
+        pressedOutside.current = false;
+        if (outside && event.target === event.currentTarget) cancel();
+      }}
+    >
+      {children}
+    </dialog>
   );
+  return content;
 }

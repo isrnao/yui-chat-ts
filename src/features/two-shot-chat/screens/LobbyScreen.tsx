@@ -128,7 +128,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
   const values: EntryValues = { ...stored, ...edited };
 
   const busy = useRef(false);
-  const [ui, dispatch] = useActionState(
+  const [ui, dispatch, isPending] = useActionState(
     async (_previous: LobbyUi, action: LobbyAction): Promise<LobbyUi> => {
       if (action.type === 'dismiss') return { kind: 'lobby' };
       // React Compiler は catch のない try / finally をコンパイルできないので、Promise の finally で戻す
@@ -166,6 +166,7 @@ export default function LobbyScreen({ pending }: { pending: PendingSession | nul
       bottomLabel="空室状況"
       top={
         <EntryForm
+          isPending={isPending}
           values={values}
           homeHref={HOME_HREF}
           onChange={(patch) => setEdited((previous) => ({ ...previous, ...patch }))}

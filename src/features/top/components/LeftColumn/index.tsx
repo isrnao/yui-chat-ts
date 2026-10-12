@@ -15,7 +15,7 @@ function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts
         {group.items.map((item) => (
           <li key={item.label} className={toneMarkerClass[group.tone]}>
             <RoomAnchor item={item} className="font-bold text-blue-600 hover:underline" />
-            <CountBadge count={resolveCount(item, liveCounts)} />
+            <CountBadge roomId={item.roomId} count={resolveCount(item, liveCounts)} />
           </li>
         ))}
       </ul>

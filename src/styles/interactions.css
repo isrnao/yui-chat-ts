@@ -1,0 +1,131 @@
+/*
+ * Native state selectors own visual feedback; application data stays in the application.
+ * 要素の汎用規則は @layer base に置く。layer のない宣言は Tailwind の utilities より強く、
+ * outline-none や min-h-* などの utility で打ち消せなくなるため。
+ */
+@layer base {
+  :where(a[href], button, input, select, textarea, summary, [tabindex]):focus-visible,
+  .two-shot-scope :where(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--ie-blue, #1769aa);
+    outline-offset: 2px;
+  }
+  @supports selector(:user-invalid) {
+    :where(input, textarea, select):user-invalid {
+      outline: 2px solid #b42318;
+    }
+  }
+  @media (hover: hover) and (pointer: fine) {
+    :where(button, summary):not(:disabled):hover {
+      filter: brightness(0.97);
+    }
+  }
+  @media (forced-colors: active) {
+    :where(button, input, select, textarea) {
+      border: 1px solid ButtonText;
+    }
+    :where(a[href], button, input, select, textarea, [tabindex]):focus-visible {
+      outline-color: Highlight;
+    }
+  }
+}
+/* reduced motion は utility の animate-* / transition より優先させるため layer に入れない */
+@media (prefers-reduced-motion: reduce) {
+  :where(.animate-pulse, .animate-spin) {
+    animation: none;
+  }
+  :where(button, input, select, textarea) {
+    transition: none;
+  }
+}
+@media (pointer: coarse) {
+  .splitter-panes {
+    --splitter-bar-height: 24px;
+  }
+}
+.skip-link {
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline-start: 8px;
+  transform: translateY(-150%);
+  z-index: 100;
+  background: white;
+  padding: 8px;
+}
+.skip-link:focus {
+  transform: none;
+}
+
+.native-modal {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  block-size: fit-content;
+  max-inline-size: calc(100vw - 2 * var(--page-gap, 12px));
+  max-block-size: 90dvh;
+  overflow: auto;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    opacity 140ms,
+    transform 140ms,
+    display 140ms allow-discrete,
+    overlay 140ms allow-discrete;
+}
+.native-modal[open] {
+  opacity: 1;
+  transform: none;
+}
+.native-modal::backdrop {
+  background: rgb(0 0 0 / 30%);
+}
+@starting-style {
+  .native-modal[open] {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .native-modal {
+    transition: none;
+    transform: none;
+  }
+}
+@supports (field-sizing: content) {
+  .native-modal textarea {
+    field-sizing: content;
+    min-block-size: 3lh;
+    max-block-size: 10lh;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .look-decoration {
+    display: none;
+  }
+  .avatar-motion {
+    display: none;
+  }
+}
+@media (max-height: 240px) {
+  .splitter-panes {
+    display: block;
+    overflow: auto;
+  }
+  .splitter-panes > [role='separator'] {
+    display: none;
+  }
+  .splitter-panes > .splitter-top,
+  .splitter-panes > .splitter-bottom {
+    min-block-size: 100px;
+    overflow: visible;
+  }
+}
+
+.avatar-still {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .avatar-still {
+    display: inline;
+  }
+}

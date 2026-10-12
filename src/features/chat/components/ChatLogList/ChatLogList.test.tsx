@@ -81,7 +81,7 @@ describe('ChatLogList', () => {
 
   it('shows mailto link if email is present', () => {
     render(<ChatLogList chatLog={chatLog} windowRows={2} />);
-    const mailLink = screen.getByRole('link', { name: '>' });
+    const mailLink = screen.getByRole('link', { name: /の連絡先を開く/ });
     expect(mailLink).toHaveAttribute('href', 'mailto:jiro@mail.com');
     expect(mailLink).toHaveAttribute('target', '_blank');
   });
