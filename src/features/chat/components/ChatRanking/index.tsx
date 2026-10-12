@@ -1,5 +1,6 @@
 import { formatCountTime } from '@shared/utils/format';
 import type { RankingEntry } from '@features/chat/utils/chatRanking';
+import { CHAT_TEXTS } from '@features/chat/chatTexts';
 
 type Props = {
   /**
@@ -45,12 +46,12 @@ export default function ChatRanking({
   const statusMessage =
     ranking !== null
       ? ranking.length === 0
-        ? 'データなし'
+        ? CHAT_TEXTS.ranking.empty
         : null
       : hasError
-        ? 'ランキングを読み込めませんでした'
+        ? CHAT_TEXTS.ranking.failed
         : isLoading
-          ? '読み込み中...'
+          ? CHAT_TEXTS.ranking.loading
           : // まだ結果が無く、取得も長引いていない間は何も出さない (すぐ結果に置き換わるため)
             null;
 
@@ -66,7 +67,7 @@ export default function ChatRanking({
           ) : (
             roomTitle
           ))}
-        の発言ランキング
+        {CHAT_TEXTS.ranking.titleSuffix}
       </h3>
 
       <hr className="my-[0.5em] [border-style:inset] [border-width:1px]" />
@@ -75,10 +76,18 @@ export default function ChatRanking({
         <table className="border-separate border-spacing-[2px]">
           <thead>
             <tr>
-              <th className="whitespace-nowrap p-px text-center font-bold">おなまえ</th>
-              <th className="whitespace-nowrap p-px text-center font-bold">発言回数</th>
-              <th className="whitespace-nowrap p-px text-center font-bold">最終発言時刻</th>
-              <th className="whitespace-nowrap p-px text-center font-bold">ホスト情報</th>
+              <th className="whitespace-nowrap p-px text-center font-bold">
+                {CHAT_TEXTS.ranking.name}
+              </th>
+              <th className="whitespace-nowrap p-px text-center font-bold">
+                {CHAT_TEXTS.ranking.count}
+              </th>
+              <th className="whitespace-nowrap p-px text-center font-bold">
+                {CHAT_TEXTS.ranking.lastTime}
+              </th>
+              <th className="whitespace-nowrap p-px text-center font-bold">
+                {CHAT_TEXTS.ranking.host}
+              </th>
             </tr>
           </thead>
           <tbody>

@@ -85,7 +85,7 @@ import {
   EXTENDED_WINDOW_ROW_OPTIONS,
   getWindowRowOptions,
 } from '@features/chat/utils/windowRows';
-import { formatLegacyDateTime } from '@shared/utils/format';
+import { formatCountTime, formatLegacyDateTime } from '@shared/utils/format';
 import { getRecentParticipants } from '@features/chat/hooks/useParticipants';
 import { readAdminEvent } from '@features/chat/utils/adminMessage';
 import { reduceOptimisticChat } from '@features/chat/utils/optimisticLog';
@@ -241,6 +241,19 @@ function v7(ms: number, suffix = 0): string {
 }
 
 const T0 = Date.UTC(2026, 9, 11, 11, 10, 0); // 2026-10-11 20:10:00 JST
+
+/** ランキングの最終発言時刻（Web の formatCountTime。曜日は日本語） */
+function countTime() {
+  const times = [
+    Date.UTC(2026, 9, 11, 11, 10, 0),
+    Date.UTC(2026, 0, 1, 14, 59, 0),
+    Date.UTC(2025, 11, 31, 15, 5, 0),
+  ];
+  return {
+    timeZone: FIXTURE_TIME_ZONE,
+    cases: times.map((time) => ({ time, expected: formatCountTime(time) })),
+  };
+}
 
 function legacyDateTime() {
   const times = [
@@ -1189,6 +1202,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
       ),
     },
     'fixtures/legacy-date-time.json': legacyDateTime(),
+    'fixtures/count-time.json': countTime(),
     'fixtures/admin-events.json': adminEvents(),
     'fixtures/participants.json': participants(),
     'fixtures/optimistic.json': optimistic(),
