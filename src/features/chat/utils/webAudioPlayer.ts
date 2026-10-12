@@ -143,12 +143,25 @@ export function isAudioUnlocked(): boolean {
  * ブラウザの自動再生ポリシーにより、ユーザーインタラクション内で呼ぶ必要がある。
  * エラーはキャッチしてログ出力のみ行う。
  */
+export const AUDIO_UNLOCK_TIMEOUT_MS = 2000;
 export async function unlockAudio(): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const ctx = getAudioContext();
-    await ctx.resume();
+    // 音声デバイスのない環境等ではresumeが解決しない。利用者が再試行できる状態へ戻す。
+    await Promise.race([
+      ctx.resume(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error('Audio activation timed out')),
+          AUDIO_UNLOCK_TIMEOUT_MS
+        );
+      }),
+    ]);
     changed();
   } catch (err) {
     console.warn('[webAudioPlayer] AudioContext の有効化に失敗しました:', err);
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
   }
 }
