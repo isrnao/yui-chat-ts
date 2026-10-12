@@ -18,7 +18,7 @@
 | R5a  | 実装済み・自動検証（手動ゲートは末尾） | [#228](https://github.com/isrnao/yui-chat-ts/pull/228) / Chanari/draft          |
 | R5b  | 実装済み・自動検証（手動ゲートは末尾） | [#229](https://github.com/isrnao/yui-chat-ts/pull/229) / トップ/人数/widget     |
 | R6   | 実装済み・自動検証（手動ゲートは末尾） | [#230](https://github.com/isrnao/yui-chat-ts/pull/230) / 停止中専用2shot        |
-| R7   | 実装済み・自動検証（手動ゲートは末尾） | [#231](https://github.com/isrnao/yui-chat-ts/pull/231) / 最終補完/採用記録                                                  |
+| R7   | 実装済み・自動検証（手動ゲートは末尾） | [#231](https://github.com/isrnao/yui-chat-ts/pull/231) / 最終補完/採用記録      |
 
 実ブラウザの結果と、実機でしか確認できない項目を区別して追記する。新機能計画F01〜F11の未実装機能は今回の58項目の実装と分離する。
 
@@ -66,7 +66,7 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 
 最終の網羅確認で、GIFのreduced motionはCSS animation停止だけでは成立しないため実際の非表示＋静的表記へ修正。popoverの任意開閉transitionとWordPickerのform/required、旧closeイベントのcounter消費と演出取消/cleanup例外も補完した。
 
-Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操作/新規投稿と分離。退出中と専用Lobby入室中のpending表示を補完。requestClose/小さなcancel adapterで必須入力と独立して閉じ、古いcloseイベントが新しいキー操作のfocusを奪わないよう、論理invokerとブラウザの直前focusを区別した。decode後のunlook/mute、backoff abort、期限cacheと固定clockを検証。Linux Firefoxの音声デバイス不可では成功表示を強制せず、失敗表示/再試行/ミュートを検査する。音声テスト修正をR4b以降、期限テストの固定clockをR5a以降へ戻す。
+Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操作/新規投稿と分離。退出中と専用Lobby入室中のpending表示を補完。requestClose/小さなcancel adapterで必須入力と独立して閉じ、古いcloseイベントが新しいキー操作のfocusを奪わないよう、論理invokerとブラウザの直前focusを区別した。decode後のunlook/mute、backoff abort、期限cacheと固定clockを検証。Linux Firefoxの音声デバイス不可では成功表示を強制せず、失敗表示/再試行/ミュートを検査する。resumeが未解決のときも2秒で有効化操作へ復帰するsource修正/音声テスト修正をR4b以降、期限テストの固定clockをR5a以降へ戻す。
 
 ## 58項目の実装対応表
 
@@ -144,7 +144,7 @@ Chanariにも同じoperation IDの明示retryを接続し、本文を戻す操�
 
 ## 最終の検証と採用ゲート
 
-ローカル: 型/lint/React Compiler、全711 Vitest、production build/SSG（トップ＋82通常部屋＋81Chanari、専用2shot停止維持）、Storybook buildを確認。全56 browser tests合格。ブラウザはChromium 156/Firefox 157/WebKit 27.2/mobile WebKitのproduction componentとfallback、1,000行/1panel、320px/縦200px、音声成功または失敗復帰、専用radio/確認/splitter、本番SSGのJS遅延中編集を検査する。最終件数とCIはPRの最新headのchecksと照合する。
+ローカル: 型/lint/React Compiler、全712 Vitest、production build/SSG（トップ＋82通常部屋＋81Chanari、専用2shot停止維持）、Storybook buildを確認。全60 browser tests（56既存＋未解決audio強制4構成）を検証。ブラウザはChromium 156/Firefox 157/WebKit 27.2/mobile WebKitのproduction componentとfallback、1,000行/1panel、320px/縦200px、音声成功または失敗復帰、専用radio/確認/splitter、本番SSGのJS遅延中編集を検査する。最終件数とCIはPRの最新headのchecksと照合する。
 
 production/SSG検証はVITE_SUPABASE_URL=https://native-fixture.invalid、VITE_SUPABASE_ANON_KEY=fixture-onlyの検証用設定。未設定でのRealtime初期化エラーは既存の環境条件であり、検証用buildを本番配信に流用しない。CI browser jobもこの設定でビルドし、外部保存をしないsynthetic fixture/API応答で検証する。既存CIのcontinue-on-errorなVitest成功だけを根拠にせず、ローカル全テストとbrowser jobを採用根拠とする。
 

@@ -1,6 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   vi.resetModules();
 });
 it('unlook/mute後にdecodeが完了しても古い音を開始しない', async () => {
@@ -38,4 +40,23 @@ it('unlook/mute後にdecodeが完了しても古い音を開始しない', async
   player.setAudioMuted(true);
   await player.playNotificationSound();
   expect(source.start).not.toHaveBeenCalled();
+});
+
+it('resumeが未解決でも時間上限後に有効化操作へ戻れる', async () => {
+  vi.resetModules();
+  vi.useFakeTimers();
+  vi.spyOn(console, 'warn').mockImplementation(() => {});
+  class Context {
+    state = 'suspended';
+    addEventListener() {}
+    resume() {
+      return new Promise<void>(() => {});
+    }
+  }
+  vi.stubGlobal('AudioContext', Context);
+  const player = await import('./webAudioPlayer');
+  const unlock = player.unlockAudio();
+  await vi.advanceTimersByTimeAsync(player.AUDIO_UNLOCK_TIMEOUT_MS);
+  await expect(unlock).resolves.toBeUndefined();
+  expect(player.isAudioUnlocked()).toBe(false);
 });

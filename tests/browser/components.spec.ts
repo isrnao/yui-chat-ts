@@ -221,3 +221,23 @@ test('disabled-route two-shot components preserve confirmation and radio keyboar
     await splitter.getAttribute('aria-valuemin')
   );
 });
+
+test('unresolved audio activation returns to a retryable failure', async ({ page }) => {
+  await page.addInitScript(() => {
+    class PendingAudioContext extends EventTarget {
+      state = 'suspended';
+      resume() {
+        return new Promise<void>(() => {});
+      }
+    }
+    Object.defineProperty(window, 'AudioContext', { value: PendingAudioContext });
+  });
+  await page.goto('/tests/browser/fixtures/components.html');
+  await page.getByRole('button', { name: '通知音を有効にする', exact: true }).click();
+  await expect(
+    page.getByText('音声を有効にできませんでした。もう一度お試しください。', { exact: true })
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: '通知音を有効にする', exact: true })).toBeEnabled();
+  await page.getByLabel('通知音をミュート').check();
+  await expect(page.getByLabel('通知音をミュート')).toBeChecked();
+});
