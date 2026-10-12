@@ -1,0 +1,332 @@
+{
+  "intro": {
+    "title": "お気楽チャット - チャットで友達探し＆仲間作り",
+    "body": "このサイトは、2000年代に毎日のように過ごした思い出のチャットを再現した、私的な非公式個人サイトです。当時ここで出会った人たちも、今では大人になり、それぞれの人生を歩んでいると思います。それでも、ふとした時にあの頃の「お気楽チャット」を思い出し、懐かしい名前を探したり、誰かに一言を残したくなることがあります。そんな人たちがもう一度立ち寄れる、思い出の待ち合わせ場所になれば嬉しいです。あの頃の雰囲気や、今となっては少し恥ずかしい黒歴史も含めて、懐かしんでもらえたら嬉しいです。"
+  },
+  "sectionTitles": {
+    "chat": "チャット",
+    "pickup": "注目のチャット ピックアップ",
+    "news": "チャットの最新情報",
+    "rules": "チャットのルール・マナー",
+    "community": "コミュニティー"
+  },
+  "guideMenu": [
+    {
+      "label": "チャットの使い方",
+      "href": "#chat-howto",
+      "roomId": null,
+      "roomType": null,
+      "external": false,
+      "iconKind": "tutorial"
+    },
+    {
+      "label": "チャットのルール・マナー",
+      "href": "#chat-rules",
+      "roomId": null,
+      "roomType": null,
+      "external": false,
+      "iconKind": "heart"
+    },
+    {
+      "label": "コンタクト",
+      "href": "/chat/com_sb/",
+      "roomId": "com_sb",
+      "roomType": "chat",
+      "external": false,
+      "iconKind": "mail"
+    }
+  ],
+  "tabs": [
+    {
+      "label": "チャット",
+      "href": "/",
+      "roomId": null,
+      "roomType": null,
+      "external": false
+    },
+    {
+      "label": "中学生チャット",
+      "href": "/chat/juniorhighschool/",
+      "roomId": "juniorhighschool",
+      "roomType": "chat",
+      "external": false
+    },
+    {
+      "label": "小学生チャット",
+      "href": "/chat/elementary/",
+      "roomId": "elementary",
+      "roomType": "chat",
+      "external": false
+    },
+    {
+      "label": "高校生チャット",
+      "href": "/chat/highschool/",
+      "roomId": "highschool",
+      "roomType": "chat",
+      "external": false
+    },
+    {
+      "label": "大学生チャット",
+      "href": "/chat/daigaku/",
+      "roomId": "daigaku",
+      "roomType": "chat",
+      "external": false
+    },
+    {
+      "label": "超初心者チャット",
+      "href": "/chat/superbeginner/",
+      "roomId": "superbeginner",
+      "roomType": "chat",
+      "external": false
+    },
+    {
+      "label": "なりきりチャット",
+      "href": "#pickup-narikiri",
+      "roomId": null,
+      "roomType": null,
+      "external": false
+    },
+    {
+      "label": "全部屋チャット",
+      "href": "/chat/all/",
+      "roomId": null,
+      "roomType": null,
+      "external": false
+    }
+  ],
+  "news": [
+    {
+      "parts": [
+        {
+          "text": "問い合わせは"
+        },
+        {
+          "link": {
+            "label": "管理者チャット",
+            "href": "/chat/com_sb/",
+            "roomId": "com_sb",
+            "roomType": "chat",
+            "external": false
+          }
+        },
+        {
+          "text": "に連絡してください。"
+        }
+      ]
+    }
+  ],
+  "pickupGroups": [
+    {
+      "title": "なりきりチャット",
+      "note": "好きなキャラになりきろう",
+      "tone": "orange",
+      "items": [
+        {
+          "label": "デュラララ チャット",
+          "href": "/chanari/durarara/",
+          "roomId": "durarara",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "ボカロチャット",
+          "href": "/chanari/vocaloid/",
+          "roomId": "vocaloid",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "ヘタリア チャット",
+          "href": "/chanari/hetaria/",
+          "roomId": "hetaria",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "銀魂なりきりチャット",
+          "href": "/chanari/gintama/",
+          "roomId": "gintama",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "イナズマイレブンチャット",
+          "href": "/chanari/inazuma11/",
+          "roomId": "inazuma11",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "テニプリチャット",
+          "href": "/chanari/tenipri/",
+          "roomId": "tenipri",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "リボーンチャット",
+          "href": "/chanari/reborn/",
+          "roomId": "reborn",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "東方チャット",
+          "href": "/chanari/touhou/",
+          "roomId": "touhou",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "戦国BASARAチャット",
+          "href": "/chanari/basara/",
+          "roomId": "basara",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "イナGOチャット",
+          "href": "/chanari/inazuma11go/",
+          "roomId": "inazuma11go",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "バカテスチャット",
+          "href": "/chanari/bakatesu/",
+          "roomId": "bakatesu",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "WORKING!!チャット",
+          "href": "/chanari/working/",
+          "roomId": "working",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "AKB48チャット",
+          "href": "/chanari/akb48/",
+          "roomId": "akb48",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "とある魔術の禁書目録チャット",
+          "href": "/chanari/majutu/",
+          "roomId": "majutu",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "BLEACHチャット",
+          "href": "/chanari/bleach/",
+          "roomId": "bleach",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "黒執事チャット",
+          "href": "/chanari/kuroshitsuji/",
+          "roomId": "kuroshitsuji",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "けいおんチャット",
+          "href": "/chanari/keion/",
+          "roomId": "keion",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "Dグレチャット",
+          "href": "/chanari/dgrayman/",
+          "roomId": "dgrayman",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "涼宮ハルヒの憂鬱チャット",
+          "href": "/chanari/haruhi/",
+          "roomId": "haruhi",
+          "roomType": "chanari",
+          "external": false
+        },
+        {
+          "label": "とある科学のレールガンチャット",
+          "href": "/chanari/railgun/",
+          "roomId": "railgun",
+          "roomType": "chanari",
+          "external": false
+        }
+      ]
+    }
+  ],
+  "chatRules": [
+    "お初さんを歓迎しましょう。",
+    "必ずあいさつをしましょう。",
+    "簡単な自己紹介をしましょう。",
+    "相手の気持ちを考えて会話をしましょう。"
+  ],
+  "xScreenName": "chat_a",
+  "share": {
+    "text": "お気楽チャットで友達探し＆仲間作り",
+    "url": "https://www.okiraku.chat/"
+  },
+  "footerLines": [
+    "©2026 お気楽チャットTS.",
+    "Inspired by 1997-2017 チャットならお気楽チャット"
+  ],
+  "tones": {
+    "pink": "#f6339a",
+    "orange": "#ff6900",
+    "green": "#00c950",
+    "blue": "#00a6f4",
+    "purple": "#e12afb",
+    "gray": "#6a7282"
+  },
+  "countBadge": {
+    "many": 4,
+    "none": "#99a1af",
+    "few": "#00bc7d",
+    "manyColor": "#ff6900"
+  },
+  "headerColors": {
+    "bg": "#ffffff",
+    "logo-url-www": "#ec168c",
+    "logo-url-dot": "#343434",
+    "logo-url-okiraku": "#1189ee",
+    "logo-url-com": "#31c34a",
+    "logo-text": "#096fe5",
+    "logo-wing": "#f08ab0",
+    "logo-wing-fill": "#fff6fb",
+    "guide-link": "#1a6dbc",
+    "guide-link-hover": "#d9463d",
+    "guide-icon-pink": "#ff5f8a",
+    "guide-icon-orange": "#ff9a3c",
+    "guide-icon-green": "#3fbf8f",
+    "guide-icon-blue": "#2e8fd1",
+    "primary-tab-bg-top": "#fefefe",
+    "primary-tab-bg-btm": "#e8e8e8",
+    "primary-tab-fg": "#333333",
+    "primary-tab-active-bg-top": "#0099ff",
+    "primary-tab-active-bg-btm": "#016fff",
+    "primary-tab-active-fg": "#ffffff",
+    "seam": "#006cff",
+    "secondary-bar-top": "#0bbbfe",
+    "secondary-bar-btm": "#068ae3",
+    "secondary-tab-fg": "#ffffff",
+    "secondary-tab-active-bg": "#ffffff",
+    "secondary-tab-active-fg": "#333333"
+  },
+  "colors": {
+    "gray-300": "#d1d5dc",
+    "gray-500": "#6a7282",
+    "gray-700": "#364153",
+    "gray-800": "#1e2939",
+    "blue-600": "#155dfc",
+    "blue-700": "#1447e6"
+  }
+}

@@ -1,5 +1,5 @@
 import type { RoomCountMap } from '../../api/roomCountsApi';
-import { news, pickupGroups, type PickupGroup } from '../../data';
+import { news, pickupGroups, sectionTitles, share, type PickupGroup } from '../../data';
 import { CountBadge } from '../CountBadge';
 import { RoomAnchor } from '../RoomAnchor';
 import { SectionTitle } from '../SectionTitle';
@@ -33,9 +33,9 @@ function PickupList({ group, liveCounts }: { group: PickupGroup; liveCounts: Roo
 export function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   return (
     <section className="bg-white px-2 py-2 max-md:order-2">
-      <SectionTitle>注目のチャット ピックアップ</SectionTitle>
+      <SectionTitle>{sectionTitles.pickup}</SectionTitle>
       <section className="px-2 py-3">
-        <h3 className="text-[13px] font-bold">チャットの最新情報</h3>
+        <h3 className="text-[13px] font-bold">{sectionTitles.news}</h3>
         <ul className="mt-2 list-outside list-[circle] pl-[14px] text-[12px] leading-[1.3] marker:text-pink-500">
           {news.map((item, newsIndex) => (
             <li key={newsIndex} className="text-gray-700">
@@ -88,7 +88,7 @@ export function MainColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
           Xでつぶやいてお気楽チャットを紹介する場合は、こちらのボタンからどうぞ。
         </p>
         <a
-          href={`https://x.com/intent/tweet?text=${encodeURIComponent('お気楽チャットで友達探し＆仲間作り')}&url=${encodeURIComponent('https://www.okiraku.chat/')}`}
+          href={`https://x.com/intent/tweet?text=${encodeURIComponent(share.text)}&url=${encodeURIComponent(share.url)}`}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-2 inline-flex items-center gap-1 rounded border border-black bg-black px-3 py-1 text-[12px] font-bold text-white hover:bg-gray-800"

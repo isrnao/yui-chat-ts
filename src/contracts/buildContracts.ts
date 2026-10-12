@@ -16,7 +16,28 @@ import {
   ROOM_CATEGORY_LABELS,
   TWO_SHOT_ROOM_ID,
 } from '@features/chat/rooms';
-import { chatDirectoryGroups } from '@features/top/data';
+import {
+  chatDirectoryGroups,
+  chatRules,
+  footerLines,
+  guideMenu,
+  intro,
+  news,
+  pickupGroups,
+  sectionTitles,
+  share,
+  tabNav,
+  X_SCREEN_NAME,
+} from '@features/top/data';
+import {
+  COUNT_BADGE_MANY,
+  COUNT_BADGE_TONES,
+  toneClass,
+} from '@features/top/components/shared/tones';
+import { tailwindHex } from './tailwindColors';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { cwd } from 'node:process';
 import { FONT_COLOR_CSS, FONT_SIZE_CSS, type Chat } from '@features/chat/types';
 import {
   AVATAR_IDS,
@@ -879,6 +900,82 @@ function nameChecks() {
   return { cases: names.map((name) => ({ name, expected: validateName(name) })) };
 }
 
+// --- ホーム（Web のトップ、design.md §4.2） ---
+
+function linkOf(item: {
+  label?: string;
+  linkLabel?: string;
+  href?: string;
+  linkHref?: string;
+  roomId?: string;
+  roomType?: string;
+  external?: boolean;
+}) {
+  return {
+    label: item.label ?? item.linkLabel ?? '',
+    href: item.href ?? item.linkHref ?? '',
+    roomId: item.roomId ?? null,
+    roomType: item.roomType ?? null,
+    external: item.external ?? false,
+  };
+}
+
+function headerColors(): Record<string, string> {
+  const css = readFileSync(
+    join(cwd(), 'src/features/top/components/Header/headerTheme.css'),
+    'utf8'
+  );
+  const colors: Record<string, string> = {};
+  for (const match of css.matchAll(/--ochat-h-([a-z0-9-]+):\s*(#[0-9a-f]{3,6});/gi)) {
+    colors[match[1]!] = match[2]!.toLowerCase();
+  }
+  return colors;
+}
+
+/** ホームの文言・並び・色。どれも Web のトップ（top/data.ts と tones.ts）から作る */
+function home() {
+  return {
+    intro: { title: intro.title, body: intro.body.join('') },
+    sectionTitles,
+    guideMenu: guideMenu.map((item) => ({ ...linkOf(item), iconKind: item.iconKind })),
+    tabs: tabNav.map(linkOf),
+    news: news.map((item) => ({
+      parts: item.parts.map((part) =>
+        typeof part === 'string' ? { text: part } : { link: linkOf(part) }
+      ),
+    })),
+    pickupGroups: pickupGroups.map((group) => ({
+      title: group.title,
+      note: group.note,
+      tone: group.tone,
+      items: group.items.map(linkOf),
+    })),
+    chatRules,
+    xScreenName: X_SCREEN_NAME,
+    share,
+    footerLines,
+    /** 系統の色（見出しの補足と行頭の丸） */
+    tones: Object.fromEntries(
+      Object.entries(toneClass).map(([tone, className]) => [tone, tailwindHex(className)])
+    ),
+    countBadge: {
+      many: COUNT_BADGE_MANY,
+      none: tailwindHex(COUNT_BADGE_TONES.none),
+      few: tailwindHex(COUNT_BADGE_TONES.few),
+      manyColor: tailwindHex(COUNT_BADGE_TONES.many),
+    },
+    /** ヘッダーの配色（headerTheme.css の --ochat-h-* のうち 16 進の色） */
+    headerColors: headerColors(),
+    /** トップで使う文字・線・リンクの色（TopPage と各欄の class） */
+    colors: Object.fromEntries(
+      ['gray-300', 'gray-500', 'gray-700', 'gray-800', 'blue-600', 'blue-700'].map((name) => [
+        name,
+        tailwindHex(name),
+      ])
+    ),
+  };
+}
+
 function roomLogMerge() {
   const a = row({ uuid: v7(T0, 1), time: T0 });
   const b = row({ uuid: v7(T0 + 1000, 2), time: T0 + 1000 });
@@ -1058,6 +1155,7 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
   const files: ContractFiles = {
     'rooms.json': rooms(),
     'directory.json': directory(),
+    'home.json': home(),
     'theme.json': theme(themeCss),
     'chat-options.json': chatOptions(),
     'server-messages.json': serverMessages(),

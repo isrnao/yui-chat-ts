@@ -1,5 +1,5 @@
 import type { RoomCountMap } from '../../api/roomCountsApi';
-import { chatDirectoryGroups, type ChatDirectoryGroup } from '../../data';
+import { chatDirectoryGroups, sectionTitles, type ChatDirectoryGroup } from '../../data';
 import { CountBadge } from '../CountBadge';
 import { RoomAnchor } from '../RoomAnchor';
 import { SectionTitle } from '../SectionTitle';
@@ -26,7 +26,7 @@ function RoomList({ group, liveCounts }: { group: ChatDirectoryGroup; liveCounts
 export function LeftColumn({ liveCounts }: { liveCounts: RoomCountMap }) {
   return (
     <aside className="border-r border-gray-300 bg-white px-2 py-2 max-md:order-1 max-md:border-r-0">
-      <SectionTitle>チャット</SectionTitle>
+      <SectionTitle>{sectionTitles.chat}</SectionTitle>
       <div className="pt-3">
         {chatDirectoryGroups.map((group) => (
           <RoomList key={group.title} group={group} liveCounts={liveCounts} />
