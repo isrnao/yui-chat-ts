@@ -1,3 +1,4 @@
+import { CSS_NAMED_COLORS, normalizeColorCode } from './colorCode';
 import { createPersistentStore } from '@shared/utils/persistentStore';
 
 /**
@@ -36,13 +37,30 @@ export type ChanariDraft = {
 type DraftMap = Record<string, ChanariDraft>;
 
 /** 1 件の下書きが有効か。バージョン・更新時刻（未来でない / 1 年以内）・本文の長さを確かめる */
-function isValidDraft(entry: unknown, now: number): entry is ChanariDraft {
-  if (typeof entry !== 'object' || entry === null) return false;
+export function isValidDraft(entry: unknown, now: number): entry is ChanariDraft {
+  if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return false;
   const draft = entry as Partial<ChanariDraft>;
   if (draft.version !== 1 || typeof draft.roomId !== 'string') return false;
-  if (typeof draft.updatedAt !== 'number') return false;
+  if (typeof draft.updatedAt !== 'number' || !Number.isFinite(draft.updatedAt)) return false;
   if (draft.updatedAt > now || draft.updatedAt < now - ONE_YEAR_MS) return false;
-  if (draft.lastMessage != null && draft.lastMessage.length > 1000) return false;
+  if (draft.name !== undefined && (typeof draft.name !== 'string' || draft.name.length > 20))
+    return false;
+  if (
+    draft.lastMessage !== undefined &&
+    (typeof draft.lastMessage !== 'string' || draft.lastMessage.length > 1000)
+  )
+    return false;
+  for (const color of [draft.nameColor, draft.speechColor]) {
+    if (
+      color !== undefined &&
+      (typeof color !== 'string' ||
+        !(
+          /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(color.trim()) ||
+          Object.hasOwn(CSS_NAMED_COLORS, color.trim().toLowerCase())
+        ))
+    )
+      return false;
+  }
   return true;
 }
 
@@ -54,11 +72,16 @@ export const draftsStore = createPersistentStore<DraftMap>({
   key: STORAGE_KEY,
   defaults: {},
   parse: (value) => {
-    if (typeof value !== 'object' || value === null) return {};
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
     const now = Date.now();
     const valid: DraftMap = {};
     for (const [roomId, entry] of Object.entries(value as Record<string, unknown>)) {
-      if (isValidDraft(entry, now)) valid[roomId] = entry;
+      if (
+        !['__proto__', 'constructor', 'prototype'].includes(roomId) &&
+        isValidDraft(entry, now) &&
+        entry.roomId === roomId
+      )
+        valid[roomId] = entry;
     }
     return valid;
   },
@@ -69,13 +92,19 @@ export const draftsStore = createPersistentStore<DraftMap>({
  * localStorage が使えないときはメモリ上の値だけ更新する。
  */
 export function saveDraft(draft: Omit<ChanariDraft, 'version' | 'updatedAt'>): void {
-  draftsStore.update((map) => ({
-    ...map,
-    [draft.roomId]: { ...map[draft.roomId], ...draft, version: 1, updatedAt: Date.now() },
-  }));
+  if (['__proto__', 'constructor', 'prototype'].includes(draft.roomId)) return;
+  const previous = loadDraft(draft.roomId);
+  const candidate: ChanariDraft = { ...previous, ...draft, version: 1, updatedAt: Date.now() };
+  if (!isValidDraft(candidate, Date.now())) return;
+  if (candidate.nameColor !== undefined)
+    candidate.nameColor = normalizeColorCode(candidate.nameColor);
+  if (candidate.speechColor !== undefined)
+    candidate.speechColor = normalizeColorCode(candidate.speechColor);
+  draftsStore.update((map) => ({ ...map, [draft.roomId]: candidate }));
 }
 
 /** 指定 roomId の有効な draft。なければ null */
 export function loadDraft(roomId: string): ChanariDraft | null {
-  return draftsStore.getSnapshot()[roomId] ?? null;
+  const draft = draftsStore.getSnapshot()[roomId];
+  return draft && draft.roomId === roomId && isValidDraft(draft, Date.now()) ? draft : null;
 }

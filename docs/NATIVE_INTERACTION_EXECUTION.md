@@ -50,3 +50,7 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 ## R4b
 
 通常部屋のconnecting/disconnected表示、ランキングの古い結果＋取得時刻/再試行を追加。Activityの読書位置を維持し、通常ログ/ランキングのscroll枠と共通ログ内のoverflowを整理。極小高さはscroll stack、reduced motionはpulse/spin/transitionとGIFの静的な代替表記へ適用。通知音の有効化をuser activationへ接続し、再生可否・ミュート・失敗を分離。look/unlookのcase-sensitive parserを表示/保存後/受信で共通化し、mute/unlook後の遅れたdecodeも鳴らさない。visibility/pageshowで時計と取得鮮度を更新し、本文/読書位置を保持。hydrate前のdirty入力を保存設定で上書きしないSSGテスト合格。ブラウザ音声の実機出力・BFCache/lock・支援技術は手動ゲートとして残す。
+
+## R5a
+
+本文をChanariChatRoomへ局所化、初回seed/再入室空本文/明示復元を分離。300ms debounce・送信前・hidden・unmountで最後の非空draftを保存し、clear/退室で空保存しない。pending/busyと即時clear、旧画面応答無視、新しい編集を壊さない失敗回復、IME/書記素/コードポイント/説明IDを実装。schemaで型/色/部屋一致/有限時刻/期限を検査し、cache未更新でもloadDraftで再検査。名前20文字を維持しpicker/label/エラーを整備。表示のみ項目は非活性化し27/21選択肢とmetadata不変を維持、仕様/storiesを更新。上段containerの折返し、切断中だけのpollingにhidden停止/復帰一回を追加。型・lint・Compiler・関連22 tests・contracts生成・44 browser tests合格。

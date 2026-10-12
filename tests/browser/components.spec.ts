@@ -137,3 +137,17 @@ test('reduced motion hides animated decoration and very short viewport preserves
   await page.getByRole('button', { name: '発言', exact: true }).click();
   await expect(page.getByLabel('送信結果')).toHaveText('短い画面でも送信');
 });
+
+test('chanari local draft and display-only fields work at 320px', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto('/tests/browser/fixtures/components.html?chanari=1');
+  await expect(page.getByLabel('エフェクト', { exact: true })).toBeDisabled();
+  const input = page.getByRole('textbox', { name: '発言', exact: true });
+  await input.fill('部屋別の下書き');
+  await page.getByRole('button', { name: 'チャットで発言する', exact: true }).click();
+  await expect(input).toHaveValue('');
+  await page.getByRole('button', { name: '発言復元', exact: true }).click();
+  await expect(input).toHaveValue('部屋別の下書き');
+  const box = await input.boundingBox();
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
+});

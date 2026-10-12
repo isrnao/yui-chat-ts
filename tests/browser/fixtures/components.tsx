@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import '../../../src/App.css';
+import ChanariChatRoom from '../../../src/features/chanari-chat/components/ChanariChatRoom';
+import '../../../src/features/chanari-chat/styles/chanari.css';
 import SoundControls from '../../../src/features/chat/components/SoundControls';
 import ChatLogList from '../../../src/features/chat/components/ChatLogList';
 import { useIpFilter } from '../../../src/features/chat/hooks/useIpFilter';
@@ -23,6 +25,8 @@ const fixtureChats: Chat[] = Array.from({ length: 1000 }, (_, i) => ({
 }));
 export function Components() {
   const filter = useIpFilter();
+  const chanari = new URLSearchParams(location.search).has('chanari');
+  const [draft, setDraft] = useState('');
   const [confirm, setConfirm] = useState(false);
   const [request, setRequest] = useState(0);
   const [applied, setApplied] = useState(0);
@@ -78,7 +82,30 @@ export function Components() {
         minTop={100}
         minBottom={100}
         top={
-          entered ? (
+          chanari ? (
+            <div className="chanari-container">
+              <div className="chanari-scope">
+                <ChanariChatRoom
+                  initialMessage=""
+                  onSaveDraft={setDraft}
+                  onSend={async (body) => {
+                    setSent(body);
+                  }}
+                  onReload={() => {}}
+                  onExit={() => {}}
+                  onClearMyLogs={() => {}}
+                  nameColor={color}
+                  setNameColor={setColor}
+                  speechColor="#000000"
+                  setSpeechColor={() => {}}
+                  reloadSeconds={7}
+                  setReloadSeconds={() => {}}
+                  onRestoreDraft={() => draft}
+                  sid=""
+                />
+              </div>
+            </div>
+          ) : entered ? (
             <ChatRoom
               userName={name}
               windowRows={rows}

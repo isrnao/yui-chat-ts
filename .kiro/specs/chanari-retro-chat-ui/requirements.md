@@ -377,3 +377,12 @@
 | P-6      | `draftStore` の round-trip 保存                          | Requirement 13.3                           |
 | P-7      | `matchChanariRoute` の整合性 (build → match が identity) | Requirement 1.1, 1.6, 1.7                  |
 | P-8      | `matchChanariRoute` の未知ルート拒否                     | Requirement 1.3, 1.8                       |
+
+
+## 2026-10-12 インタラクション改訂（R5a）
+
+共有部品は本計画の改善を含めて再利用する。上段containerだけにChanariの折返しを適用し、共通ログへ色/サイズを波及させない。名前20文字の従来上限は維持する。
+
+本文stateはChanariChatRoom内に置き、初回seed・明示復元・保存callbackでページと連携する。再入室は空本文、最後の非空draftは部屋別に300ms debounce/送信前/visibility hidden/unmountで保存し、clear/退室で空にしない。型/色/部屋一致/有限時刻/1年期限を保存と復元で検査する。別タブの変更で編集中本文を上書きせず、発言復元buttonから最新候補を取得する。pendingとbusy guardで二重要求を防ぎ、失敗時に新しい編集を壊さず本文を回復する。入力は120書記素と共通コードポイント上限を適用し、IME確定を送信にしない。
+
+発言色・エフェクト27種・文字サイズ21種・エフェクト無効・ATフィールドは表示のみの非活性操作とする。不要なlocal stateは除去し、metadataには接続しない。名前色は明示更新時のみsession identityへ反映する。接続中はpollingを行わず、切断中の非表示タブでtimerを停止し、表示復帰で一回取得する。

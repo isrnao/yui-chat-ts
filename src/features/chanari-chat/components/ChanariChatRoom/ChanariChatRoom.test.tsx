@@ -1,11 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, act } from '@testing-library/react';
 import ChanariChatRoom, { type ChanariChatRoomProps } from './index';
 
 function setup(overrides: Partial<ChanariChatRoomProps> = {}) {
   const props: ChanariChatRoomProps = {
-    message: 'こんにちは',
-    setMessage: vi.fn(),
+    initialMessage: 'こんにちは',
     onSend: vi.fn(() => Promise.resolve()),
     onReload: vi.fn(),
     onExit: vi.fn(),
@@ -46,4 +45,63 @@ describe('ChanariChatRoom の失敗表示', () => {
     expect(alert).toHaveTextContent('ログを消去できませんでした');
     expect(alert).not.toHaveTextContent('Failed to');
   });
+});
+
+it('即時clear・二重送信抑止・新しい編集を壊さない失敗復元', async () => {
+  let reject!: (error: Error) => void;
+  const send = vi.fn(
+    () =>
+      new Promise<void>((_, fail) => {
+        reject = fail;
+      })
+  );
+  const save = vi.fn();
+  const { form } = setup({ onSend: send, onSaveDraft: save });
+  fireEvent.submit(form);
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('');
+  fireEvent.submit(form);
+  expect(send).toHaveBeenCalledTimes(1);
+  fireEvent.change(screen.getByRole('textbox', { name: '発言' }), {
+    target: { value: '新しい編集' },
+  });
+  await act(async () => reject(new Error('offline')));
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('新しい編集');
+  fireEvent.click(screen.getByRole('button', { name: '送信できなかった本文を戻す' }));
+  expect(screen.getByRole('textbox', { name: '発言' })).toHaveValue('こんにちは');
+  expect(save).toHaveBeenCalledWith('こんにちは');
+});
+it('draftをdebounce保存し、終了時に最新の非空本文を保存する', () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  const { unmount } = render(
+    <ChanariChatRoom
+      initialMessage=""
+      onSaveDraft={save}
+      onSend={() => {}}
+      onReload={() => {}}
+      onExit={() => {}}
+      onClearMyLogs={() => {}}
+      nameColor="#ff69b4"
+      setNameColor={() => {}}
+      speechColor="#000000"
+      setSpeechColor={() => {}}
+      reloadSeconds={7}
+      setReloadSeconds={() => {}}
+      onRestoreDraft={() => '他タブの候補'}
+      sid=""
+    />
+  );
+  const input = screen.getByRole('textbox', { name: '発言' });
+  fireEvent.change(input, { target: { value: 'あ' } });
+  fireEvent.change(input, { target: { value: 'あいう' } });
+  act(() => vi.advanceTimersByTime(299));
+  expect(save).not.toHaveBeenCalled();
+  act(() => vi.advanceTimersByTime(1));
+  expect(save).toHaveBeenCalledTimes(1);
+  expect(save).toHaveBeenLastCalledWith('あいう');
+  fireEvent.click(screen.getByRole('button', { name: '発言復元' }));
+  expect(input).toHaveValue('他タブの候補');
+  unmount();
+  expect(save).toHaveBeenLastCalledWith('他タブの候補');
+  vi.useRealTimers();
 });
