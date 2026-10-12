@@ -4,7 +4,7 @@ import type { Chat } from '@features/chat/types';
 import type { RealtimeStatus } from '@features/chat/api/realtime';
 import { getRoomLogStore } from '@features/chat/api/roomLogStore';
 import { useRoomLog } from '@features/chat/hooks/useRoomLog';
-import { useReloadInterval } from './useReloadInterval';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 
 // ChanariChatPage と同じ配線を再現し、実際の取得回数を数える。
 // Realtime が届いている間はポーリングしない（= 無駄な問い合わせを出さない）ことの回帰テスト。
@@ -38,7 +38,7 @@ vi.mock('@features/chat/api/realtime', () => ({
 /** ChanariChatPage の配線: 切断中だけ定期更新を回す */
 function useChanariWiring(seconds: number) {
   const { realtimeStatus, reload } = useRoomLog(getRoomLogStore('durarara'));
-  useReloadInterval(seconds, reload, realtimeStatus === 'disconnected');
+  useVisibleInterval(seconds, reload, realtimeStatus === 'disconnected');
   return realtimeStatus;
 }
 

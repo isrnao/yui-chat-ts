@@ -15,7 +15,7 @@ import { normalizeColorCode } from './utils/colorCode';
 import ChanariTopHeader from './components/ChanariTopHeader';
 import ChanariEntryForm from './components/ChanariEntryForm';
 import ChanariChatRoom from './components/ChanariChatRoom';
-import { useReloadInterval } from './hooks/useReloadInterval';
+import { useVisibleInterval } from '@shared/hooks/useVisibleInterval';
 import { useChanariSettings } from './hooks/useChanariSettings';
 import { loadDraft, DEFAULT_RELOAD_SECONDS } from './utils/draftStore';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
@@ -81,7 +81,7 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
   // レガシー互換の定期更新は Realtime が切れている間のフォールバックとしてのみ動かす。
   // 接続中は push で新着が届くため、ポーリングしても取得済みの内容を取り直すだけになる
   // (既定 7 秒間隔なので 1 人あたり毎時 500 回を超える無駄な問い合わせになっていた)。
-  useReloadInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
+  useVisibleInterval(reloadSeconds, reload, entered && realtimeStatus === 'disconnected');
 
   return (
     <main className="flex min-h-dvh h-dvh flex-col overflow-hidden chanari-page-bg" role="main">

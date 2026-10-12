@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePageReturn } from '@shared/hooks/usePageReturn';
 import { getListableRoomIds } from '@features/chat/rooms';
 import {
   fetchRoomCountsResult,
@@ -11,6 +12,7 @@ export type UseRoomCountsState = Omit<RoomCountResult, 'kind'> & {
   retry: () => void;
 };
 const DEFAULT_WINDOW_MS = 6 * 60 * 60 * 1000;
+const STALE_AFTER_HIDDEN_MS = 60_000;
 export function useRoomCounts(windowMs: number = DEFAULT_WINDOW_MS): UseRoomCountsState {
   const [attempt, setAttempt] = useState(0);
   const [state, setState] = useState<Omit<UseRoomCountsState, 'retry'>>({
@@ -21,7 +23,6 @@ export function useRoomCounts(windowMs: number = DEFAULT_WINDOW_MS): UseRoomCoun
   });
   useEffect(() => {
     let cancelled = false;
-    let refreshed = Date.now();
     const controller = new AbortController();
     fetchRoomCountsResult(windowMs, controller.signal).then(
       (result) => {
@@ -44,27 +45,15 @@ export function useRoomCounts(windowMs: number = DEFAULT_WINDOW_MS): UseRoomCoun
           }));
       }
     );
-    const restore = (event: Event) => {
-      if (document.visibilityState === 'hidden') return;
-      const persisted =
-        typeof PageTransitionEvent !== 'undefined' &&
-        event instanceof PageTransitionEvent &&
-        event.persisted;
-      const age = Date.now() - refreshed;
-      if (age >= 60_000 || (persisted && age >= 1_000)) {
-        refreshed = Date.now();
-        setAttempt((value) => value + 1);
-      }
-    };
-    document.addEventListener('visibilitychange', restore);
-    window.addEventListener('pageshow', restore);
     return () => {
       cancelled = true;
       controller.abort();
-      document.removeEventListener('visibilitychange', restore);
-      window.removeEventListener('pageshow', restore);
     };
   }, [windowMs, attempt]);
+  // 表示していた時間ではなく隠れていた時間で古さを判断する（短いタブ切替のたびに取り直さない）
+  usePageReturn(({ hiddenMs, persisted }) => {
+    if (persisted || hiddenMs >= STALE_AFTER_HIDDEN_MS) setAttempt((value) => value + 1);
+  });
   return {
     ...state,
     retry: () => {

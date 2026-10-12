@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { usePageReturn } from '@shared/hooks/usePageReturn';
 
 const MINUTE_MS = 60_000;
 
@@ -21,20 +22,15 @@ export function useNowMinute(): number {
       }, MINUTE_MS);
     }, msUntilNextMinute);
 
-    const restore = () => {
-      if (document.visibilityState !== 'hidden') setNow(Date.now());
-    };
-    document.addEventListener('visibilitychange', restore);
-    window.addEventListener('pageshow', restore);
     return () => {
-      document.removeEventListener('visibilitychange', restore);
-      window.removeEventListener('pageshow', restore);
       clearTimeout(timeoutId);
       if (intervalId !== null) {
         clearInterval(intervalId);
       }
     };
   }, []);
+  // 隠れている間はタイマーが遅れるので、戻ったときに今の時刻へ合わせる
+  usePageReturn(() => setNow(Date.now()));
 
   return now;
 }

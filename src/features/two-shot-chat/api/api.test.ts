@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { act, renderHook } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { callTwoShot, fetchLobby, REQUEST_TIMEOUT_MS } from './twoShotApi';
@@ -8,7 +7,6 @@ import { parseSession, sessionStore } from './sessionStore';
 import { entryStore } from './entryStore';
 import { createLobbyStore } from './lobbyStore';
 import { getRoomResource, seedRoomResource } from './roomResource';
-import { useAutoRefresh } from '../hooks/useAutoRefresh';
 
 const TOKEN = createEntryToken(1_790_000_000_000);
 const ROOM = JSON.parse(
@@ -258,40 +256,5 @@ describe('入室後の初期取得', () => {
     await vi.waitFor(() => expect(resource.getSnapshot()).toEqual({ kind: 'error' }));
     expect(sessionStore.getSnapshot()).not.toBeNull();
     unsubscribe();
-  });
-});
-
-describe('useAutoRefresh', () => {
-  function setVisibility(state: 'visible' | 'hidden') {
-    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
-    document.dispatchEvent(new Event('visibilitychange'));
-  }
-
-  it('表示中だけ間隔で呼び、非表示では止め、表示に戻ったらすぐ 1 回呼ぶ', () => {
-    vi.useFakeTimers();
-    setVisibility('visible');
-    const onTick = vi.fn();
-    const { rerender, unmount } = renderHook(({ enabled }) => useAutoRefresh(20, onTick, enabled), {
-      initialProps: { enabled: true },
-    });
-    act(() => vi.advanceTimersByTime(40_000));
-    expect(onTick).toHaveBeenCalledTimes(2);
-    act(() => setVisibility('hidden'));
-    act(() => vi.advanceTimersByTime(60_000));
-    expect(onTick).toHaveBeenCalledTimes(2);
-    act(() => setVisibility('visible'));
-    expect(onTick).toHaveBeenCalledTimes(3);
-    rerender({ enabled: false });
-    act(() => vi.advanceTimersByTime(60_000));
-    expect(onTick).toHaveBeenCalledTimes(3);
-    unmount();
-  });
-
-  it('0 秒（なし）では何もしない', () => {
-    vi.useFakeTimers();
-    const onTick = vi.fn();
-    renderHook(() => useAutoRefresh(0, onTick, true));
-    act(() => vi.advanceTimersByTime(60_000));
-    expect(onTick).not.toHaveBeenCalled();
   });
 });

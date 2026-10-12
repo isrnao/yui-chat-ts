@@ -34,20 +34,26 @@ describe('useRoomLog の復帰時の取り直し', () => {
 
   it('表示していた時間ではなく、隠れていた時間で取り直すかを決める', () => {
     vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => visibility);
-    const now = vi.spyOn(Date, 'now').mockReturnValue(0);
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
     const { reload } = setup();
+    // ページへ戻った通知は、BFCache の pageshow と 1 回にまとめるため少し遅れて届く
+    const returnAfter = (hiddenMs: number) =>
+      act(() => {
+        setVisibility('hidden');
+        vi.advanceTimersByTime(hiddenMs);
+        setVisibility('visible');
+        vi.advanceTimersByTime(50);
+      });
 
     // 10 分表示したあと、2 秒だけ別のタブへ行って戻る
-    now.mockReturnValue(600_000);
-    act(() => setVisibility('hidden'));
-    now.mockReturnValue(602_000);
-    act(() => setVisibility('visible'));
+    act(() => vi.advanceTimersByTime(600_000));
+    returnAfter(2_000);
     expect(reload).not.toHaveBeenCalledWith('reconnect');
 
     // 1 分以上隠れていたら取り直す
-    act(() => setVisibility('hidden'));
-    now.mockReturnValue(662_000);
-    act(() => setVisibility('visible'));
+    returnAfter(60_000);
     expect(reload).toHaveBeenCalledWith('reconnect');
+    vi.useRealTimers();
   });
 });
