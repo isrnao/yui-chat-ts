@@ -41,7 +41,6 @@ export default function TopPage() {
             <h2 className="text-[13px] font-bold text-blue-700">{intro.title}</h2>
             <p className="mt-1 leading-relaxed">{intro.body.join('')}</p>
           </section>
-          <p className="px-2 text-xs">人数は直近6時間の公開ログの発言者数です。</p>
           {/* 出すのは失敗したときだけ。取得中の表示は SSG の HTML にも入り、取得が終わると消えて
               部屋の一覧を押し上げる（レイアウトシフト）ので出さない */}
           {countState.kind !== 'ready' && countState.kind !== 'loading' && (

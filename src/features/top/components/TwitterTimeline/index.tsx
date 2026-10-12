@@ -50,13 +50,6 @@ export function TwitterTimeline({ screenName }: { screenName: string }) {
   return (
     <div ref={rootRef} className="p-2">
       <div ref={vendorRef} />
-      <a
-        href={`https://twitter.com/${safeName}?ref_src=twsrc%5Etfw`}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Xで{safeName}を見る
-      </a>
       {state === 'failed' && (
         <p role="status">
           埋め込みを読み込めませんでした。

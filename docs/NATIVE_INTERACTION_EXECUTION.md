@@ -51,6 +51,8 @@ LogSourceのprojectionをfetch/Realtime/保存応答/楽観行へ統一し、全
 
 R3の発言ごとの「操作」button/popover（C09/C10）と、R4bの「通知音を有効にする」「通知音をミュート」（A13の表示部分）を撤去した。どちらもCSS/HTMLへの移行ではなく画面への機能追加だったため。フィルタ・通報は従来どおり行のダブルタップ → 確認dialog（「通報する」）で到達する。通知音は従来どおりユーザー操作内の再生時にAudioContextをresumeする。look/unlookの共通parser、unlook後に遅れたdecodeを鳴らさない処理、resumeの時間上限、接続状態の表示は維持。browser testsはダブルタップ経由のフィルタ・通報・focus復帰へ置き換えた。
 
+さらに、SSGのHTMLに入って初期表示を押し下げていた「接続中…」（R4b）と「人数を取得中…」（R5b）を出さないようにし（状態表示は失敗時だけ）、トップの「人数は直近6時間の公開ログの発言者数です。」とXの埋め込みの下の「Xで…を見る」（R5b）を撤去した。
+
 ## R4b
 
 通常部屋のconnecting/disconnected表示、ランキングの古い結果＋取得時刻/再試行を追加。Activityの読書位置を維持し、通常ログ/ランキングのscroll枠と共通ログ内のoverflowを整理。極小高さはscroll stack、reduced motionはpulse/spin/transitionとGIFの静的な代替表記へ適用。通知音の有効化をuser activationへ接続し、再生可否・ミュート・失敗を分離。look/unlookのcase-sensitive parserを表示/保存後/受信で共通化し、mute/unlook後の遅れたdecodeも鳴らさない。visibility/pageshowで時計と取得鮮度を更新し、本文/読書位置を保持。hydrate前のdirty入力を保存設定で上書きしないSSGテスト合格。ブラウザ音声の実機出力・BFCache/lock・支援技術は手動ゲートとして残す。
