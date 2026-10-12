@@ -1,9 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-  countTwoShotSeats,
-  fetchRoomCountsResult,
-  toRoomCountMap,
-} from './roomCountsApi';
+import { countTwoShotSeats, fetchRoomCountsResult, toRoomCountMap } from './roomCountsApi';
 
 // ツーショットチャットは hotfix で一時的に止めている（rooms.ts の TWO_SHOT_CHAT_ENABLED）。
 // このファイルは再開したときの動作を確かめるので、有効にして動かす。止めている間の動作は twoShotDisabled.test.tsx
