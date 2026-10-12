@@ -32,6 +32,9 @@ import {
 import { INPUT_ERROR_MESSAGES } from '@features/chat/inputErrorMessages';
 import { normalizeChat } from '@features/chat/utils/normalizeMetadata';
 import { validateName } from '@features/chat/utils/validation';
+import { UI_MESSAGES } from '@features/chat/uiMessages';
+import { LEGAL_PAGE_PATHS, TERMS_VERSION } from '@features/legal/legal';
+import { buildAbsoluteUrl } from '@shared/utils/seo';
 import {
   createRoomLogStore,
   INITIAL_CHAT_LOG_LIMIT,
@@ -1058,6 +1061,13 @@ export async function buildContracts(themeCss: string): Promise<ContractFiles> {
     'theme.json': theme(themeCss),
     'chat-options.json': chatOptions(),
     'server-messages.json': serverMessages(),
+    'ui-messages.json': UI_MESSAGES,
+    'legal.json': {
+      termsVersion: TERMS_VERSION,
+      pages: Object.fromEntries(
+        Object.entries(LEGAL_PAGE_PATHS).map(([key, path]) => [key, buildAbsoluteUrl(path)])
+      ),
+    },
     'fixtures/legacy-date-time.json': legacyDateTime(),
     'fixtures/admin-events.json': adminEvents(),
     'fixtures/participants.json': participants(),
