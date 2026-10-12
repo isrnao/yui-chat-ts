@@ -401,7 +401,7 @@
 9. WHILE 送信が pending である, THE Chanari_Chat_Room SHALL 二重の要求を出さない
 10. IF 送信に失敗する, THEN THE Chanari_Chat_Room SHALL 失敗後に入力された新しい本文を壊さずに本文を回復する
 11. THE Chanari_Chat_Room SHALL 本文に 120 書記素と共通のコードポイント上限を適用し、IME の確定を送信として扱わない
-12. THE Chanari_Chat_Room SHALL 発言色・エフェクト 27 種・文字サイズ 21 種・エフェクト無効・AT フィールドを表示のみの非活性の操作とし、metadata に接続しない
+12. THE Chanari_Chat_Room SHALL 発言色・エフェクト 27 種・文字サイズ 21 種・エフェクト無効・AT フィールドを操作できる飾りとして描画し、エフェクト・文字サイズ・エフェクト無効・AT フィールドの状態は自身のローカル state にだけ持ち、metadata・送信・ログの描画に接続しない（Requirement 10・16・17）
 13. WHEN 利用者が名前色を明示的に変更する, THE Chanari_Page SHALL その値を session identity に反映する
 14. WHILE Realtime が接続中である, THE Reload_Interval_Hook SHALL polling を行わない
 15. WHILE Realtime が切断中でタブが hidden である, THE Reload_Interval_Hook SHALL timer を止め、WHEN タブが再び表示される, THE Reload_Interval_Hook SHALL 一回だけ取得する

@@ -33,7 +33,7 @@ export const CHANARI_TEXTS = {
   exit: 'チャットから退室する',
 } as const;
 
-/** 選択肢（エフェクトと文字サイズは表示のみの非活性項目） */
+/** 選択肢（エフェクトと文字サイズは選べるが、送信にもログの描画にも使わない飾り） */
 export const CHANARI_OPTIONS = {
   effects: EFFECT_OPTIONS.map(({ id, label }) => ({ id, label })),
   fontSizes: FONT_SIZE_OPTIONS.map(({ id, label }) => ({ id, label })),

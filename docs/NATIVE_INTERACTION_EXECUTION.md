@@ -59,6 +59,7 @@ R3の発言ごとの「操作」button/popover（C09/C10）と、R4bの「通知
 #220 の統合後に全体を見直し、次を整理した。
 
 - 追加表示の撤去: Chanari の「表示のみです」「（表示のみ）」、「入室処理中...」、送信の再試行ボタン（「前の送信を再試行」「同じ送信を再試行」「送信できなかった本文を戻す」）と useChatSession の failedSend / retry
+- Chanari の発言色・エフェクト・文字サイズ・エフェクト無効・AT フィールド: R5a で非活性にしたが、仕様（chanari-retro-chat-ui Requirement 10・16・17）どおり操作できる飾りに戻した。状態は ChanariChatRoom の中だけで持ち、送信とログの描画には使わない
 - ダイアログ: 開閉を `open` の 1 通りにし、request の数・Invoker Commands・共有の invoker Map・独自イベントをやめた。ビルドの対象（es2022）を動かせるブラウザはすべて `<dialog>` を持つので、LegacyModalShell と dialogControl を削除した。上の記録の「fallback」は R9 で撤去済み
 - ページ復帰: `subscribePageReturn` / `usePageReturn` に一本化し、隠れていた時間で古さを判断する。トップの人数が表示から 60 秒後に短いタブ切替のたびに取り直されていた不具合を直した。表示中だけの定期実行は `useVisibleInterval` に一本化した
 - useChatSession: ref と useState の二重管理をやめ、小さな store 1 つにした

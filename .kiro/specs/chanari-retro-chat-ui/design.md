@@ -1068,4 +1068,4 @@ export default function ChanariChatPage({ roomId }: { roomId: RoomId }) {
 
 本文stateはChanariChatRoom内に置き、初回seed・明示復元・保存callbackでページと連携する。再入室は空本文、最後の非空draftは部屋別に300ms debounce/送信前/visibility hidden/unmountで保存し、clear/退室で空にしない。型/色/部屋一致/有限時刻/1年期限を保存と復元で検査する。別タブの変更で編集中本文を上書きせず、発言復元buttonから最新候補を取得する。pendingとbusy guardで二重要求を防ぎ、失敗時に新しい編集を壊さず本文を回復する。入力は120書記素と共通コードポイント上限を適用し、IME確定を送信にしない。
 
-発言色・エフェクト27種・文字サイズ21種・エフェクト無効・ATフィールドは表示のみの非活性操作とする。不要なlocal stateは除去し、metadataには接続しない。名前色は明示更新時のみsession identityへ反映する。接続中はpollingを行わず、切断中の非表示タブでtimerを停止し、表示復帰で一回取得する。
+発言色・エフェクト27種・文字サイズ21種・エフェクト無効・ATフィールドは、Requirement 10・16・17 のとおり操作できる飾りとする（R5a で一時的に非活性にしたものを R9 で戻した）。エフェクト・文字サイズ・エフェクト無効・ATフィールドの状態は ChanariChatRoom のローカル state にだけ持ち、metadata・送信・ログの描画には接続しない。名前色は明示更新時のみsession identityへ反映する。接続中はpollingを行わず、切断中の非表示タブでtimerを停止し、表示復帰で一回取得する。

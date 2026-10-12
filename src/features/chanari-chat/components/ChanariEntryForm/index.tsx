@@ -84,13 +84,13 @@ export default function ChanariEntryForm({
             type="text"
             size={7}
             aria-label={CHANARI_TEXTS.speechColor}
-            disabled
+            disabled={isPending}
             value={speechColor}
             onChange={(event) => setSpeechColor(event.target.value)}
           />
         </label>
         <ChanariColorPicker
-          disabled
+          disabled={isPending}
           value={speechColor}
           onChange={setSpeechColor}
           ariaLabel="発言色カラーピッカー"

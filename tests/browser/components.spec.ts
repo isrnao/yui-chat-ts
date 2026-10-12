@@ -86,10 +86,16 @@ test('reduced motion hides animated decoration and very short viewport preserves
   await expect(page.getByLabel('送信結果')).toHaveText('短い画面でも送信');
 });
 
-test('chanari local draft and display-only fields work at 320px', async ({ page }) => {
+test('chanari local draft and decorative controls work at 320px', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 640 });
   await page.goto('/tests/browser/fixtures/components.html?chanari=1');
-  await expect(page.getByLabel('エフェクト', { exact: true })).toBeDisabled();
+  // エフェクト・AT フィールドは操作できる飾り（送信には使わない）
+  const effect = page.getByLabel('エフェクト', { exact: true });
+  await expect(effect).toBeEnabled();
+  await effect.selectOption({ index: 1 });
+  const atField = page.getByRole('button', { name: 'AT フィールド', exact: true });
+  await atField.click();
+  await expect(atField).toHaveAttribute('aria-pressed', 'true');
   const input = page.getByRole('textbox', { name: '発言', exact: true });
   await input.fill('部屋別の下書き');
   await page.getByRole('button', { name: 'チャットで発言する', exact: true }).click();

@@ -104,3 +104,28 @@ it('draftをdebounce保存し、終了時に最新の非空本文を保存する
   expect(save).toHaveBeenLastCalledWith('他タブの候補');
   vi.useRealTimers();
 });
+
+it('発言色・エフェクト・文字サイズ・エフェクト無効・AT フィールドは操作でき、送信には渡さない', async () => {
+  const { props, form } = setup();
+  fireEvent.change(screen.getByRole('textbox', { name: '発言色' }), {
+    target: { value: '#00ff00' },
+  });
+  expect(props.setSpeechColor).toHaveBeenCalledWith('#00ff00');
+  const effect = screen.getByRole('combobox', { name: 'エフェクト' }) as HTMLSelectElement;
+  const fontSize = screen.getByRole('combobox', { name: '文字サイズ' }) as HTMLSelectElement;
+  fireEvent.change(effect, { target: { value: effect.options[1]!.value } });
+  fireEvent.change(fontSize, { target: { value: fontSize.options[1]!.value } });
+  expect(effect.value).toBe(effect.options[1]!.value);
+  expect(fontSize.value).toBe(fontSize.options[1]!.value);
+  const disableEffect = screen.getByRole('checkbox', { name: 'エフェクト無効' });
+  fireEvent.click(disableEffect);
+  expect(disableEffect).toBeChecked();
+  const atField = screen.getByRole('button', { name: 'AT フィールド' });
+  fireEvent.click(atField);
+  expect(atField).toHaveAttribute('aria-pressed', 'true');
+
+  fireEvent.submit(form);
+  await act(async () => {});
+  // 送信は本文だけ。飾りの状態は metadata にも引数にも入れない（Requirement 17）
+  expect(props.onSend).toHaveBeenCalledExactlyOnceWith('こんにちは');
+});
