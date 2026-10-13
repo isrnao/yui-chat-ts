@@ -25,12 +25,12 @@
 | ---------------------- | ------------------------ | --------------------------------------------------------------- |
 | フレームワーク         | React                    | 19.3.0                                                          |
 | 言語                   | TypeScript               | 6.0.3                                                           |
-| ビルドツール           | Vite                     | 8.0.13                                                          |
-| CSS                    | Tailwind CSS             | 4.1.8                                                           |
-| バックエンド           | Supabase (PostgreSQL)    | 2.105.4（postgrest-js / realtime-js / functions-js を直接使う） |
-| テスト                 | Vitest + Testing Library | 3.2.4                                                           |
-| コンポーネントカタログ | Storybook                | 10.4.0                                                          |
-| パッケージマネージャ   | pnpm 10                  | -                                                               |
+| ビルドツール           | Vite                     | 8.3.4                                                          |
+| CSS                    | Tailwind CSS             | 4.3.3                                                           |
+| バックエンド           | Supabase (PostgreSQL)    | 2.117.3（postgrest-js / realtime-js / functions-js を直接使う） |
+| テスト                 | Vitest + Testing Library | 5.0.4                                                           |
+| コンポーネントカタログ | Storybook                | 10.6.1                                                          |
+| パッケージマネージャ   | pnpm 12.11.2             | -                                                               |
 | 実行環境（CI / 推奨）  | Node.js 24               | -                                                               |
 | デプロイ               | GitHub Pages (gh-pages)  | -                                                               |
 
@@ -659,7 +659,7 @@ on:
 jobs:
   test:
     - actions/checkout@v4
-    - pnpm/action-setup@v4  (packageManager: pnpm@10.34.6)
+    - pnpm/action-setup@v6  (packageManager: pnpm@12.11.2)
     - actions/setup-node@v6  (node 24, cache: pnpm)
     - pnpm install --frozen-lockfile
     - pnpm typecheck

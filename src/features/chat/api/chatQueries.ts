@@ -148,15 +148,13 @@ export async function loadChatRanking(roomId: RoomId = DEFAULT_ROOM_ID): Promise
     // 並びはサーバーで付けているが、クライアント集計と同じ比較関数で揃え直しておく
     // (同数・同時刻の並びをクライアント集計 aggregateChatRanking と一致させるため)
     return ((data ?? []) as ChatRankingRow[])
-      .map(
-        (row): RankingEntry => ({
-          name: row.name,
-          count: row.post_count,
-          lastTime: row.last_time,
-          color: row.color,
-          host: row.host ?? '',
-        })
-      )
+      .map((row): RankingEntry => ({
+        name: row.name,
+        count: row.post_count,
+        lastTime: row.last_time,
+        color: row.color,
+        host: row.host ?? '',
+      }))
       .sort(compareRankingEntries);
   });
 }

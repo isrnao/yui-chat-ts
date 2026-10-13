@@ -4,7 +4,7 @@ Issue #234 / WP3 #238（2026-10-13）。対象は配信時点の最新stableのC
 
 ## 自動ゲート
 
-Playwrightの必須projectはChromium、Desktop WebKit、Mobile WebKit。Node.js 24、packageManagerのpnpm 10.34.6、frozen installをCIで使用する。pnpm/action-setupの別version指定を置かず、Chromatic/save-chat/two-shotも同じpinを読む。
+Playwrightの必須projectはChromium、Desktop WebKit、Mobile WebKit。Node.js 24、packageManagerのpnpm 12.11.2、frozen installをCIで使用する。pnpm/action-setupの別version指定を置かず、Chromatic/save-chat/two-shotも同じpinを読む。
 
 ## 実機確認と残る条件
 

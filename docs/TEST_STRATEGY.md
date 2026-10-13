@@ -82,7 +82,7 @@ src/features/chat/api/
 
 ## 6. CI / CD 連携
 
-- PRトリガーでtypecheck・lint・`pnpm test`（Vitest）を必須実行。Node.js 24と`packageManager`指定のpnpm 10.34.6、`--frozen-lockfile`を使う。
+- PRトリガーでtypecheck・lint・`pnpm test`（Vitest）を必須実行。Node.js 24と`packageManager`指定のpnpm 12.11.2、`--frozen-lockfile`を使う。
 - browser.ymlは同じNode/pnpm条件で公開SSGビルドとChromium/Desktop WebKit/Mobile WebKitを必須実行。Firefoxは支持対象外。実Chrome/Safariの支持範囲・手動確認の未確認事項は[BROWSER_SUPPORT.md](BROWSER_SUPPORT.md)で管理する。
 - Chromatic は push / PR（main, develop）で Storybook をビルドしビジュアル差分を検出
   - Node.js 24 / `packageManager`指定のpnpm / `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`

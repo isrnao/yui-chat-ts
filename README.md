@@ -92,8 +92,8 @@ React Routerには依存せず、`src/routes/resolveRoute.ts`でpathnameを解�
 
 ### 必要環境
 
-- Node.js: `>=20.19.0 <21`または`>=22.13.0`（`mise.toml`の推奨は22、CIは24）
-- pnpm 10
+- Node.js: 22.22.2以上の22系、24.15.0以上の24系、または26以上（CIは24）
+- pnpm 12.11.2（`packageManager`で固定）
 - Edge Functionのローカル確認／デプロイ時: Supabase CLI、Deno、Docker
 
 ```bash
@@ -164,7 +164,7 @@ SupabaseがEdge Functionへ自動提供する`SUPABASE_URL`と`SUPABASE_SERVICE_
 
 ### GitHub Actions
 
-- `.github/workflows/ci.yml`: pull requestでNode 24／`pnpm test`を実行します。現状は`continue-on-error: true`で、lint、typecheck、buildは実行しない非gatingチェックです。
+- `.github/workflows/ci.yml`: Node 24／pnpm 12でfrozen install・型検査・lint・coverage付きVitestを必須実行します。`browser.yml`は公開SSGビルドと3ブラウザ構成の回帰試験を担当します。
 - `.github/workflows/chromatic.yml`: `main`／`develop`へのpushとpull requestでStorybookをbuildし、Chromaticへpublishします。`CHROMATIC_PROJECT_TOKEN`、`VITE_SUPABASE_URL`、`VITE_SUPABASE_ANON_KEY`をGitHub Actions Secretsへ登録します。
 
 ## 外部システムと送信データ
