@@ -9,7 +9,6 @@ import { EMAIL_MAX, NAME_MAX } from '@features/chat/inputRules';
 import type { AvatarId } from '@features/chat/types';
 import { CHAT_TEXTS, fillText } from '@features/chat/chatTexts';
 import { useEntrySubmission } from '@shared/hooks/useEntrySubmission';
-import EntryFormHelp from '@shared/components/EntryFormHelp';
 
 type EntryFormProps = {
   roomTitle?: string;
@@ -260,7 +259,6 @@ export default function EntryForm({
             {error}
           </div>
         )}
-        <EntryFormHelp />
         <div className="text-xs text-gray-500 text-right mt-1">
           <a href={CHAT_TEXTS.entry.creditUrl} target="_blank" rel="noreferrer">
             {CHAT_TEXTS.entry.credit}

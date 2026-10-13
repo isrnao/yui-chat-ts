@@ -35,7 +35,7 @@
 - 通常・ChanariのSSG submitをdisabledにし、入力は編集可能に保つ。フォーム内のuseSyncExternalStoreのserver snapshotはfalse、client snapshotはtrueとし、hydration中のHTMLを一致させる。root全体の解禁フラグは使わない。
 - 先行入力をlayout effectで取り込み、同じhydration境界で保存設定に追随する。Chanariにも同じ保持処理を追加。
 - submit handlerは未準備・pending・同一tickの二重送信を拒否。同期例外/Promise rejectionを親の失敗表示へ委ね、IME中のEnterも抑止。
-- 静的detailsに説明・再読込・トップへのリンクを置き、hydration前後で表示領域を変えない。送信失敗時の本文復元・下書き・dialog構造は既存仕様を維持。
+- 追加した入室ヘルプは2026-10-13のユーザー指定で撤去。通常・ChanariともJS有効化の説明や追加リンクを表示せず、SSGの送信不可・先行入力保持・送信失敗時の本文復元・下書き・dialog構造を維持する。
 
 ### 検証
 

@@ -290,7 +290,7 @@ mergeChat(newChat)
 
 ### 5.3 初期読み込みフロー
 
-通常・Chanariの入室フォームはSSG時点で送信ボタンをdisabledにし、入力欄は編集可能に保ちます。`useEntrySubmission`は各フォームのhydration中にはfalse、クライアント描画ではtrueを返し、layout effectで取り込んだ先行入力と保存設定を反映してから送信を解禁します。submit handlerも未準備・pending・同一tickの二重送信を拒否します。JSが使えない場合も静的な「入室できないとき」の説明・再読み込み・トップへのリンクを利用できます。
+通常・Chanariの入室フォームはSSG時点で送信ボタンをdisabledにし、入力欄は編集可能に保ちます。`useEntrySubmission`は各フォームのhydration中にはfalse、クライアント描画ではtrueを返し、layout effectで取り込んだ先行入力と保存設定を反映してから送信を解禁します。submit handlerも未準備・pending・同一tickの二重送信を拒否します。追加のJavaScript有効化ヘルプは表示しません（2026-10-13のユーザー指定）。JSが使えない場合も部屋の静的説明と入力欄を表示し、送信不可の状態を維持します。
 
 ```
 ChatRoute マウント

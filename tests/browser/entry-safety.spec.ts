@@ -48,9 +48,6 @@ for (const entry of cases) {
         // disabled controls cannot be clicked by Playwright: issue the real pointer event directly.
         const box = await submit.boundingBox();
         await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
-        await page.getByText('入室できないとき', { exact: true }).click();
-        await expect(page.getByRole('link', { name: '再読み込み', exact: true })).toBeVisible();
-        await expect(page.getByRole('link', { name: 'トップへ戻る', exact: true })).toBeVisible();
         expect(page.url()).toBe(url);
         expect(navigations).toEqual([url]);
       } finally {

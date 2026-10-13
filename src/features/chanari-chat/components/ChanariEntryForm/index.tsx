@@ -1,6 +1,5 @@
 import { useId, useRef, useLayoutEffect, useEffectEvent, type FormEvent } from 'react';
 import { useEntrySubmission } from '@shared/hooks/useEntrySubmission';
-import EntryFormHelp from '@shared/components/EntryFormHelp';
 import { normalizeColorCode } from '../../utils/colorCode';
 import ChanariColorPicker from '../ChanariColorPicker';
 import { CHANARI_TEXTS } from '../../chanariTexts';
@@ -134,7 +133,6 @@ export default function ChanariEntryForm({
           {error}
         </div>
       )}
-      <EntryFormHelp />
     </form>
   );
 }

@@ -111,8 +111,6 @@ describe('SSG + hydrateRoot', { timeout: 30_000 }, () => {
       const submit = form.querySelector<HTMLButtonElement | HTMLInputElement>('[type="submit"]')!;
       expect(submit.disabled).toBe(true);
       expect(form.querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(false);
-      expect(form.textContent).toContain('入室できないとき');
-      expect(form.querySelector('a[href=""]')).not.toBeNull();
     }
   );
 
