@@ -2,8 +2,7 @@ import { DEFAULT_ROOM_ID, isEnabledRoomId, type RoomId } from '@features/chat/ro
 import { buildChatRoomPath } from '@features/chat/routing';
 
 export type ChanariRouteMatch =
-  | { type: 'chanari-room'; roomId: RoomId }
-  | { type: 'redirect'; to: string };
+  { type: 'chanari-room'; roomId: RoomId } | { type: 'redirect'; to: string };
 
 function trimSlashes(value: string): string {
   return value.replace(/^\/+|\/+$/g, '');
