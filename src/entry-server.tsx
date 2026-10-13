@@ -3,6 +3,9 @@ import { prerenderToNodeStream } from 'react-dom/static';
 import { text } from 'node:stream/consumers';
 import App from './App';
 
+// ビルド後のNodeスクリプトにも、描画と同じルート規則をコンパイル済みで渡す。
+export { getSsgPathname, getStaticAliases } from './routes/resolveRoute';
+
 /**
  * SSG 用のレンダラ。ビルド後に scripts/prerender-rooms.ts から呼ばれ、
  * 生成した HTML を dist の各ページの #root に埋める。

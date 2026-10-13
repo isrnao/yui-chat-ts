@@ -14,6 +14,7 @@ import { intro } from './data';
 
 export default function TopPage() {
   useSEO({
+    ssgPathname: import.meta.env.BASE_URL,
     title: 'お気楽チャットTS - 無料で気軽に参加できる目的別チャット',
     description:
       'お気楽チャットは、無料で気軽に参加できるチャットサービスです。初心者、学生、年代別、趣味、ゲーム、アニメ、なりきりなど目的別の部屋で友達探しや仲間作りを楽しめます。',

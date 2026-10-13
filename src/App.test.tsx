@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
+import { getStaticAliases } from './routes/resolveRoute';
 import { loadRecentChatLogs } from '@features/chat/api/chatQueries';
 import { fetchRoomCountsResult } from '@features/top/api/roomCountsApi';
 import { fetchLobby } from '@features/two-shot-chat/api/twoShotApi';
@@ -78,6 +79,12 @@ async function renderApp() {
 // ルートごとの lazy なチャンクを初めて変換する検査がある。並列の pre-commit（typecheck・eslint と同時）では
 // 既定の 5 秒を超え、時間切れの後に描画が残って次の検査も落ちるので、この describe だけ猶予を持たせる
 describe('<App />', { timeout: 30_000 }, () => {
+  it('専用2shotが有効な場合だけChanari 2shotに静的別名を生成する', () => {
+    expect(getStaticAliases()).toContainEqual({
+      pathname: '/chanari/2shot/',
+      target: '/chat/2shot/',
+    });
+  });
   // トップは入口なので lazy にしない。同期レンダーで本文が出ること自体が要件
   // (lazy に戻すと findBy が必要になり、実画面では読み込み待ちが挟まる)
   it('shows the top page immediately without route loading fallback', async () => {
@@ -177,6 +184,21 @@ describe('<App />', { timeout: 30_000 }, () => {
     await waitFor(() => {
       expect(loadRecentChatLogs).toHaveBeenCalledWith('superbeginner', 10, expect.any(AbortSignal));
     });
+  });
+
+  it.each([
+    ['/chat', '/chat/superbeginner/'],
+    ['/chanari', '/chanari/superbeginner/'],
+    ['/chanari/all', '/chat/all/'],
+    ['/chanari/2shot', '/chat/2shot/'],
+  ])('別名 %s を正規化してもquery/hashとhistory.stateを保持する', async (alias, target) => {
+    const suffix = '?utm_source=campaign&invite_id=a%26b#latest';
+    const state = { restored: true, scroll: 120 };
+    window.history.replaceState(state, '', `${alias}${suffix}`);
+    await renderApp();
+    await waitFor(() => expect(window.location.pathname).toBe(target));
+    expect(window.location.search + window.location.hash).toBe(suffix);
+    expect(window.history.state).toEqual(state);
   });
 
   // /chat/2shot/ は通常のチャット画面ではなく、ツーショットチャット（.kiro/specs/two-shot-chat Requirement 1）

@@ -19,7 +19,7 @@ import FilterListDialog from '@features/chat/components/FilterListDialog';
 import { useIpFilter } from '@features/chat/hooks/useIpFilter';
 import { filterByIp } from '@features/chat/utils/ipFilter';
 import { ErrorBoundary } from '@shared/components/ErrorBoundary';
-import { buildRoomSeo } from '@shared/utils/roomSeo';
+import { buildRoomPath, buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 
@@ -31,7 +31,7 @@ const ROOM_META = getRoomMeta('all');
 const ALL_ROOMS_SEO = buildRoomSeo('all');
 
 export default function AllRoomsRoute() {
-  useSEO(ALL_ROOMS_SEO);
+  useSEO({ ...ALL_ROOMS_SEO, ssgPathname: buildRoomPath('all') });
   usePageView(ALL_ROOMS_SEO.title);
 
   const measurement = useConversationMeasurement();

@@ -94,9 +94,8 @@ function buildHeadBlock(seo: RoomSeo): string {
   ];
 
   // ページ固有の構造化データ (WebPage + BreadcrumbList)。
-  // ランタイムでは useSEO が同じ data-page-jsonld ノードを同値で上書きする。
-  // jsonLd を持たないページ (なりきり) では useSEO がこのノードを削除するため、
-  // ここでも出さない。出すと hydrate 直後に消える不一致になる。
+  // 正しい静的SSGではこのノードをそのまま使い、非SSGではuseSEOが同じ値を設定する。
+  // jsonLd を持たないページ (なりきり) ではここでも出さず、runtimeの契約と揃える。
   // "<" は Unicode エスケープ (バックスラッシュ + u003c) に置換し、値に "</script>" が
   // 紛れても HTML が壊れないようにする
   // (JSON としては等価なので JSON.parse の結果は変わらない)
@@ -112,16 +111,27 @@ function buildHeadBlock(seo: RoomSeo): string {
 /**
  * SSG 済みの HTML を #root に流し込み、hydrate 対象であることを示す印を付ける。
  *
- * `data-ssg="1"` はクライアント (main.tsx) が hydrateRoot / createRoot を
- * 出し分けるための目印。SSG していないページへ誤って hydrate すると
- * マークアップ不一致になるため、印のあるページだけ hydrate する。
+ * `data-ssg-path`は同じSSRのルート解決規則から得る描画元の正規pathname。
+ * 起動時には現在の画面と照合し、異なるHTMLへhydrateしない。
  */
-export function injectSsgMarkup(html: string, markup: string): string {
+export function injectSsgMarkup(html: string, markup: string, pathname: string): string {
   const rootIndex = html.indexOf(ROOT_OPEN);
   if (rootIndex === -1) {
     throw new Error('prerender: #root が見つかりません');
   }
-  return html.replace(ROOT_OPEN, `<div id="root" data-ssg="1">${markup}`);
+  return html.replace(
+    ROOT_OPEN,
+    `<div id="root" data-ssg="1" data-ssg-path="${escapeHtml(pathname)}">${markup}`
+  );
+}
+
+/** JSなしの別名ページでも、正規の入口が実リンクで分かるようにする。 */
+export function injectAliasEntryLink(html: string, target: string): string {
+  if (!html.includes('<body>')) throw new Error('prerender: <body> が見つかりません');
+  return html.replace(
+    '<body>',
+    `<body><noscript><nav aria-label="部屋の入口"><a href="${escapeHtml(target)}">部屋の入口へ</a></nav></noscript>`
+  );
 }
 
 /**

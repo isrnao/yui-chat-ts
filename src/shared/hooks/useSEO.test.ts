@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useSEO, usePageView } from './useSEO';
 import type { UseSEOOptions } from './useSEO';
@@ -9,6 +9,60 @@ describe('useSEO', () => {
     document.title = '';
     document.head.innerHTML = '';
     vi.clearAllMocks();
+  });
+
+  describe('static SSG head', () => {
+    afterEach(() => document.getElementById('root')?.remove());
+
+    function addSsgRoot(path?: string, ssg = '1') {
+      const root = document.createElement('div');
+      root.id = 'root';
+      root.dataset.ssg = ssg;
+      if (path) root.dataset.ssgPath = path;
+      document.body.appendChild(root);
+    }
+
+    it('keeps the complete build-time head when the static route matches', () => {
+      addSsgRoot('/chat/anime/');
+      document.head.innerHTML =
+        '<title>SSG title</title><meta name="description" content="SSG description"><link rel="canonical" href="https://www.okiraku.chat/chat/anime/"><script type="application/ld+json" data-page-jsonld>{"name":"SSG"}</script>';
+      const head = document.head.innerHTML;
+      renderHook(() => useSEO({ ssgPathname: '/chat/anime/', title: 'runtime title' }));
+      expect(document.head.innerHTML).toBe(head);
+    });
+
+    it.each([
+      { path: undefined, ssg: '1' },
+      { path: '/', ssg: '1' },
+      { path: '/chat/anime/', ssg: '0' },
+    ])('repairs the head when SSG identity is absent or different: %j', ({ path, ssg }) => {
+      addSsgRoot(path, ssg);
+      document.title = 'wrong page';
+      renderHook(() =>
+        useSEO({
+          ssgPathname: '/chat/anime/',
+          title: 'Anime',
+          canonical: 'https://www.okiraku.chat/chat/anime/',
+        })
+      );
+      expect(document.title).toBe('Anime');
+      expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe(
+        'https://www.okiraku.chat/chat/anime/'
+      );
+    });
+
+    it('continues updating dynamic SEO even in a matching SSG document', () => {
+      addSsgRoot('/chat/2shot/');
+      const { rerender } = renderHook(({ title }) => useSEO({ title }), {
+        initialProps: { title: '入口' },
+      });
+      expect(document.title).toBe('入口');
+      rerender({ title: '入室後' });
+      expect(document.title).toBe('入室後');
+      expect(document.querySelector('meta[property="og:title"]')?.getAttribute('content')).toBe(
+        '入室後'
+      );
+    });
   });
 
   describe('title setting', () => {

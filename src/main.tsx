@@ -4,16 +4,12 @@ import './App.css';
 import App from './App';
 import { preloadRoute } from './routes/routeLoaders';
 import { recordVisitOncePerSession } from '@features/chat/utils/settingsStore';
+import { canHydrateSsg } from './routes/ssgHydration';
 
 // React ライフサイクルの影響を受けない位置で1回だけ呼び出す
 recordVisitOncePerSession();
 
 const container = document.getElementById('root')!;
-
-// SSG 済みのページ (prerender が data-ssg="1" を付ける) は hydrate する。
-// createRoot だと SSG した内容を捨てて描き直すため、せっかく HTML に入っている
-// 初期描画が一度消えてしまう。印が無いページ (dev サーバー等) は従来どおり createRoot。
-const isSsg = container.dataset.ssg === '1';
 
 function renderApp(): void {
   const tree = (
@@ -21,7 +17,8 @@ function renderApp(): void {
       <App />
     </StrictMode>
   );
-  if (isSsg) {
+  // preloadを待つ間にURLが変わった場合も、描画開始時点のルートを照合する。
+  if (canHydrateSsg(container, window.location.pathname)) {
     hydrateRoot(container, tree);
   } else {
     createRoot(container).render(tree);
