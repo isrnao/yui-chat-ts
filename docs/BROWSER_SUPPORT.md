@@ -17,6 +17,6 @@ Playwrightの必須projectはChromium、Desktop WebKit、Mobile WebKit。Node.js
 
 この作業環境にはmacOS 26.6.2、Chrome 155.0.8059.40、Safari 26.6.2がインストールされていることを確認した。アプリの版確認は操作試験の成功証拠ではなく、配信時点の最新stableであることの証明でもない。
 
-PR作成者（今回の自動試験はCodex）が自動ゲートの対象head・結果を記録する。リリース確認担当は実機試験前に各行の担当者を割り当て、実際のブラウザ/OS版と結果をPRに記録する。関連PRのレビュアーはその記録とCIを確認する。上表を埋めるまではWP3を完了扱いにせず、実装PRはdraftで追跡する。
+PR作成者（今回の自動試験はCodex）が自動ゲートの対象head・結果を記録する。リリース確認担当は実機試験前に各行の担当者を割り当て、実際のブラウザ/OS版と結果をPRに記録する。関連PRのレビュアーはその記録とCIを確認する。上表を埋めるまではWP3を完了扱いにしない。実装PR #247〜#252のdevelopへのマージ後は、main向け統合PRと#238で未確認事項を追跡する。
 
 `es2022`はJS変換対象でありDOM APIの支持を保証しない。native dialog一本化を維持し、Safari/Chrome差への既存cancel処理・idle実行の代替を残す。PlaywrightのWebKitやiPhone emulationを実Safari・VoiceOver確認と同一視しない。

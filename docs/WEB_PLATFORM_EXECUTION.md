@@ -2,6 +2,12 @@
 
 親Issue: [#234](https://github.com/isrnao/yui-chat-ts/issues/234)。更新されたIssue本文を設計の正本とする。
 
+## main向け統合（2026-10-13）
+
+#247〜#252はすべてdevelop_web-platform-firstへマージ済み。取得した統合headは`7199771e177456d494c6f7c2077773350a614a9e`、mainは`4618761e430aa052bf26fb5c1c88364e202a0e1d`。統合headのtreeは最終feature head `a3d508e17cc095405cf70cc521ce99069b9c09a0`と一致し、入室安全性・CI条件・SSG/URL照合・静的404/別名・MPA/SEO簡素化・性能比較を含む。main向けPRで差分全体の設計と回帰をレビューする。
+
+最終featureのCIは単体96ファイル757件、167 SSG、3 projectの108ブラウザケースが成功。統合PRのheadに対するCIは別に確認する。マージ済みという状態を実機・公開後HTTP・実ユーザーINPの確認完了には読み替えない。実機/最低版/OS/担当はBROWSER_SUPPORT.md、公開後HTTPは#240、実環境性能は#243で追跡し、#244〜#246は未着手の後続タスクとして残す。
+
 ## ブランチ構成
 
 開始main: `4618761e430aa052bf26fb5c1c88364e202a0e1d`（#235/#220マージ済み）。
@@ -12,12 +18,12 @@
 
 | 順序 | 優先度・タスク                                                            | 予定ブランチ                                   | 状態                                                                               |
 | ---- | ------------------------------------------------------------------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------- |
-| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / draft・実機確認待ち    |
-| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / 全CI成功・実機確認待ち |
-| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | [PR #249](https://github.com/isrnao/yui-chat-ts/pull/249) / 全CI成功・実機確認待ち |
-| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | [PR #250](https://github.com/isrnao/yui-chat-ts/pull/250) / 全CI成功・公開後HTTP/実機確認待ち |
-| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | [PR #251](https://github.com/isrnao/yui-chat-ts/pull/251) / 全CI成功・実機確認待ち |
-| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | lab比較・採否記録済み / 実環境計測待ち                                               |
+| 1    | [WP1a #236](https://github.com/isrnao/yui-chat-ts/issues/236) (P0)        | `feature/web-platform-wp1a-entry-safety`       | [PR #247](https://github.com/isrnao/yui-chat-ts/pull/247) / developへマージ済み・実機確認待ち    |
+| 2    | [WP3 #238](https://github.com/isrnao/yui-chat-ts/issues/238) (P1)         | `feature/web-platform-wp3-ci-browsers`         | [PR #248](https://github.com/isrnao/yui-chat-ts/pull/248) / developへマージ済み・実機確認待ち |
+| 3    | [WP2a #239](https://github.com/isrnao/yui-chat-ts/issues/239) (P1)        | `feature/web-platform-wp2a-ssg-route`          | [PR #249](https://github.com/isrnao/yui-chat-ts/pull/249) / developへマージ済み・実機確認待ち |
+| 4    | [WP2b #240](https://github.com/isrnao/yui-chat-ts/issues/240) (P1)        | `feature/web-platform-wp2b-static-404`         | [PR #250](https://github.com/isrnao/yui-chat-ts/pull/250) / developへマージ済み・公開後HTTP/実機確認待ち |
+| 5    | [WP2c #241](https://github.com/isrnao/yui-chat-ts/issues/241) (P1)        | `feature/web-platform-wp2c-mpa-seo`            | [PR #251](https://github.com/isrnao/yui-chat-ts/pull/251) / developへマージ済み・実機確認待ち |
+| 6    | [WP4 #243](https://github.com/isrnao/yui-chat-ts/issues/243) (P2)         | `feature/web-platform-wp4-performance`         | [PR #252](https://github.com/isrnao/yui-chat-ts/pull/252) / developへマージ済み・実環境計測待ち                                               |
 | 7    | [P2 Chanari #244](https://github.com/isrnao/yui-chat-ts/issues/244) (P2)  | `feature/web-platform-chanari-native-controls` | 未着手                                                                             |
 | 8    | [P2 通報form #245](https://github.com/isrnao/yui-chat-ts/issues/245) (P2) | `feature/web-platform-report-native-form`      | 未着手                                                                             |
 | 9    | [P2 CSS #246](https://github.com/isrnao/yui-chat-ts/issues/246) (P2)      | `feature/web-platform-css-presentation-state`  | 未着手                                                                             |
