@@ -102,6 +102,19 @@ describe('SSG + hydrateRoot', { timeout: 30_000 }, () => {
   });
 
   it.each(['/chat/superbeginner', '/chanari/durarara'])(
+    '%s の初期HTMLは入力可能で、送信ボタンだけ無効になっている',
+    async (pathname) => {
+      const markup = await render(pathname);
+      const container = document.createElement('div');
+      container.innerHTML = markup;
+      const form = container.querySelector('form')!;
+      const submit = form.querySelector<HTMLButtonElement | HTMLInputElement>('[type="submit"]')!;
+      expect(submit.disabled).toBe(true);
+      expect(form.querySelector<HTMLInputElement>('input[type="text"]')!.disabled).toBe(false);
+    }
+  );
+
+  it.each(['/chat/superbeginner', '/chanari/durarara'])(
     '%s の SSG に Realtime の接続待ちの表示を入れない（つながった時に入室フォームが動くため）',
     async (pathname) => {
       window.history.replaceState(null, '', pathname);

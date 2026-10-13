@@ -5,6 +5,8 @@ import { GA_MEASUREMENT_ID } from '@shared/utils/analytics';
  * SEO用のメタデータを動的に設定するためのカスタムフック
  */
 export interface UseSEOOptions {
+  /** 静的ページのSSG識別子。一致する文書のheadはビルド時の値を使用する。動的SEOでは指定しない。 */
+  ssgPathname?: string;
   title?: string;
   description?: string;
   /**
@@ -58,6 +60,15 @@ export const useSEO = (options: UseSEOOptions = {}) => {
   const jsonLdJson = options.jsonLd ? JSON.stringify(options.jsonLd) : undefined;
 
   useEffect(() => {
+    const root = document.getElementById('root');
+    if (
+      options.ssgPathname &&
+      root?.dataset.ssg === '1' &&
+      root.dataset.ssgPath === options.ssgPathname
+    ) {
+      return;
+    }
+
     // タイトルの設定
     if (options.title) {
       document.title = options.title;
@@ -219,6 +230,7 @@ export const useSEO = (options: UseSEOOptions = {}) => {
       document.querySelector('script[type="application/ld+json"][data-page-jsonld]')?.remove();
     }
   }, [
+    options.ssgPathname,
     options.title,
     options.description,
     options.canonical,

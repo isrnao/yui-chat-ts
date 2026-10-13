@@ -27,7 +27,7 @@ import { useRoomRanking } from '@features/chat/hooks/useRoomRanking';
 import type { ChatMetadata } from '@features/chat/types';
 import { getRoomMeta, type RoomId } from '@features/chat/rooms';
 import { getWindowRowOptions } from '@features/chat/utils/windowRows';
-import { buildRoomSeo } from '@shared/utils/roomSeo';
+import { buildRoomPath, buildRoomSeo } from '@shared/utils/roomSeo';
 import { useConversationMeasurement } from '@features/chat/hooks/useConversationMeasurement';
 import { toEntryErrorMessage } from '@features/chat/utils/entryError';
 
@@ -49,7 +49,7 @@ export default function ChatRoute({ roomId }: { roomId: RoomId }) {
   // プリレンダ (scripts/prerender-rooms.ts) と同一ソースからメタを導出し、
   // 静的 HTML とランタイムのメタタグ不一致を防ぐ
   const seo = buildRoomSeo(roomId);
-  useSEO(seo);
+  useSEO({ ...seo, ssgPathname: buildRoomPath(roomId) });
   usePageView(seo.title);
 
   const measurement = useConversationMeasurement();

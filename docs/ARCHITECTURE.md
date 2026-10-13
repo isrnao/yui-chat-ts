@@ -212,7 +212,11 @@ type ChanariRouteMatch =
 | `/chanari/:roomId` (有効) | `ChanariRoute`                                       |
 | 上記以外                  | `NotFoundRoute`                                      |
 
-`App.tsx`は`popstate`監視と`redirect`種別の自動再評価を担当します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてからhydrateし、完成済みHTMLを保持します。
+`App.tsx`は現在文書のルート解決とURL正規化を担当します。内部移動は実リンクによるMPAの文書遷移であり、ルーティングstateとpopstate監視は持ちません。正規化時はhistory.state・query/hashを保持します。初期表示のトップだけを静的importし、`ChatRoute`、`AllRoomsRoute`、`ChanariRoute`、`NotFoundRoute`は`routeLoaders`経由でroute単位に`React.lazy`化しています。SSG済みURLでは対象route chunkをpreloadしてから、共有ルート規則で`data-ssg-path`と現在URLを照合します。同じ既知画面だけをhydrateし、別画面・未知ルート・マーカー欠落はcreateRootで描きます。
+
+静的ページのuseSEOには描画する画面のssgPathnameを渡します。data-ssg/data-ssg-pathが一致する文書では、ビルド済みheadを使用してDOMの重複更新を省きます。Chanariの識別子はChanariのパスであり、通常チャットへ向けるcanonicalとは別です。開発時・誤HTML配信・旧マーカー欠落では従来のruntime補正を行います。専用2shotのsessionに応じた動的SEOとNotFoundの更新は継続します。
+
+WP4では最新mainとWP2cまでを固定lab条件で48サンプル比較し、追加のHydration範囲分割は見送りました。入力可能時刻・submit有効化・Realtime完了を区別し、実ユーザーINPや実機の結果に読み替えません。採否と再現条件は[WEB_PLATFORM_PERFORMANCE.md](WEB_PLATFORM_PERFORMANCE.md)に記録します。
 
 ### 4.3 レイヤー構成
 
@@ -285,6 +289,8 @@ mergeChat(newChat)
 `realtime.ts` 内に `postgresEntries` (`chats-postgres-${roomId}`) の refcount registry を持ち、room ごとに 1 channel を共有します。最後の listener が解除された時点で `supabase.removeChannel` で破棄されます。look／unlook の通知音は broadcast を使わず、`useLookSound` が Room_Log_Store の `onInsert`（Realtime の INSERT）で本文が `look` / `unlook` の発言を見て鳴らす・止めます（自分の発言の echo は `ownMessages.ts` の nonce で除く）。
 
 ### 5.3 初期読み込みフロー
+
+通常・Chanariの入室フォームはSSG時点で送信ボタンをdisabledにし、入力欄は編集可能に保ちます。`useEntrySubmission`は各フォームのhydration中にはfalse、クライアント描画ではtrueを返し、layout effectで取り込んだ先行入力と保存設定を反映してから送信を解禁します。submit handlerも未準備・pending・同一tickの二重送信を拒否します。追加のJavaScript有効化ヘルプは表示しません（2026-10-13のユーザー指定）。JSが使えない場合も部屋の静的説明と入力欄を表示し、送信不可の状態を維持します。
 
 ```
 ChatRoute マウント
@@ -653,10 +659,12 @@ on:
 jobs:
   test:
     - actions/checkout@v4
-    - actions/setup-node@v6  (node 24)
-    - npm install -g pnpm
-    - pnpm install
-    - pnpm test # continue-on-error: true
+    - pnpm/action-setup@v4  (packageManager: pnpm@10.34.6)
+    - actions/setup-node@v6  (node 24, cache: pnpm)
+    - pnpm install --frozen-lockfile
+    - pnpm typecheck
+    - pnpm lint
+    - pnpm test # failure is required
 ```
 
 `.github/workflows/chromatic.yml` — Storybook ビジュアルリグレッション
@@ -672,16 +680,18 @@ env:
 jobs:
   chromatic-deployment:
     - actions/checkout@v6
-    - pnpm/action-setup@v6   (version: 10)
+    - pnpm/action-setup@v6   (packageManager)
     - actions/setup-node@v6  (node-version 24, cache: pnpm)
     - pnpm install --frozen-lockfile
     - pnpm build-storybook
     - chromaui/action@latest (onlyChanged: true, exitOnceUploaded: true)
 ```
 
-### 14.2 GitHub Pages SPA fallback
+### 14.2 GitHub Pagesの静的MPA配信
 
-`public/404.html` は不明パスを `/?/<元 path>&<query>` 形式に書き換えて再ロード、`index.html` の冒頭スクリプトが `?/` で始まる search を検知して `history.replaceState` で元の path に戻します（`~and~` で `&` をエンコード）。これにより `/chat/:roomId` / `/chanari/:roomId` への直アクセス（ブックマーク・SNS 共有）が SPA として復元可能です。
+正規URLの164 SSGに加え、共有ルート規則で求めた既知別名（現在3件）へ移動先と同じSSG/headを生成します。別名はhydrate後にquery/hash/history.stateを保持して正規化し、JSなしでも部屋本文と正規入口リンクを配信します。未知URLは本文・実リンク・noindexのあるstatic 404.htmlをHTTP404で返し、トップへのSPA復元は行いません。専用2shot停止中は通常の部屋を維持します。
+
+配信の自動検証はtests/browser/fixtures/pages-server.jsでdirectory index、slash 301、static 404を再現します。Vite previewのfallback成功をPages確認に代用しません。公開後の実ホスト確認は別に記録します。
 
 ### 14.3 デプロイ
 

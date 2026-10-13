@@ -1,5 +1,13 @@
 # Test Strategy
 
+WP4（#243）: `scripts/measure-web-platform.js`は比較用のローカルSSGを固定CPU/回線・外部タグ条件でcold/warm各3回測定する。通常のPlaywright品質ゲートとは別に実行し、cacheの利用、入力可能/submit有効化、LCP・少数操作のEvent Timing・転送JSを区別する。実ユーザーINP・実Realtime・実機性能はこのfixtureでは保証しない。手順とraw結果はWEB_PLATFORM_PERFORMANCE.mdを参照。
+
+WP2c（#241）: `mpa-seo.spec.ts`はSSG表示後からJavaScriptを解禁して、静的headのSEOノードにMutationが発生しないことを検査する。トップ・通常・全部屋・Chanari・公開通常2shotを対象とし、実リンクが別文書を生成し、戻る/進むでheadとURLが復元されることも確認する。Speculation Rulesによるprefetchでも文書遷移であることを検査できるよう、新規リクエストだけを成功条件にしない。useSEOの単体試験は旧/誤マーカーの補正と動的SEO継続を区別する。
+
+WP2b（#240）: `pages-hosting.spec.ts`は4181のPages相当fixtureで正規/別名/未知URLのHTTP200/301/404、head/canonical、query/hash/history.state、JS無効時の部屋本文と404リンクを確認する。既存のVite previewと共に検証用の公開ビルドを配信する。実ホストの公開前基準は新実装の検証と混同せず、公開後確認を別に記録する。
+
+WP2a（#239）: SSG生成と起動で同じルート識別子を使用する。`ssgHydration.test.ts`は既知別名・UI/部屋の相違・未知URL・旧成果物を区別し、`App.test.tsx`はquery/hash・history.state保持を確認する。`ssg-routing.spec.ts`はトップHTMLの誤配信・旧404復元・再読込・文書間の戻る/進むを公開SSGで再現し、React hydration errorがないことを検査する。
+
 ## 1. テストの目的
 
 - 本プロジェクトの主要機能の品質を自動テストで継続的に保証する
@@ -10,16 +18,16 @@
 
 ## 2. テストの種類と方針
 
-| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                                         |
-| -------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）                  |
-| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                               |
-| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等                |
-| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                                              |
-| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                                              |
-| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                                           |
-| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                                    |
-| ブラウザUI     | tests/browser/                                                                                                 | Playwright: Chromium / Firefox / WebKit / mobile WebKit。production部品と本番SSGを検証 |
+| 種別           | ファイル例                                                                                                     | 主なカバー範囲                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| ユニット       | `*.test.ts`                                                                                                    | 純関数 / ユーティリティ（例: `format.test.ts`, `countChars.test.ts`）                |
+| コンポーネント | `*.test.tsx`                                                                                                   | React 部品の描画や UI 操作（例: `ChatLogList.test.tsx`）                             |
+| カスタムフック | `*.test.ts`                                                                                                    | `useRoomLog` / `useChatSession` / `useNowMinute` / `useParticipants` 等              |
+| API / ストア層 | `roomLogStore.test.ts`, `chatQueries.test.ts`, `saveChat.test.ts`, `realtime.test.ts`, `roomCountsApi.test.ts` | キャッシュ / dedupe / paging / hasMore 等                                            |
+| ルーティング   | `routing.test.ts`（chat / chanari）                                                                            | top / chat / chanari / unknown ルート解決                                            |
+| 統合           | `src/App.test.tsx`                                                                                             | 各ルートが即時描画されること                                                         |
+| ビジュアル     | Storybook 10 stories + Chromatic                                                                               | UI のリグレッション                                                                  |
+| ブラウザUI     | tests/browser/                                                                                                 | Playwright: Chromium / Desktop WebKit / Mobile WebKit。production部品と本番SSGを検証 |
 
 - テストは **Testing Library** 中心、ユーザー目線重視
 - 外部 API（Supabase 等）・Web API（`localStorage`, `BroadcastChannel`, `requestIdleCallback`）は必要に応じてモック
@@ -74,9 +82,10 @@ src/features/chat/api/
 
 ## 6. CI / CD 連携
 
-- PR トリガーで `pnpm test`（Vitest）を実行
+- PRトリガーでtypecheck・lint・`pnpm test`（Vitest）を必須実行。Node.js 24と`packageManager`指定のpnpm 10.34.6、`--frozen-lockfile`を使う。
+- browser.ymlは同じNode/pnpm条件で公開SSGビルドとChromium/Desktop WebKit/Mobile WebKitを必須実行。Firefoxは支持対象外。実Chrome/Safariの支持範囲・手動確認の未確認事項は[BROWSER_SUPPORT.md](BROWSER_SUPPORT.md)で管理する。
 - Chromatic は push / PR（main, develop）で Storybook をビルドしビジュアル差分を検出
-  - Node.js 24 / pnpm 10 / `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`
+  - Node.js 24 / `packageManager`指定のpnpm / `actions/checkout@v6`, `actions/setup-node@v6`, `pnpm/action-setup@v6`
   - `onlyChanged: true` で差分のみ検証
 
 ---
@@ -111,3 +120,5 @@ src/features/chat/api/
 2026-10-12: pnpm test:browserでsynthetic data/APIを使ったUIを検証する。native-fixture.invalidは試験設定であり本番接続ではない。UI fixtureは投稿・入退室・通報の実APIを呼ばず、Top Layer/focus/IME/Tab/配置/1,000行/短い画面を確認する。SSGとhydrate前編集はVitest統合でも検証する。自動webkit/mobile emulationをiPhone実機・VoiceOver・OSハプティック合格として扱わない。
 
 SSG browser testの前提: 検証用VITE_SUPABASE_URL/VITE_SUPABASE_ANON_KEYでビルドしたdistを配信する。ローカルのpnpm test:browserはpreviewの起動前にこの設定でpnpm build:prodを実行する（distは上書きされる）。CIのbrowser.ymlは先に同じ設定でpnpm build:prodを実行し、previewはビルドし直さない。
+
+WP1a（#236）: `entry-safety.spec.ts`で通常・ChanariのJS無効／chunk失敗／CSP拒否時に、先行入力後のEnter・送信ボタンのポインタ操作がGET遷移を発生させないことを確認する。module遅延時は準備前disabledと、保存済み設定に上書きされない先行入力を確認する。SSG統合試験は入力可能・submit disabled・静的復旧リンクを検査し、送信hookはpendingと同一tick二重送信・失敗後の再送を検証する。SSGブラウザ試験ではGA/New Relicへの通信をブロックする。

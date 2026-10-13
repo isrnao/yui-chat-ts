@@ -23,6 +23,7 @@ import {
   buildChanariOutputRelativePath,
   injectRoutePreload,
   injectSsgMarkup,
+  injectAliasEntryLink,
 } from '../src/shared/utils/prerenderHtml.ts';
 import {
   CHAT_ROOMS,
@@ -57,9 +58,19 @@ if (!ssrEntry) {
   );
   exit(1);
 }
-const { render } = (await import(pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href)) as {
+const { render, getSsgPathname, getStaticAliases } = (await import(
+  pathToFileURL(resolve(ssrEntryDir, ssrEntry)).href
+)) as {
   render: (pathname: string) => Promise<string>;
+  getSsgPathname: (pathname: string) => string | null;
+  getStaticAliases: () => { pathname: string; target: string }[];
 };
+
+async function renderSsg(html: string, pathname: string): Promise<string> {
+  const renderedPath = getSsgPathname(pathname);
+  if (renderedPath === null) throw new Error(`prerender: 未知の描画ルート ${pathname}`);
+  return injectSsgMarkup(html, await render(pathname), renderedPath);
+}
 
 /**
  * ルートチャンクとその静的依存を manifest から解決する。
@@ -110,7 +121,7 @@ for (const roomId of targets) {
   );
   // 入室フォームまで含めた実マークアップを埋める。JS の到着を待たずに描画でき、
   // クライアント側と同一の出力なのでレイアウトシフトも起きない。
-  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(roomId)));
+  const html = await renderSsg(withMeta, buildRoomPath(roomId));
   writePage(buildOutputRelativePath(roomId), html);
   count += 1;
 }
@@ -136,7 +147,7 @@ for (const roomId of chanariTargets) {
     renderChanariRoomHtml(template, roomId),
     resolveChunkPaths('src/routes/ChanariRoute.tsx')
   );
-  const html = injectSsgMarkup(withMeta, await render(buildChanariPath(roomId)));
+  const html = await renderSsg(withMeta, buildChanariPath(roomId));
   writePage(buildChanariOutputRelativePath(roomId), html);
   chanariCount += 1;
 }
@@ -160,13 +171,22 @@ if (TWO_SHOT_CHAT_ENABLED) {
     exit(1);
   }
   const withMeta = injectRoutePreload(renderTwoShotHtml(template), assets);
-  const html = injectSsgMarkup(withMeta, await render(buildRoomPath(TWO_SHOT_ROOM_ID)));
+  const html = await renderSsg(withMeta, buildRoomPath(TWO_SHOT_ROOM_ID));
   writePage(buildOutputRelativePath(TWO_SHOT_ROOM_ID), html);
 }
 
 // トップページも SSG する。#root が空だと LCP 要素 (紹介文) が JS 待ちになる。
 // 部屋ページは上で pristine な template から生成済みなので、ここで上書きしてよい。
-writeFileSync(templatePath, injectSsgMarkup(template, await render('/')), 'utf-8');
+writeFileSync(templatePath, await renderSsg(template, '/'), 'utf-8');
+
+// 既知の別名には移動先と同じSSG/headを配信する。hydrate後はAppがURLを正規化し、
+// JSなしでは同じ本文と正規入口リンクを残す。未知URLをトップへ転送しない。
+const aliases = getStaticAliases();
+for (const { pathname, target } of aliases) {
+  const targetPath = resolve(distDir, `${target.replace(/^\//, '')}index.html`);
+  const html = injectAliasEntryLink(readFileSync(targetPath, 'utf-8'), target);
+  writePage(`${pathname.replace(/^\//, '')}index.html`, html);
+}
 
 console.log(`✔ prerendered ${count} room pages → ${distDir}/chat/<id>/index.html`);
 console.log(`✔ prerendered ${chanariCount} chanari pages → ${distDir}/chanari/<id>/index.html`);
@@ -176,3 +196,6 @@ console.log(
     : '✔ two-shot は停止中のため、/chat/2shot/ は通常の部屋として描画'
 );
 console.log('✔ SSG: dist/index.html + 各部屋ページ');
+console.log(
+  `✔ static aliases: ${aliases.map(({ pathname, target }) => `${pathname} → ${target}`).join(', ')}`
+);

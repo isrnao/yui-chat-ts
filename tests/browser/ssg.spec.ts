@@ -1,4 +1,10 @@
 import { expect, test } from '@playwright/test';
+test.beforeEach(async ({ context }) => {
+  await context.route(
+    /https:\/\/[^/]*(googletagmanager|google-analytics|nr-data)\.[^/]+\//,
+    (route) => route.abort()
+  );
+});
 test('production SSG preserves input edited while route JavaScript is delayed', async ({
   page,
 }) => {

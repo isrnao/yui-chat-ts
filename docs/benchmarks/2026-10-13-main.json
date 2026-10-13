@@ -1,0 +1,1518 @@
+{
+  "label": "main-4618761",
+  "timestamp": "2026-10-12T23:47:33.934Z",
+  "browser": "156.0.8078.4",
+  "conditions": {
+    "viewport": "390x844",
+    "cpuThrottle": 4,
+    "latencyMs": 150,
+    "downloadBytesPerSecond": 200000,
+    "uploadBytesPerSecond": 96000,
+    "tags": "remote HTTPS/WSS blocked; local New Relic chunks retained",
+    "backend": "local empty responses; no Realtime server",
+    "gzip": true,
+    "samples": 3
+  },
+  "results": [
+    {
+      "path": "/",
+      "sample": 1,
+      "cache": "cold",
+      "initialJsTransferBytes": 95436,
+      "lcpMs": 980,
+      "mainVisibleMs": 928.2999999821186,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 8191,
+          "duration": 16,
+          "inputDelay": 1.300000011920929
+        },
+        {
+          "id": 8191,
+          "duration": 16,
+          "inputDelay": 1.300000011920929
+        },
+        {
+          "id": 8191,
+          "duration": 16,
+          "inputDelay": 2.300000011920929
+        },
+        {
+          "id": 8198,
+          "duration": 16,
+          "inputDelay": 0.7000000178813934
+        },
+        {
+          "id": 8198,
+          "duration": 16,
+          "inputDelay": 0.7000000178813934
+        }
+      ],
+      "labInteractionMs": 16,
+      "inputDelayMs": 2.300000011920929,
+      "jsTransferBytes": 96783,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 0,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/",
+      "sample": 1,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 300,
+      "mainVisibleMs": 278.59999999403954,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 9737,
+          "duration": 16,
+          "inputDelay": 0.7000000178813934
+        },
+        {
+          "id": 9737,
+          "duration": 16,
+          "inputDelay": 0.7000000178813934
+        },
+        {
+          "id": 9744,
+          "duration": 16,
+          "inputDelay": 3.0999999940395355
+        }
+      ],
+      "labInteractionMs": 16,
+      "inputDelayMs": 3.0999999940395355,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 5,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/",
+      "sample": 2,
+      "cache": "cold",
+      "initialJsTransferBytes": 95436,
+      "lcpMs": 968,
+      "mainVisibleMs": 911.0999999940395,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 7736,
+          "duration": 24,
+          "inputDelay": 1.0999999940395355
+        },
+        {
+          "id": 7736,
+          "duration": 24,
+          "inputDelay": 1.0999999940395355
+        },
+        {
+          "id": 7736,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 7743,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 7743,
+          "duration": 16,
+          "inputDelay": 0.5999999940395355
+        }
+      ],
+      "labInteractionMs": 24,
+      "inputDelayMs": 1.0999999940395355,
+      "jsTransferBytes": 96783,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 0,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/",
+      "sample": 2,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 416,
+      "mainVisibleMs": 384.59999999403954,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 8868,
+          "duration": 8,
+          "inputDelay": 1.199999988079071
+        },
+        {
+          "id": 8868,
+          "duration": 16,
+          "inputDelay": 2.9000000059604645
+        },
+        {
+          "id": 8875,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 8875,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        }
+      ],
+      "labInteractionMs": 16,
+      "inputDelayMs": 2.9000000059604645,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 5,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/",
+      "sample": 3,
+      "cache": "cold",
+      "initialJsTransferBytes": 95436,
+      "lcpMs": 888,
+      "mainVisibleMs": 842.8000000119209,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 3801,
+          "duration": 16,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 3801,
+          "duration": 16,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 3808,
+          "duration": 16,
+          "inputDelay": 2.2999999821186066
+        }
+      ],
+      "labInteractionMs": 16,
+      "inputDelayMs": 2.2999999821186066,
+      "jsTransferBytes": 96783,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 0,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/",
+      "sample": 3,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 320,
+      "mainVisibleMs": 297.7999999821186,
+      "inputEditableMs": null,
+      "submitEnabledMs": null,
+      "interactions": [
+        {
+          "id": 1821,
+          "duration": 24,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 1821,
+          "duration": 24,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 1821,
+          "duration": 16,
+          "inputDelay": 0.29999998211860657
+        },
+        {
+          "id": 1828,
+          "duration": 16,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 1828,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        }
+      ],
+      "labInteractionMs": 24,
+      "inputDelayMs": 0.29999998211860657,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 299771,
+      "cachedJs": 5,
+      "jsResources": 5,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 1,
+      "cache": "cold",
+      "initialJsTransferBytes": 164030,
+      "lcpMs": 2108,
+      "mainVisibleMs": 813.5,
+      "inputEditableMs": 813.5,
+      "submitEnabledMs": 813.5,
+      "interactions": [
+        {
+          "id": 7012,
+          "duration": 16,
+          "inputDelay": 10.400000005960464
+        },
+        {
+          "id": 7012,
+          "duration": 16,
+          "inputDelay": 11.799999982118607
+        },
+        {
+          "id": 7012,
+          "duration": 16,
+          "inputDelay": 12.699999988079071
+        },
+        {
+          "id": 7012,
+          "duration": 16,
+          "inputDelay": 10.400000005960464
+        },
+        {
+          "id": 7019,
+          "duration": 112,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 7019,
+          "duration": 112,
+          "inputDelay": 0.9000000059604645
+        },
+        {
+          "id": 7019,
+          "duration": 16,
+          "inputDelay": 14.900000005960464
+        },
+        {
+          "id": 7033,
+          "duration": 16,
+          "inputDelay": 2.2999999821186066
+        },
+        {
+          "id": 7033,
+          "duration": 16,
+          "inputDelay": 2.4000000059604645
+        },
+        {
+          "id": 7033,
+          "duration": 16,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 7040,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7040,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7040,
+          "duration": 16,
+          "inputDelay": 0.7000000178813934
+        }
+      ],
+      "labInteractionMs": 112,
+      "inputDelayMs": 14.900000005960464,
+      "jsTransferBytes": 164030,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 1,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 532,
+      "mainVisibleMs": 230.5,
+      "inputEditableMs": 230.5,
+      "submitEnabledMs": 230.5,
+      "interactions": [
+        {
+          "id": 8581,
+          "duration": 8,
+          "inputDelay": 7.200000017881393
+        },
+        {
+          "id": 8588,
+          "duration": 40,
+          "inputDelay": 0.699999988079071
+        },
+        {
+          "id": 8588,
+          "duration": 40,
+          "inputDelay": 1
+        }
+      ],
+      "labInteractionMs": 40,
+      "inputDelayMs": 7.200000017881393,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 2,
+      "cache": "cold",
+      "initialJsTransferBytes": 164030,
+      "lcpMs": 2048,
+      "mainVisibleMs": 814.8000000119209,
+      "inputEditableMs": 814.8000000119209,
+      "submitEnabledMs": 814.8000000119209,
+      "interactions": [
+        {
+          "id": 9702,
+          "duration": 16,
+          "inputDelay": 10
+        },
+        {
+          "id": 9702,
+          "duration": 16,
+          "inputDelay": 10.800000011920929
+        },
+        {
+          "id": 9702,
+          "duration": 16,
+          "inputDelay": 10.900000005960464
+        },
+        {
+          "id": 9702,
+          "duration": 16,
+          "inputDelay": 10
+        },
+        {
+          "id": 9709,
+          "duration": 96,
+          "inputDelay": 0.29999998211860657
+        },
+        {
+          "id": 9709,
+          "duration": 96,
+          "inputDelay": 0.9000000059604645
+        },
+        {
+          "id": 9709,
+          "duration": 56,
+          "inputDelay": 50.30000001192093
+        },
+        {
+          "id": 9716,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 9723,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 9723,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 9723,
+          "duration": 16,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 9730,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 9730,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        }
+      ],
+      "labInteractionMs": 96,
+      "inputDelayMs": 50.30000001192093,
+      "jsTransferBytes": 164030,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 2,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 528,
+      "mainVisibleMs": 228.2000000178814,
+      "inputEditableMs": 228.2000000178814,
+      "submitEnabledMs": 228.2000000178814,
+      "interactions": [
+        {
+          "id": 4997,
+          "duration": 8,
+          "inputDelay": 6.300000011920929
+        },
+        {
+          "id": 5004,
+          "duration": 56,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 5004,
+          "duration": 56,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 5004,
+          "duration": 16,
+          "inputDelay": 14.099999994039536
+        },
+        {
+          "id": 5025,
+          "duration": 16,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 5025,
+          "duration": 16,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 5025,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        }
+      ],
+      "labInteractionMs": 56,
+      "inputDelayMs": 14.099999994039536,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 3,
+      "cache": "cold",
+      "initialJsTransferBytes": 164030,
+      "lcpMs": 2060,
+      "mainVisibleMs": 838.0999999940395,
+      "inputEditableMs": 838.0999999940395,
+      "submitEnabledMs": 838.0999999940395,
+      "interactions": [
+        {
+          "id": 7824,
+          "duration": 16,
+          "inputDelay": 5.300000011920929
+        },
+        {
+          "id": 7824,
+          "duration": 16,
+          "inputDelay": 6.199999988079071
+        },
+        {
+          "id": 7824,
+          "duration": 16,
+          "inputDelay": 6.4000000059604645
+        },
+        {
+          "id": 7824,
+          "duration": 16,
+          "inputDelay": 5.300000011920929
+        },
+        {
+          "id": 7831,
+          "duration": 48,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 7831,
+          "duration": 48,
+          "inputDelay": 1.0999999940395355
+        },
+        {
+          "id": 7838,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 7838,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 7838,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 7845,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 7845,
+          "duration": 16,
+          "inputDelay": 0.5
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 6.4000000059604645,
+      "jsTransferBytes": 164030,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/superbeginner/",
+      "sample": 3,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 540,
+      "mainVisibleMs": 284,
+      "inputEditableMs": 284.5,
+      "submitEnabledMs": 284.5,
+      "interactions": [
+        {
+          "id": 2265,
+          "duration": 16,
+          "inputDelay": 8.199999988079071
+        },
+        {
+          "id": 2265,
+          "duration": 16,
+          "inputDelay": 9.199999988079071
+        },
+        {
+          "id": 2265,
+          "duration": 16,
+          "inputDelay": 9.599999994039536
+        },
+        {
+          "id": 2265,
+          "duration": 16,
+          "inputDelay": 8.199999988079071
+        },
+        {
+          "id": 2272,
+          "duration": 56,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 2272,
+          "duration": 56,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 2272,
+          "duration": 16,
+          "inputDelay": 17.80000001192093
+        }
+      ],
+      "labInteractionMs": 56,
+      "inputDelayMs": 17.80000001192093,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 475983,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 1,
+      "cache": "cold",
+      "initialJsTransferBytes": 161517,
+      "lcpMs": 1728,
+      "mainVisibleMs": 804,
+      "inputEditableMs": 804,
+      "submitEnabledMs": 804,
+      "interactions": [
+        {
+          "id": 1585,
+          "duration": 16,
+          "inputDelay": 5.800000011920929
+        },
+        {
+          "id": 1585,
+          "duration": 16,
+          "inputDelay": 6.800000011920929
+        },
+        {
+          "id": 1585,
+          "duration": 16,
+          "inputDelay": 7.5999999940395355
+        },
+        {
+          "id": 1585,
+          "duration": 16,
+          "inputDelay": 5.800000011920929
+        },
+        {
+          "id": 1592,
+          "duration": 48,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 1592,
+          "duration": 48,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 1592,
+          "duration": 24,
+          "inputDelay": 14.400000005960464
+        },
+        {
+          "id": 1599,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 1599,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 1599,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 1606,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 1606,
+          "duration": 16,
+          "inputDelay": 0.29999998211860657
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 14.400000005960464,
+      "jsTransferBytes": 161517,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 0,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 1,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 236,
+      "mainVisibleMs": 225.60000002384186,
+      "inputEditableMs": 225.60000002384186,
+      "submitEnabledMs": 225.60000002384186,
+      "interactions": [
+        {
+          "id": 2955,
+          "duration": 16,
+          "inputDelay": 4.799999982118607
+        },
+        {
+          "id": 2955,
+          "duration": 16,
+          "inputDelay": 5.799999982118607
+        },
+        {
+          "id": 2955,
+          "duration": 16,
+          "inputDelay": 6.5999999940395355
+        },
+        {
+          "id": 2955,
+          "duration": 16,
+          "inputDelay": 4.799999982118607
+        },
+        {
+          "id": 2962,
+          "duration": 48,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 2962,
+          "duration": 48,
+          "inputDelay": 0.699999988079071
+        },
+        {
+          "id": 2962,
+          "duration": 16,
+          "inputDelay": 14.200000017881393
+        },
+        {
+          "id": 2969,
+          "duration": 16,
+          "inputDelay": 0.9000000059604645
+        },
+        {
+          "id": 2969,
+          "duration": 16,
+          "inputDelay": 0.9000000059604645
+        },
+        {
+          "id": 2969,
+          "duration": 16,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 2976,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 2976,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 2976,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 2983,
+          "duration": 16,
+          "inputDelay": 0.6000000238418579
+        },
+        {
+          "id": 2983,
+          "duration": 16,
+          "inputDelay": 0.6000000238418579
+        },
+        {
+          "id": 2983,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 14.200000017881393,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 16,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 2,
+      "cache": "cold",
+      "initialJsTransferBytes": 161517,
+      "lcpMs": 1912,
+      "mainVisibleMs": 804.1999999880791,
+      "inputEditableMs": 804.1999999880791,
+      "submitEnabledMs": 804.1999999880791,
+      "interactions": [
+        {
+          "id": 1578,
+          "duration": 16,
+          "inputDelay": 8.299999982118607
+        },
+        {
+          "id": 1578,
+          "duration": 16,
+          "inputDelay": 9.199999988079071
+        },
+        {
+          "id": 1578,
+          "duration": 16,
+          "inputDelay": 9.699999988079071
+        },
+        {
+          "id": 1578,
+          "duration": 16,
+          "inputDelay": 8.299999982118607
+        },
+        {
+          "id": 1585,
+          "duration": 48,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 1585,
+          "duration": 48,
+          "inputDelay": 0.29999998211860657
+        },
+        {
+          "id": 1585,
+          "duration": 16,
+          "inputDelay": 15.5
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 15.5,
+      "jsTransferBytes": 161517,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 0,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 2,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 264,
+      "mainVisibleMs": 254.19999998807907,
+      "inputEditableMs": 254.19999998807907,
+      "submitEnabledMs": 254.19999998807907,
+      "interactions": [
+        {
+          "id": 4447,
+          "duration": 8,
+          "inputDelay": 5.799999982118607
+        },
+        {
+          "id": 4454,
+          "duration": 48,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 4454,
+          "duration": 48,
+          "inputDelay": 0.6000000238418579
+        },
+        {
+          "id": 4461,
+          "duration": 16,
+          "inputDelay": 0.3999999761581421
+        },
+        {
+          "id": 4461,
+          "duration": 16,
+          "inputDelay": 0.3999999761581421
+        },
+        {
+          "id": 4461,
+          "duration": 16,
+          "inputDelay": 0.10000002384185791
+        },
+        {
+          "id": 4468,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 4468,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 4468,
+          "duration": 16,
+          "inputDelay": 0
+        },
+        {
+          "id": 4475,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 4475,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 4475,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 5.799999982118607,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 16,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 3,
+      "cache": "cold",
+      "initialJsTransferBytes": 161517,
+      "lcpMs": 1908,
+      "mainVisibleMs": 780.5999999940395,
+      "inputEditableMs": 780.5999999940395,
+      "submitEnabledMs": 780.5999999940395,
+      "interactions": [
+        {
+          "id": 7631,
+          "duration": 16,
+          "inputDelay": 5.800000011920929
+        },
+        {
+          "id": 7631,
+          "duration": 16,
+          "inputDelay": 6.5999999940395355
+        },
+        {
+          "id": 7631,
+          "duration": 16,
+          "inputDelay": 7.4000000059604645
+        },
+        {
+          "id": 7631,
+          "duration": 16,
+          "inputDelay": 5.800000011920929
+        },
+        {
+          "id": 7638,
+          "duration": 48,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7638,
+          "duration": 48,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7645,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 7652,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 7652,
+          "duration": 16,
+          "inputDelay": 0.20000001788139343
+        },
+        {
+          "id": 7652,
+          "duration": 16,
+          "inputDelay": 0.29999998211860657
+        },
+        {
+          "id": 7659,
+          "duration": 16,
+          "inputDelay": 0.699999988079071
+        },
+        {
+          "id": 7659,
+          "duration": 16,
+          "inputDelay": 0.699999988079071
+        },
+        {
+          "id": 7659,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 7.4000000059604645,
+      "jsTransferBytes": 161517,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 0,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chat/all/",
+      "sample": 3,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 232,
+      "mainVisibleMs": 219.80000001192093,
+      "inputEditableMs": 219.80000001192093,
+      "submitEnabledMs": 219.80000001192093,
+      "interactions": [
+        {
+          "id": 8971,
+          "duration": 8,
+          "inputDelay": 9.099999994039536
+        },
+        {
+          "id": 8978,
+          "duration": 48,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 8978,
+          "duration": 48,
+          "inputDelay": 0.7000000178813934
+        },
+        {
+          "id": 8985,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 8985,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 8985,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 8992,
+          "duration": 16,
+          "inputDelay": 0
+        },
+        {
+          "id": 8992,
+          "duration": 16,
+          "inputDelay": 0
+        },
+        {
+          "id": 8992,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 8999,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 8999,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 9.099999994039536,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 470365,
+      "cachedJs": 16,
+      "jsResources": 16,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 1,
+      "cache": "cold",
+      "initialJsTransferBytes": 161399,
+      "lcpMs": 776,
+      "mainVisibleMs": 752.5,
+      "inputEditableMs": 752.5,
+      "submitEnabledMs": 752.5,
+      "interactions": [
+        {
+          "id": 1394,
+          "duration": 48,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 1394,
+          "duration": 48,
+          "inputDelay": 0.699999988079071
+        },
+        {
+          "id": 1394,
+          "duration": 16,
+          "inputDelay": 12
+        },
+        {
+          "id": 1387,
+          "duration": 8,
+          "inputDelay": 6.0999999940395355
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 12,
+      "jsTransferBytes": 161399,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 1,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 344,
+      "mainVisibleMs": 327.30000001192093,
+      "inputEditableMs": 327.30000001192093,
+      "submitEnabledMs": 327.30000001192093,
+      "interactions": [
+        {
+          "id": 2101,
+          "duration": 16,
+          "inputDelay": 5.899999976158142
+        },
+        {
+          "id": 2101,
+          "duration": 16,
+          "inputDelay": 8.199999988079071
+        },
+        {
+          "id": 2101,
+          "duration": 16,
+          "inputDelay": 8.699999988079071
+        },
+        {
+          "id": 2108,
+          "duration": 48,
+          "inputDelay": 0.7999999821186066
+        },
+        {
+          "id": 2108,
+          "duration": 48,
+          "inputDelay": 1
+        },
+        {
+          "id": 2101,
+          "duration": 16,
+          "inputDelay": 5.899999976158142
+        },
+        {
+          "id": 2115,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 2115,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 2115,
+          "duration": 16,
+          "inputDelay": 0.09999999403953552
+        },
+        {
+          "id": 2122,
+          "duration": 16,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 2122,
+          "duration": 16,
+          "inputDelay": 0.5999999940395355
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 8.699999988079071,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 2,
+      "cache": "cold",
+      "initialJsTransferBytes": 161399,
+      "lcpMs": 860,
+      "mainVisibleMs": 835.6999999880791,
+      "inputEditableMs": 835.6999999880791,
+      "submitEnabledMs": 835.6999999880791,
+      "interactions": [
+        {
+          "id": 5418,
+          "duration": 16,
+          "inputDelay": 8.400000005960464
+        },
+        {
+          "id": 5418,
+          "duration": 16,
+          "inputDelay": 11.300000011920929
+        },
+        {
+          "id": 5418,
+          "duration": 16,
+          "inputDelay": 12.300000011920929
+        },
+        {
+          "id": 5425,
+          "duration": 48,
+          "inputDelay": 0.3999999761581421
+        },
+        {
+          "id": 5425,
+          "duration": 48,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 5425,
+          "duration": 16,
+          "inputDelay": 14.5
+        },
+        {
+          "id": 5418,
+          "duration": 16,
+          "inputDelay": 8.400000005960464
+        },
+        {
+          "id": 5439,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 5446,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 5446,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        },
+        {
+          "id": 5446,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        }
+      ],
+      "labInteractionMs": 48,
+      "inputDelayMs": 14.5,
+      "jsTransferBytes": 161399,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 2,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 308,
+      "mainVisibleMs": 290.59999999403954,
+      "inputEditableMs": 290.59999999403954,
+      "submitEnabledMs": 290.59999999403954,
+      "interactions": [
+        {
+          "id": 7528,
+          "duration": 16,
+          "inputDelay": 9.300000011920929
+        },
+        {
+          "id": 7528,
+          "duration": 16,
+          "inputDelay": 13.400000005960464
+        },
+        {
+          "id": 7528,
+          "duration": 16,
+          "inputDelay": 15.099999994039536
+        },
+        {
+          "id": 7528,
+          "duration": 16,
+          "inputDelay": 9.300000011920929
+        },
+        {
+          "id": 7535,
+          "duration": 128,
+          "inputDelay": 2.2000000178813934
+        },
+        {
+          "id": 7535,
+          "duration": 128,
+          "inputDelay": 2.300000011920929
+        },
+        {
+          "id": 7535,
+          "duration": 88,
+          "inputDelay": 80.09999999403954
+        },
+        {
+          "id": 7542,
+          "duration": 16,
+          "inputDelay": 0.29999998211860657
+        },
+        {
+          "id": 7542,
+          "duration": 16,
+          "inputDelay": 3.2999999821186066
+        },
+        {
+          "id": 7549,
+          "duration": 16,
+          "inputDelay": 0.19999998807907104
+        },
+        {
+          "id": 7556,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7556,
+          "duration": 16,
+          "inputDelay": 0.30000001192092896
+        },
+        {
+          "id": 7556,
+          "duration": 16,
+          "inputDelay": 0.4000000059604645
+        }
+      ],
+      "labInteractionMs": 128,
+      "inputDelayMs": 80.09999999403954,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 3,
+      "cache": "cold",
+      "initialJsTransferBytes": 161399,
+      "lcpMs": 856,
+      "mainVisibleMs": 835.2000000178814,
+      "inputEditableMs": 835.3000000119209,
+      "submitEnabledMs": 835.3000000119209,
+      "interactions": [
+        {
+          "id": 5910,
+          "duration": 8,
+          "inputDelay": 6.5999999940395355
+        },
+        {
+          "id": 5917,
+          "duration": 56,
+          "inputDelay": 0.6000000238418579
+        },
+        {
+          "id": 5917,
+          "duration": 56,
+          "inputDelay": 0.6000000238418579
+        },
+        {
+          "id": 5917,
+          "duration": 16,
+          "inputDelay": 17.400000005960464
+        },
+        {
+          "id": 5931,
+          "duration": 16,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 5938,
+          "duration": 16,
+          "inputDelay": 0.5
+        },
+        {
+          "id": 5938,
+          "duration": 16,
+          "inputDelay": 0.800000011920929
+        },
+        {
+          "id": 5938,
+          "duration": 16,
+          "inputDelay": 0.5
+        }
+      ],
+      "labInteractionMs": 56,
+      "inputDelayMs": 17.400000005960464,
+      "jsTransferBytes": 161399,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 0,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    },
+    {
+      "path": "/chanari/superbeginner/",
+      "sample": 3,
+      "cache": "warm",
+      "initialJsTransferBytes": 0,
+      "lcpMs": 304,
+      "mainVisibleMs": 290.30000001192093,
+      "inputEditableMs": 290.30000001192093,
+      "submitEnabledMs": 290.30000001192093,
+      "interactions": [
+        {
+          "id": 1574,
+          "duration": 16,
+          "inputDelay": 9.600000023841858
+        },
+        {
+          "id": 1574,
+          "duration": 16,
+          "inputDelay": 13.899999976158142
+        },
+        {
+          "id": 1574,
+          "duration": 16,
+          "inputDelay": 14.899999976158142
+        },
+        {
+          "id": 1574,
+          "duration": 16,
+          "inputDelay": 9.600000023841858
+        },
+        {
+          "id": 1581,
+          "duration": 56,
+          "inputDelay": 0.5999999940395355
+        },
+        {
+          "id": 1581,
+          "duration": 56,
+          "inputDelay": 1.2999999821186066
+        },
+        {
+          "id": 1581,
+          "duration": 16,
+          "inputDelay": 11.799999982118607
+        }
+      ],
+      "labInteractionMs": 56,
+      "inputDelayMs": 14.899999976158142,
+      "jsTransferBytes": 0,
+      "jsDecodedBytes": 468711,
+      "cachedJs": 17,
+      "jsResources": 17,
+      "realtimeConnectedMs": null,
+      "errors": []
+    }
+  ]
+}
